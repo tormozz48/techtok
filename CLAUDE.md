@@ -1,0 +1,60 @@
+# TechTok
+
+TikTok-style swipe feed for tech & science news: Expo/React Native Android app + AWS backend (SST v3) that ingests RSS, condenses articles into cards with Claude, and tracks per-user read state and topic preferences.
+
+The two documents that govern this repo:
+
+- [docs/DESIGN.md](docs/DESIGN.md) — architecture, API, data model. §2 is the **decision log** (D1–D14), §12 the deferred defaults.
+- [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) — 7 phases, each gated by acceptance criteria.
+
+Never re-decide something already in the decision log. If a decision must change, update the log entry with the reason (`/log-decision`), then implement.
+
+## Status
+
+**Pre-implementation.** Phase 0 (walking skeleton) has not started — no application code exists yet. Commands and layout below are the Phase 0 contract, not the current state. **Update this section whenever a phase lands.**
+
+## Commands (canonical root scripts, wired up in Phase 0)
+
+```
+pnpm install
+pnpm lint        # Biome — this repo has NO ESLint/Prettier (D7)
+pnpm typecheck   # tsc --noEmit across workspaces
+pnpm test        # vitest (shared/core/functions) + jest-expo (mobile)
+pnpm dev         # sst dev — live Lambda on your personal stage
+pnpm --filter mobile start   # Expo dev server
+```
+
+Definition of done for any change: lint + typecheck + tests green, then exercised on the dev stage / a device. Verify by running the commands, not by reading the code.
+
+## Layout (planned)
+
+- `packages/shared` — zod v4 contracts + topic taxonomy; imported by server **and** app; no runtime deps beyond zod
+- `packages/core` — all business logic (RSS mapping, URL canonicalization, feed merge, DynamoDB repos, LLM client)
+- `packages/functions` — thin Lambda handlers only: parse input → call core → serialize
+- `apps/mobile` — Expo app (expo-router)
+- `infra/` — SST components imported by `sst.config.ts`
+
+## Hard rules
+
+- TypeScript strict, Node 22, pnpm workspaces — never npm/yarn commands.
+- Handlers stay thin: if logic can't be unit-tested without AWS, it belongs in `core`, not `functions`.
+- Every API request/response shape is a zod schema in `packages/shared`; server parses inputs, app parses responses.
+- Tests never call live AWS or Bedrock: `aws-sdk-client-mock` + recorded LLM golden fixtures. CI must run with no AWS credentials.
+- Pipeline failure split (DESIGN §7.2): content-level failures **degrade** (excerpt card, feed never starves); infra-level failures **throw** → SQS retry → DLQ → alarm. Never invert this.
+- LLM calls go only through the capped transform path (daily counter + reserved concurrency 2). No ad-hoc Bedrock calls anywhere else.
+- Feed access follows the key design in DESIGN §6 (primaryTopic GSI, read-markers via BatchGet). No table scans or filter-expression shortcuts on `Posts`.
+- Keep React Native code cross-platform (D12): no Android-only APIs without a `Platform` guard.
+- Conventional commits: `feat:` / `fix:` / `docs:` / `chore:` / `test:` / `refactor:`.
+
+## AWS
+
+- Region `eu-central-1`. Stages: personal dev stage (`sst dev`) and `production` (deployed by CI only — don't `sst deploy --stage production` from a laptop).
+- Never run `sst remove` (denied in settings.json); it destroys deployed stacks.
+- Budget ceiling is **$10/mo** (D11). Anything cost-bearing — schedule rates, LLM volume/caps, log retention, new always-on resources — gets checked against DESIGN §10 first.
+
+## Claude config in this repo
+
+- `.claude/settings.json` — permission allowlist for the common loop + a PostToolUse hook that auto-formats edited files with Biome (no-ops until Biome is installed in Phase 0).
+- `/check` — run all quality gates and fix until green
+- `/phase` — report progress against the implementation plan, propose next increment
+- `/log-decision` — append a decision to the DESIGN.md decision log

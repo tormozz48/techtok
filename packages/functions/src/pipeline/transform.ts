@@ -1,9 +1,14 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import {
+  type CountersRepo,
+  createBedrockClient,
+  createBedrockProvider,
+  createCountersRepo,
   createDynamoClient,
   createPostsRepo,
   createRawArticleStore,
   createS3Client,
+  generateCard as generateCardViaLlm,
   type PostsRepo,
   type RawArticleStore,
   transformArticle,
@@ -16,6 +21,7 @@ const logger = new Logger({ serviceName: 'transform' });
 const FETCH_TIMEOUT_MS = 10_000;
 const MAX_BYTES = 2 * 1024 * 1024;
 const USER_AGENT = 'TechTokBot/1.0 (+https://github.com/tormozz48/techtok)';
+const DEFAULT_DAILY_CAP = 120;
 
 let postsRepo: PostsRepo | undefined;
 function getPostsRepo(): PostsRepo {
@@ -30,6 +36,24 @@ function getRawArticleStore(): RawArticleStore {
     requireEnv('RAW_ARTICLES_BUCKET_NAME'),
   );
   return rawArticleStore;
+}
+
+let countersRepo: CountersRepo | undefined;
+function getCountersRepo(): CountersRepo {
+  countersRepo ??= createCountersRepo(createDynamoClient(), requireEnv('COUNTERS_TABLE_NAME'));
+  return countersRepo;
+}
+
+let bedrockProvider: ReturnType<typeof createBedrockProvider> | undefined;
+function getBedrockProvider(): ReturnType<typeof createBedrockProvider> {
+  bedrockProvider ??= createBedrockProvider(createBedrockClient(), requireEnv('BEDROCK_MODEL_ID'));
+  return bedrockProvider;
+}
+
+const dailyCap = Number(process.env.LLM_DAILY_CAP ?? DEFAULT_DAILY_CAP);
+
+function todayDate(): string {
+  return new Date().toISOString().slice(0, 10);
 }
 
 // Per-invocation only (not cross-invocation) — good enough at this batch
@@ -91,17 +115,25 @@ function parseMessageBody(body: string): MessageBody {
 export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
   const repo = getPostsRepo();
   const rawStore = getRawArticleStore();
+  const counters = getCountersRepo();
+  const provider = getBedrockProvider();
   const batchItemFailures: SQSBatchResponse['batchItemFailures'] = [];
 
   for (const record of event.Records) {
     try {
       const { postId, url } = parseMessageBody(record.body);
+      const [post] = await repo.getByIds([postId]);
+      if (!post) {
+        throw new Error(`post ${postId} not found for transform`);
+      }
       const outcome = await transformArticle(
-        { postId, url },
+        { postId, url, title: post.origTitle, sourceName: post.sourceName },
         {
           fetchRobotsTxt,
           fetchPage: (pageUrl) => fetchText(pageUrl),
           archiveRaw: (id, html) => rawStore.archiveRaw(id, html),
+          checkDailyCap: () => counters.incrementIfUnderCap(todayDate(), dailyCap),
+          generateCard: (cardInput) => generateCardViaLlm(cardInput, provider),
           updatePost: (id, fields) => repo.updateTransform(id, fields),
         },
       );

@@ -1,4 +1,13 @@
-import { postsTable, rawArticlesBucket, sourcesTable } from './storage';
+import { countersTable, postsTable, rawArticlesBucket, sourcesTable } from './storage';
+
+// Bedrock inference profile for the transform LLM step (DESIGN §7.4). The
+// exact profile ID must be confirmed in the Bedrock console once model
+// access is enabled for the account (IMPLEMENTATION_PLAN.md phase 3 task 1) —
+// override via the `BEDROCK_MODEL_ID` env var if it differs per stage.
+const BEDROCK_MODEL_ID =
+  process.env.BEDROCK_MODEL_ID ?? 'eu.anthropic.claude-haiku-4-5-20251001-v1:0';
+// Default daily transform cap (DESIGN §7.4/§10) — override via `LLM_DAILY_CAP`.
+const LLM_DAILY_CAP = process.env.LLM_DAILY_CAP ?? '120';
 
 // One-off seed for the Sources table (DESIGN §2 preset list). Not on any
 // schedule/route — invoke manually once per stage:
@@ -21,13 +30,29 @@ export const transformQueue = new sst.aws.Queue('TransformQueue', {
 transformQueue.subscribe(
   {
     handler: 'packages/functions/src/pipeline/transform.handler',
-    link: [postsTable, rawArticlesBucket],
+    link: [postsTable, rawArticlesBucket, countersTable],
     environment: {
       POSTS_TABLE_NAME: postsTable.name,
       RAW_ARTICLES_BUCKET_NAME: rawArticlesBucket.name,
+      COUNTERS_TABLE_NAME: countersTable.name,
+      BEDROCK_MODEL_ID,
+      LLM_DAILY_CAP,
     },
+    permissions: [
+      {
+        // Bedrock isn't an SST-linkable resource, so its invoke permission is
+        // granted directly. Scoped to InvokeModel only, not full bedrock:*.
+        actions: ['bedrock:InvokeModel'],
+        resources: [
+          'arn:aws:bedrock:*::foundation-model/*',
+          'arn:aws:bedrock:*:*:inference-profile/*',
+        ],
+      },
+    ],
     runtime: 'nodejs22.x',
-    timeout: '30 seconds',
+    // Bumped from 30s (phase 2) to allow for the Bedrock round trip,
+    // including one repair-retry, on top of the article fetch.
+    timeout: '60 seconds',
     // The LLM rate/cost valve (DESIGN §7.2) is normally `concurrency: {
     // reserved: 2 }` here, but this AWS account's Lambda concurrent-execution
     // quota is stuck at 10 (below AWS's default of 1000), and AWS requires
@@ -37,6 +62,21 @@ transformQueue.subscribe(
   },
   { batch: { size: 5, partialResponses: true } },
 );
+
+// One-shot backfill (IMPLEMENTATION_PLAN.md phase 3 task 7): re-enqueues
+// existing `transform=excerpt` posts through the LLM path. Not wired to any
+// schedule/route — invoke manually once per stage:
+//   aws lambda invoke --function-name <this fn's name> out.json
+export const backfillLlmFn = new sst.aws.Function('BackfillLlm', {
+  handler: 'packages/functions/src/ops/backfillLlm.handler',
+  link: [postsTable, transformQueue],
+  environment: {
+    POSTS_TABLE_NAME: postsTable.name,
+    TRANSFORM_QUEUE_URL: transformQueue.url,
+  },
+  runtime: 'nodejs22.x',
+  timeout: '60 seconds',
+});
 
 const loadSources = sst.aws.StepFunctions.lambdaInvoke({
   name: 'LoadSources',

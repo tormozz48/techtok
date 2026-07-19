@@ -40,6 +40,11 @@ export function Card({ card }: CardProps) {
           WebBrowser.openBrowserAsync(card.url);
         }}
       >
+        {__DEV__ && card.transform ? (
+          <View style={styles.debugBadge}>
+            <Text style={styles.debugBadgeText}>{card.transform}</Text>
+          </View>
+        ) : null}
         <View style={styles.topicChip}>
           <Text style={styles.topicChipText}>{card.primaryTopic}</Text>
         </View>
@@ -47,6 +52,11 @@ export function Card({ card }: CardProps) {
         <Text style={styles.summary} numberOfLines={4}>
           {card.summary}
         </Text>
+        {card.whyItMatters ? (
+          <Text style={styles.whyItMatters} numberOfLines={2}>
+            {card.whyItMatters}
+          </Text>
+        ) : null}
         <View style={styles.meta}>
           <Text style={styles.metaText}>{card.sourceName}</Text>
           <Text style={styles.metaText}> · {timeAgo(card.publishedAt)}</Text>
@@ -97,6 +107,13 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: Spacing.three,
   },
+  whyItMatters: {
+    color: '#C9A8FF',
+    fontSize: 14,
+    fontStyle: 'italic',
+    lineHeight: 19,
+    marginBottom: Spacing.three,
+  },
   meta: {
     flexDirection: 'row',
   },
@@ -104,5 +121,20 @@ const styles = StyleSheet.create({
     color: '#B0B4BA',
     fontSize: 13,
     fontWeight: '600',
+  },
+  debugBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,196,0,0.85)',
+    borderRadius: 4,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: 2,
+    marginBottom: Spacing.two,
+  },
+  debugBadgeText: {
+    color: '#000',
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 });

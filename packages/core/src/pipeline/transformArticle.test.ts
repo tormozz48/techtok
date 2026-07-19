@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { GenerateCardResult } from '../llm/generateCard';
 import type { TransformFields } from './transformArticle';
 import { transformArticle } from './transformArticle';
 
@@ -10,32 +11,91 @@ const ARTICLE_HTML = `<!doctype html><html><head><title>Test Article</title></he
 </article>
 </body></html>`;
 
+const SAMPLE_CARD: GenerateCardResult = {
+  ok: true,
+  card: {
+    cardTitle: 'A Punchy Hook Title',
+    summary: 'An LLM-written summary of the article.',
+    whyItMatters: 'Because it does.',
+    primaryTopic: 'dev',
+    topics: ['dev'],
+    lang: 'en',
+  },
+};
+
 function fakeDeps() {
   return {
     fetchRobotsTxt: vi.fn(async (): Promise<string | undefined> => undefined),
     fetchPage: vi.fn(async (): Promise<string> => ARTICLE_HTML),
     archiveRaw: vi.fn(async (_postId: string, _html: string) => {}),
+    checkDailyCap: vi.fn(async (): Promise<boolean> => true),
+    generateCard: vi.fn(async (): Promise<GenerateCardResult> => SAMPLE_CARD),
     updatePost: vi.fn(async (_postId: string, _fields: TransformFields) => {}),
   };
 }
 
-const input = { postId: 'post1', url: 'https://example.com/article' };
+const input = {
+  postId: 'post1',
+  url: 'https://example.com/article',
+  title: 'Test Article',
+  sourceName: 'Example News',
+};
 
 describe('transformArticle', () => {
-  it('fetches, archives, extracts, and updates the post with an improved excerpt', async () => {
+  it('fetches, archives, extracts, and produces an llm card when under the daily cap', async () => {
     const deps = fakeDeps();
 
     const outcome = await transformArticle(input, deps);
 
     expect(outcome).toEqual({ degraded: false });
     expect(deps.archiveRaw).toHaveBeenCalledWith('post1', ARTICLE_HTML);
+    expect(deps.checkDailyCap).toHaveBeenCalledTimes(1);
+    expect(deps.generateCard).toHaveBeenCalledWith({
+      title: 'Test Article',
+      sourceName: 'Example News',
+      text: expect.stringContaining('Test Article Headline'),
+    });
     expect(deps.updatePost).toHaveBeenCalledTimes(1);
     const fields = deps.updatePost.mock.calls[0]?.[1];
     expect(fields?.status).toBe('ready');
-    expect(fields?.transform).toBe('excerpt');
+    expect(fields?.transform).toBe('llm');
     expect(fields?.s3RawKey).toBe('raw/post1.html');
     expect(fields?.excerpt).toContain('Test Article Headline');
+    expect(fields?.summary).toBe('An LLM-written summary of the article.');
+    expect(fields?.cardTitle).toBe('A Punchy Hook Title');
+    expect(fields?.whyItMatters).toBe('Because it does.');
+    expect(fields?.primaryTopic).toBe('dev');
+    expect(fields?.topics).toEqual(['dev']);
+    expect(fields?.lang).toBe('en');
+  });
+
+  it('marks the post skipped and never calls the LLM once the daily cap is reached', async () => {
+    const deps = fakeDeps();
+    deps.checkDailyCap.mockResolvedValueOnce(false);
+
+    const outcome = await transformArticle(input, deps);
+
+    expect(outcome).toEqual({ degraded: false });
+    expect(deps.generateCard).not.toHaveBeenCalled();
+    const fields = deps.updatePost.mock.calls[0]?.[1];
+    expect(fields?.transform).toBe('skipped');
+    expect(fields?.excerpt).toContain('Test Article Headline');
     expect(fields?.summary).toBe(fields?.excerpt);
+    expect(fields?.cardTitle).toBeUndefined();
+  });
+
+  it('degrades to the excerpt card when the LLM call fails, without throwing', async () => {
+    const deps = fakeDeps();
+    deps.generateCard.mockResolvedValueOnce({ ok: false, reason: 'schema validation failed' });
+
+    const outcome = await transformArticle(input, deps);
+
+    expect(outcome.degraded).toBe(true);
+    expect(outcome.reason).toContain('llm failed: schema validation failed');
+    const fields = deps.updatePost.mock.calls[0]?.[1];
+    expect(fields?.transform).toBe('excerpt');
+    expect(fields?.summary).toBe(fields?.excerpt);
+    expect(fields?.cardTitle).toBeUndefined();
   });
 
   it('degrades without fetching the page when robots.txt disallows the url', async () => {
@@ -48,6 +108,8 @@ describe('transformArticle', () => {
     expect(outcome.reason).toContain('robots.txt');
     expect(deps.fetchPage).not.toHaveBeenCalled();
     expect(deps.archiveRaw).not.toHaveBeenCalled();
+    expect(deps.checkDailyCap).not.toHaveBeenCalled();
+    expect(deps.generateCard).not.toHaveBeenCalled();
     const fields = deps.updatePost.mock.calls[0]?.[1];
     expect(fields).toEqual({
       status: 'ready',
@@ -65,6 +127,7 @@ describe('transformArticle', () => {
     expect(outcome.degraded).toBe(true);
     expect(outcome.reason).toContain('timed out');
     expect(deps.archiveRaw).not.toHaveBeenCalled();
+    expect(deps.checkDailyCap).not.toHaveBeenCalled();
     const fields = deps.updatePost.mock.calls[0]?.[1];
     expect(fields?.excerpt).toBeUndefined();
   });
@@ -78,6 +141,7 @@ describe('transformArticle', () => {
     expect(outcome.degraded).toBe(true);
     expect(outcome.reason).toContain('extraction');
     expect(deps.archiveRaw).toHaveBeenCalledTimes(1);
+    expect(deps.checkDailyCap).not.toHaveBeenCalled();
     const fields = deps.updatePost.mock.calls[0]?.[1];
     expect(fields?.s3RawKey).toBe('raw/post1.html');
     expect(fields?.excerpt).toBeUndefined();

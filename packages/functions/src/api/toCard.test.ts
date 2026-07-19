@@ -34,7 +34,21 @@ describe('toCard', () => {
       primaryTopic: 'dev',
       topics: ['dev'],
       publishedAt: '2026-07-18T00:00:00.000Z',
+      transform: 'excerpt',
     });
+  });
+
+  it('carries whyItMatters and an llm transform through for llm-transformed posts', () => {
+    const llmPost: PostRecord = {
+      ...post,
+      transform: 'llm',
+      whyItMatters: 'Because it does.',
+    };
+
+    const card = toCard(llmPost);
+
+    expect(card.whyItMatters).toBe('Because it does.');
+    expect(card.transform).toBe('llm');
   });
 
   it('omits internal storage fields like ttl and ingestedAt', () => {

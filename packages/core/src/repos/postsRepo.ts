@@ -24,6 +24,11 @@ export interface TransformUpdateFields {
   summary?: string;
   excerpt?: string;
   s3RawKey?: string;
+  cardTitle?: string;
+  whyItMatters?: string;
+  primaryTopic?: Topic;
+  topics?: Topic[];
+  lang?: string;
 }
 
 export interface PostsRepo {
@@ -143,6 +148,30 @@ export function createPostsRepo(client: DynamoDBDocumentClient, tableName: strin
       if (fields.s3RawKey !== undefined) {
         setParts.push('s3RawKey = :s3RawKey');
         values[':s3RawKey'] = fields.s3RawKey;
+      }
+      if (fields.cardTitle !== undefined) {
+        setParts.push('cardTitle = :cardTitle');
+        values[':cardTitle'] = fields.cardTitle;
+      }
+      if (fields.whyItMatters !== undefined) {
+        setParts.push('whyItMatters = :whyItMatters');
+        values[':whyItMatters'] = fields.whyItMatters;
+      }
+      if (fields.primaryTopic !== undefined) {
+        setParts.push('primaryTopic = :primaryTopic');
+        values[':primaryTopic'] = fields.primaryTopic;
+      }
+      if (fields.topics !== undefined) {
+        // #topics: not a proven-safe unaliased name like `primaryTopic` (used
+        // unaliased elsewhere in this file) — aliased out of caution given
+        // the status/transform reserved-word incident already hit once here.
+        setParts.push('#topics = :topics');
+        names['#topics'] = 'topics';
+        values[':topics'] = fields.topics;
+      }
+      if (fields.lang !== undefined) {
+        setParts.push('lang = :lang');
+        values[':lang'] = fields.lang;
       }
 
       await client.send(

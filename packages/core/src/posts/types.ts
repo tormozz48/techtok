@@ -12,6 +12,7 @@ export interface NewPost {
   origTitle: string;
   cardTitle: string;
   summary: string;
+  whyItMatters?: string;
   excerpt: string;
   imageUrl?: string;
   primaryTopic: Topic;
@@ -20,6 +21,7 @@ export interface NewPost {
   transform: TransformKind;
   publishedAt: string;
   s3RawKey?: string;
+  lang?: string;
 }
 
 export interface PostRecord extends NewPost {

@@ -1,20 +1,30 @@
 import { extractFromHtml } from '@extractus/article-extractor';
+import type { Topic } from '@techtok/shared';
 import robotsParser from 'robots-parser';
 import { toExcerpt } from '../ingest/htmlText';
+import type { GenerateCardResult } from '../llm/generateCard';
+import type { TransformKind } from '../posts/types';
 
 const USER_AGENT = 'TechTokBot/1.0 (+https://github.com/tormozz48/techtok)';
 
 export interface TransformInput {
   postId: string;
   url: string;
+  title: string;
+  sourceName: string;
 }
 
 export interface TransformFields {
   status: 'ready';
-  transform: 'excerpt';
+  transform: TransformKind;
   summary?: string;
   excerpt?: string;
   s3RawKey?: string;
+  cardTitle?: string;
+  whyItMatters?: string;
+  primaryTopic?: Topic;
+  topics?: Topic[];
+  lang?: string;
 }
 
 export interface TransformDeps {
@@ -27,6 +37,20 @@ export interface TransformDeps {
   /** Archives the raw HTML to S3. An infra call — left unguarded so a
    * failure here propagates (SQS retry -> DLQ), not swallowed as a degrade. */
   archiveRaw: (postId: string, html: string) => Promise<void>;
+  /** Atomically increments today's transform counter (DESIGN §6/§7.4) and
+   * reports whether the article is still under the daily LLM cap. Over cap
+   * is not a failure — it's the cost valve doing its job — so the post ships
+   * as `transform: 'skipped'`, never blocking the feed. */
+  checkDailyCap: () => Promise<boolean>;
+  /** Derives card copy + topic classification from the extracted article
+   * text (DESIGN §7.4). Never expected to throw — an LLM refusal, invalid
+   * output, or a Bedrock hiccup is a content-level failure reported via
+   * `{ ok: false }` so this function can degrade to the excerpt card. */
+  generateCard: (input: {
+    title: string;
+    sourceName: string;
+    text: string;
+  }) => Promise<GenerateCardResult>;
   /** Persists the transform result to DynamoDB. Also an infra call,
    * deliberately unguarded for the same reason as `archiveRaw`. */
   updatePost: (postId: string, fields: TransformFields) => Promise<void>;
@@ -38,14 +62,14 @@ export interface TransformOutcome {
 }
 
 /**
- * Fetches an article page, archives it, and derives an improved excerpt —
- * the phase-2 shape of the transform stage (DESIGN §7.2), before the LLM
- * exists. Any content-level failure (robots disallow, fetch timeout/size
- * cap/non-2xx, extraction yielding nothing) degrades to keeping the
- * RSS-derived fields already on the post from discovery — the post still
- * flips to `ready` and the feed never starves. Infra failures (`archiveRaw`,
- * `updatePost`) are not caught here; they throw so SQS's own retry/DLQ
- * semantics take over.
+ * Fetches an article page, archives it, and derives a card — an LLM card
+ * (DESIGN §7.4) when the article extracted cleanly and the daily transform
+ * cap isn't exhausted, an improved excerpt otherwise. Any content-level
+ * failure (robots disallow, fetch timeout/size cap/non-2xx, extraction
+ * yielding nothing, LLM refusal/invalid output) degrades to keeping the
+ * best fields available — the post still flips to `ready` and the feed
+ * never starves. Infra failures (`archiveRaw`, `updatePost`) are not caught
+ * here; they throw so SQS's own retry/DLQ semantics take over.
  */
 export async function transformArticle(
   input: TransformInput,
@@ -66,10 +90,12 @@ export async function transformArticle(
   }
 
   let excerpt: string | undefined;
+  let fullText: string | undefined;
   if (html && !reason) {
     try {
       const article = await extractFromHtml(html, input.url);
       excerpt = article?.content ? toExcerpt(article.content) : undefined;
+      fullText = article?.content ? toExcerpt(article.content, 4000) : undefined;
       if (!excerpt) reason = 'extraction produced no usable text';
     } catch (err) {
       reason = `extraction failed: ${toMessage(err)}`;
@@ -82,11 +108,49 @@ export async function transformArticle(
     await deps.archiveRaw(input.postId, html);
   }
 
+  let transform: TransformKind = 'excerpt';
+  let summary = excerpt;
+  let cardTitle: string | undefined;
+  let whyItMatters: string | undefined;
+  let primaryTopic: Topic | undefined;
+  let topics: Topic[] | undefined;
+  let lang: string | undefined;
+
+  if (fullText && !reason) {
+    const underCap = await deps.checkDailyCap();
+    if (!underCap) {
+      transform = 'skipped';
+    } else {
+      const result = await deps.generateCard({
+        title: input.title,
+        sourceName: input.sourceName,
+        text: fullText,
+      });
+      if (result.ok) {
+        transform = 'llm';
+        summary = result.card.summary;
+        cardTitle = result.card.cardTitle;
+        whyItMatters = result.card.whyItMatters;
+        primaryTopic = result.card.primaryTopic;
+        topics = result.card.topics;
+        lang = result.card.lang;
+      } else {
+        reason = `llm failed: ${result.reason}`;
+      }
+    }
+  }
+
   await deps.updatePost(input.postId, {
     status: 'ready',
-    transform: 'excerpt',
+    transform,
     s3RawKey,
-    ...(excerpt ? { summary: excerpt, excerpt } : {}),
+    ...(summary ? { summary } : {}),
+    ...(excerpt ? { excerpt } : {}),
+    ...(cardTitle ? { cardTitle } : {}),
+    ...(whyItMatters ? { whyItMatters } : {}),
+    ...(primaryTopic ? { primaryTopic } : {}),
+    ...(topics ? { topics } : {}),
+    ...(lang ? { lang } : {}),
   });
 
   return reason ? { degraded: true, reason } : { degraded: false };

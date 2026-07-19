@@ -9,6 +9,9 @@ export const mediaItemSchema = z.object({
 });
 export type MediaItem = z.infer<typeof mediaItemSchema>;
 
+export const transformKindSchema = z.enum(['llm', 'excerpt', 'skipped']);
+export type TransformKind = z.infer<typeof transformKindSchema>;
+
 export const cardSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -21,6 +24,7 @@ export const cardSchema = z.object({
   topics: z.array(topicSchema),
   publishedAt: z.iso.datetime(),
   media: z.array(mediaItemSchema).optional(),
+  transform: transformKindSchema.optional(),
 });
 export type Card = z.infer<typeof cardSchema>;
 

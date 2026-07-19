@@ -196,4 +196,38 @@ describe('postsRepo.updateTransform', () => {
     const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
     expect(input?.UpdateExpression).toBe('SET #status = :status, #transform = :transform');
   });
+
+  it('writes the LLM-derived card fields and aliases the topics reserved-ish name', async () => {
+    ddbMock.on(UpdateCommand).resolves({});
+    const repo = createPostsRepo(client, 'Posts');
+
+    await repo.updateTransform('abc123', {
+      status: 'ready',
+      transform: 'llm',
+      cardTitle: 'A Punchy Hook Title',
+      whyItMatters: 'Because it does.',
+      primaryTopic: 'ai',
+      topics: ['ai', 'dev'],
+      lang: 'en',
+    });
+
+    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
+    expect(input?.ExpressionAttributeNames).toEqual({
+      '#status': 'status',
+      '#transform': 'transform',
+      '#topics': 'topics',
+    });
+    expect(input?.UpdateExpression).toContain('cardTitle = :cardTitle');
+    expect(input?.UpdateExpression).toContain('whyItMatters = :whyItMatters');
+    expect(input?.UpdateExpression).toContain('primaryTopic = :primaryTopic');
+    expect(input?.UpdateExpression).toContain('#topics = :topics');
+    expect(input?.UpdateExpression).toContain('lang = :lang');
+    expect(input?.ExpressionAttributeValues).toMatchObject({
+      ':cardTitle': 'A Punchy Hook Title',
+      ':whyItMatters': 'Because it does.',
+      ':primaryTopic': 'ai',
+      ':topics': ['ai', 'dev'],
+      ':lang': 'en',
+    });
+  });
 });

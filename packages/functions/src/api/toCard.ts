@@ -6,11 +6,13 @@ export function toCard(post: PostRecord): Card {
     id: post.postId,
     title: post.cardTitle,
     summary: post.summary,
+    whyItMatters: post.whyItMatters,
     imageUrl: post.imageUrl,
     sourceName: post.sourceName,
     url: post.url,
     primaryTopic: post.primaryTopic,
     topics: post.topics,
     publishedAt: post.publishedAt,
+    transform: post.transform,
   };
 }

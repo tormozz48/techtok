@@ -42,3 +42,13 @@ export const userActivityTable = new sst.aws.Dynamo('UserActivity', {
 export const rawArticlesBucket = new sst.aws.Bucket('RawArticles', {
   lifecycle: [{ id: 'expire-raw', expiresIn: '90 days' }],
 });
+
+// Enforces the daily LLM transform cap (DESIGN §6, §7.4): one item per day,
+// keyed `transforms#<yyyy-mm-dd>`, atomically incremented by the transform
+// Lambda before every Bedrock call.
+export const countersTable = new sst.aws.Dynamo('Counters', {
+  fields: {
+    counterId: 'string',
+  },
+  primaryIndex: { hashKey: 'counterId' },
+});

@@ -26,6 +26,7 @@ export const cardSchema = z.object({
   publishedAt: z.iso.datetime(),
   media: z.array(mediaItemSchema).optional(),
   transform: transformKindSchema.optional(),
+  isBookmarked: z.boolean().optional(),
 });
 export type Card = z.infer<typeof cardSchema>;
 
@@ -98,3 +99,29 @@ export const historyQuerySchema = z.object({
   cursor: z.string().optional(),
 });
 export type HistoryQuery = z.infer<typeof historyQuerySchema>;
+
+export const bookmarkCreateRequestSchema = z.object({
+  postId: z.string(),
+});
+export type BookmarkCreateRequest = z.infer<typeof bookmarkCreateRequestSchema>;
+
+export const bookmarkItemSchema = z.object({
+  postId: z.string(),
+  bookmarkedAt: z.iso.datetime(),
+  cardTitle: z.string(),
+  sourceName: z.string(),
+  url: z.url(),
+});
+export type BookmarkItem = z.infer<typeof bookmarkItemSchema>;
+
+export const bookmarksResponseSchema = z.object({
+  items: z.array(bookmarkItemSchema),
+  nextCursor: z.string().nullable(),
+});
+export type BookmarksResponse = z.infer<typeof bookmarksResponseSchema>;
+
+export const bookmarksQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.string().optional(),
+});
+export type BookmarksQuery = z.infer<typeof bookmarksQuerySchema>;

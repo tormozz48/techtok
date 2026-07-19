@@ -1,5 +1,6 @@
 import {
   BatchGetCommand,
+  DeleteCommand,
   DynamoDBDocumentClient,
   PutCommand,
   QueryCommand,
@@ -99,5 +100,78 @@ describe('history cursor encode/decode', () => {
   it('round-trips a key through base64url', () => {
     const key = { userId: 'device-1', sk: 'read#abc123', gsi1sk: '2026-07-18#abc123' };
     expect(decodeHistoryCursor(encodeHistoryCursor(key))).toEqual(key);
+  });
+});
+
+describe('userActivityRepo.addBookmark', () => {
+  it('writes a bookmark item keyed by userId and bm#<postId>', async () => {
+    ddbMock.on(PutCommand).resolves({});
+    const repo = createUserActivityRepo(client, 'UserActivity');
+
+    await repo.addBookmark('device-1', 'abc123', snapshot, '2026-07-18T00:00:00.000Z');
+
+    const input = ddbMock.commandCalls(PutCommand)[0]?.args[0]?.input;
+    expect(input?.Item).toMatchObject({
+      userId: 'device-1',
+      sk: 'bm#abc123',
+      postId: 'abc123',
+      bookmarkedAt: '2026-07-18T00:00:00.000Z',
+      snapshot,
+      gsi2sk: '2026-07-18T00:00:00.000Z#abc123',
+    });
+  });
+});
+
+describe('userActivityRepo.removeBookmark', () => {
+  it('deletes the bm#<postId> item for that user', async () => {
+    ddbMock.on(DeleteCommand).resolves({});
+    const repo = createUserActivityRepo(client, 'UserActivity');
+
+    await repo.removeBookmark('device-1', 'abc123');
+
+    const input = ddbMock.commandCalls(DeleteCommand)[0]?.args[0]?.input;
+    expect(input?.Key).toEqual({ userId: 'device-1', sk: 'bm#abc123' });
+  });
+});
+
+describe('userActivityRepo.getBookmarkSet', () => {
+  it('returns an empty set without calling DynamoDB when given no ids', async () => {
+    const repo = createUserActivityRepo(client, 'UserActivity');
+
+    expect(await repo.getBookmarkSet('device-1', [])).toEqual(new Set());
+    expect(ddbMock.commandCalls(BatchGetCommand)).toHaveLength(0);
+  });
+
+  it('batch-gets bookmark markers and returns the set of bookmarked postIds', async () => {
+    ddbMock.on(BatchGetCommand).resolves({
+      Responses: {
+        UserActivity: [{ userId: 'device-1', sk: 'bm#abc123', postId: 'abc123', ...snapshot }],
+      },
+    });
+    const repo = createUserActivityRepo(client, 'UserActivity');
+
+    const bookmarked = await repo.getBookmarkSet('device-1', ['abc123', 'def456']);
+
+    expect(bookmarked).toEqual(new Set(['abc123']));
+    const input = ddbMock.commandCalls(BatchGetCommand)[0]?.args[0]?.input;
+    expect(input?.RequestItems?.UserActivity?.Keys).toEqual([
+      { userId: 'device-1', sk: 'bm#abc123' },
+      { userId: 'device-1', sk: 'bm#def456' },
+    ]);
+  });
+});
+
+describe('userActivityRepo.queryBookmarks', () => {
+  it('queries the byBookmarkedAt GSI newest-first and returns a null cursor when exhausted', async () => {
+    ddbMock.on(QueryCommand).resolves({ Items: [] });
+    const repo = createUserActivityRepo(client, 'UserActivity');
+
+    const page = await repo.queryBookmarks('device-1', { limit: 10 });
+
+    expect(page).toEqual({ items: [], nextCursor: null });
+    const input = ddbMock.commandCalls(QueryCommand)[0]?.args[0]?.input;
+    expect(input?.IndexName).toBe('byBookmarkedAt');
+    expect(input?.ScanIndexForward).toBe(false);
+    expect(input?.Limit).toBe(10);
   });
 });

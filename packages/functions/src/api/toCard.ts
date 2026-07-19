@@ -1,7 +1,7 @@
 import type { PostRecord } from '@techtok/core';
 import type { Card } from '@techtok/shared';
 
-export function toCard(post: PostRecord): Card {
+export function toCard(post: PostRecord, isBookmarked = false): Card {
   return {
     id: post.postId,
     title: post.cardTitle,
@@ -14,5 +14,6 @@ export function toCard(post: PostRecord): Card {
     topics: post.topics,
     publishedAt: post.publishedAt,
     transform: post.transform,
+    isBookmarked,
   };
 }

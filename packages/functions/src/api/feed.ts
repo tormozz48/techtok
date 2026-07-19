@@ -69,8 +69,13 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     { userTopics: user.topics, before, limit },
   );
 
+  const bookmarkedIds = await activity.getBookmarkSet(
+    deviceId,
+    page.items.map((post) => post.postId),
+  );
+
   const body = feedResponseSchema.parse({
-    items: page.items.map(toCard),
+    items: page.items.map((post) => toCard(post, bookmarkedIds.has(post.postId))),
     nextBefore: page.nextBefore,
   });
 

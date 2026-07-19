@@ -35,6 +35,7 @@ describe('toCard', () => {
       topics: ['dev'],
       publishedAt: '2026-07-18T00:00:00.000Z',
       transform: 'excerpt',
+      isBookmarked: false,
     });
   });
 
@@ -61,5 +62,10 @@ describe('toCard', () => {
   it('carries an undefined imageUrl through for imageless posts', () => {
     const { imageUrl: _imageUrl, ...withoutImage } = post;
     expect(toCard(withoutImage).imageUrl).toBeUndefined();
+  });
+
+  it('defaults isBookmarked to false and honors an explicit true', () => {
+    expect(toCard(post).isBookmarked).toBe(false);
+    expect(toCard(post, true).isBookmarked).toBe(true);
   });
 });

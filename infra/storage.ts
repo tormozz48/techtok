@@ -32,10 +32,15 @@ export const userActivityTable = new sst.aws.Dynamo('UserActivity', {
     userId: 'string',
     sk: 'string',
     gsi1sk: 'string',
+    gsi2sk: 'string',
   },
   primaryIndex: { hashKey: 'userId', rangeKey: 'sk' },
   globalIndexes: {
     byReadAt: { hashKey: 'userId', rangeKey: 'gsi1sk' },
+    // Bookmarks (`bm#<postId>` sort-key space, DESIGN §6) get their own GSI
+    // rather than sharing byReadAt, so bookmark pagination stays Limit-accurate
+    // instead of needing a post-fetch filter over mixed read#/bm# items.
+    byBookmarkedAt: { hashKey: 'userId', rangeKey: 'gsi2sk' },
   },
 });
 

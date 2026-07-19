@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  bookmarkCreateRequestSchema,
+  bookmarkItemSchema,
+  bookmarksResponseSchema,
   cardSchema,
   feedQuerySchema,
   historyQuerySchema,
@@ -80,6 +83,37 @@ describe('readsRequestSchema', () => {
   it('rejects more than 100 postIds', () => {
     const postIds = Array.from({ length: 101 }, (_, i) => `post${i}`);
     expect(() => readsRequestSchema.parse({ postIds })).toThrow();
+  });
+});
+
+describe('bookmarkCreateRequestSchema', () => {
+  it('accepts a postId', () => {
+    expect(bookmarkCreateRequestSchema.parse({ postId: 'abc123' })).toEqual({ postId: 'abc123' });
+  });
+
+  it('rejects a missing postId', () => {
+    expect(() => bookmarkCreateRequestSchema.parse({})).toThrow();
+  });
+});
+
+describe('bookmarkItemSchema / bookmarksResponseSchema', () => {
+  const item = {
+    postId: 'abc123',
+    bookmarkedAt: '2026-07-18T00:00:00.000Z',
+    cardTitle: 'A great story',
+    sourceName: 'Hacker News',
+    url: 'https://example.com/a',
+  };
+
+  it('parses a single bookmark item', () => {
+    expect(bookmarkItemSchema.parse(item)).toEqual(item);
+  });
+
+  it('parses a paginated bookmarks response', () => {
+    expect(bookmarksResponseSchema.parse({ items: [item], nextCursor: null })).toEqual({
+      items: [item],
+      nextCursor: null,
+    });
   });
 });
 

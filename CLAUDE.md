@@ -11,7 +11,7 @@ Never re-decide something already in the decision log. If a decision must change
 
 ## Status
 
-**Phase 0 (walking skeleton) implemented, not yet deployed.** `packages/shared`, `packages/core`, `packages/functions`, `apps/mobile`, and the SST `infra/` are all written; lint + typecheck + test are green (57 tests) and `expo export` bundles the Android app cleanly (workspace-package resolution confirmed end-to-end). Not yet verified: `sst deploy --stage dev` (needs real AWS credentials — this session's were invalid) and the physical-device swipe test — both need you. Run `pnpm dev`, wait for the cron to populate posts, set `apps/mobile/.env`'s `EXPO_PUBLIC_API_URL` from the deploy output, then `pnpm --filter mobile start` on a device. **Update this section whenever a phase lands.**
+**Phase 0 (walking skeleton) complete and fully verified.** `packages/shared`, `packages/core`, `packages/functions`, `apps/mobile`, and the SST `infra/` are all written; lint + typecheck + test are green (57 tests). Deployed to the `andrey` dev stage on real AWS: DynamoDB table, EventBridge cron, and both API routes are live, the ingest cron has run on its own schedule and populated real posts from all 3 sources, and the Android app has been confirmed on a physical device via Expo Go — cards render with images and swipe correctly. All Phase 0 acceptance criteria are met. Next: Phase 1 (users & read state). **Update this section whenever a phase lands.**
 
 ## Commands (canonical root scripts)
 

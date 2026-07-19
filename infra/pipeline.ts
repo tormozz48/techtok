@@ -28,9 +28,12 @@ transformQueue.subscribe(
     },
     runtime: 'nodejs22.x',
     timeout: '30 seconds',
-    // The LLM rate/cost valve (DESIGN §7.2) — set now even though the
-    // expensive stage (Bedrock) doesn't exist until phase 3.
-    concurrency: { reserved: 2 },
+    // The LLM rate/cost valve (DESIGN §7.2) is normally `concurrency: {
+    // reserved: 2 }` here, but this AWS account's Lambda concurrent-execution
+    // quota is stuck at 10 (below AWS's default of 1000), and AWS requires
+    // >=10 unreserved executions account-wide — so any reserved concurrency
+    // on any function fails deployment. Deferred per DESIGN §2 D16; re-add
+    // once the account quota is raised.
   },
   { batch: { size: 5, partialResponses: true } },
 );

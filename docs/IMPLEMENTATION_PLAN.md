@@ -80,7 +80,7 @@ Companion to [DESIGN.md](DESIGN.md). Seven phases; every phase ends with somethi
 1. `Sources` table + seed script for the ~11 feeds from all three presets (verify each feed URL live).
 2. Step Function `IngestPipeline`: LoadSources → Map(FetchSource, concurrency 4, per-item Catch → `failCount`/`lastStatus`) → Summarize (EMF metrics). EventBridge `rate(30 min)`. Conditional GET via stored `etag`/`lastModified`.
 3. SQS `TransformQueue` + DLQ (maxReceive 3); FetchSource enqueues only newly-created postIds.
-4. Transform Lambda v1 (no LLM yet): fetch page (timeout/size caps, `TechTokBot` UA, robots.txt) → extract text → S3 `raw/<postId>.html` → improve excerpt card. Reserved concurrency 2 already set (the valve exists before the expensive thing does).
+4. Transform Lambda v1 (no LLM yet): fetch page (timeout/size caps, `TechTokBot` UA, robots.txt) → extract text → S3 `raw/<postId>.html` → improve excerpt card. Reserved concurrency 2 is the intended valve (the valve exists before the expensive thing does), but currently unset — this AWS account's Lambda concurrent-execution quota is stuck at 10 (see DESIGN §2 D16); re-add once the account quota is raised.
 5. S3 bucket + 90-day lifecycle; DDB TTL verified end-to-end.
 6. Alarms: DLQ depth > 0, SFN execution failed, API 5xx; AWS Budget $10 with email.
 7. CI deploy job: `sst deploy --stage production` on main via GitHub OIDC role; app `preview` profile points at production API.

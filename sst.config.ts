@@ -15,7 +15,7 @@ export default $config({
     };
   },
   async run() {
-    const { postsTable, sourcesTable, userActivityTable, usersTable } = await import(
+    const { imagesRouter, postsTable, sourcesTable, userActivityTable, usersTable } = await import(
       './infra/storage'
     );
     const { ingestPipeline } = await import('./infra/pipeline');
@@ -29,6 +29,7 @@ export default $config({
       usersTable: usersTable.name,
       userActivityTable: userActivityTable.name,
       ingestPipeline: ingestPipeline.arn,
+      imagesCdn: imagesRouter.url,
     };
   },
 });

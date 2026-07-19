@@ -7,7 +7,7 @@ export function toCard(post: PostRecord, isBookmarked = false): Card {
     title: post.cardTitle,
     summary: post.summary,
     whyItMatters: post.whyItMatters,
-    imageUrl: post.imageUrl,
+    imageUrl: post.mirroredImageUrl ?? post.imageUrl,
     sourceName: post.sourceName,
     url: post.url,
     primaryTopic: post.primaryTopic,

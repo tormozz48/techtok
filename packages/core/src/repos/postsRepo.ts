@@ -29,6 +29,7 @@ export interface TransformUpdateFields {
   primaryTopic?: Topic;
   topics?: Topic[];
   lang?: string;
+  mirroredImageUrl?: string;
 }
 
 export interface PostsRepo {
@@ -172,6 +173,10 @@ export function createPostsRepo(client: DynamoDBDocumentClient, tableName: strin
       if (fields.lang !== undefined) {
         setParts.push('lang = :lang');
         values[':lang'] = fields.lang;
+      }
+      if (fields.mirroredImageUrl !== undefined) {
+        setParts.push('mirroredImageUrl = :mirroredImageUrl');
+        values[':mirroredImageUrl'] = fields.mirroredImageUrl;
       }
 
       await client.send(

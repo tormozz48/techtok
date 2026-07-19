@@ -230,4 +230,21 @@ describe('postsRepo.updateTransform', () => {
       ':lang': 'en',
     });
   });
+
+  it('writes mirroredImageUrl when provided', async () => {
+    ddbMock.on(UpdateCommand).resolves({});
+    const repo = createPostsRepo(client, 'Posts');
+
+    await repo.updateTransform('abc123', {
+      status: 'ready',
+      transform: 'llm',
+      mirroredImageUrl: 'https://cdn.example.com/images/abc123.jpg',
+    });
+
+    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
+    expect(input?.UpdateExpression).toContain('mirroredImageUrl = :mirroredImageUrl');
+    expect(input?.ExpressionAttributeValues).toMatchObject({
+      ':mirroredImageUrl': 'https://cdn.example.com/images/abc123.jpg',
+    });
+  });
 });

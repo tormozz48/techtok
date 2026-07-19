@@ -5,10 +5,12 @@ import {
   createBedrockProvider,
   createCountersRepo,
   createDynamoClient,
+  createImageStore,
   createPostsRepo,
   createRawArticleStore,
   createS3Client,
   generateCard as generateCardViaLlm,
+  type ImageStore,
   type PostsRepo,
   type RawArticleStore,
   transformArticle,
@@ -20,6 +22,7 @@ const logger = new Logger({ serviceName: 'transform' });
 
 const FETCH_TIMEOUT_MS = 10_000;
 const MAX_BYTES = 2 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const USER_AGENT = 'TechTokBot/1.0 (+https://github.com/tormozz48/techtok)';
 const DEFAULT_DAILY_CAP = 120;
 
@@ -36,6 +39,12 @@ function getRawArticleStore(): RawArticleStore {
     requireEnv('RAW_ARTICLES_BUCKET_NAME'),
   );
   return rawArticleStore;
+}
+
+let imageStore: ImageStore | undefined;
+function getImageStore(): ImageStore {
+  imageStore ??= createImageStore(createS3Client(), requireEnv('IMAGES_BUCKET_NAME'));
+  return imageStore;
 }
 
 let countersRepo: CountersRepo | undefined;
@@ -60,7 +69,12 @@ function todayDate(): string {
 // size (<=5 messages), avoids a repeat robots.txt fetch per host in a batch.
 const robotsCache = new Map<string, string | undefined>();
 
-async function fetchText(url: string, maxBytes = MAX_BYTES): Promise<string> {
+interface FetchedBytes {
+  body: Buffer;
+  contentType: string | undefined;
+}
+
+async function fetchBytes(url: string, maxBytes: number): Promise<FetchedBytes> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
@@ -71,7 +85,8 @@ async function fetchText(url: string, maxBytes = MAX_BYTES): Promise<string> {
     if (!response.ok) {
       throw new Error(`fetch ${url} failed with status ${response.status}`);
     }
-    if (!response.body) return await response.text();
+    const contentType = response.headers.get('content-type') ?? undefined;
+    if (!response.body) return { body: Buffer.from(await response.arrayBuffer()), contentType };
 
     const reader = response.body.getReader();
     const chunks: Uint8Array[] = [];
@@ -86,10 +101,15 @@ async function fetchText(url: string, maxBytes = MAX_BYTES): Promise<string> {
       }
       chunks.push(value);
     }
-    return Buffer.concat(chunks).toString('utf8');
+    return { body: Buffer.concat(chunks), contentType };
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function fetchText(url: string, maxBytes = MAX_BYTES): Promise<string> {
+  const { body } = await fetchBytes(url, maxBytes);
+  return body.toString('utf8');
 }
 
 async function fetchRobotsTxt(robotsUrl: string): Promise<string | undefined> {
@@ -97,6 +117,23 @@ async function fetchRobotsTxt(robotsUrl: string): Promise<string | undefined> {
   const text = await fetchText(robotsUrl).catch(() => undefined);
   robotsCache.set(robotsUrl, text);
   return text;
+}
+
+/** Content-level: any fetch/upload failure degrades to the original hotlinked
+ * imageUrl at the Card DTO layer (toCard.ts) — never blocks or retries the post. */
+async function mirrorImage(postId: string, imageUrl: string): Promise<string | undefined> {
+  try {
+    const { body, contentType } = await fetchBytes(imageUrl, MAX_IMAGE_BYTES);
+    const key = await getImageStore().putImage(postId, body, contentType ?? 'image/jpeg');
+    return `${requireEnv('IMAGES_CDN_BASE_URL')}/${key}`;
+  } catch (err) {
+    logger.warn('image mirror failed, keeping original hotlinked url', {
+      postId,
+      imageUrl,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return undefined;
+  }
 }
 
 interface MessageBody {
@@ -127,7 +164,13 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
         throw new Error(`post ${postId} not found for transform`);
       }
       const outcome = await transformArticle(
-        { postId, url, title: post.origTitle, sourceName: post.sourceName },
+        {
+          postId,
+          url,
+          title: post.origTitle,
+          sourceName: post.sourceName,
+          imageUrl: post.imageUrl,
+        },
         {
           fetchRobotsTxt,
           fetchPage: (pageUrl) => fetchText(pageUrl),
@@ -135,6 +178,7 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
           checkDailyCap: () => counters.incrementIfUnderCap(todayDate(), dailyCap),
           generateCard: (cardInput) => generateCardViaLlm(cardInput, provider),
           updatePost: (id, fields) => repo.updateTransform(id, fields),
+          mirrorImage,
         },
       );
       logger.info(outcome.degraded ? 'transform degraded to excerpt' : 'transform completed', {

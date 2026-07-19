@@ -12,6 +12,9 @@ export interface TransformInput {
   url: string;
   title: string;
   sourceName: string;
+  /** The original (hotlinked) article image, if the ingest-time fallback
+   * chain found one. Mirrored to our own CDN when present (see `mirrorImage`). */
+  imageUrl?: string;
 }
 
 export interface TransformFields {
@@ -25,6 +28,7 @@ export interface TransformFields {
   primaryTopic?: Topic;
   topics?: Topic[];
   lang?: string;
+  mirroredImageUrl?: string;
 }
 
 export interface TransformDeps {
@@ -54,6 +58,11 @@ export interface TransformDeps {
   /** Persists the transform result to DynamoDB. Also an infra call,
    * deliberately unguarded for the same reason as `archiveRaw`. */
   updatePost: (postId: string, fields: TransformFields) => Promise<void>;
+  /** Mirrors the article's hotlinked image to our own CDN. A content-level
+   * concern, not infra: this contract never throws — any fetch/upload
+   * failure is caught by the implementation and reported as `undefined`,
+   * so the post always falls back to the original hotlinked `imageUrl`. */
+  mirrorImage: (postId: string, imageUrl: string) => Promise<string | undefined>;
 }
 
 export interface TransformOutcome {
@@ -140,6 +149,10 @@ export async function transformArticle(
     }
   }
 
+  const mirroredImageUrl = input.imageUrl
+    ? await deps.mirrorImage(input.postId, input.imageUrl)
+    : undefined;
+
   await deps.updatePost(input.postId, {
     status: 'ready',
     transform,
@@ -151,6 +164,7 @@ export async function transformArticle(
     ...(primaryTopic ? { primaryTopic } : {}),
     ...(topics ? { topics } : {}),
     ...(lang ? { lang } : {}),
+    ...(mirroredImageUrl ? { mirroredImageUrl } : {}),
   });
 
   return reason ? { degraded: true, reason } : { degraded: false };

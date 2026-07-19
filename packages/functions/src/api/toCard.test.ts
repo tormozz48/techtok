@@ -68,4 +68,16 @@ describe('toCard', () => {
     expect(toCard(post).isBookmarked).toBe(false);
     expect(toCard(post, true).isBookmarked).toBe(true);
   });
+
+  it('prefers the mirrored CDN image url over the original hotlinked one', () => {
+    const mirrored: PostRecord = {
+      ...post,
+      mirroredImageUrl: 'https://cdn.example.com/images/abc123.jpg',
+    };
+    expect(toCard(mirrored).imageUrl).toBe('https://cdn.example.com/images/abc123.jpg');
+  });
+
+  it('falls back to the original imageUrl when no mirror exists', () => {
+    expect(toCard(post).imageUrl).toBe('https://example.com/a.jpg');
+  });
 });

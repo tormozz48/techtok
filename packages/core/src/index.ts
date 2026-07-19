@@ -12,6 +12,7 @@ export * from './pipeline/transformArticle';
 export * from './posts/types';
 export * from './repos/countersRepo';
 export * from './repos/dynamoClient';
+export * from './repos/imageStore';
 export * from './repos/postsRepo';
 export * from './repos/rawArticleStore';
 export * from './repos/s3Client';

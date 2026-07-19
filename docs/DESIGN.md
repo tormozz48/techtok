@@ -279,11 +279,13 @@ Step Functions buys per-source retry/isolation, visible execution history, and M
 | DynamoDB on-demand | ~1k writes + few k reads/day | <$1 |
 | Step Functions (standard) | 48 runs/day × ~15 transitions | ~$0.50 |
 | S3 + lifecycle | <2 GB rolling | ~$0.05 |
+| CloudFront + mirrored-image S3 storage (phase 4) | low request volume, <2 GB rolling, 90-day lifecycle | ~$1 |
 | CloudWatch logs/metrics/alarms | 14-day retention | ~$1–2 |
 | **Bedrock Haiku 4.5** ($1/M in, $5/M out) | **120 art/day**, ~1.4k in + 250 out tokens each | **~$9–10** |
-| **Total** | | **≈ $11–13 worst case; <$5 typical** (dedup means quiet days transform far less) |
+| **Total** | | **≈ $12–14 worst case; <$5 typical** (dedup means quiet days transform far less) |
 
 Levers if over budget: lower daily cap, shrink truncation, 60-min cadence, Bedrock batch API (−50%).
+The image-mirroring CDN add reduces an already-thin budget cushion — worth a Cost Explorer check a week after this ships (see IMPLEMENTATION_PLAN.md phase 4).
 
 ---
 

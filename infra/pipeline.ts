@@ -1,4 +1,11 @@
-import { countersTable, postsTable, rawArticlesBucket, sourcesTable } from './storage';
+import {
+  countersTable,
+  imagesBucket,
+  imagesRouter,
+  postsTable,
+  rawArticlesBucket,
+  sourcesTable,
+} from './storage';
 
 // Bedrock inference profile for the transform LLM step (DESIGN §7.4).
 // Confirmed ACTIVE via `aws bedrock list-inference-profiles` and a live
@@ -30,11 +37,13 @@ export const transformQueue = new sst.aws.Queue('TransformQueue', {
 transformQueue.subscribe(
   {
     handler: 'packages/functions/src/pipeline/transform.handler',
-    link: [postsTable, rawArticlesBucket, countersTable],
+    link: [postsTable, rawArticlesBucket, countersTable, imagesBucket],
     environment: {
       POSTS_TABLE_NAME: postsTable.name,
       RAW_ARTICLES_BUCKET_NAME: rawArticlesBucket.name,
       COUNTERS_TABLE_NAME: countersTable.name,
+      IMAGES_BUCKET_NAME: imagesBucket.name,
+      IMAGES_CDN_BASE_URL: imagesRouter.url,
       BEDROCK_MODEL_ID,
       LLM_DAILY_CAP,
     },

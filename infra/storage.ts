@@ -48,6 +48,18 @@ export const rawArticlesBucket = new sst.aws.Bucket('RawArticles', {
   lifecycle: [{ id: 'expire-raw', expiresIn: '90 days' }],
 });
 
+// Phase 4: mirrors article images (originally hotlinked from the source site)
+// so the app serves them from our own CDN instead — kills hotlink rot, and
+// matches Posts' own 90-day TTL since a mirrored image outlives its post by
+// design only as long as the post itself does.
+export const imagesBucket = new sst.aws.Bucket('Images', {
+  access: 'cloudfront',
+  lifecycle: [{ id: 'expire-images', expiresIn: '90 days' }],
+});
+
+export const imagesRouter = new sst.aws.Router('ImagesRouter');
+imagesRouter.routeBucket('/', imagesBucket);
+
 // Enforces the daily LLM transform cap (DESIGN §6, §7.4): one item per day,
 // keyed `transforms#<yyyy-mm-dd>`, atomically incremented by the transform
 // Lambda before every Bedrock call.

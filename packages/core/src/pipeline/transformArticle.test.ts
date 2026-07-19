@@ -31,6 +31,7 @@ function fakeDeps() {
     checkDailyCap: vi.fn(async (): Promise<boolean> => true),
     generateCard: vi.fn(async (): Promise<GenerateCardResult> => SAMPLE_CARD),
     updatePost: vi.fn(async (_postId: string, _fields: TransformFields) => {}),
+    mirrorImage: vi.fn(async (): Promise<string | undefined> => undefined),
   };
 }
 
@@ -159,5 +160,40 @@ describe('transformArticle', () => {
     deps.updatePost.mockRejectedValueOnce(new Error('ddb down'));
 
     await expect(transformArticle(input, deps)).rejects.toThrow('ddb down');
+  });
+
+  it('never calls mirrorImage when the post has no original imageUrl', async () => {
+    const deps = fakeDeps();
+
+    await transformArticle(input, deps);
+
+    expect(deps.mirrorImage).not.toHaveBeenCalled();
+    const fields = deps.updatePost.mock.calls[0]?.[1];
+    expect(fields?.mirroredImageUrl).toBeUndefined();
+  });
+
+  it('mirrors the image and persists the CDN url when one is available', async () => {
+    const deps = fakeDeps();
+    deps.mirrorImage.mockResolvedValueOnce('https://cdn.example.com/images/post1.jpg');
+    const inputWithImage = { ...input, imageUrl: 'https://source.example.com/a.jpg' };
+
+    const outcome = await transformArticle(inputWithImage, deps);
+
+    expect(outcome).toEqual({ degraded: false });
+    expect(deps.mirrorImage).toHaveBeenCalledWith('post1', 'https://source.example.com/a.jpg');
+    const fields = deps.updatePost.mock.calls[0]?.[1];
+    expect(fields?.mirroredImageUrl).toBe('https://cdn.example.com/images/post1.jpg');
+  });
+
+  it('leaves mirroredImageUrl unset (falls back to the original) when mirroring fails, without affecting degraded status', async () => {
+    const deps = fakeDeps();
+    deps.mirrorImage.mockResolvedValueOnce(undefined);
+    const inputWithImage = { ...input, imageUrl: 'https://source.example.com/a.jpg' };
+
+    const outcome = await transformArticle(inputWithImage, deps);
+
+    expect(outcome).toEqual({ degraded: false });
+    const fields = deps.updatePost.mock.calls[0]?.[1];
+    expect(fields?.mirroredImageUrl).toBeUndefined();
   });
 });

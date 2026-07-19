@@ -27,4 +27,8 @@ export interface NewPost {
 export interface PostRecord extends NewPost {
   ingestedAt: string;
   ttl: number;
+  /** CDN URL of the mirrored article image (phase 4), set post-transform.
+   * Falls back to the original hotlinked `imageUrl` when unset or on any
+   * mirror failure — never blocks the post. */
+  mirroredImageUrl?: string;
 }

@@ -51,7 +51,19 @@ const loadSources = sst.aws.StepFunctions.lambdaInvoke({
 // bypass FetchSource's own internal try/catch entirely. Content-level
 // failures (a broken feed URL, malformed XML) never reach here — they're
 // caught inside `ingestSource` and recorded on the source itself.
-const fetchSourceFailed = sst.aws.StepFunctions.pass({ name: 'FetchSourceFailed' });
+// A Catch's default ResultPath replaces the state's input entirely with
+// `{Error, Cause}` — reshape it back into an IngestResult so Summarize can
+// treat every Map iteration's output uniformly, whether it succeeded or was
+// caught here.
+const fetchSourceFailed = sst.aws.StepFunctions.pass({
+  name: 'FetchSourceFailed',
+  output: {
+    sourceId: 'unknown',
+    seen: 0,
+    created: 0,
+    errors: ['{% $states.input.Error %}'],
+  },
+});
 
 const fetchSource = sst.aws.StepFunctions.lambdaInvoke({
   name: 'FetchSource',

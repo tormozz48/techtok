@@ -11,11 +11,19 @@ export interface FetchFeedResult {
   lastModified?: string;
 }
 
+// Cross-source duplicate collapse (phase 4 experiment) — a one-line toggle
+// to disable it entirely without touching the call site below.
+export const DEDUP_ENABLED = true;
+
 export interface IngestDeps {
   fetchFeed: (source: SourceRecord) => Promise<FetchFeedResult>;
   putIfNew: (post: NewPost) => Promise<boolean>;
   enqueueNew: (posts: NewPost[]) => Promise<void>;
   recordFetchResult: (sourceId: string, outcome: FetchOutcome) => Promise<void>;
+  /** Looks for a likely cross-source duplicate of this post (phase 4
+   * experiment). Content-level: a lookup failure is caught by the caller and
+   * never blocks ingestion of an otherwise-good post. */
+  findDuplicate: (post: NewPost) => Promise<string | undefined>;
 }
 
 export interface IngestResult {
@@ -63,6 +71,14 @@ export async function ingestSource(source: SourceRecord, deps: IngestDeps): Prom
       seen += 1;
       const post = mapEntryToPost(entry, source);
       if (!post) continue;
+
+      if (DEDUP_ENABLED) {
+        try {
+          post.duplicateOf = await deps.findDuplicate(post);
+        } catch (err) {
+          errors.push(`dedup lookup failed for ${post.postId}: ${toMessage(err)}`);
+        }
+      }
 
       try {
         if (await deps.putIfNew(post)) {

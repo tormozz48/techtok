@@ -6,6 +6,7 @@ import {
   createSqsClient,
   createTransformQueue,
   type FetchFeedResult,
+  findDuplicateOf,
   type IngestResult,
   ingestSource,
   type PostsRepo,
@@ -62,6 +63,10 @@ export async function handler(source: SourceRecord): Promise<IngestResult> {
     putIfNew: (post) => getPostsRepo().putIfNew(post),
     enqueueNew: (posts) => getTransformQueue().enqueueNew(posts),
     recordFetchResult: (sourceId, outcome) => getSourcesRepo().recordFetchResult(sourceId, outcome),
+    findDuplicate: (post) =>
+      findDuplicateOf(post, {
+        queryRecentByTopic: (topic) => getPostsRepo().queryByTopic(topic, { limit: 50 }),
+      }),
   });
 
   if (result.errors.length > 0) {

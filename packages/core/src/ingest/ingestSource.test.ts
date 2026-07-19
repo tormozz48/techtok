@@ -22,7 +22,8 @@ function fakeDeps(xml: string) {
   const fetchFeed = vi.fn(
     async (): Promise<FetchFeedResult> => ({ status: 'ok', body: xml, etag: '"v1"' }),
   );
-  return { putIfNew, enqueueNew, recordFetchResult, fetchFeed };
+  const findDuplicate = vi.fn(async (): Promise<string | undefined> => undefined);
+  return { putIfNew, enqueueNew, recordFetchResult, fetchFeed, findDuplicate };
 }
 
 const source: SourceRecord = {
@@ -116,5 +117,34 @@ describe('ingestSource', () => {
     deps.enqueueNew.mockRejectedValueOnce(new Error('sqs down'));
 
     await expect(ingestSource(source, deps)).rejects.toThrow('sqs down');
+  });
+
+  it('still creates a post flagged as a duplicate — data is never lost, just marked', async () => {
+    const xml = await readFile(HN_FIXTURE, 'utf8');
+    const deps = fakeDeps(xml);
+    deps.findDuplicate.mockResolvedValueOnce('existing-post-id');
+
+    const result = await ingestSource(source, deps);
+
+    expect(result.created).toBe(3);
+    expect(deps.putIfNew).toHaveBeenCalledWith(
+      expect.objectContaining({ duplicateOf: 'existing-post-id' }),
+    );
+    expect(deps.enqueueNew.mock.calls[0]?.[0][0]).toMatchObject({
+      duplicateOf: 'existing-post-id',
+    });
+  });
+
+  it('records a soft error but still creates the post when the dedup lookup fails', async () => {
+    const xml = await readFile(HN_FIXTURE, 'utf8');
+    const deps = fakeDeps(xml);
+    deps.findDuplicate.mockRejectedValueOnce(new Error('query timed out'));
+
+    const result = await ingestSource(source, deps);
+
+    expect(result.created).toBe(3);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toContain('dedup lookup failed');
+    expect(deps.putIfNew).toHaveBeenCalledWith(expect.objectContaining({ duplicateOf: undefined }));
   });
 });

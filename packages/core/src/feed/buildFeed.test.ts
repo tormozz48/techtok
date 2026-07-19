@@ -193,4 +193,18 @@ describe('buildFeed', () => {
     expect(page.items[0]?.postId).toBe('b');
     expect(page.nextBefore).toBe(oldestHighWeight.publishedAt);
   });
+
+  it('excludes posts flagged duplicateOf from the returned items', async () => {
+    const original = post('a', 'ai', '2026-07-19T02:00:00.000Z');
+    const duplicate = { ...post('b', 'ai', '2026-07-19T01:00:00.000Z'), duplicateOf: 'a' };
+    const queryByTopic = vi.fn().mockResolvedValue([original, duplicate]);
+    const getReadSet = vi.fn().mockResolvedValue(new Set());
+
+    const page = await buildFeed(
+      { queryByTopic, getReadSet, getSourceWeights: noWeights() },
+      { userTopics: ['ai'], limit: 20 },
+    );
+
+    expect(page.items.map((p) => p.postId)).toEqual(['a']);
+  });
 });

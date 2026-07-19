@@ -32,6 +32,11 @@ export interface FeedPage {
  * publishedAt-sorted, pre-ranking candidate list — never from the ranked
  * `items`. Ranking/interleaving reorders what's *displayed* but must never
  * change the GSI watermark cursor, or pagination would skip or repeat posts.
+ *
+ * Posts flagged `duplicateOf` (phase-4 cross-source dedup experiment) are
+ * filtered out here rather than at the DynamoDB layer — an accepted
+ * over-fetch tradeoff (a page with many duplicates may return fewer than
+ * `limit` items) rather than adding a GSI just for this experiment.
  */
 export async function buildFeed(deps: BuildFeedDeps, params: BuildFeedParams): Promise<FeedPage> {
   const { before, limit } = params;
@@ -46,6 +51,7 @@ export async function buildFeed(deps: BuildFeedDeps, params: BuildFeedParams): P
     for (const post of posts) merged.set(post.postId, post);
   }
   const candidatesByTime = [...merged.values()]
+    .filter((post) => !post.duplicateOf)
     .sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : a.publishedAt > b.publishedAt ? -1 : 0))
     .slice(0, MAX_CANDIDATES);
 

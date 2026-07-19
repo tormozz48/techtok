@@ -22,6 +22,10 @@ export interface NewPost {
   publishedAt: string;
   s3RawKey?: string;
   lang?: string;
+  /** Set at ingest time (phase 4 experiment) when a cross-source title match
+   * is found within the dedup window — the post is still created (data is
+   * never lost) but excluded from feed queries by `buildFeed`. */
+  duplicateOf?: string;
 }
 
 export interface PostRecord extends NewPost {

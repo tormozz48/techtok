@@ -1,3 +1,5 @@
+export * from './dedup/findDuplicate';
+export * from './dedup/titleSimilarity';
 export * from './feed/buildFeed';
 export * from './feed/scoring';
 export * from './feed/sourceWeightsCache';

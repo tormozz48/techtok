@@ -1,8 +1,9 @@
 import { Link } from 'expo-router';
 import { useMemo } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useFeedQuery } from '@/api/useFeedQuery';
 import { FeedPager } from '@/components/FeedPager';
+import { FeedSkeleton } from '@/components/FeedSkeleton';
 import { Colors, Spacing } from '@/constants/theme';
 
 export default function FeedScreen() {
@@ -11,11 +12,7 @@ export default function FeedScreen() {
   const cards = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data]);
 
   if (isLoading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color="#fff" />
-      </View>
-    );
+    return <FeedSkeleton />;
   }
 
   if (isError) {

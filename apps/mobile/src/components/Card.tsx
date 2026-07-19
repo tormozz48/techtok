@@ -2,10 +2,12 @@ import type { Card as CardData } from '@techtok/shared';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { Spacing } from '@/constants/theme';
+import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { enqueueRead } from '@/state/readQueue';
 import { timeAgo } from '@/utils/timeAgo';
+import { ImageSkeleton } from './ImageSkeleton';
 
 export interface CardProps {
   card: CardData;
@@ -13,22 +15,29 @@ export interface CardProps {
 
 export function Card({ card }: CardProps) {
   const { height } = useWindowDimensions();
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   return (
     <View style={[styles.container, { height }]}>
       {card.imageUrl ? (
-        <Image
-          source={{ uri: card.imageUrl }}
-          style={StyleSheet.absoluteFill}
-          contentFit="cover"
-          transition={150}
-        />
+        <>
+          <Image
+            source={{ uri: card.imageUrl }}
+            placeholder={card.blurhash ? { blurhash: card.blurhash } : undefined}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            transition={150}
+            onLoad={() => setImageLoaded(true)}
+            onError={() => setImageLoaded(true)}
+          />
+          {!imageLoaded && !card.blurhash ? <ImageSkeleton /> : null}
+        </>
       ) : (
         <View style={[StyleSheet.absoluteFill, styles.imageFallback]} />
       )}
 
       <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.85)']}
+        colors={[Colors.overlay.scrimStart, Colors.overlay.scrimEnd]}
         locations={[0.4, 1]}
         style={StyleSheet.absoluteFill}
       />
@@ -68,10 +77,10 @@ export function Card({ card }: CardProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#000',
+    backgroundColor: Colors.overlay.surfaceBlack,
   },
   imageFallback: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: Colors.overlay.surfaceDim,
   },
   content: {
     flex: 1,
@@ -81,57 +90,54 @@ const styles = StyleSheet.create({
   },
   topicChip: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 999,
+    backgroundColor: Colors.overlay.chipBackground,
+    borderRadius: Radius.pill,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.one,
     marginBottom: Spacing.three,
   },
   topicChipText: {
-    color: '#fff',
-    fontSize: 12,
+    color: Colors.overlay.text,
+    ...Typography.xs,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   title: {
-    color: '#fff',
-    fontSize: 24,
+    color: Colors.overlay.text,
+    ...Typography.xl,
     fontWeight: '700',
-    lineHeight: 30,
     marginBottom: Spacing.two,
   },
   summary: {
-    color: '#E0E1E6',
-    fontSize: 16,
-    lineHeight: 22,
+    color: Colors.overlay.textMuted,
+    ...Typography.md,
     marginBottom: Spacing.three,
   },
   whyItMatters: {
-    color: '#C9A8FF',
-    fontSize: 14,
+    color: Colors.overlay.accent,
+    ...Typography.base,
     fontStyle: 'italic',
-    lineHeight: 19,
     marginBottom: Spacing.three,
   },
   meta: {
     flexDirection: 'row',
   },
   metaText: {
-    color: '#B0B4BA',
-    fontSize: 13,
+    color: Colors.overlay.textSecondary,
+    ...Typography.sm,
     fontWeight: '600',
   },
   debugBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,196,0,0.85)',
-    borderRadius: 4,
+    backgroundColor: Colors.overlay.debugBackground,
+    borderRadius: Radius.sm,
     paddingHorizontal: Spacing.two,
     paddingVertical: 2,
     marginBottom: Spacing.two,
   },
   debugBadgeText: {
-    color: '#000',
+    color: Colors.overlay.debugText,
     fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',

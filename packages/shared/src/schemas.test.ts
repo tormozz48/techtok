@@ -44,6 +44,11 @@ describe('cardSchema', () => {
   it('rejects a non-url source link', () => {
     expect(() => cardSchema.parse({ ...validCard, url: 'not-a-url' })).toThrow();
   });
+
+  it('accepts an optional blurhash', () => {
+    const blurhash = 'LKO2?U%2Tw=w]~RBVZRi};RPxuwH';
+    expect(cardSchema.parse({ ...validCard, blurhash })).toMatchObject({ blurhash });
+  });
 });
 
 describe('feedQuerySchema', () => {

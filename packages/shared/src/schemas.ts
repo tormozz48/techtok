@@ -18,6 +18,7 @@ export const cardSchema = z.object({
   summary: z.string(),
   whyItMatters: z.string().optional(),
   imageUrl: z.url().optional(),
+  blurhash: z.string().optional(),
   sourceName: z.string(),
   url: z.url(),
   primaryTopic: topicSchema,

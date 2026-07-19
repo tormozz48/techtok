@@ -1,4 +1,5 @@
 import type { Card as CardData } from '@techtok/shared';
+import * as Haptics from 'expo-haptics';
 import { useRef } from 'react';
 import { StyleSheet } from 'react-native';
 import PagerView from 'react-native-pager-view';
@@ -29,7 +30,10 @@ export function FeedPager({ cards, onNearEnd }: FeedPagerProps) {
 
         const card = cards[position];
         if (card) {
-          settleTimer.current = setTimeout(() => enqueueRead(card.id), SETTLE_DELAY_MS);
+          settleTimer.current = setTimeout(() => {
+            enqueueRead(card.id);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+          }, SETTLE_DELAY_MS);
         }
       }}
     >

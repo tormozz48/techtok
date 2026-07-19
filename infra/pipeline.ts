@@ -1,9 +1,9 @@
 import { countersTable, postsTable, rawArticlesBucket, sourcesTable } from './storage';
 
-// Bedrock inference profile for the transform LLM step (DESIGN §7.4). The
-// exact profile ID must be confirmed in the Bedrock console once model
-// access is enabled for the account (IMPLEMENTATION_PLAN.md phase 3 task 1) —
-// override via the `BEDROCK_MODEL_ID` env var if it differs per stage.
+// Bedrock inference profile for the transform LLM step (DESIGN §7.4).
+// Confirmed ACTIVE via `aws bedrock list-inference-profiles` and a live
+// `converse` call (IMPLEMENTATION_PLAN.md phase 3 task 1) — override via the
+// `BEDROCK_MODEL_ID` env var if a different profile is ever needed per stage.
 const BEDROCK_MODEL_ID =
   process.env.BEDROCK_MODEL_ID ?? 'eu.anthropic.claude-haiku-4-5-20251001-v1:0';
 // Default daily transform cap (DESIGN §7.4/§10) — override via `LLM_DAILY_CAP`.

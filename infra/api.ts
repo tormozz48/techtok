@@ -1,4 +1,4 @@
-import { postsTable, userActivityTable, usersTable } from './storage';
+import { postsTable, sourcesTable, userActivityTable, usersTable } from './storage';
 
 export const api = new sst.aws.ApiGatewayV2('Api', {
   cors: {
@@ -12,11 +12,12 @@ const feedEnvironment = {
   POSTS_TABLE_NAME: postsTable.name,
   USERS_TABLE_NAME: usersTable.name,
   USER_ACTIVITY_TABLE_NAME: userActivityTable.name,
+  SOURCES_TABLE_NAME: sourcesTable.name,
 };
 
 api.route('GET /v1/feed', {
   handler: 'packages/functions/src/api/feed.handler',
-  link: [postsTable, usersTable, userActivityTable],
+  link: [postsTable, usersTable, userActivityTable, sourcesTable],
   environment: feedEnvironment,
   runtime: 'nodejs22.x',
 });

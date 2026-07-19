@@ -1,4 +1,6 @@
 export * from './feed/buildFeed';
+export * from './feed/scoring';
+export * from './feed/sourceWeightsCache';
 export * from './history/types';
 export * from './ingest/ingestSource';
 export * from './ingest/rssMapper';

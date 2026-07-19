@@ -1,8 +1,9 @@
+import { Link } from 'expo-router';
 import { useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useFeedQuery } from '@/api/useFeedQuery';
 import { FeedPager } from '@/components/FeedPager';
-import { Colors } from '@/constants/theme';
+import { Colors, Spacing } from '@/constants/theme';
 
 export default function FeedScreen() {
   const { data, isLoading, isError, error, fetchNextPage, isFetchingNextPage } = useFeedQuery();
@@ -36,12 +37,22 @@ export default function FeedScreen() {
   }
 
   return (
-    <FeedPager
-      cards={cards}
-      onNearEnd={() => {
-        if (!isFetchingNextPage) fetchNextPage();
-      }}
-    />
+    <View style={styles.pagerWrapper}>
+      <FeedPager
+        cards={cards}
+        onNearEnd={() => {
+          if (!isFetchingNextPage) fetchNextPage();
+        }}
+      />
+      <View style={styles.overlay} pointerEvents="box-none">
+        <Link href="/history" style={styles.overlayButton}>
+          <Text style={styles.overlayButtonText}>🕓</Text>
+        </Link>
+        <Link href="/settings" style={styles.overlayButton}>
+          <Text style={styles.overlayButtonText}>⚙</Text>
+        </Link>
+      </View>
+    </View>
   );
 }
 
@@ -62,5 +73,25 @@ const styles = StyleSheet.create({
     color: Colors.dark.textSecondary,
     textAlign: 'center',
     fontSize: 16,
+  },
+  pagerWrapper: {
+    flex: 1,
+  },
+  overlay: {
+    position: 'absolute',
+    top: Spacing.six,
+    right: Spacing.three,
+    gap: Spacing.two,
+  },
+  overlayButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    textAlign: 'center',
+    lineHeight: 40,
+  },
+  overlayButtonText: {
+    fontSize: 18,
   },
 });

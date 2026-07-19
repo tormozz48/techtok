@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Spacing } from '@/constants/theme';
+import { enqueueRead } from '@/state/readQueue';
 import { timeAgo } from '@/utils/timeAgo';
 
 export interface CardProps {
@@ -32,7 +33,13 @@ export function Card({ card }: CardProps) {
         style={StyleSheet.absoluteFill}
       />
 
-      <Pressable style={styles.content} onPress={() => WebBrowser.openBrowserAsync(card.url)}>
+      <Pressable
+        style={styles.content}
+        onPress={() => {
+          enqueueRead(card.id);
+          WebBrowser.openBrowserAsync(card.url);
+        }}
+      >
         <View style={styles.topicChip}>
           <Text style={styles.topicChipText}>{card.primaryTopic}</Text>
         </View>

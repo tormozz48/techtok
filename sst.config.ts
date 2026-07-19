@@ -15,13 +15,15 @@ export default $config({
     };
   },
   async run() {
-    const { postsTable } = await import('./infra/storage');
+    const { postsTable, userActivityTable, usersTable } = await import('./infra/storage');
     await import('./infra/pipeline');
     const { api } = await import('./infra/api');
 
     return {
       api: api.url,
       postsTable: postsTable.name,
+      usersTable: usersTable.name,
+      userActivityTable: userActivityTable.name,
     };
   },
 });

@@ -12,3 +12,22 @@ export const postsTable = new sst.aws.Dynamo('Posts', {
   },
   ttl: 'ttl',
 });
+
+export const usersTable = new sst.aws.Dynamo('Users', {
+  fields: {
+    userId: 'string',
+  },
+  primaryIndex: { hashKey: 'userId' },
+});
+
+export const userActivityTable = new sst.aws.Dynamo('UserActivity', {
+  fields: {
+    userId: 'string',
+    sk: 'string',
+    gsi1sk: 'string',
+  },
+  primaryIndex: { hashKey: 'userId', rangeKey: 'sk' },
+  globalIndexes: {
+    byReadAt: { hashKey: 'userId', rangeKey: 'gsi1sk' },
+  },
+});

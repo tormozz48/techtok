@@ -1,10 +1,16 @@
 import { ConditionalCheckFailedException } from '@aws-sdk/client-dynamodb';
-import { type DynamoDBDocumentClient, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import {
+  BatchGetCommand,
+  type DynamoDBDocumentClient,
+  PutCommand,
+  QueryCommand,
+} from '@aws-sdk/lib-dynamodb';
 import type { Topic } from '@techtok/shared';
 import type { NewPost, PostRecord } from '../posts/types';
 
 const POST_TTL_SECONDS = 90 * 24 * 60 * 60;
 const BY_TIME_PARTITION = 'POST';
+const BATCH_GET_CHUNK_SIZE = 100;
 
 export interface QueryOpts {
   before?: string;
@@ -15,6 +21,15 @@ export interface PostsRepo {
   putIfNew(post: NewPost): Promise<boolean>;
   queryByTopic(topic: Topic, opts?: QueryOpts): Promise<PostRecord[]>;
   queryRecent(opts?: QueryOpts): Promise<PostRecord[]>;
+  getByIds(postIds: string[]): Promise<PostRecord[]>;
+}
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
 }
 
 export function createPostsRepo(client: DynamoDBDocumentClient, tableName: string): PostsRepo {
@@ -79,6 +94,23 @@ export function createPostsRepo(client: DynamoDBDocumentClient, tableName: strin
         }),
       );
       return (result.Items ?? []) as PostRecord[];
+    },
+
+    async getByIds(postIds: string[]): Promise<PostRecord[]> {
+      if (postIds.length === 0) return [];
+
+      const posts: PostRecord[] = [];
+      for (const batch of chunk(postIds, BATCH_GET_CHUNK_SIZE)) {
+        const result = await client.send(
+          new BatchGetCommand({
+            RequestItems: {
+              [tableName]: { Keys: batch.map((postId) => ({ postId })) },
+            },
+          }),
+        );
+        posts.push(...((result.Responses?.[tableName] ?? []) as PostRecord[]));
+      }
+      return posts;
     },
   };
 }

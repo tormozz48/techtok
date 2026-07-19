@@ -1,6 +1,8 @@
 import type { Card as CardData } from '@techtok/shared';
+import { useRef } from 'react';
 import { StyleSheet } from 'react-native';
 import PagerView from 'react-native-pager-view';
+import { enqueueRead } from '@/state/readQueue';
 import { Card } from './Card';
 
 export interface FeedPagerProps {
@@ -9,16 +11,26 @@ export interface FeedPagerProps {
 }
 
 const NEAR_END_THRESHOLD = 5;
+const SETTLE_DELAY_MS = 1500;
 
 export function FeedPager({ cards, onNearEnd }: FeedPagerProps) {
+  const settleTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+
   return (
     <PagerView
       style={styles.pager}
       orientation="vertical"
       offscreenPageLimit={1}
       onPageSelected={(event) => {
-        const isNearEnd = event.nativeEvent.position >= cards.length - NEAR_END_THRESHOLD;
-        if (isNearEnd) onNearEnd?.();
+        clearTimeout(settleTimer.current);
+
+        const { position } = event.nativeEvent;
+        if (position >= cards.length - NEAR_END_THRESHOLD) onNearEnd?.();
+
+        const card = cards[position];
+        if (card) {
+          settleTimer.current = setTimeout(() => enqueueRead(card.id), SETTLE_DELAY_MS);
+        }
       }}
     >
       {cards.map((card) => (

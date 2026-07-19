@@ -53,3 +53,43 @@ export const errorResponseSchema = z.object({
   }),
 });
 export type ErrorResponse = z.infer<typeof errorResponseSchema>;
+
+export const DEVICE_ID_HEADER = 'x-device-id';
+
+export const meResponseSchema = z.object({
+  userId: z.string(),
+  topics: z.array(topicSchema),
+  createdAt: z.iso.datetime(),
+});
+export type MeResponse = z.infer<typeof meResponseSchema>;
+
+export const topicsPrefsRequestSchema = z.object({
+  topics: z.array(topicSchema),
+});
+export type TopicsPrefsRequest = z.infer<typeof topicsPrefsRequestSchema>;
+
+export const readsRequestSchema = z.object({
+  postIds: z.array(z.string()).min(1).max(100),
+});
+export type ReadsRequest = z.infer<typeof readsRequestSchema>;
+
+export const historyItemSchema = z.object({
+  postId: z.string(),
+  readAt: z.iso.datetime(),
+  cardTitle: z.string(),
+  sourceName: z.string(),
+  url: z.url(),
+});
+export type HistoryItem = z.infer<typeof historyItemSchema>;
+
+export const historyResponseSchema = z.object({
+  items: z.array(historyItemSchema),
+  nextCursor: z.string().nullable(),
+});
+export type HistoryResponse = z.infer<typeof historyResponseSchema>;
+
+export const historyQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.string().optional(),
+});
+export type HistoryQuery = z.infer<typeof historyQuerySchema>;

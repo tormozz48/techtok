@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { cardSchema, feedQuerySchema, topicSchema } from './schemas';
+import {
+  cardSchema,
+  feedQuerySchema,
+  historyQuerySchema,
+  readsRequestSchema,
+  topicSchema,
+  topicsPrefsRequestSchema,
+} from './schemas';
 import { TOPICS } from './topics';
 
 describe('topicSchema', () => {
@@ -47,5 +54,37 @@ describe('feedQuerySchema', () => {
 
   it('rejects a limit above 50', () => {
     expect(() => feedQuerySchema.parse({ limit: '999' })).toThrow();
+  });
+});
+
+describe('topicsPrefsRequestSchema', () => {
+  it('accepts an empty list (all topics)', () => {
+    expect(topicsPrefsRequestSchema.parse({ topics: [] })).toEqual({ topics: [] });
+  });
+
+  it('rejects an unknown topic', () => {
+    expect(() => topicsPrefsRequestSchema.parse({ topics: ['crypto'] })).toThrow();
+  });
+});
+
+describe('readsRequestSchema', () => {
+  it('rejects an empty postIds array', () => {
+    expect(() => readsRequestSchema.parse({ postIds: [] })).toThrow();
+  });
+
+  it('rejects more than 100 postIds', () => {
+    const postIds = Array.from({ length: 101 }, (_, i) => `post${i}`);
+    expect(() => readsRequestSchema.parse({ postIds })).toThrow();
+  });
+});
+
+describe('historyQuerySchema', () => {
+  it('defaults limit to 50 and coerces the query string', () => {
+    expect(historyQuerySchema.parse({})).toMatchObject({ limit: 50 });
+    expect(historyQuerySchema.parse({ limit: '10' })).toMatchObject({ limit: 10 });
+  });
+
+  it('rejects a limit above 100', () => {
+    expect(() => historyQuerySchema.parse({ limit: '999' })).toThrow();
   });
 });

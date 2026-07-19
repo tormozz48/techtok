@@ -1,5 +1,10 @@
 import { ConditionalCheckFailedException } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import {
+  BatchGetCommand,
+  DynamoDBDocumentClient,
+  PutCommand,
+  QueryCommand,
+} from '@aws-sdk/lib-dynamodb';
 import { mockClient } from 'aws-sdk-client-mock';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { NewPost } from '../posts/types';
@@ -113,5 +118,38 @@ describe('postsRepo.queryRecent', () => {
     const repo = createPostsRepo(client, 'Posts');
 
     expect(await repo.queryRecent()).toEqual([]);
+  });
+});
+
+describe('postsRepo.getByIds', () => {
+  it('returns an empty array without calling DynamoDB when given no ids', async () => {
+    const repo = createPostsRepo(client, 'Posts');
+
+    expect(await repo.getByIds([])).toEqual([]);
+    expect(ddbMock.commandCalls(BatchGetCommand)).toHaveLength(0);
+  });
+
+  it('batch-gets posts by id', async () => {
+    ddbMock.on(BatchGetCommand).resolves({ Responses: { Posts: [samplePost] } });
+    const repo = createPostsRepo(client, 'Posts');
+
+    const posts = await repo.getByIds(['abc123']);
+
+    expect(posts).toEqual([samplePost]);
+    const input = ddbMock.commandCalls(BatchGetCommand)[0]?.args[0]?.input;
+    expect(input?.RequestItems?.Posts?.Keys).toEqual([{ postId: 'abc123' }]);
+  });
+
+  it('chunks requests into batches of 100 keys', async () => {
+    ddbMock.on(BatchGetCommand).resolves({ Responses: { Posts: [] } });
+    const repo = createPostsRepo(client, 'Posts');
+    const postIds = Array.from({ length: 150 }, (_, i) => `post${i}`);
+
+    await repo.getByIds(postIds);
+
+    const calls = ddbMock.commandCalls(BatchGetCommand);
+    expect(calls).toHaveLength(2);
+    expect(calls[0]?.args[0]?.input?.RequestItems?.Posts?.Keys).toHaveLength(100);
+    expect(calls[1]?.args[0]?.input?.RequestItems?.Posts?.Keys).toHaveLength(50);
   });
 });

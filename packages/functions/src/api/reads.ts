@@ -1,23 +1,18 @@
 import {
-  buildFeed,
   createDynamoClient,
   createPostsRepo,
   createUserActivityRepo,
-  createUsersRepo,
   type PostsRepo,
   type UserActivityRepo,
-  type UsersRepo,
 } from '@techtok/core';
-import { DEVICE_ID_HEADER, feedQuerySchema, feedResponseSchema } from '@techtok/shared';
+import { DEVICE_ID_HEADER, readsRequestSchema } from '@techtok/shared';
 import type { APIGatewayProxyHandlerV2 } from 'aws-lambda';
 import { requireEnv } from '../env';
 import { extractDeviceId } from './deviceId';
 import { jsonResponse } from './jsonResponse';
-import { toCard } from './toCard';
 
 interface Repos {
   posts: PostsRepo;
-  users: UsersRepo;
   activity: UserActivityRepo;
 }
 
@@ -27,7 +22,6 @@ function getRepos(): Repos {
     const client = createDynamoClient();
     repos = {
       posts: createPostsRepo(client, requireEnv('POSTS_TABLE_NAME')),
-      users: createUsersRepo(client, requireEnv('USERS_TABLE_NAME')),
       activity: createUserActivityRepo(client, requireEnv('USER_ACTIVITY_TABLE_NAME')),
     };
   }
@@ -42,29 +36,39 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     });
   }
 
-  const parsedQuery = feedQuerySchema.safeParse(event.queryStringParameters ?? {});
-  if (!parsedQuery.success) {
+  let rawBody: unknown;
+  try {
+    rawBody = JSON.parse(event.body ?? '{}');
+  } catch {
     return jsonResponse(400, {
-      error: { code: 'invalid_query', message: parsedQuery.error.message },
+      error: { code: 'invalid_body', message: 'Body is not valid JSON' },
     });
   }
 
-  const { limit, before } = parsedQuery.data;
-  const { posts, users, activity } = getRepos();
-  const user = await users.touch(deviceId);
+  const parsedBody = readsRequestSchema.safeParse(rawBody);
+  if (!parsedBody.success) {
+    return jsonResponse(400, {
+      error: { code: 'invalid_body', message: parsedBody.error.message },
+    });
+  }
 
-  const page = await buildFeed(
-    {
-      queryByTopic: (topic, opts) => posts.queryByTopic(topic, opts),
-      getReadSet: (postIds) => activity.getReadSet(deviceId, postIds),
-    },
-    { userTopics: user.topics, before, limit },
+  const { posts, activity } = getRepos();
+  const { postIds } = parsedBody.data;
+  const readAt = new Date().toISOString();
+
+  // A postId can be missing (already TTL'd) — that's a content-level gap, not
+  // an infra failure, so it's skipped rather than thrown.
+  const foundPosts = await posts.getByIds(postIds);
+  await Promise.all(
+    foundPosts.map((post) =>
+      activity.markRead(
+        deviceId,
+        post.postId,
+        { cardTitle: post.cardTitle, sourceName: post.sourceName, url: post.url },
+        readAt,
+      ),
+    ),
   );
 
-  const body = feedResponseSchema.parse({
-    items: page.items.map(toCard),
-    nextBefore: page.nextBefore,
-  });
-
-  return jsonResponse(200, body);
+  return { statusCode: 204, body: '' };
 };

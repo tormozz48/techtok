@@ -1,25 +1,25 @@
 # TechTok
 
-TikTok-style swipe feed for tech & science news: Expo/React Native Android app + AWS backend (SST v3) that ingests RSS, condenses articles into cards with Claude, and tracks per-user read state and topic preferences.
+TikTok-style swipe feed for tech & science news: Expo/React Native Android app + AWS backend (SST v4, Ion architecture) that ingests RSS, condenses articles into cards with Claude, and tracks per-user read state and topic preferences.
 
 The two documents that govern this repo:
 
-- [docs/DESIGN.md](docs/DESIGN.md) — architecture, API, data model. §2 is the **decision log** (D1–D14), §12 the deferred defaults.
+- [docs/DESIGN.md](docs/DESIGN.md) — architecture, API, data model. §2 is the **decision log** (D1–D15), §12 the deferred defaults.
 - [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) — 7 phases, each gated by acceptance criteria.
 
 Never re-decide something already in the decision log. If a decision must change, update the log entry with the reason (`/log-decision`), then implement.
 
 ## Status
 
-**Pre-implementation.** Phase 0 (walking skeleton) has not started — no application code exists yet. Commands and layout below are the Phase 0 contract, not the current state. **Update this section whenever a phase lands.**
+**Phase 0 (walking skeleton) implemented, not yet deployed.** `packages/shared`, `packages/core`, `packages/functions`, `apps/mobile`, and the SST `infra/` are all written; lint + typecheck + test are green (57 tests) and `expo export` bundles the Android app cleanly (workspace-package resolution confirmed end-to-end). Not yet verified: `sst deploy --stage dev` (needs real AWS credentials — this session's were invalid) and the physical-device swipe test — both need you. Run `pnpm dev`, wait for the cron to populate posts, set `apps/mobile/.env`'s `EXPO_PUBLIC_API_URL` from the deploy output, then `pnpm --filter mobile start` on a device. **Update this section whenever a phase lands.**
 
-## Commands (canonical root scripts, wired up in Phase 0)
+## Commands (canonical root scripts)
 
 ```
 pnpm install
 pnpm lint        # Biome — this repo has NO ESLint/Prettier (D7)
-pnpm typecheck   # tsc --noEmit across workspaces
-pnpm test        # vitest (shared/core/functions) + jest-expo (mobile)
+pnpm typecheck   # tsc --noEmit across workspaces + sst.config.ts/infra (the latter only after a first `pnpm dev`)
+pnpm test        # vitest (shared/core/functions) + jest (mobile)
 pnpm dev         # sst dev — live Lambda on your personal stage
 pnpm --filter mobile start   # Expo dev server
 ```

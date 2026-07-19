@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+<title>Hacker News: Front Page</title>
+<link>https://news.ycombinator.com/</link>
+<description>Hacker News RSS</description>
+<lastBuildDate>Sat, 18 Jul 2026 18:15:11 +0000</lastBuildDate>
+<item>
+<title><![CDATA[In Germany if you say a restaurant is just ok they send the gestapo after you]]></title>
+<description><![CDATA[
+<p>Article URL: <a href="https://twitter.com/eigen_moomin/status/2077471686295957749">https://twitter.com/eigen_moomin/status/2077471686295957749</a></p>
+<p>Comments URL: <a href="https://news.ycombinator.com/item?id=48960416">https://news.ycombinator.com/item?id=48960416</a></p>
+<p>Points: 5</p>
+<p># Comments: 1</p>
+]]></description>
+<pubDate>Sat, 18 Jul 2026 17:53:05 +0000</pubDate>
+<link>https://twitter.com/eigen_moomin/status/2077471686295957749</link>
+<dc:creator>bko</dc:creator>
+<comments>https://news.ycombinator.com/item?id=48960416</comments>
+<guid isPermaLink="false">https://news.ycombinator.com/item?id=48960416</guid>
+</item>
+<item>
+<title><![CDATA[Goodbye, and Thanks for All the Bikesheds]]></title>
+<description><![CDATA[
+<p>Article URL: <a href="https://queue.acm.org/detail.cfm?id=3818307">https://queue.acm.org/detail.cfm?id=3818307</a></p>
+<p>Comments URL: <a href="https://news.ycombinator.com/item?id=48960155">https://news.ycombinator.com/item?id=48960155</a></p>
+<p>Points: 29</p>
+<p># Comments: 3</p>
+]]></description>
+<pubDate>Sat, 18 Jul 2026 17:27:24 +0000</pubDate>
+<link>https://queue.acm.org/detail.cfm?id=3818307</link>
+<dc:creator>Ygg2</dc:creator>
+<comments>https://news.ycombinator.com/item?id=48960155</comments>
+<guid isPermaLink="false">https://news.ycombinator.com/item?id=48960155</guid>
+</item>
+<item>
+<title><![CDATA[Setting up your spare Mac for Claude Code to control, a step-by-step guide]]></title>
+<description><![CDATA[
+<p>Article URL: <a href="https://ykdojo.github.io/claude-controls-mac/">https://ykdojo.github.io/claude-controls-mac/</a></p>
+<p>Comments URL: <a href="https://news.ycombinator.com/item?id=48959392">https://news.ycombinator.com/item?id=48959392</a></p>
+<p>Points: 75</p>
+<p># Comments: 43</p>
+]]></description>
+<pubDate>Sat, 18 Jul 2026 16:12:08 +0000</pubDate>
+<link>https://ykdojo.github.io/claude-controls-mac/</link>
+<dc:creator>ykev</dc:creator>
+<comments>https://news.ycombinator.com/item?id=48959392</comments>
+<guid isPermaLink="false">https://news.ycombinator.com/item?id=48959392</guid>
+</item>
+</channel>
+</rss>

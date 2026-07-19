@@ -144,3 +144,18 @@ vite.config.ts.timestamp-*
 
 # Claude Code — per-developer settings stay local; settings.json is shared
 .claude/settings.local.json
+
+# SST
+.sst/
+
+# Expo
+.expo/
+apps/mobile/.expo/
+apps/mobile/expo-env.d.ts
+apps/mobile/android/
+apps/mobile/ios/
+*.orig.*
+web-build/
+
+# pnpm
+.pnpm-debug.log*

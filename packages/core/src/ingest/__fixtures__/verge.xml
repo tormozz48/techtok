@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:thr="http://purl.org/syndication/thread/1.0" xml:lang="en-US">
+<title type="text">The Verge</title>
+<subtitle type="text">The Verge is about technology and how it makes us feel.</subtitle>
+<updated>2026-07-18T16:40:55+00:00</updated>
+<link rel="alternate" type="text/html" href="https://www.theverge.com" />
+<id>https://www.theverge.com/rss/index.xml</id>
+<link rel="self" type="application/atom+xml" href="https://www.theverge.com/rss/index.xml" />
+<entry>
+<author><name>Terrence O&#8217;Brien</name></author>
+<title type="html"><![CDATA[Google is open-sourcing its 3D emoji]]></title>
+<link rel="alternate" type="text/html" href="https://www.theverge.com/design/967606/google-open-source-3d-emoji" />
+<id>https://www.theverge.com/?p=967606</id>
+<updated>2026-07-18T12:40:55-04:00</updated>
+<published>2026-07-18T12:40:55-04:00</published>
+<category scheme="https://www.theverge.com" term="Design" />
+<summary type="html"><![CDATA[Now, if you want to, you can use Google's 3D emoji in your own creations. The company shared some details about how it went about designing the little pictograms and why, as part of World Emoji Day on Friday. [&#8230;]]]></summary>
+<content type="html"><![CDATA[
+<figure>
+<img alt="Google's 2D blob thumbs up emoji next to a wire frame model and the new 3D model." data-caption="" data-portal-copyright="Image: Google" data-has-syndication-rights="1" src="https://platform.theverge.com/wp-content/uploads/sites/2/2026/07/videoframe_212.png?quality=90&#038;strip=all&#038;crop=0,0,100,100" />
+<figcaption></figcaption>
+</figure>
+<p class="wp-block-paragraph">Now, if you want to, you can use Google's 3D emoji in your own creations.</p>
+]]></content>
+</entry>
+<entry>
+<author><name>Brad Bourque</name></author>
+<title type="html"><![CDATA[GoPro's discounted Max 2 bundle includes $100 worth of accessories]]></title>
+<link rel="alternate" type="text/html" href="https://www.theverge.com/gadgets/967311/gopro-max2-360-degree-action-cam-accessory-bundle-deal-sale" />
+<id>https://www.theverge.com/?p=967311</id>
+<updated>2026-07-17T15:03:07-04:00</updated>
+<published>2026-07-18T11:00:00-04:00</published>
+<category scheme="https://www.theverge.com" term="Cameras" />
+<summary type="html"><![CDATA[A 360-degree camera is a great way to ensure you capture every bit of the action, but prices tend to be on the high end for models worth your attention. [&#8230;]]]></summary>
+<content type="html"><![CDATA[
+<figure>
+<img alt="" data-caption="The GoPro Max2 can use your earbuds as a microphone over Bluetooth." data-portal-copyright="" data-has-syndication-rights="1" src="https://platform.theverge.com/wp-content/uploads/sites/2/2025/09/gopro_max2_2.jpg?quality=90&#038;strip=all&#038;crop=0,0,100,100" />
+<figcaption>The GoPro Max2 can use your earbuds as a microphone over Bluetooth.</figcaption>
+</figure>
+<p class="wp-block-paragraph">A 360-degree camera is a great way to ensure you capture every bit of the action.</p>
+]]></content>
+</entry>
+<entry>
+<author><name>Terrence O&#8217;Brien</name></author>
+<title type="html"><![CDATA[The Guardian's Carter Sherman fondly remembers being terrified by Ocarina of Time]]></title>
+<link rel="alternate" type="text/html" href="https://www.theverge.com/report/967583/guardian-carter-sherman-podcast-interview" />
+<id>https://www.theverge.com/?p=967583</id>
+<updated>2026-07-18T10:26:16-04:00</updated>
+<published>2026-07-18T10:30:00-04:00</published>
+<category scheme="https://www.theverge.com" term="Books" />
+<summary type="html"><![CDATA[Carter Sherman has been covering sex, gender, and the complex personal and national politics that accompany them for years. She was a senior reporter for Vice and has written for Elle, Ms. magazine. [&#8230;]]]></summary>
+<content type="html"><![CDATA[
+<figure>
+<img alt="Carter Sherman sitting on a the floor in front of a couch, instead of just on it for some reason." data-caption="Carter, there's a couch RIGHT THERE. | Image:" data-portal-copyright="Image: " data-has-syndication-rights="1" src="https://platform.theverge.com/wp-content/uploads/sites/2/2026/07/CARTER-FNL-9816-EV3.jpg?quality=90&#038;strip=all&#038;crop=0,0,100,100" />
+<figcaption>Carter, there's a couch RIGHT THERE. | Image:</figcaption>
+</figure>
+<p class="wp-block-paragraph">Carter Sherman has been covering sex, gender, and politics for years.</p>
+]]></content>
+</entry>
+</feed>

@@ -1,0 +1,17 @@
+{
+  "name": "@techtok/functions",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aws-lambda-powertools/logger": "2.34.0",
+    "@techtok/core": "workspace:*",
+    "@techtok/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "8.10.162"
+  }
+}

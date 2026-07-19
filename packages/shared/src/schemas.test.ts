@@ -1,0 +1,51 @@
+import { describe, expect, it } from 'vitest';
+import { cardSchema, feedQuerySchema, topicSchema } from './schemas';
+import { TOPICS } from './topics';
+
+describe('topicSchema', () => {
+  it('accepts every taxonomy topic', () => {
+    for (const topic of TOPICS) {
+      expect(topicSchema.parse(topic)).toBe(topic);
+    }
+  });
+
+  it('rejects an unknown topic', () => {
+    expect(() => topicSchema.parse('crypto')).toThrow();
+  });
+});
+
+describe('cardSchema', () => {
+  const validCard = {
+    id: 'abc123',
+    title: 'Scientists build a smaller particle detector',
+    summary: 'A new detector replaces many components with one block.',
+    sourceName: 'ScienceDaily',
+    url: 'https://www.sciencedaily.com/releases/2026/07/x.htm',
+    primaryTopic: 'science',
+    topics: ['science'],
+    publishedAt: '2026-07-17T06:04:57.000Z',
+  };
+
+  it('parses a minimal valid card', () => {
+    expect(cardSchema.parse(validCard)).toMatchObject(validCard);
+  });
+
+  it('rejects a card with an invalid topic', () => {
+    expect(() => cardSchema.parse({ ...validCard, primaryTopic: 'crypto' })).toThrow();
+  });
+
+  it('rejects a non-url source link', () => {
+    expect(() => cardSchema.parse({ ...validCard, url: 'not-a-url' })).toThrow();
+  });
+});
+
+describe('feedQuerySchema', () => {
+  it('defaults limit to 20 and coerces the query string', () => {
+    expect(feedQuerySchema.parse({})).toMatchObject({ limit: 20 });
+    expect(feedQuerySchema.parse({ limit: '5' })).toMatchObject({ limit: 5 });
+  });
+
+  it('rejects a limit above 50', () => {
+    expect(() => feedQuerySchema.parse({ limit: '999' })).toThrow();
+  });
+});

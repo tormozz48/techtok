@@ -1,10 +1,13 @@
 import type { Card as CardData } from '@techtok/shared';
 import * as Haptics from 'expo-haptics';
+import { Image } from 'expo-image';
 import { useRef } from 'react';
 import { StyleSheet } from 'react-native';
 import PagerView from 'react-native-pager-view';
+import { getIsWifi } from '@/state/network';
 import { enqueueRead } from '@/state/readQueue';
 import { Card } from './Card';
+import { selectImagesToPrefetch } from './prefetch';
 
 export interface FeedPagerProps {
   cards: CardData[];
@@ -27,6 +30,12 @@ export function FeedPager({ cards, onNearEnd }: FeedPagerProps) {
 
         const { position } = event.nativeEvent;
         if (position >= cards.length - NEAR_END_THRESHOLD) onNearEnd?.();
+
+        if (getIsWifi()) {
+          for (const url of selectImagesToPrefetch(cards, position)) {
+            Image.prefetch(url);
+          }
+        }
 
         const card = cards[position];
         if (card) {

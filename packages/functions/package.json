@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@aws-lambda-powertools/logger": "2.34.0",
+    "@aws-lambda-powertools/metrics": "2.34.0",
     "@techtok/core": "workspace:*",
     "@techtok/shared": "workspace:*"
   },

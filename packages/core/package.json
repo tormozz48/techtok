@@ -13,9 +13,13 @@
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "3.1090.0",
+    "@aws-sdk/client-s3": "3.1090.0",
+    "@aws-sdk/client-sqs": "3.1090.0",
     "@aws-sdk/lib-dynamodb": "3.1090.0",
+    "@extractus/article-extractor": "8.1.0",
     "@techtok/shared": "workspace:*",
     "he": "1.2.0",
+    "robots-parser": "3.0.1",
     "rss-parser": "3.13.0"
   },
   "devDependencies": {

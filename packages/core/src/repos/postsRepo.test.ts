@@ -4,6 +4,7 @@ import {
   DynamoDBDocumentClient,
   PutCommand,
   QueryCommand,
+  UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { mockClient } from 'aws-sdk-client-mock';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -151,5 +152,48 @@ describe('postsRepo.getByIds', () => {
     expect(calls).toHaveLength(2);
     expect(calls[0]?.args[0]?.input?.RequestItems?.Posts?.Keys).toHaveLength(100);
     expect(calls[1]?.args[0]?.input?.RequestItems?.Posts?.Keys).toHaveLength(50);
+  });
+});
+
+describe('postsRepo.updateTransform', () => {
+  // `status` and `transform` are both reserved words in DynamoDB's expression
+  // grammar — using them unaliased fails with a real validation error that
+  // aws-sdk-client-mock does not simulate, so this test only guards the
+  // shape (ExpressionAttributeNames present) rather than catching that class
+  // of bug directly. Confirmed against live DynamoDB during phase 2 testing.
+  it('aliases the status/transform reserved words via ExpressionAttributeNames', async () => {
+    ddbMock.on(UpdateCommand).resolves({});
+    const repo = createPostsRepo(client, 'Posts');
+
+    await repo.updateTransform('abc123', {
+      status: 'ready',
+      transform: 'excerpt',
+      excerpt: 'a new excerpt',
+      s3RawKey: 'raw/abc123.html',
+    });
+
+    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
+    expect(input?.ExpressionAttributeNames).toEqual({
+      '#status': 'status',
+      '#transform': 'transform',
+    });
+    expect(input?.UpdateExpression).toContain('#status = :status');
+    expect(input?.UpdateExpression).toContain('#transform = :transform');
+    expect(input?.ExpressionAttributeValues).toMatchObject({
+      ':status': 'ready',
+      ':transform': 'excerpt',
+      ':excerpt': 'a new excerpt',
+      ':s3RawKey': 'raw/abc123.html',
+    });
+  });
+
+  it('omits optional fields that are not provided', async () => {
+    ddbMock.on(UpdateCommand).resolves({});
+    const repo = createPostsRepo(client, 'Posts');
+
+    await repo.updateTransform('abc123', { status: 'ready', transform: 'excerpt' });
+
+    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
+    expect(input?.UpdateExpression).toBe('SET #status = :status, #transform = :transform');
   });
 });

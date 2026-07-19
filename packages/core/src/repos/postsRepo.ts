@@ -4,9 +4,10 @@ import {
   type DynamoDBDocumentClient,
   PutCommand,
   QueryCommand,
+  UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
 import type { Topic } from '@techtok/shared';
-import type { NewPost, PostRecord } from '../posts/types';
+import type { NewPost, PostRecord, PostStatus, TransformKind } from '../posts/types';
 
 const POST_TTL_SECONDS = 90 * 24 * 60 * 60;
 const BY_TIME_PARTITION = 'POST';
@@ -17,11 +18,20 @@ export interface QueryOpts {
   limit?: number;
 }
 
+export interface TransformUpdateFields {
+  status: PostStatus;
+  transform: TransformKind;
+  summary?: string;
+  excerpt?: string;
+  s3RawKey?: string;
+}
+
 export interface PostsRepo {
   putIfNew(post: NewPost): Promise<boolean>;
   queryByTopic(topic: Topic, opts?: QueryOpts): Promise<PostRecord[]>;
   queryRecent(opts?: QueryOpts): Promise<PostRecord[]>;
   getByIds(postIds: string[]): Promise<PostRecord[]>;
+  updateTransform(postId: string, fields: TransformUpdateFields): Promise<void>;
 }
 
 function chunk<T>(items: T[], size: number): T[][] {
@@ -111,6 +121,39 @@ export function createPostsRepo(client: DynamoDBDocumentClient, tableName: strin
         posts.push(...((result.Responses?.[tableName] ?? []) as PostRecord[]));
       }
       return posts;
+    },
+
+    async updateTransform(postId: string, fields: TransformUpdateFields): Promise<void> {
+      // #status/#transform: both are reserved words in DynamoDB's expression
+      // grammar and fail with a validation error if used unaliased.
+      const setParts = ['#status = :status', '#transform = :transform'];
+      const names: Record<string, string> = { '#status': 'status', '#transform': 'transform' };
+      const values: Record<string, unknown> = {
+        ':status': fields.status,
+        ':transform': fields.transform,
+      };
+      if (fields.summary !== undefined) {
+        setParts.push('summary = :summary');
+        values[':summary'] = fields.summary;
+      }
+      if (fields.excerpt !== undefined) {
+        setParts.push('excerpt = :excerpt');
+        values[':excerpt'] = fields.excerpt;
+      }
+      if (fields.s3RawKey !== undefined) {
+        setParts.push('s3RawKey = :s3RawKey');
+        values[':s3RawKey'] = fields.s3RawKey;
+      }
+
+      await client.send(
+        new UpdateCommand({
+          TableName: tableName,
+          Key: { postId },
+          UpdateExpression: `SET ${setParts.join(', ')}`,
+          ExpressionAttributeNames: names,
+          ExpressionAttributeValues: values,
+        }),
+      );
     },
   };
 }

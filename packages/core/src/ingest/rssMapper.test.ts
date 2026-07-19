@@ -22,7 +22,7 @@ describe('mapEntryToPost — hn.xml (RSS 2.0, no images)', () => {
     expect(posts).toHaveLength(3);
     for (const post of posts) {
       expect(post?.imageUrl).toBeUndefined();
-      expect(post?.status).toBe('ready');
+      expect(post?.status).toBe('discovered');
       expect(post?.transform).toBe('excerpt');
       expect(post?.primaryTopic).toBe('dev');
     }

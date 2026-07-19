@@ -1,7 +1,7 @@
 import type { NewPost } from '../posts/types';
+import type { SourceRecord } from '../sources/types';
 import { canonicalizeUrl, hashPostId } from '../url/canonicalize';
 import { firstImageSrc, toExcerpt } from './htmlText';
-import type { SourceConfig } from './sourceConfig';
 
 export interface FeedEntry {
   title?: string;
@@ -14,7 +14,7 @@ export interface FeedEntry {
   enclosure?: { url?: string };
 }
 
-type MapperSource = Pick<SourceConfig, 'sourceId' | 'name' | 'defaultTopic'>;
+type MapperSource = Pick<SourceRecord, 'sourceId' | 'name' | 'defaultTopic'>;
 
 export function mapEntryToPost(entry: FeedEntry, source: MapperSource): NewPost | undefined {
   const link = entry.link?.trim();
@@ -40,7 +40,7 @@ export function mapEntryToPost(entry: FeedEntry, source: MapperSource): NewPost 
     imageUrl,
     primaryTopic: source.defaultTopic,
     topics: [source.defaultTopic],
-    status: 'ready',
+    status: 'discovered',
     transform: 'excerpt',
     publishedAt: parsePublishedAt(entry),
   };

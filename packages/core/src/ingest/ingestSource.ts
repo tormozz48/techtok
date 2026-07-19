@@ -1,11 +1,21 @@
 import Parser from 'rss-parser';
 import type { NewPost } from '../posts/types';
+import type { FetchOutcome } from '../repos/sourcesRepo';
+import type { SourceRecord } from '../sources/types';
 import { type FeedEntry, mapEntryToPost } from './rssMapper';
-import type { SourceConfig } from './sourceConfig';
+
+export interface FetchFeedResult {
+  status: 'not-modified' | 'ok';
+  body?: string;
+  etag?: string;
+  lastModified?: string;
+}
 
 export interface IngestDeps {
-  fetchFeed: (url: string) => Promise<string>;
+  fetchFeed: (source: SourceRecord) => Promise<FetchFeedResult>;
   putIfNew: (post: NewPost) => Promise<boolean>;
+  enqueueNew: (posts: NewPost[]) => Promise<void>;
+  recordFetchResult: (sourceId: string, outcome: FetchOutcome) => Promise<void>;
 }
 
 export interface IngestResult {
@@ -16,19 +26,38 @@ export interface IngestResult {
 }
 
 /**
- * Fetches and ingests a single source. Content-level failures (an
- * unreachable/malformed feed, a single bad write) are caught and recorded
- * in `errors` rather than thrown, so one broken source never stops the
- * others in the same run (DESIGN §7.2 failure-isolation split).
+ * Discovers new posts for a single source and enqueues them for transform.
+ * Content-level failures (unreachable/malformed feed, a single bad write)
+ * are caught and recorded in `errors` — and reflected on the source's
+ * `lastStatus`/`failCount` — rather than thrown, so one broken source never
+ * stops the others in the same Map fan-out (DESIGN §7.2). `enqueueNew` and
+ * the success-path `recordFetchResult` are infra calls (SQS/DDB) and are
+ * deliberately left unguarded: if they throw, this function throws too, so
+ * the Step Functions Map's own retry/catch handles genuine infra failures
+ * separately from content ones.
  */
-export async function ingestSource(source: SourceConfig, deps: IngestDeps): Promise<IngestResult> {
+export async function ingestSource(source: SourceRecord, deps: IngestDeps): Promise<IngestResult> {
   const errors: string[] = [];
   let seen = 0;
   let created = 0;
+  const newPosts: NewPost[] = [];
+
+  let fetched: FetchFeedResult;
+  try {
+    fetched = await deps.fetchFeed(source);
+  } catch (err) {
+    errors.push(`fetch failed for ${source.sourceId}: ${toMessage(err)}`);
+    await deps.recordFetchResult(source.sourceId, { status: 'error' });
+    return { sourceId: source.sourceId, seen, created, errors };
+  }
+
+  if (fetched.status === 'not-modified') {
+    await deps.recordFetchResult(source.sourceId, { status: 'not-modified' });
+    return { sourceId: source.sourceId, seen, created, errors };
+  }
 
   try {
-    const xml = await deps.fetchFeed(source.rssUrl);
-    const feed = await new Parser<unknown, FeedEntry>().parseString(xml);
+    const feed = await new Parser<unknown, FeedEntry>().parseString(fetched.body ?? '');
 
     for (const entry of feed.items) {
       seen += 1;
@@ -38,14 +67,25 @@ export async function ingestSource(source: SourceConfig, deps: IngestDeps): Prom
       try {
         if (await deps.putIfNew(post)) {
           created += 1;
+          newPosts.push(post);
         }
       } catch (err) {
         errors.push(`putIfNew failed for ${post.postId}: ${toMessage(err)}`);
       }
     }
   } catch (err) {
-    errors.push(`fetch/parse failed for ${source.sourceId}: ${toMessage(err)}`);
+    errors.push(`parse failed for ${source.sourceId}: ${toMessage(err)}`);
   }
+
+  if (newPosts.length > 0) {
+    await deps.enqueueNew(newPosts);
+  }
+
+  await deps.recordFetchResult(source.sourceId, {
+    status: 'ok',
+    etag: fetched.etag,
+    lastModified: fetched.lastModified,
+  });
 
   return { sourceId: source.sourceId, seen, created, errors };
 }

@@ -19,6 +19,7 @@ export interface NewPost {
   status: PostStatus;
   transform: TransformKind;
   publishedAt: string;
+  s3RawKey?: string;
 }
 
 export interface PostRecord extends NewPost {

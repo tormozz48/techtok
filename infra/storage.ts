@@ -1,3 +1,10 @@
+export const sourcesTable = new sst.aws.Dynamo('Sources', {
+  fields: {
+    sourceId: 'string',
+  },
+  primaryIndex: { hashKey: 'sourceId' },
+});
+
 export const postsTable = new sst.aws.Dynamo('Posts', {
   fields: {
     postId: 'string',
@@ -30,4 +37,8 @@ export const userActivityTable = new sst.aws.Dynamo('UserActivity', {
   globalIndexes: {
     byReadAt: { hashKey: 'userId', rangeKey: 'gsi1sk' },
   },
+});
+
+export const rawArticlesBucket = new sst.aws.Bucket('RawArticles', {
+  lifecycle: [{ id: 'expire-raw', expiresIn: '90 days' }],
 });

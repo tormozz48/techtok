@@ -42,6 +42,9 @@ export default function FeedScreen() {
         }}
       />
       <View style={styles.overlay} pointerEvents="box-none">
+        <Link href="/saved" style={styles.overlayButton}>
+          <Text style={styles.overlayButtonText}>🔖</Text>
+        </Link>
         <Link href="/history" style={styles.overlayButton}>
           <Text style={styles.overlayButtonText}>🕓</Text>
         </Link>

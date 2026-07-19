@@ -1,4 +1,6 @@
 import {
+  type BookmarksResponse,
+  bookmarksResponseSchema,
   DEVICE_ID_HEADER,
   type FeedResponse,
   feedResponseSchema,
@@ -90,4 +92,34 @@ export async function fetchHistoryPage({
 
   const response = await apiFetch(url);
   return historyResponseSchema.parse(await response.json());
+}
+
+export interface FetchBookmarksPageParams {
+  cursor?: string;
+  limit?: number;
+}
+
+export async function fetchBookmarksPage({
+  cursor,
+  limit = 50,
+}: FetchBookmarksPageParams = {}): Promise<BookmarksResponse> {
+  const url = apiUrl('/v1/bookmarks');
+  url.searchParams.set('limit', String(limit));
+  if (cursor) url.searchParams.set('cursor', cursor);
+
+  const response = await apiFetch(url);
+  return bookmarksResponseSchema.parse(await response.json());
+}
+
+export async function createBookmark(postId: string): Promise<void> {
+  await apiFetch(apiUrl('/v1/bookmarks'), {
+    method: 'POST',
+    body: JSON.stringify({ postId }),
+  });
+}
+
+export async function deleteBookmark(postId: string): Promise<void> {
+  await apiFetch(apiUrl(`/v1/bookmarks/${encodeURIComponent(postId)}`), {
+    method: 'DELETE',
+  });
 }

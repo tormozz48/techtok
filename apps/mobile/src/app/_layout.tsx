@@ -48,6 +48,7 @@ export default function RootLayout() {
             options={{ presentation: 'modal', headerShown: true, title: 'Settings' }}
           />
           <Stack.Screen name="history" options={{ headerShown: true, title: 'History' }} />
+          <Stack.Screen name="saved" options={{ headerShown: true, title: 'Saved' }} />
         </Stack>
       </ThemeProvider>
     </QueryClientProvider>

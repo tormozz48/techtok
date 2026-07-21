@@ -1,11 +1,10 @@
 import type { SourceRecord } from '../sources/types';
 
-/**
- * The full ~11-feed preset list from DESIGN.md §2, seeded into the `Sources`
- * table (Phase 2). Editable afterwards via the table itself — this is only
- * the initial data.
- */
-export const FULL_SOURCE_PRESETS: SourceRecord[] = [
+/** Preset rows carry only their identity; the operational fields all start
+ * from the same defaults (weight 1, enabled, clean failCount) applied below. */
+type SourcePreset = Omit<SourceRecord, 'weight' | 'enabled' | 'failCount'>;
+
+const PRESETS: SourcePreset[] = [
   {
     sourceId: 'hn',
     name: 'Hacker News',
@@ -13,9 +12,6 @@ export const FULL_SOURCE_PRESETS: SourceRecord[] = [
     siteUrl: 'https://news.ycombinator.com',
     defaultTopic: 'dev',
     topics: ['dev'],
-    weight: 1,
-    enabled: true,
-    failCount: 0,
   },
   {
     sourceId: 'verge',
@@ -24,9 +20,6 @@ export const FULL_SOURCE_PRESETS: SourceRecord[] = [
     siteUrl: 'https://www.theverge.com',
     defaultTopic: 'gadgets',
     topics: ['gadgets'],
-    weight: 1,
-    enabled: true,
-    failCount: 0,
   },
   {
     sourceId: 'arstechnica',
@@ -35,9 +28,6 @@ export const FULL_SOURCE_PRESETS: SourceRecord[] = [
     siteUrl: 'https://arstechnica.com',
     defaultTopic: 'gadgets',
     topics: ['gadgets', 'dev'],
-    weight: 1,
-    enabled: true,
-    failCount: 0,
   },
   {
     sourceId: 'techcrunch',
@@ -46,9 +36,6 @@ export const FULL_SOURCE_PRESETS: SourceRecord[] = [
     siteUrl: 'https://techcrunch.com',
     defaultTopic: 'startups',
     topics: ['startups'],
-    weight: 1,
-    enabled: true,
-    failCount: 0,
   },
   {
     sourceId: 'sciencedaily',
@@ -57,9 +44,6 @@ export const FULL_SOURCE_PRESETS: SourceRecord[] = [
     siteUrl: 'https://www.sciencedaily.com',
     defaultTopic: 'science',
     topics: ['science'],
-    weight: 1,
-    enabled: true,
-    failCount: 0,
   },
   {
     sourceId: 'physorg',
@@ -68,9 +52,6 @@ export const FULL_SOURCE_PRESETS: SourceRecord[] = [
     siteUrl: 'https://phys.org',
     defaultTopic: 'science',
     topics: ['science'],
-    weight: 1,
-    enabled: true,
-    failCount: 0,
   },
   {
     sourceId: 'quanta',
@@ -79,9 +60,6 @@ export const FULL_SOURCE_PRESETS: SourceRecord[] = [
     siteUrl: 'https://www.quantamagazine.org',
     defaultTopic: 'science',
     topics: ['science'],
-    weight: 1,
-    enabled: true,
-    failCount: 0,
   },
   {
     sourceId: 'nature',
@@ -90,9 +68,6 @@ export const FULL_SOURCE_PRESETS: SourceRecord[] = [
     siteUrl: 'https://www.nature.com',
     defaultTopic: 'science',
     topics: ['science', 'bio'],
-    weight: 1,
-    enabled: true,
-    failCount: 0,
   },
   {
     sourceId: 'arxiv-ai',
@@ -101,9 +76,6 @@ export const FULL_SOURCE_PRESETS: SourceRecord[] = [
     siteUrl: 'https://arxiv.org/list/cs.AI/recent',
     defaultTopic: 'ai',
     topics: ['ai'],
-    weight: 1,
-    enabled: true,
-    failCount: 0,
   },
   {
     sourceId: 'github-blog',
@@ -112,9 +84,6 @@ export const FULL_SOURCE_PRESETS: SourceRecord[] = [
     siteUrl: 'https://github.blog',
     defaultTopic: 'dev',
     topics: ['dev'],
-    weight: 1,
-    enabled: true,
-    failCount: 0,
   },
   {
     sourceId: 'huggingface-blog',
@@ -123,8 +92,17 @@ export const FULL_SOURCE_PRESETS: SourceRecord[] = [
     siteUrl: 'https://huggingface.co/blog',
     defaultTopic: 'ai',
     topics: ['ai'],
-    weight: 1,
-    enabled: true,
-    failCount: 0,
   },
 ];
+
+/**
+ * The full ~11-feed preset list from DESIGN.md §2, seeded into the `Sources`
+ * table (Phase 2). Editable afterwards via the table itself — this is only
+ * the initial data.
+ */
+export const FULL_SOURCE_PRESETS: SourceRecord[] = PRESETS.map((preset) => ({
+  ...preset,
+  weight: 1,
+  enabled: true,
+  failCount: 0,
+}));

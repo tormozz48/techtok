@@ -1,11 +1,7 @@
 import { Logger } from '@aws-lambda-powertools/logger';
-import {
-  createDynamoClient,
-  createPostsRepo,
-  createSqsClient,
-  createTransformQueue,
-} from '@techtok/core';
+import { createSqsClient, createTransformQueue } from '@techtok/core';
 import { requireEnv } from '../env';
+import { getPostsRepo } from '../repos';
 
 const logger = new Logger({ serviceName: 'backfillLlm' });
 const PAGE_SIZE = 100;
@@ -21,7 +17,7 @@ const PAGE_SIZE = 100;
  *   aws lambda invoke --function-name <fn> out.json
  */
 export async function handler(): Promise<void> {
-  const repo = createPostsRepo(createDynamoClient(), requireEnv('POSTS_TABLE_NAME'));
+  const repo = getPostsRepo();
   const queue = createTransformQueue(createSqsClient(), requireEnv('TRANSFORM_QUEUE_URL'));
 
   let before: string | undefined;

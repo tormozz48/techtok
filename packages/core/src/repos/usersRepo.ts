@@ -1,10 +1,12 @@
-import { type DynamoDBDocumentClient, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { type DynamoDBDocumentClient, ScanCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import type { Topic } from '@techtok/shared';
 import type { UserRecord } from '../users/types';
 
 export interface UsersRepo {
   touch(userId: string): Promise<UserRecord>;
   updateTopics(userId: string, topics: Topic[]): Promise<UserRecord>;
+  updatePushToken(userId: string, pushToken: string): Promise<UserRecord>;
+  listWithPushTokens(): Promise<UserRecord[]>;
 }
 
 export function createUsersRepo(client: DynamoDBDocumentClient, tableName: string): UsersRepo {
@@ -37,6 +39,31 @@ export function createUsersRepo(client: DynamoDBDocumentClient, tableName: strin
         }),
       );
       return result.Attributes as UserRecord;
+    },
+
+    async updatePushToken(userId: string, pushToken: string): Promise<UserRecord> {
+      const now = new Date().toISOString();
+      const result = await client.send(
+        new UpdateCommand({
+          TableName: tableName,
+          Key: { userId },
+          UpdateExpression:
+            'SET pushToken = :pushToken, lastSeenAt = :now, createdAt = if_not_exists(createdAt, :now), topics = if_not_exists(topics, :emptyTopics)',
+          ExpressionAttributeValues: { ':pushToken': pushToken, ':now': now, ':emptyTopics': [] },
+          ReturnValues: 'ALL_NEW',
+        }),
+      );
+      return result.Attributes as UserRecord;
+    },
+
+    async listWithPushTokens(): Promise<UserRecord[]> {
+      const result = await client.send(
+        new ScanCommand({
+          TableName: tableName,
+          FilterExpression: 'attribute_exists(pushToken)',
+        }),
+      );
+      return (result.Items ?? []) as UserRecord[];
     },
   };
 }

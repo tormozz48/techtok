@@ -6,6 +6,7 @@ import {
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
 import type { ActivityRecord, BookmarkRecord, ReadSnapshot } from '../history/types';
+import { chunk } from '../util/chunk';
 
 const BATCH_GET_CHUNK_SIZE = 100;
 
@@ -53,14 +54,6 @@ function bookmarkSortKey(postId: string): string {
   return `bm#${postId}`;
 }
 
-function chunk<T>(items: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < items.length; i += size) {
-    chunks.push(items.slice(i, i + size));
-  }
-  return chunks;
-}
-
 async function batchGetMarkedIds(
   client: DynamoDBDocumentClient,
   tableName: string,
@@ -86,6 +79,31 @@ async function batchGetMarkedIds(
     }
   }
   return markedIds;
+}
+
+async function queryNewestFirstPage<T>(
+  client: DynamoDBDocumentClient,
+  tableName: string,
+  indexName: string,
+  userId: string,
+  opts: { limit?: number; cursor?: string },
+): Promise<{ items: T[]; nextCursor: string | null }> {
+  const result = await client.send(
+    new QueryCommand({
+      TableName: tableName,
+      IndexName: indexName,
+      KeyConditionExpression: 'userId = :userId',
+      ExpressionAttributeValues: { ':userId': userId },
+      ScanIndexForward: false,
+      Limit: opts.limit ?? 50,
+      ExclusiveStartKey: opts.cursor ? decodeHistoryCursor(opts.cursor) : undefined,
+    }),
+  );
+
+  return {
+    items: (result.Items ?? []) as T[],
+    nextCursor: result.LastEvaluatedKey ? encodeHistoryCursor(result.LastEvaluatedKey) : null,
+  };
 }
 
 export function createUserActivityRepo(
@@ -118,22 +136,7 @@ export function createUserActivityRepo(
       userId: string,
       opts: { limit?: number; cursor?: string } = {},
     ): Promise<HistoryPage> {
-      const result = await client.send(
-        new QueryCommand({
-          TableName: tableName,
-          IndexName: 'byReadAt',
-          KeyConditionExpression: 'userId = :userId',
-          ExpressionAttributeValues: { ':userId': userId },
-          ScanIndexForward: false,
-          Limit: opts.limit ?? 50,
-          ExclusiveStartKey: opts.cursor ? decodeHistoryCursor(opts.cursor) : undefined,
-        }),
-      );
-
-      return {
-        items: (result.Items ?? []) as ActivityRecord[],
-        nextCursor: result.LastEvaluatedKey ? encodeHistoryCursor(result.LastEvaluatedKey) : null,
-      };
+      return queryNewestFirstPage<ActivityRecord>(client, tableName, 'byReadAt', userId, opts);
     },
 
     async addBookmark(
@@ -167,22 +170,13 @@ export function createUserActivityRepo(
       userId: string,
       opts: { limit?: number; cursor?: string } = {},
     ): Promise<BookmarksPage> {
-      const result = await client.send(
-        new QueryCommand({
-          TableName: tableName,
-          IndexName: 'byBookmarkedAt',
-          KeyConditionExpression: 'userId = :userId',
-          ExpressionAttributeValues: { ':userId': userId },
-          ScanIndexForward: false,
-          Limit: opts.limit ?? 50,
-          ExclusiveStartKey: opts.cursor ? decodeHistoryCursor(opts.cursor) : undefined,
-        }),
+      return queryNewestFirstPage<BookmarkRecord>(
+        client,
+        tableName,
+        'byBookmarkedAt',
+        userId,
+        opts,
       );
-
-      return {
-        items: (result.Items ?? []) as BookmarkRecord[],
-        nextCursor: result.LastEvaluatedKey ? encodeHistoryCursor(result.LastEvaluatedKey) : null,
-      };
     },
   };
 }

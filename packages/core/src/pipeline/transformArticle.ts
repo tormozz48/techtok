@@ -4,8 +4,11 @@ import robotsParser from 'robots-parser';
 import { toExcerpt } from '../ingest/htmlText';
 import type { GenerateCardResult } from '../llm/generateCard';
 import type { TransformKind } from '../posts/types';
+import { errorMessage } from '../util/errors';
 
-const USER_AGENT = 'TechTokBot/1.0 (+https://github.com/tormozz48/techtok)';
+/** Single bot identity for everything TechTok fetches — the robots.txt check
+ * below and the page/image fetches in `functions` must always agree on it. */
+export const TECHTOK_BOT_USER_AGENT = 'TechTokBot/1.0 (+https://github.com/tormozz48/techtok)';
 
 export interface TransformInput {
   postId: string;
@@ -95,7 +98,7 @@ export async function transformArticle(
       html = await deps.fetchPage(input.url);
     }
   } catch (err) {
-    reason = `fetch failed: ${toMessage(err)}`;
+    reason = `fetch failed: ${errorMessage(err)}`;
   }
 
   let excerpt: string | undefined;
@@ -107,7 +110,7 @@ export async function transformArticle(
       fullText = article?.content ? toExcerpt(article.content, 4000) : undefined;
       if (!excerpt) reason = 'extraction produced no usable text';
     } catch (err) {
-      reason = `extraction failed: ${toMessage(err)}`;
+      reason = `extraction failed: ${errorMessage(err)}`;
     }
   }
 
@@ -177,9 +180,5 @@ async function isAllowedByRobots(
   const robotsUrl = new URL('/robots.txt', url).toString();
   const robotsTxt = await fetchRobotsTxt(robotsUrl);
   if (!robotsTxt) return true;
-  return robotsParser(robotsUrl, robotsTxt).isAllowed(url, USER_AGENT) ?? true;
-}
-
-function toMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
+  return robotsParser(robotsUrl, robotsTxt).isAllowed(url, TECHTOK_BOT_USER_AGENT) ?? true;
 }

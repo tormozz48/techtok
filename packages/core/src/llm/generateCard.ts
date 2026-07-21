@@ -1,3 +1,4 @@
+import { errorMessage } from '../util/errors';
 import { buildCardPrompt, buildRepairPrompt } from './prompts/cardPrompt';
 import { type LlmCardOutput, type LlmProvider, llmCardOutputSchema } from './types';
 
@@ -25,14 +26,14 @@ async function attempt(provider: LlmProvider, prompt: string): Promise<AttemptRe
   try {
     raw = await provider.complete(prompt);
   } catch (err) {
-    return { ok: false, reason: `llm call failed: ${toMessage(err)}` };
+    return { ok: false, reason: `llm call failed: ${errorMessage(err)}` };
   }
 
   let json: unknown;
   try {
     json = JSON.parse(extractJson(raw));
   } catch (err) {
-    return { ok: false, reason: `invalid JSON: ${toMessage(err)}`, raw };
+    return { ok: false, reason: `invalid JSON: ${errorMessage(err)}`, raw };
   }
 
   const parsed = llmCardOutputSchema.safeParse(json);
@@ -46,10 +47,6 @@ function extractJson(raw: string): string {
   // Models sometimes wrap JSON in markdown fences despite instructions.
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
   return (fenced?.[1] ?? raw).trim();
-}
-
-function toMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
 }
 
 /**

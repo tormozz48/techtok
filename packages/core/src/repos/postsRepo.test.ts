@@ -84,7 +84,8 @@ describe('postsRepo.queryByTopic', () => {
     expect(input?.IndexName).toBe('byTopic');
     expect(input?.ScanIndexForward).toBe(false);
     expect(input?.Limit).toBe(10);
-    expect(input?.ExpressionAttributeValues).toMatchObject({ ':topic': 'dev' });
+    expect(input?.ExpressionAttributeNames).toEqual({ '#pk': 'primaryTopic' });
+    expect(input?.ExpressionAttributeValues).toMatchObject({ ':pk': 'dev' });
   });
 
   it('adds the before-cursor condition when provided', async () => {
@@ -111,6 +112,7 @@ describe('postsRepo.queryRecent', () => {
     expect(items).toEqual([samplePost]);
     const input = ddbMock.commandCalls(QueryCommand)[0]?.args[0]?.input;
     expect(input?.IndexName).toBe('byTime');
+    expect(input?.ExpressionAttributeNames).toEqual({ '#pk': 'gsi1pk' });
     expect(input?.ExpressionAttributeValues).toMatchObject({ ':pk': 'POST' });
   });
 
@@ -156,12 +158,12 @@ describe('postsRepo.getByIds', () => {
 });
 
 describe('postsRepo.updateTransform', () => {
-  // `status` and `transform` are both reserved words in DynamoDB's expression
+  // `status` and `transform` are reserved words in DynamoDB's expression
   // grammar — using them unaliased fails with a real validation error that
-  // aws-sdk-client-mock does not simulate, so this test only guards the
-  // shape (ExpressionAttributeNames present) rather than catching that class
-  // of bug directly. Confirmed against live DynamoDB during phase 2 testing.
-  it('aliases the status/transform reserved words via ExpressionAttributeNames', async () => {
+  // aws-sdk-client-mock does not simulate. The repo therefore aliases every
+  // written attribute name, so no field can ever hit that class of bug.
+  // Confirmed against live DynamoDB during phase 2 testing.
+  it('aliases every written attribute name via ExpressionAttributeNames', async () => {
     ddbMock.on(UpdateCommand).resolves({});
     const repo = createPostsRepo(client, 'Posts');
 
@@ -176,6 +178,8 @@ describe('postsRepo.updateTransform', () => {
     expect(input?.ExpressionAttributeNames).toEqual({
       '#status': 'status',
       '#transform': 'transform',
+      '#excerpt': 'excerpt',
+      '#s3RawKey': 's3RawKey',
     });
     expect(input?.UpdateExpression).toContain('#status = :status');
     expect(input?.UpdateExpression).toContain('#transform = :transform');
@@ -197,7 +201,7 @@ describe('postsRepo.updateTransform', () => {
     expect(input?.UpdateExpression).toBe('SET #status = :status, #transform = :transform');
   });
 
-  it('writes the LLM-derived card fields and aliases the topics reserved-ish name', async () => {
+  it('writes the LLM-derived card fields', async () => {
     ddbMock.on(UpdateCommand).resolves({});
     const repo = createPostsRepo(client, 'Posts');
 
@@ -215,13 +219,17 @@ describe('postsRepo.updateTransform', () => {
     expect(input?.ExpressionAttributeNames).toEqual({
       '#status': 'status',
       '#transform': 'transform',
+      '#cardTitle': 'cardTitle',
+      '#whyItMatters': 'whyItMatters',
+      '#primaryTopic': 'primaryTopic',
       '#topics': 'topics',
+      '#lang': 'lang',
     });
-    expect(input?.UpdateExpression).toContain('cardTitle = :cardTitle');
-    expect(input?.UpdateExpression).toContain('whyItMatters = :whyItMatters');
-    expect(input?.UpdateExpression).toContain('primaryTopic = :primaryTopic');
+    expect(input?.UpdateExpression).toContain('#cardTitle = :cardTitle');
+    expect(input?.UpdateExpression).toContain('#whyItMatters = :whyItMatters');
+    expect(input?.UpdateExpression).toContain('#primaryTopic = :primaryTopic');
     expect(input?.UpdateExpression).toContain('#topics = :topics');
-    expect(input?.UpdateExpression).toContain('lang = :lang');
+    expect(input?.UpdateExpression).toContain('#lang = :lang');
     expect(input?.ExpressionAttributeValues).toMatchObject({
       ':cardTitle': 'A Punchy Hook Title',
       ':whyItMatters': 'Because it does.',
@@ -242,7 +250,7 @@ describe('postsRepo.updateTransform', () => {
     });
 
     const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
-    expect(input?.UpdateExpression).toContain('mirroredImageUrl = :mirroredImageUrl');
+    expect(input?.UpdateExpression).toContain('#mirroredImageUrl = :mirroredImageUrl');
     expect(input?.ExpressionAttributeValues).toMatchObject({
       ':mirroredImageUrl': 'https://cdn.example.com/images/abc123.jpg',
     });

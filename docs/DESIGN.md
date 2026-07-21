@@ -143,6 +143,7 @@ Rules: `functions` handlers stay thin (parse → call `core` → serialize); all
 | `GET /v1/history?limit=50&cursor=` | Reading history | Newest-read-first, snapshot-based (survives post TTL) |
 | `GET /v1/me` | User profile | `{ userId, topics, createdAt }` |
 | `PUT /v1/me/topics` | Set topic prefs | `{ topics: string[] }`; empty = all topics |
+| `PUT /v1/me/push-token` | Register Expo push token | `{ pushToken: string }`; enables the phase-5 daily digest |
 | `GET /v1/topics` | Topic taxonomy | Static list with labels; lets app render without hardcoding |
 
 **Card DTO:** `{ id, title, summary, whyItMatters?, imageUrl?, sourceName, url, primaryTopic, topics[], publishedAt, media?[] }`
@@ -187,7 +188,7 @@ Multi-topic indexing note: a GSI can't index a list, so the feed indexes `primar
 | | |
 |---|---|
 | PK | `userId` (= device UUID v1) |
-| Attrs | `topics[]`, `createdAt`, `lastSeenAt`, `settings{}` |
+| Attrs | `topics[]`, `createdAt`, `lastSeenAt`, `settings{}`, `pushToken?` (Expo push token, phase 5 daily digest) |
 
 ### `UserActivity`
 | | |
@@ -322,7 +323,7 @@ Everything else I would otherwise have asked, with the default the plan assumes:
 | RSS parsing | `rss-parser`; extraction `@extractus/article-extractor` |
 | Mobile styling | StyleSheet + tokens; NativeWind deferred |
 | Offline | Query-cache persistence only; explicit prefetch deferred |
-| Push notifications | Phase 5 candidate (`expo-notifications`), not committed |
+| Push notifications | Implemented phase 5 — daily top-N-unread digest via `expo-notifications` + Expo push API, opt-in from settings |
 | Crash reporting | Sentry (free tier) in phase 6 |
 | Product analytics | None — CloudWatch metrics only |
 | Cross-source duplicate stories (same story, two outlets) | Accepted v1; canonical-URL + title-similarity dedup is a phase 4+ experiment |

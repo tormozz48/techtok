@@ -1,40 +1,22 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import {
-  createDynamoClient,
-  createPostsRepo,
-  createSourcesRepo,
   createSqsClient,
   createTransformQueue,
   type FetchFeedResult,
   findDuplicateOf,
   type IngestResult,
   ingestSource,
-  type PostsRepo,
   type SourceRecord,
-  type SourcesRepo,
-  type TransformQueue,
 } from '@techtok/core';
 import { requireEnv } from '../env';
+import { lazy } from '../lazy';
+import { getPostsRepo, getSourcesRepo } from '../repos';
 
 const logger = new Logger({ serviceName: 'fetchSource' });
 
-let postsRepo: PostsRepo | undefined;
-function getPostsRepo(): PostsRepo {
-  postsRepo ??= createPostsRepo(createDynamoClient(), requireEnv('POSTS_TABLE_NAME'));
-  return postsRepo;
-}
-
-let sourcesRepo: SourcesRepo | undefined;
-function getSourcesRepo(): SourcesRepo {
-  sourcesRepo ??= createSourcesRepo(createDynamoClient(), requireEnv('SOURCES_TABLE_NAME'));
-  return sourcesRepo;
-}
-
-let transformQueue: TransformQueue | undefined;
-function getTransformQueue(): TransformQueue {
-  transformQueue ??= createTransformQueue(createSqsClient(), requireEnv('TRANSFORM_QUEUE_URL'));
-  return transformQueue;
-}
+const getTransformQueue = lazy(() =>
+  createTransformQueue(createSqsClient(), requireEnv('TRANSFORM_QUEUE_URL')),
+);
 
 async function fetchFeed(source: SourceRecord): Promise<FetchFeedResult> {
   const headers: Record<string, string> = {};

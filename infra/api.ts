@@ -6,6 +6,19 @@ export const api = new sst.aws.ApiGatewayV2('Api', {
     allowHeaders: ['content-type', 'x-device-id'],
     allowOrigins: ['*'],
   },
+  transform: {
+    // Phase 5 rate-limit sanity check (IMPLEMENTATION_PLAN.md phase 5 task
+    // 2): the account default (5000 req/s steady-state, 10000 burst) is far
+    // above friends-scale usage. This is a sanity ceiling against a client
+    // retry-storm bug, not per-device abuse prevention — that's explicitly
+    // out of scope at this trust level (DESIGN §5).
+    stage: {
+      defaultRouteSettings: {
+        throttlingRateLimit: 50,
+        throttlingBurstLimit: 100,
+      },
+    },
+  },
 });
 
 const feedEnvironment = {
@@ -46,6 +59,13 @@ api.route('GET /v1/me', {
 
 api.route('PUT /v1/me/topics', {
   handler: 'packages/functions/src/api/topicsPrefs.handler',
+  link: [usersTable],
+  environment: { USERS_TABLE_NAME: usersTable.name },
+  runtime: 'nodejs22.x',
+});
+
+api.route('PUT /v1/me/push-token', {
+  handler: 'packages/functions/src/api/pushToken.handler',
   link: [usersTable],
   environment: { USERS_TABLE_NAME: usersTable.name },
   runtime: 'nodejs22.x',

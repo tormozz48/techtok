@@ -1,17 +1,26 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { TOPIC_LABELS, TOPICS, type Topic } from '@techtok/shared';
-import { useEffect } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Linking, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { Colors, Spacing } from '@/constants/theme';
+import { enablePushNotifications, isPushEnabled } from '@/state/pushNotifications';
 import { useTopicsStore } from '@/state/topicsStore';
+
+const FEEDBACK_MAILTO = 'mailto:andrii@numica.com?subject=TechTok%20feedback';
 
 export default function SettingsScreen() {
   const queryClient = useQueryClient();
   const { topics, isLoading, load, setTopics } = useTopicsStore();
+  const [pushEnabled, setPushEnabled] = useState(isPushEnabled);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  const handleEnablePush = async () => {
+    const enabled = await enablePushNotifications();
+    setPushEnabled(enabled);
+  };
 
   const toggleTopic = async (topic: Topic) => {
     const next = topics.includes(topic) ? topics.filter((t) => t !== topic) : [...topics, topic];
@@ -40,6 +49,14 @@ export default function SettingsScreen() {
           </Pressable>
         );
       })}
+      <Pressable style={styles.feedbackRow} onPress={handleEnablePush} disabled={pushEnabled}>
+        <Text style={styles.feedbackText}>
+          {pushEnabled ? 'Daily digest notifications on' : 'Enable daily digest notifications'}
+        </Text>
+      </Pressable>
+      <Pressable style={styles.feedbackRow} onPress={() => Linking.openURL(FEEDBACK_MAILTO)}>
+        <Text style={styles.feedbackText}>Send feedback</Text>
+      </Pressable>
     </ScrollView>
   );
 }
@@ -79,5 +96,17 @@ const styles = StyleSheet.create({
     color: Colors.dark.text,
     fontSize: 16,
     fontWeight: '700',
+  },
+  feedbackRow: {
+    alignItems: 'center',
+    backgroundColor: Colors.dark.backgroundElement,
+    borderRadius: 12,
+    marginTop: Spacing.three,
+    paddingVertical: Spacing.three,
+  },
+  feedbackText: {
+    color: Colors.dark.text,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

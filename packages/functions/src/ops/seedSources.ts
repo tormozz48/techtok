@@ -1,6 +1,6 @@
 import { Logger } from '@aws-lambda-powertools/logger';
-import { createDynamoClient, createSourcesRepo, FULL_SOURCE_PRESETS } from '@techtok/core';
-import { requireEnv } from '../env';
+import { FULL_SOURCE_PRESETS } from '@techtok/core';
+import { getSourcesRepo } from '../repos';
 
 const logger = new Logger({ serviceName: 'seedSources' });
 
@@ -12,7 +12,7 @@ const logger = new Logger({ serviceName: 'seedSources' });
  * `aws lambda invoke --function-name <fn> out.json`.
  */
 export async function handler(): Promise<void> {
-  const repo = createSourcesRepo(createDynamoClient(), requireEnv('SOURCES_TABLE_NAME'));
+  const repo = getSourcesRepo();
 
   let created = 0;
   for (const source of FULL_SOURCE_PRESETS) {

@@ -1,5 +1,5 @@
-import { ConditionalCheckFailedException } from '@aws-sdk/client-dynamodb';
 import { type DynamoDBDocumentClient, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { conditionalWrite } from './dynamoClient';
 
 export interface CountersRepo {
   /**
@@ -18,8 +18,8 @@ export function createCountersRepo(
   return {
     async incrementIfUnderCap(date: string, cap: number): Promise<boolean> {
       const counterId = `transforms#${date}`;
-      try {
-        await client.send(
+      return conditionalWrite(() =>
+        client.send(
           new UpdateCommand({
             TableName: tableName,
             Key: { counterId },
@@ -31,14 +31,8 @@ export function createCountersRepo(
             ExpressionAttributeNames: { '#count': 'count' },
             ExpressionAttributeValues: { ':one': 1, ':cap': cap },
           }),
-        );
-        return true;
-      } catch (err) {
-        if (err instanceof ConditionalCheckFailedException) {
-          return false;
-        }
-        throw err;
-      }
+        ),
+      );
     },
   };
 }

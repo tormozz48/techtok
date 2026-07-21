@@ -5,4 +5,5 @@ export interface UserRecord {
   topics: Topic[];
   createdAt: string;
   lastSeenAt: string;
+  pushToken?: string;
 }

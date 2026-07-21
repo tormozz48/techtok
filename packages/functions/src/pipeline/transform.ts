@@ -1,63 +1,39 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import {
-  type CountersRepo,
   createBedrockClient,
   createBedrockProvider,
   createCountersRepo,
-  createDynamoClient,
   createImageStore,
-  createPostsRepo,
   createRawArticleStore,
   createS3Client,
+  errorMessage,
   generateCard as generateCardViaLlm,
-  type ImageStore,
-  type PostsRepo,
-  type RawArticleStore,
+  TECHTOK_BOT_USER_AGENT,
   transformArticle,
 } from '@techtok/core';
 import type { SQSBatchResponse, SQSEvent, SQSHandler } from 'aws-lambda';
 import { requireEnv } from '../env';
+import { lazy } from '../lazy';
+import { getDynamoClient, getPostsRepo } from '../repos';
 
 const logger = new Logger({ serviceName: 'transform' });
 
 const FETCH_TIMEOUT_MS = 10_000;
 const MAX_BYTES = 2 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-const USER_AGENT = 'TechTokBot/1.0 (+https://github.com/tormozz48/techtok)';
 const DEFAULT_DAILY_CAP = 120;
 
-let postsRepo: PostsRepo | undefined;
-function getPostsRepo(): PostsRepo {
-  postsRepo ??= createPostsRepo(createDynamoClient(), requireEnv('POSTS_TABLE_NAME'));
-  return postsRepo;
-}
-
-let rawArticleStore: RawArticleStore | undefined;
-function getRawArticleStore(): RawArticleStore {
-  rawArticleStore ??= createRawArticleStore(
-    createS3Client(),
-    requireEnv('RAW_ARTICLES_BUCKET_NAME'),
-  );
-  return rawArticleStore;
-}
-
-let imageStore: ImageStore | undefined;
-function getImageStore(): ImageStore {
-  imageStore ??= createImageStore(createS3Client(), requireEnv('IMAGES_BUCKET_NAME'));
-  return imageStore;
-}
-
-let countersRepo: CountersRepo | undefined;
-function getCountersRepo(): CountersRepo {
-  countersRepo ??= createCountersRepo(createDynamoClient(), requireEnv('COUNTERS_TABLE_NAME'));
-  return countersRepo;
-}
-
-let bedrockProvider: ReturnType<typeof createBedrockProvider> | undefined;
-function getBedrockProvider(): ReturnType<typeof createBedrockProvider> {
-  bedrockProvider ??= createBedrockProvider(createBedrockClient(), requireEnv('BEDROCK_MODEL_ID'));
-  return bedrockProvider;
-}
+const getS3Client = lazy(createS3Client);
+const getRawArticleStore = lazy(() =>
+  createRawArticleStore(getS3Client(), requireEnv('RAW_ARTICLES_BUCKET_NAME')),
+);
+const getImageStore = lazy(() => createImageStore(getS3Client(), requireEnv('IMAGES_BUCKET_NAME')));
+const getCountersRepo = lazy(() =>
+  createCountersRepo(getDynamoClient(), requireEnv('COUNTERS_TABLE_NAME')),
+);
+const getBedrockProvider = lazy(() =>
+  createBedrockProvider(createBedrockClient(), requireEnv('BEDROCK_MODEL_ID')),
+);
 
 const dailyCap = Number(process.env.LLM_DAILY_CAP ?? DEFAULT_DAILY_CAP);
 
@@ -79,7 +55,7 @@ async function fetchBytes(url: string, maxBytes: number): Promise<FetchedBytes> 
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     const response = await fetch(url, {
-      headers: { 'User-Agent': USER_AGENT },
+      headers: { 'User-Agent': TECHTOK_BOT_USER_AGENT },
       signal: controller.signal,
     });
     if (!response.ok) {
@@ -130,7 +106,7 @@ async function mirrorImage(postId: string, imageUrl: string): Promise<string | u
     logger.warn('image mirror failed, keeping original hotlinked url', {
       postId,
       imageUrl,
-      error: err instanceof Error ? err.message : String(err),
+      error: errorMessage(err),
     });
     return undefined;
   }
@@ -188,7 +164,7 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
     } catch (err) {
       logger.error('transform failed for message', {
         messageId: record.messageId,
-        error: err instanceof Error ? err.message : String(err),
+        error: errorMessage(err),
       });
       batchItemFailures.push({ itemIdentifier: record.messageId });
     }

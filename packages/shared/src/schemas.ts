@@ -74,6 +74,11 @@ export const topicsPrefsRequestSchema = z.object({
 });
 export type TopicsPrefsRequest = z.infer<typeof topicsPrefsRequestSchema>;
 
+export const pushTokenRequestSchema = z.object({
+  pushToken: z.string().min(1),
+});
+export type PushTokenRequest = z.infer<typeof pushTokenRequestSchema>;
+
 export const readsRequestSchema = z.object({
   postIds: z.array(z.string()).min(1).max(100),
 });

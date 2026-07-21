@@ -2,6 +2,7 @@ import Parser from 'rss-parser';
 import type { NewPost } from '../posts/types';
 import type { FetchOutcome } from '../repos/sourcesRepo';
 import type { SourceRecord } from '../sources/types';
+import { errorMessage } from '../util/errors';
 import { type FeedEntry, mapEntryToPost } from './rssMapper';
 
 export interface FetchFeedResult {
@@ -54,7 +55,7 @@ export async function ingestSource(source: SourceRecord, deps: IngestDeps): Prom
   try {
     fetched = await deps.fetchFeed(source);
   } catch (err) {
-    errors.push(`fetch failed for ${source.sourceId}: ${toMessage(err)}`);
+    errors.push(`fetch failed for ${source.sourceId}: ${errorMessage(err)}`);
     await deps.recordFetchResult(source.sourceId, { status: 'error' });
     return { sourceId: source.sourceId, seen, created, errors };
   }
@@ -76,7 +77,7 @@ export async function ingestSource(source: SourceRecord, deps: IngestDeps): Prom
         try {
           post.duplicateOf = await deps.findDuplicate(post);
         } catch (err) {
-          errors.push(`dedup lookup failed for ${post.postId}: ${toMessage(err)}`);
+          errors.push(`dedup lookup failed for ${post.postId}: ${errorMessage(err)}`);
         }
       }
 
@@ -86,11 +87,11 @@ export async function ingestSource(source: SourceRecord, deps: IngestDeps): Prom
           newPosts.push(post);
         }
       } catch (err) {
-        errors.push(`putIfNew failed for ${post.postId}: ${toMessage(err)}`);
+        errors.push(`putIfNew failed for ${post.postId}: ${errorMessage(err)}`);
       }
     }
   } catch (err) {
-    errors.push(`parse failed for ${source.sourceId}: ${toMessage(err)}`);
+    errors.push(`parse failed for ${source.sourceId}: ${errorMessage(err)}`);
   }
 
   if (newPosts.length > 0) {
@@ -104,8 +105,4 @@ export async function ingestSource(source: SourceRecord, deps: IngestDeps): Prom
   });
 
   return { sourceId: source.sourceId, seen, created, errors };
-}
-
-function toMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
 }

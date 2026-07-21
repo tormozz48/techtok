@@ -1,4 +1,3 @@
-import { ConditionalCheckFailedException } from '@aws-sdk/client-dynamodb';
 import {
   type DynamoDBDocumentClient,
   PutCommand,
@@ -6,6 +5,7 @@ import {
   UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
 import type { SourceRecord } from '../sources/types';
+import { conditionalWrite } from './dynamoClient';
 
 export interface FetchOutcome {
   status: 'ok' | 'not-modified' | 'error';
@@ -33,21 +33,15 @@ export function createSourcesRepo(client: DynamoDBDocumentClient, tableName: str
     },
 
     async putIfNew(source: SourceRecord): Promise<boolean> {
-      try {
-        await client.send(
+      return conditionalWrite(() =>
+        client.send(
           new PutCommand({
             TableName: tableName,
             Item: source,
             ConditionExpression: 'attribute_not_exists(sourceId)',
           }),
-        );
-        return true;
-      } catch (err) {
-        if (err instanceof ConditionalCheckFailedException) {
-          return false;
-        }
-        throw err;
-      }
+        ),
+      );
     },
 
     async recordFetchResult(sourceId: string, outcome: FetchOutcome): Promise<void> {

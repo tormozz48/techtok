@@ -13,6 +13,7 @@
     "@techtok/shared": "workspace:*"
   },
   "devDependencies": {
-    "@types/aws-lambda": "8.10.162"
+    "@types/aws-lambda": "8.10.162",
+    "zod": "4.4.3"
   }
 }

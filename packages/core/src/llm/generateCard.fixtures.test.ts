@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import type { LlmProvider } from '../llm.types';
 import { CARD_FIXTURES } from './__fixtures__/cardFixtures';
 import { generateCard } from './generateCard';
-import type { LlmProvider } from './types';
 
 describe('generateCard golden fixtures', () => {
   it.each(CARD_FIXTURES)('$name produces a valid card', async ({ input, llmResponse }) => {

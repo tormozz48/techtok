@@ -4,8 +4,8 @@ import {
   ScanCommand,
   UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
-import type { SourceRecord } from '../sources/types';
-import { conditionalWrite } from './dynamoClient';
+import { conditionalWrite } from '../clients/dynamoClient';
+import type { SourceRecord } from '../sources.types';
 
 export interface FetchOutcome {
   readonly status: 'ok' | 'not-modified' | 'error';

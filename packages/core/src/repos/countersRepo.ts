@@ -1,5 +1,5 @@
 import { type DynamoDBDocumentClient, UpdateCommand } from '@aws-sdk/lib-dynamodb';
-import { conditionalWrite } from './dynamoClient';
+import { conditionalWrite } from '../clients/dynamoClient';
 
 export class CountersRepo {
   constructor(

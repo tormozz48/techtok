@@ -1,7 +1,7 @@
 import Parser from 'rss-parser';
-import type { NewPost } from '../posts/types';
+import type { NewPost } from '../posts.types';
 import type { FetchOutcome } from '../repos/sourcesRepo';
-import type { SourceRecord } from '../sources/types';
+import type { SourceRecord } from '../sources.types';
 import { errorMessage } from '../util/errors';
 import { type FeedEntry, mapEntryToPost } from './rssMapper';
 

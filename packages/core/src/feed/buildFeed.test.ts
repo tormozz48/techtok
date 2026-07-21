@@ -1,6 +1,6 @@
 import type { Topic } from '@techtok/shared';
 import { describe, expect, it, vi } from 'vitest';
-import type { PostRecord } from '../posts/types';
+import type { PostRecord } from '../posts.types';
 import { buildFeed } from './buildFeed';
 
 function post(id: string, topic: Topic, publishedAt: string, sourceId = 'hn'): PostRecord {

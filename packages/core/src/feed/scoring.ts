@@ -1,4 +1,4 @@
-import type { PostRecord } from '../posts/types';
+import type { PostRecord } from '../posts.types';
 
 /** Hours for a post's recency score to halve. Tunable — this is explicitly a phase-4 experiment. */
 export const RECENCY_HALF_LIFE_HOURS = 6;

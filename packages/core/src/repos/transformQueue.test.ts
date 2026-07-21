@@ -1,7 +1,7 @@
 import { SendMessageBatchCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { mockClient } from 'aws-sdk-client-mock';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { NewPost } from '../posts/types';
+import type { NewPost } from '../posts.types';
 import { TransformQueue } from './transformQueue';
 
 const sqsMock = mockClient(SQSClient);

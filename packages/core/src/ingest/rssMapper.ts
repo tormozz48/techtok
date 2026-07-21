@@ -1,5 +1,5 @@
-import type { NewPost } from '../posts/types';
-import type { SourceRecord } from '../sources/types';
+import type { NewPost } from '../posts.types';
+import type { SourceRecord } from '../sources.types';
 import { canonicalizeUrl, hashPostId } from '../url/canonicalize';
 import { firstImageSrc, toExcerpt } from './htmlText';
 

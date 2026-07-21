@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { LlmProvider } from '../llm.types';
 import { generateCard } from './generateCard';
-import type { LlmProvider } from './types';
 
 const VALID_RESPONSE = JSON.stringify({
   cardTitle: 'Scientists Find New Battery Material',

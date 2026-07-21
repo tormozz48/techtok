@@ -5,7 +5,7 @@ import {
   PutCommand,
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
-import type { ActivityRecord, BookmarkRecord, ReadSnapshot } from '../history/types';
+import type { ActivityRecord, BookmarkRecord, ReadSnapshot } from '../history.types';
 import { chunk } from '../util/chunk';
 
 const BATCH_GET_CHUNK_SIZE = 100;

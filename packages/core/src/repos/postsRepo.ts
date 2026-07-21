@@ -6,9 +6,9 @@ import {
   UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
 import type { Topic } from '@techtok/shared';
-import type { NewPost, PostRecord, PostStatus, TransformKind } from '../posts/types';
+import { conditionalWrite } from '../clients/dynamoClient';
+import type { NewPost, PostRecord, PostStatus, TransformKind } from '../posts.types';
 import { chunk } from '../util/chunk';
-import { conditionalWrite } from './dynamoClient';
 
 const POST_TTL_SECONDS = 90 * 24 * 60 * 60;
 const BY_TIME_PARTITION = 'POST';

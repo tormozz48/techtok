@@ -1,5 +1,5 @@
 import type { ExpoPushMessage } from '../notifications/expoPush';
-import type { PostRecord } from '../posts/types';
+import type { PostRecord } from '../posts.types';
 
 const DIGEST_DEEP_LINK_SCHEME = 'techtok://';
 

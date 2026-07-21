@@ -1,6 +1,6 @@
+import { type LlmCardOutput, type LlmProvider, llmCardOutputSchema } from '../llm.types';
 import { errorMessage } from '../util/errors';
 import { buildCardPrompt, buildRepairPrompt, type CardPromptInput } from './prompts/cardPrompt';
-import { type LlmCardOutput, type LlmProvider, llmCardOutputSchema } from './types';
 
 const MAX_INPUT_CHARS = 4000;
 

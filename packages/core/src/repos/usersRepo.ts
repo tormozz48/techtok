@@ -1,6 +1,6 @@
 import { type DynamoDBDocumentClient, ScanCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import type { Topic } from '@techtok/shared';
-import type { UserRecord } from '../users/types';
+import type { UserRecord } from '../users.types';
 
 export class UsersRepo {
   constructor(

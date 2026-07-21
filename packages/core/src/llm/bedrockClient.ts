@@ -1,5 +1,5 @@
 import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
-import type { LlmProvider } from './types';
+import type { LlmProvider } from '../llm.types';
 
 export function createBedrockClient(): BedrockRuntimeClient {
   return new BedrockRuntimeClient({});

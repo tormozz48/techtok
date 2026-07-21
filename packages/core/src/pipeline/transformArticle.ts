@@ -3,7 +3,7 @@ import type { Topic } from '@techtok/shared';
 import robotsParser from 'robots-parser';
 import { toExcerpt } from '../ingest/htmlText';
 import type { GenerateCardInput, GenerateCardResult } from '../llm/generateCard';
-import type { TransformKind } from '../posts/types';
+import type { TransformKind } from '../posts.types';
 import type { TransformUpdateFields } from '../repos/postsRepo';
 import { errorMessage } from '../util/errors';
 

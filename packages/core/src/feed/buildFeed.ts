@@ -1,5 +1,5 @@
 import { TOPICS, type Topic } from '@techtok/shared';
-import type { PostRecord } from '../posts/types';
+import type { PostRecord } from '../posts.types';
 import { rankCandidates } from './scoring';
 
 const PER_TOPIC_PAGE_SIZE = 25;

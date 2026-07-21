@@ -1,6 +1,6 @@
 import type { Topic } from '@techtok/shared';
 import { describe, expect, it } from 'vitest';
-import type { PostRecord } from '../posts/types';
+import type { PostRecord } from '../posts.types';
 import {
   DEFAULT_SOURCE_WEIGHT,
   interleaveByTopic,

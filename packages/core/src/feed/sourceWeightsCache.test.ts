@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { SourceRecord } from '../sources/types';
+import type { SourceRecord } from '../sources.types';
 import { createSourceWeightsCache } from './sourceWeightsCache';
 
 function source(sourceId: string, weight: number): SourceRecord {

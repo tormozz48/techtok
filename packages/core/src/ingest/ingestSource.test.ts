@@ -2,8 +2,8 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
-import type { NewPost } from '../posts/types';
-import type { SourceRecord } from '../sources/types';
+import type { NewPost } from '../posts.types';
+import type { SourceRecord } from '../sources.types';
 import type { FetchFeedResult } from './ingestSource';
 import { ingestSource } from './ingestSource';
 

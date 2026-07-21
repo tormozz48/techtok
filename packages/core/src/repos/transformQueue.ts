@@ -1,5 +1,5 @@
 import { SendMessageBatchCommand, type SQSClient } from '@aws-sdk/client-sqs';
-import type { NewPost } from '../posts/types';
+import type { NewPost } from '../posts.types';
 import { chunk } from '../util/chunk';
 
 const SQS_BATCH_LIMIT = 10;

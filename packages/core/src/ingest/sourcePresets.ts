@@ -1,4 +1,4 @@
-import type { SourceRecord } from '../sources/types';
+import type { SourceRecord } from '../sources.types';
 
 /** Preset rows carry only their identity; the operational fields all start
  * from the same defaults (weight 1, enabled, clean failCount) applied below. */

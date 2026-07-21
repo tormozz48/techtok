@@ -7,7 +7,7 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import { mockClient } from 'aws-sdk-client-mock';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { SourceRecord } from '../sources/types';
+import type { SourceRecord } from '../sources.types';
 import { SourcesRepo } from './sourcesRepo';
 
 const ddbMock = mockClient(DynamoDBDocumentClient);

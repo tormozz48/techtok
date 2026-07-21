@@ -1,13 +1,13 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import {
+  CountersRepo,
   createBedrockClient,
   createBedrockProvider,
-  createCountersRepo,
-  createImageStore,
-  createRawArticleStore,
   createS3Client,
   errorMessage,
   generateCard as generateCardViaLlm,
+  ImageStore,
+  RawArticleStore,
   TECHTOK_BOT_USER_AGENT,
   transformArticle,
 } from '@techtok/core';
@@ -24,12 +24,12 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const DEFAULT_DAILY_CAP = 120;
 
 const getS3Client = lazy(createS3Client);
-const getRawArticleStore = lazy(() =>
-  createRawArticleStore(getS3Client(), requireEnv('RAW_ARTICLES_BUCKET_NAME')),
+const getRawArticleStore = lazy(
+  () => new RawArticleStore(getS3Client(), requireEnv('RAW_ARTICLES_BUCKET_NAME')),
 );
-const getImageStore = lazy(() => createImageStore(getS3Client(), requireEnv('IMAGES_BUCKET_NAME')));
-const getCountersRepo = lazy(() =>
-  createCountersRepo(getDynamoClient(), requireEnv('COUNTERS_TABLE_NAME')),
+const getImageStore = lazy(() => new ImageStore(getS3Client(), requireEnv('IMAGES_BUCKET_NAME')));
+const getCountersRepo = lazy(
+  () => new CountersRepo(getDynamoClient(), requireEnv('COUNTERS_TABLE_NAME')),
 );
 const getBedrockProvider = lazy(() =>
   createBedrockProvider(createBedrockClient(), requireEnv('BEDROCK_MODEL_ID')),
@@ -46,8 +46,8 @@ function todayDate(): string {
 const robotsCache = new Map<string, string | undefined>();
 
 interface FetchedBytes {
-  body: Buffer;
-  contentType: string | undefined;
+  readonly body: Buffer;
+  readonly contentType: string | undefined;
 }
 
 async function fetchBytes(url: string, maxBytes: number): Promise<FetchedBytes> {
@@ -113,8 +113,8 @@ async function mirrorImage(postId: string, imageUrl: string): Promise<string | u
 }
 
 interface MessageBody {
-  postId: string;
-  url: string;
+  readonly postId: string;
+  readonly url: string;
 }
 
 function parseMessageBody(body: string): MessageBody {

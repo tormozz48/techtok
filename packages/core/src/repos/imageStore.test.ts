@@ -1,7 +1,7 @@
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { mockClient } from 'aws-sdk-client-mock';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createImageStore } from './imageStore';
+import { ImageStore } from './imageStore';
 
 const s3Mock = mockClient(S3Client);
 const client = s3Mock as unknown as S3Client;
@@ -10,10 +10,10 @@ beforeEach(() => {
   s3Mock.reset();
 });
 
-describe('createImageStore.putImage', () => {
+describe('ImageStore.putImage', () => {
   it('uploads the image bytes and derives the key extension from content-type', async () => {
     s3Mock.on(PutObjectCommand).resolves({});
-    const store = createImageStore(client, 'Images');
+    const store = new ImageStore(client, 'Images');
     const body = new Uint8Array([1, 2, 3]);
 
     const key = await store.putImage('post1', body, 'image/png');
@@ -30,7 +30,7 @@ describe('createImageStore.putImage', () => {
 
   it('falls back to jpg for an unrecognized content-type', async () => {
     s3Mock.on(PutObjectCommand).resolves({});
-    const store = createImageStore(client, 'Images');
+    const store = new ImageStore(client, 'Images');
 
     const key = await store.putImage('post1', new Uint8Array(), 'application/octet-stream');
 

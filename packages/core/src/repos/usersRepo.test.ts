@@ -1,7 +1,7 @@
 import { DynamoDBDocumentClient, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { mockClient } from 'aws-sdk-client-mock';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createUsersRepo } from './usersRepo';
+import { UsersRepo } from './usersRepo';
 
 const ddbMock = mockClient(DynamoDBDocumentClient);
 const client = ddbMock as unknown as DynamoDBDocumentClient;
@@ -15,7 +15,7 @@ describe('usersRepo.touch', () => {
     ddbMock.on(UpdateCommand).resolves({
       Attributes: { userId: 'device-1', topics: [], createdAt: 'x', lastSeenAt: 'y' },
     });
-    const repo = createUsersRepo(client, 'Users');
+    const repo = new UsersRepo(client, 'Users');
 
     const user = await repo.touch('device-1');
 
@@ -33,7 +33,7 @@ describe('usersRepo.updateTopics', () => {
     ddbMock.on(UpdateCommand).resolves({
       Attributes: { userId: 'device-1', topics: ['ai', 'dev'], createdAt: 'x', lastSeenAt: 'y' },
     });
-    const repo = createUsersRepo(client, 'Users');
+    const repo = new UsersRepo(client, 'Users');
 
     const user = await repo.updateTopics('device-1', ['ai', 'dev']);
 

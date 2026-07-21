@@ -7,11 +7,7 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import { mockClient } from 'aws-sdk-client-mock';
 import { beforeEach, describe, expect, it } from 'vitest';
-import {
-  createUserActivityRepo,
-  decodeHistoryCursor,
-  encodeHistoryCursor,
-} from './userActivityRepo';
+import { decodeHistoryCursor, encodeHistoryCursor, UserActivityRepo } from './userActivityRepo';
 
 const ddbMock = mockClient(DynamoDBDocumentClient);
 const client = ddbMock as unknown as DynamoDBDocumentClient;
@@ -25,7 +21,7 @@ const snapshot = { cardTitle: 'Title', sourceName: 'Hacker News', url: 'https://
 describe('userActivityRepo.markRead', () => {
   it('writes a read-marker item keyed by userId and read#<postId>', async () => {
     ddbMock.on(PutCommand).resolves({});
-    const repo = createUserActivityRepo(client, 'UserActivity');
+    const repo = new UserActivityRepo(client, 'UserActivity');
 
     await repo.markRead('device-1', 'abc123', snapshot, '2026-07-18T00:00:00.000Z');
 
@@ -43,7 +39,7 @@ describe('userActivityRepo.markRead', () => {
 
 describe('userActivityRepo.getReadSet', () => {
   it('returns an empty set without calling DynamoDB when given no ids', async () => {
-    const repo = createUserActivityRepo(client, 'UserActivity');
+    const repo = new UserActivityRepo(client, 'UserActivity');
 
     expect(await repo.getReadSet('device-1', [])).toEqual(new Set());
     expect(ddbMock.commandCalls(BatchGetCommand)).toHaveLength(0);
@@ -55,7 +51,7 @@ describe('userActivityRepo.getReadSet', () => {
         UserActivity: [{ userId: 'device-1', sk: 'read#abc123', postId: 'abc123', ...snapshot }],
       },
     });
-    const repo = createUserActivityRepo(client, 'UserActivity');
+    const repo = new UserActivityRepo(client, 'UserActivity');
 
     const readIds = await repo.getReadSet('device-1', ['abc123', 'def456']);
 
@@ -71,7 +67,7 @@ describe('userActivityRepo.getReadSet', () => {
 describe('userActivityRepo.queryHistory', () => {
   it('queries the byReadAt GSI newest-first and returns a null cursor when exhausted', async () => {
     ddbMock.on(QueryCommand).resolves({ Items: [] });
-    const repo = createUserActivityRepo(client, 'UserActivity');
+    const repo = new UserActivityRepo(client, 'UserActivity');
 
     const page = await repo.queryHistory('device-1', { limit: 10 });
 
@@ -85,7 +81,7 @@ describe('userActivityRepo.queryHistory', () => {
   it('decodes the cursor into ExclusiveStartKey and encodes LastEvaluatedKey back', async () => {
     const lastKey = { userId: 'device-1', sk: 'read#abc123', gsi1sk: 'x#abc123' };
     ddbMock.on(QueryCommand).resolves({ Items: [], LastEvaluatedKey: lastKey });
-    const repo = createUserActivityRepo(client, 'UserActivity');
+    const repo = new UserActivityRepo(client, 'UserActivity');
     const cursor = encodeHistoryCursor({ userId: 'device-1', sk: 'read#prev', gsi1sk: 'y#prev' });
 
     const page = await repo.queryHistory('device-1', { cursor });
@@ -106,7 +102,7 @@ describe('history cursor encode/decode', () => {
 describe('userActivityRepo.addBookmark', () => {
   it('writes a bookmark item keyed by userId and bm#<postId>', async () => {
     ddbMock.on(PutCommand).resolves({});
-    const repo = createUserActivityRepo(client, 'UserActivity');
+    const repo = new UserActivityRepo(client, 'UserActivity');
 
     await repo.addBookmark('device-1', 'abc123', snapshot, '2026-07-18T00:00:00.000Z');
 
@@ -125,7 +121,7 @@ describe('userActivityRepo.addBookmark', () => {
 describe('userActivityRepo.removeBookmark', () => {
   it('deletes the bm#<postId> item for that user', async () => {
     ddbMock.on(DeleteCommand).resolves({});
-    const repo = createUserActivityRepo(client, 'UserActivity');
+    const repo = new UserActivityRepo(client, 'UserActivity');
 
     await repo.removeBookmark('device-1', 'abc123');
 
@@ -136,7 +132,7 @@ describe('userActivityRepo.removeBookmark', () => {
 
 describe('userActivityRepo.getBookmarkSet', () => {
   it('returns an empty set without calling DynamoDB when given no ids', async () => {
-    const repo = createUserActivityRepo(client, 'UserActivity');
+    const repo = new UserActivityRepo(client, 'UserActivity');
 
     expect(await repo.getBookmarkSet('device-1', [])).toEqual(new Set());
     expect(ddbMock.commandCalls(BatchGetCommand)).toHaveLength(0);
@@ -148,7 +144,7 @@ describe('userActivityRepo.getBookmarkSet', () => {
         UserActivity: [{ userId: 'device-1', sk: 'bm#abc123', postId: 'abc123', ...snapshot }],
       },
     });
-    const repo = createUserActivityRepo(client, 'UserActivity');
+    const repo = new UserActivityRepo(client, 'UserActivity');
 
     const bookmarked = await repo.getBookmarkSet('device-1', ['abc123', 'def456']);
 
@@ -164,7 +160,7 @@ describe('userActivityRepo.getBookmarkSet', () => {
 describe('userActivityRepo.queryBookmarks', () => {
   it('queries the byBookmarkedAt GSI newest-first and returns a null cursor when exhausted', async () => {
     ddbMock.on(QueryCommand).resolves({ Items: [] });
-    const repo = createUserActivityRepo(client, 'UserActivity');
+    const repo = new UserActivityRepo(client, 'UserActivity');
 
     const page = await repo.queryBookmarks('device-1', { limit: 10 });
 

@@ -2,19 +2,16 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import {
   buildFeed,
   composeDigestMessage,
-  createDynamoClient,
   createExpoPushSender,
-  createPostsRepo,
-  createSourcesRepo,
-  createSourceWeightsCache,
-  createUserActivityRepo,
-  createUsersRepo,
   type ExpoPushMessage,
 } from '@techtok/core';
-import { requireEnv } from '../env';
+import { lazy } from '../lazy';
+import { getPostsRepo, getSourceWeightsCache, getUserActivityRepo, getUsersRepo } from '../repos';
 
 const logger = new Logger({ serviceName: 'digest' });
 const DIGEST_LIMIT = 5;
+
+const getPushSender = lazy(createExpoPushSender);
 
 /**
  * Daily digest (IMPLEMENTATION_PLAN.md phase 5, optional item 4): for every
@@ -24,14 +21,10 @@ const DIGEST_LIMIT = 5;
  * push-token holders is fine (mirrors the `Sources` scan precedent).
  */
 export async function handler(): Promise<void> {
-  const client = createDynamoClient();
-  const users = createUsersRepo(client, requireEnv('USERS_TABLE_NAME'));
-  const posts = createPostsRepo(client, requireEnv('POSTS_TABLE_NAME'));
-  const activity = createUserActivityRepo(client, requireEnv('USER_ACTIVITY_TABLE_NAME'));
-  const sourceWeights = createSourceWeightsCache(
-    createSourcesRepo(client, requireEnv('SOURCES_TABLE_NAME')),
-  );
-  const pushSender = createExpoPushSender();
+  const users = getUsersRepo();
+  const posts = getPostsRepo();
+  const activity = getUserActivityRepo();
+  const sourceWeights = getSourceWeightsCache();
 
   const subscribers = await users.listWithPushTokens();
   const messages: ExpoPushMessage[] = [];
@@ -53,7 +46,7 @@ export async function handler(): Promise<void> {
   }
 
   if (messages.length > 0) {
-    await pushSender.send(messages);
+    await getPushSender().send(messages);
   }
 
   logger.info('digest complete', { subscribers: subscribers.length, sent: messages.length });

@@ -1,5 +1,5 @@
 import { Logger } from '@aws-lambda-powertools/logger';
-import { createSqsClient, createTransformQueue } from '@techtok/core';
+import { createSqsClient, TransformQueue } from '@techtok/core';
 import { requireEnv } from '../env';
 import { getPostsRepo } from '../repos';
 
@@ -18,7 +18,7 @@ const PAGE_SIZE = 100;
  */
 export async function handler(): Promise<void> {
   const repo = getPostsRepo();
-  const queue = createTransformQueue(createSqsClient(), requireEnv('TRANSFORM_QUEUE_URL'));
+  const queue = new TransformQueue(createSqsClient(), requireEnv('TRANSFORM_QUEUE_URL'));
 
   let before: string | undefined;
   let scanned = 0;

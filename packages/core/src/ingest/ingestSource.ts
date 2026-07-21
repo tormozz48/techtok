@@ -6,10 +6,10 @@ import { errorMessage } from '../util/errors';
 import { type FeedEntry, mapEntryToPost } from './rssMapper';
 
 export interface FetchFeedResult {
-  status: 'not-modified' | 'ok';
-  body?: string;
-  etag?: string;
-  lastModified?: string;
+  readonly status: 'not-modified' | 'ok';
+  readonly body?: string;
+  readonly etag?: string;
+  readonly lastModified?: string;
 }
 
 // Cross-source duplicate collapse (phase 4 experiment) — a one-line toggle
@@ -17,21 +17,21 @@ export interface FetchFeedResult {
 export const DEDUP_ENABLED = true;
 
 export interface IngestDeps {
-  fetchFeed: (source: SourceRecord) => Promise<FetchFeedResult>;
-  putIfNew: (post: NewPost) => Promise<boolean>;
-  enqueueNew: (posts: NewPost[]) => Promise<void>;
-  recordFetchResult: (sourceId: string, outcome: FetchOutcome) => Promise<void>;
+  readonly fetchFeed: (source: SourceRecord) => Promise<FetchFeedResult>;
+  readonly putIfNew: (post: NewPost) => Promise<boolean>;
+  readonly enqueueNew: (posts: NewPost[]) => Promise<void>;
+  readonly recordFetchResult: (sourceId: string, outcome: FetchOutcome) => Promise<void>;
   /** Looks for a likely cross-source duplicate of this post (phase 4
    * experiment). Content-level: a lookup failure is caught by the caller and
    * never blocks ingestion of an otherwise-good post. */
-  findDuplicate: (post: NewPost) => Promise<string | undefined>;
+  readonly findDuplicate: (post: NewPost) => Promise<string | undefined>;
 }
 
 export interface IngestResult {
-  sourceId: string;
-  seen: number;
-  created: number;
-  errors: string[];
+  readonly sourceId: string;
+  readonly seen: number;
+  readonly created: number;
+  readonly errors: string[];
 }
 
 /**
@@ -70,12 +70,13 @@ export async function ingestSource(source: SourceRecord, deps: IngestDeps): Prom
 
     for (const entry of feed.items) {
       seen += 1;
-      const post = mapEntryToPost(entry, source);
+      let post = mapEntryToPost(entry, source);
       if (!post) continue;
 
       if (DEDUP_ENABLED) {
         try {
-          post.duplicateOf = await deps.findDuplicate(post);
+          const duplicateOf = await deps.findDuplicate(post);
+          if (duplicateOf) post = { ...post, duplicateOf };
         } catch (err) {
           errors.push(`dedup lookup failed for ${post.postId}: ${errorMessage(err)}`);
         }

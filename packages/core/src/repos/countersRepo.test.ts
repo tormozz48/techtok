@@ -2,7 +2,7 @@ import { ConditionalCheckFailedException } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { mockClient } from 'aws-sdk-client-mock';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createCountersRepo } from './countersRepo';
+import { CountersRepo } from './countersRepo';
 
 const ddbMock = mockClient(DynamoDBDocumentClient);
 const client = ddbMock as unknown as DynamoDBDocumentClient;
@@ -14,7 +14,7 @@ beforeEach(() => {
 describe('countersRepo.incrementIfUnderCap', () => {
   it('increments the dated counter and returns true when under cap', async () => {
     ddbMock.on(UpdateCommand).resolves({});
-    const repo = createCountersRepo(client, 'Counters');
+    const repo = new CountersRepo(client, 'Counters');
 
     const underCap = await repo.incrementIfUnderCap('2026-07-19', 120);
 
@@ -34,14 +34,14 @@ describe('countersRepo.incrementIfUnderCap', () => {
         $metadata: {},
       }),
     );
-    const repo = createCountersRepo(client, 'Counters');
+    const repo = new CountersRepo(client, 'Counters');
 
     await expect(repo.incrementIfUnderCap('2026-07-19', 5)).resolves.toBe(false);
   });
 
   it('rethrows errors that are not a conditional check failure', async () => {
     ddbMock.on(UpdateCommand).rejects(new Error('ddb down'));
-    const repo = createCountersRepo(client, 'Counters');
+    const repo = new CountersRepo(client, 'Counters');
 
     await expect(repo.incrementIfUnderCap('2026-07-19', 120)).rejects.toThrow('ddb down');
   });

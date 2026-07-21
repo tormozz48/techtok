@@ -9,9 +9,9 @@
 // LlmProvider returning these fixed strings.
 
 export interface CardFixture {
-  name: string;
-  input: { title: string; sourceName: string; text: string };
-  llmResponse: string;
+  readonly name: string;
+  readonly input: { readonly title: string; readonly sourceName: string; readonly text: string };
+  readonly llmResponse: string;
 }
 
 export const CARD_FIXTURES: CardFixture[] = [

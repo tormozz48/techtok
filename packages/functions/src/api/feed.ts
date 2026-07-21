@@ -1,11 +1,8 @@
-import { buildFeed, createSourceWeightsCache } from '@techtok/core';
+import { buildFeed } from '@techtok/core';
 import { feedQuerySchema, feedResponseSchema } from '@techtok/shared';
-import { lazy } from '../lazy';
-import { getPostsRepo, getSourcesRepo, getUserActivityRepo, getUsersRepo } from '../repos';
+import { getPostsRepo, getSourceWeightsCache, getUserActivityRepo, getUsersRepo } from '../repos';
 import { jsonResponse, parseQuery, withDeviceId } from './http';
 import { toCard } from './toCard';
-
-const getSourceWeightsCache = lazy(() => createSourceWeightsCache(getSourcesRepo()));
 
 export const handler = withDeviceId(async (event, deviceId) => {
   const query = parseQuery(event, feedQuerySchema);

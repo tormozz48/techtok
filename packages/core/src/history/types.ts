@@ -1,23 +1,23 @@
 export interface ReadSnapshot {
-  cardTitle: string;
-  sourceName: string;
-  url: string;
+  readonly cardTitle: string;
+  readonly sourceName: string;
+  readonly url: string;
 }
 
 export interface ActivityRecord {
-  userId: string;
-  sk: string;
-  postId: string;
-  readAt: string;
-  snapshot: ReadSnapshot;
-  gsi1sk: string;
+  readonly userId: string;
+  readonly sk: string;
+  readonly postId: string;
+  readonly readAt: string;
+  readonly snapshot: ReadSnapshot;
+  readonly gsi1sk: string;
 }
 
 export interface BookmarkRecord {
-  userId: string;
-  sk: string;
-  postId: string;
-  bookmarkedAt: string;
-  snapshot: ReadSnapshot;
-  gsi2sk: string;
+  readonly userId: string;
+  readonly sk: string;
+  readonly postId: string;
+  readonly bookmarkedAt: string;
+  readonly snapshot: ReadSnapshot;
+  readonly gsi2sk: string;
 }

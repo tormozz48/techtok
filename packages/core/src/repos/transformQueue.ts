@@ -4,24 +4,23 @@ import { chunk } from '../util/chunk';
 
 const SQS_BATCH_LIMIT = 10;
 
-export interface TransformQueue {
-  enqueueNew(posts: NewPost[]): Promise<void>;
-}
+export class TransformQueue {
+  constructor(
+    private readonly client: SQSClient,
+    private readonly queueUrl: string,
+  ) {}
 
-export function createTransformQueue(client: SQSClient, queueUrl: string): TransformQueue {
-  return {
-    async enqueueNew(posts: NewPost[]): Promise<void> {
-      for (const batch of chunk(posts, SQS_BATCH_LIMIT)) {
-        await client.send(
-          new SendMessageBatchCommand({
-            QueueUrl: queueUrl,
-            Entries: batch.map((post) => ({
-              Id: post.postId,
-              MessageBody: JSON.stringify({ postId: post.postId, url: post.url }),
-            })),
-          }),
-        );
-      }
-    },
-  };
+  async enqueueNew(posts: NewPost[]): Promise<void> {
+    for (const batch of chunk(posts, SQS_BATCH_LIMIT)) {
+      await this.client.send(
+        new SendMessageBatchCommand({
+          QueueUrl: this.queueUrl,
+          Entries: batch.map((post) => ({
+            Id: post.postId,
+            MessageBody: JSON.stringify({ postId: post.postId, url: post.url }),
+          })),
+        }),
+      );
+    }
+  }
 }

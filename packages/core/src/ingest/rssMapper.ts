@@ -4,14 +4,14 @@ import { canonicalizeUrl, hashPostId } from '../url/canonicalize';
 import { firstImageSrc, toExcerpt } from './htmlText';
 
 export interface FeedEntry {
-  title?: string;
-  link?: string;
-  isoDate?: string;
-  pubDate?: string;
-  summary?: string;
-  contentSnippet?: string;
-  content?: string;
-  enclosure?: { url?: string };
+  readonly title?: string;
+  readonly link?: string;
+  readonly isoDate?: string;
+  readonly pubDate?: string;
+  readonly summary?: string;
+  readonly contentSnippet?: string;
+  readonly content?: string;
+  readonly enclosure?: { readonly url?: string };
 }
 
 type MapperSource = Pick<SourceRecord, 'sourceId' | 'name' | 'defaultTopic'>;

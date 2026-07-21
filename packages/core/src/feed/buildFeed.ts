@@ -6,21 +6,24 @@ const PER_TOPIC_PAGE_SIZE = 25;
 const MAX_CANDIDATES = 60;
 
 export interface BuildFeedDeps {
-  queryByTopic: (topic: Topic, opts: { before?: string; limit: number }) => Promise<PostRecord[]>;
-  getReadSet: (postIds: string[]) => Promise<Set<string>>;
-  getSourceWeights: () => Promise<Map<string, number>>;
+  readonly queryByTopic: (
+    topic: Topic,
+    opts: { before?: string; limit: number },
+  ) => Promise<PostRecord[]>;
+  readonly getReadSet: (postIds: string[]) => Promise<Set<string>>;
+  readonly getSourceWeights: () => Promise<Map<string, number>>;
 }
 
 export interface BuildFeedParams {
   /** User's selected topics; empty means all topics (DESIGN §5.2 step 1). */
-  userTopics: Topic[];
-  before?: string;
-  limit: number;
+  readonly userTopics: Topic[];
+  readonly before?: string;
+  readonly limit: number;
 }
 
 export interface FeedPage {
-  items: PostRecord[];
-  nextBefore: string | null;
+  readonly items: PostRecord[];
+  readonly nextBefore: string | null;
 }
 
 /**

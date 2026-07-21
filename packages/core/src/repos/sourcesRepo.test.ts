@@ -8,7 +8,7 @@ import {
 import { mockClient } from 'aws-sdk-client-mock';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { SourceRecord } from '../sources/types';
-import { createSourcesRepo } from './sourcesRepo';
+import { SourcesRepo } from './sourcesRepo';
 
 const ddbMock = mockClient(DynamoDBDocumentClient);
 const client = ddbMock as unknown as DynamoDBDocumentClient;
@@ -31,7 +31,7 @@ const sampleSource: SourceRecord = {
 describe('sourcesRepo.listEnabled', () => {
   it('scans with an enabled filter', async () => {
     ddbMock.on(ScanCommand).resolves({ Items: [sampleSource] });
-    const repo = createSourcesRepo(client, 'Sources');
+    const repo = new SourcesRepo(client, 'Sources');
 
     const items = await repo.listEnabled();
 
@@ -45,7 +45,7 @@ describe('sourcesRepo.listEnabled', () => {
 describe('sourcesRepo.putIfNew', () => {
   it('writes a conditional put', async () => {
     ddbMock.on(PutCommand).resolves({});
-    const repo = createSourcesRepo(client, 'Sources');
+    const repo = new SourcesRepo(client, 'Sources');
 
     const created = await repo.putIfNew(sampleSource);
 
@@ -61,7 +61,7 @@ describe('sourcesRepo.putIfNew', () => {
         $metadata: {},
       }),
     );
-    const repo = createSourcesRepo(client, 'Sources');
+    const repo = new SourcesRepo(client, 'Sources');
 
     await expect(repo.putIfNew(sampleSource)).resolves.toBe(false);
   });
@@ -70,7 +70,7 @@ describe('sourcesRepo.putIfNew', () => {
 describe('sourcesRepo.recordFetchResult', () => {
   it('resets failCount and stores etag/lastModified on success', async () => {
     ddbMock.on(UpdateCommand).resolves({});
-    const repo = createSourcesRepo(client, 'Sources');
+    const repo = new SourcesRepo(client, 'Sources');
 
     await repo.recordFetchResult('hn', {
       status: 'ok',
@@ -92,7 +92,7 @@ describe('sourcesRepo.recordFetchResult', () => {
 
   it('records not-modified without requiring etag/lastModified', async () => {
     ddbMock.on(UpdateCommand).resolves({});
-    const repo = createSourcesRepo(client, 'Sources');
+    const repo = new SourcesRepo(client, 'Sources');
 
     await repo.recordFetchResult('hn', { status: 'not-modified' });
 
@@ -103,7 +103,7 @@ describe('sourcesRepo.recordFetchResult', () => {
 
   it('increments failCount on error and leaves etag/lastModified untouched', async () => {
     ddbMock.on(UpdateCommand).resolves({});
-    const repo = createSourcesRepo(client, 'Sources');
+    const repo = new SourcesRepo(client, 'Sources');
 
     await repo.recordFetchResult('hn', { status: 'error' });
 

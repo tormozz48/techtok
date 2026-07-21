@@ -1,9 +1,9 @@
 import type { Topic } from '@techtok/shared';
 
 export interface UserRecord {
-  userId: string;
-  topics: Topic[];
-  createdAt: string;
-  lastSeenAt: string;
-  pushToken?: string;
+  readonly userId: string;
+  readonly topics: Topic[];
+  readonly createdAt: string;
+  readonly lastSeenAt: string;
+  readonly pushToken?: string;
 }

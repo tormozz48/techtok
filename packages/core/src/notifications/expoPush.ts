@@ -1,23 +1,17 @@
+import { chunk } from '../util/chunk';
+
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const CHUNK_SIZE = 100;
 
 export interface ExpoPushMessage {
-  to: string;
-  title: string;
-  body: string;
-  data?: Record<string, unknown>;
+  readonly to: string;
+  readonly title: string;
+  readonly body: string;
+  readonly data?: Record<string, unknown>;
 }
 
 export interface ExpoPushSender {
   send(messages: ExpoPushMessage[]): Promise<void>;
-}
-
-function chunk<T>(items: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < items.length; i += size) {
-    chunks.push(items.slice(i, i + size));
-  }
-  return chunks;
 }
 
 /**

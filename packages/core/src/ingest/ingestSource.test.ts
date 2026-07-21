@@ -145,6 +145,9 @@ describe('ingestSource', () => {
     expect(result.created).toBe(3);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]).toContain('dedup lookup failed');
-    expect(deps.putIfNew).toHaveBeenCalledWith(expect.objectContaining({ duplicateOf: undefined }));
+    expect(deps.putIfNew).toHaveBeenCalledTimes(3);
+    for (const [post] of deps.putIfNew.mock.calls) {
+      expect(post.duplicateOf).toBeUndefined();
+    }
   });
 });

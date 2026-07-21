@@ -1,9 +1,9 @@
 import { TOPICS } from '@techtok/shared';
 
 export interface CardPromptInput {
-  title: string;
-  sourceName: string;
-  text: string;
+  readonly title: string;
+  readonly sourceName: string;
+  readonly text: string;
 }
 
 const TOPIC_LIST = TOPICS.join(', ');

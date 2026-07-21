@@ -2,7 +2,7 @@ import { SendMessageBatchCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { mockClient } from 'aws-sdk-client-mock';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { NewPost } from '../posts/types';
-import { createTransformQueue } from './transformQueue';
+import { TransformQueue } from './transformQueue';
 
 const sqsMock = mockClient(SQSClient);
 const client = sqsMock as unknown as SQSClient;
@@ -33,7 +33,7 @@ function samplePost(postId: string): NewPost {
 describe('transformQueue.enqueueNew', () => {
   it('sends a batch with postId/url message bodies', async () => {
     sqsMock.on(SendMessageBatchCommand).resolves({});
-    const queue = createTransformQueue(client, 'https://sqs.example/TransformQueue');
+    const queue = new TransformQueue(client, 'https://sqs.example/TransformQueue');
 
     await queue.enqueueNew([samplePost('a'), samplePost('b')]);
 
@@ -49,7 +49,7 @@ describe('transformQueue.enqueueNew', () => {
 
   it('chunks into batches of 10', async () => {
     sqsMock.on(SendMessageBatchCommand).resolves({});
-    const queue = createTransformQueue(client, 'https://sqs.example/TransformQueue');
+    const queue = new TransformQueue(client, 'https://sqs.example/TransformQueue');
     const posts = Array.from({ length: 15 }, (_, i) => samplePost(`p${i}`));
 
     await queue.enqueueNew(posts);

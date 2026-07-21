@@ -1,20 +1,19 @@
 import { PutObjectCommand, type S3Client } from '@aws-sdk/client-s3';
 
-export interface RawArticleStore {
-  archiveRaw(postId: string, html: string): Promise<void>;
-}
+export class RawArticleStore {
+  constructor(
+    private readonly client: S3Client,
+    private readonly bucketName: string,
+  ) {}
 
-export function createRawArticleStore(client: S3Client, bucketName: string): RawArticleStore {
-  return {
-    async archiveRaw(postId: string, html: string): Promise<void> {
-      await client.send(
-        new PutObjectCommand({
-          Bucket: bucketName,
-          Key: `raw/${postId}.html`,
-          Body: html,
-          ContentType: 'text/html',
-        }),
-      );
-    },
-  };
+  async archiveRaw(postId: string, html: string): Promise<void> {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucketName,
+        Key: `raw/${postId}.html`,
+        Body: html,
+        ContentType: 'text/html',
+      }),
+    );
+  }
 }

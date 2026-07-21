@@ -1,9 +1,10 @@
 import {
   createDynamoClient,
-  createPostsRepo,
-  createSourcesRepo,
-  createUserActivityRepo,
-  createUsersRepo,
+  createSourceWeightsCache,
+  PostsRepo,
+  SourcesRepo,
+  UserActivityRepo,
+  UsersRepo,
 } from '@techtok/core';
 import { requireEnv } from './env';
 import { lazy } from './lazy';
@@ -16,18 +17,20 @@ import { lazy } from './lazy';
  */
 export const getDynamoClient = lazy(createDynamoClient);
 
-export const getPostsRepo = lazy(() =>
-  createPostsRepo(getDynamoClient(), requireEnv('POSTS_TABLE_NAME')),
+export const getPostsRepo = lazy(
+  () => new PostsRepo(getDynamoClient(), requireEnv('POSTS_TABLE_NAME')),
 );
 
-export const getUsersRepo = lazy(() =>
-  createUsersRepo(getDynamoClient(), requireEnv('USERS_TABLE_NAME')),
+export const getUsersRepo = lazy(
+  () => new UsersRepo(getDynamoClient(), requireEnv('USERS_TABLE_NAME')),
 );
 
-export const getUserActivityRepo = lazy(() =>
-  createUserActivityRepo(getDynamoClient(), requireEnv('USER_ACTIVITY_TABLE_NAME')),
+export const getUserActivityRepo = lazy(
+  () => new UserActivityRepo(getDynamoClient(), requireEnv('USER_ACTIVITY_TABLE_NAME')),
 );
 
-export const getSourcesRepo = lazy(() =>
-  createSourcesRepo(getDynamoClient(), requireEnv('SOURCES_TABLE_NAME')),
+export const getSourcesRepo = lazy(
+  () => new SourcesRepo(getDynamoClient(), requireEnv('SOURCES_TABLE_NAME')),
 );
+
+export const getSourceWeightsCache = lazy(() => createSourceWeightsCache(getSourcesRepo()));

@@ -9,7 +9,7 @@ import {
 import { mockClient } from 'aws-sdk-client-mock';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { NewPost } from '../posts/types';
-import { createPostsRepo } from './postsRepo';
+import { PostsRepo } from './postsRepo';
 
 const ddbMock = mockClient(DynamoDBDocumentClient);
 const client = ddbMock as unknown as DynamoDBDocumentClient;
@@ -38,7 +38,7 @@ const samplePost: NewPost = {
 describe('postsRepo.putIfNew', () => {
   it('writes a conditional put with a 90-day ttl and the byTime gsi key', async () => {
     ddbMock.on(PutCommand).resolves({});
-    const repo = createPostsRepo(client, 'Posts');
+    const repo = new PostsRepo(client, 'Posts');
 
     const created = await repo.putIfNew(samplePost);
 
@@ -58,14 +58,14 @@ describe('postsRepo.putIfNew', () => {
         $metadata: {},
       }),
     );
-    const repo = createPostsRepo(client, 'Posts');
+    const repo = new PostsRepo(client, 'Posts');
 
     await expect(repo.putIfNew(samplePost)).resolves.toBe(false);
   });
 
   it('rethrows errors that are not a conditional check failure', async () => {
     ddbMock.on(PutCommand).rejects(new Error('boom'));
-    const repo = createPostsRepo(client, 'Posts');
+    const repo = new PostsRepo(client, 'Posts');
 
     await expect(repo.putIfNew(samplePost)).rejects.toThrow('boom');
   });
@@ -74,7 +74,7 @@ describe('postsRepo.putIfNew', () => {
 describe('postsRepo.queryByTopic', () => {
   it('queries the byTopic GSI newest-first', async () => {
     ddbMock.on(QueryCommand).resolves({ Items: [samplePost] });
-    const repo = createPostsRepo(client, 'Posts');
+    const repo = new PostsRepo(client, 'Posts');
 
     const items = await repo.queryByTopic('dev', { limit: 10 });
 
@@ -90,7 +90,7 @@ describe('postsRepo.queryByTopic', () => {
 
   it('adds the before-cursor condition when provided', async () => {
     ddbMock.on(QueryCommand).resolves({ Items: [] });
-    const repo = createPostsRepo(client, 'Posts');
+    const repo = new PostsRepo(client, 'Posts');
 
     await repo.queryByTopic('science', { before: '2026-07-18T00:00:00.000Z' });
 
@@ -105,7 +105,7 @@ describe('postsRepo.queryByTopic', () => {
 describe('postsRepo.queryRecent', () => {
   it('queries the byTime GSI with the constant partition key', async () => {
     ddbMock.on(QueryCommand).resolves({ Items: [samplePost] });
-    const repo = createPostsRepo(client, 'Posts');
+    const repo = new PostsRepo(client, 'Posts');
 
     const items = await repo.queryRecent({ limit: 5 });
 
@@ -118,7 +118,7 @@ describe('postsRepo.queryRecent', () => {
 
   it('returns an empty array when the query has no items', async () => {
     ddbMock.on(QueryCommand).resolves({});
-    const repo = createPostsRepo(client, 'Posts');
+    const repo = new PostsRepo(client, 'Posts');
 
     expect(await repo.queryRecent()).toEqual([]);
   });
@@ -126,7 +126,7 @@ describe('postsRepo.queryRecent', () => {
 
 describe('postsRepo.getByIds', () => {
   it('returns an empty array without calling DynamoDB when given no ids', async () => {
-    const repo = createPostsRepo(client, 'Posts');
+    const repo = new PostsRepo(client, 'Posts');
 
     expect(await repo.getByIds([])).toEqual([]);
     expect(ddbMock.commandCalls(BatchGetCommand)).toHaveLength(0);
@@ -134,7 +134,7 @@ describe('postsRepo.getByIds', () => {
 
   it('batch-gets posts by id', async () => {
     ddbMock.on(BatchGetCommand).resolves({ Responses: { Posts: [samplePost] } });
-    const repo = createPostsRepo(client, 'Posts');
+    const repo = new PostsRepo(client, 'Posts');
 
     const posts = await repo.getByIds(['abc123']);
 
@@ -145,7 +145,7 @@ describe('postsRepo.getByIds', () => {
 
   it('chunks requests into batches of 100 keys', async () => {
     ddbMock.on(BatchGetCommand).resolves({ Responses: { Posts: [] } });
-    const repo = createPostsRepo(client, 'Posts');
+    const repo = new PostsRepo(client, 'Posts');
     const postIds = Array.from({ length: 150 }, (_, i) => `post${i}`);
 
     await repo.getByIds(postIds);
@@ -165,7 +165,7 @@ describe('postsRepo.updateTransform', () => {
   // Confirmed against live DynamoDB during phase 2 testing.
   it('aliases every written attribute name via ExpressionAttributeNames', async () => {
     ddbMock.on(UpdateCommand).resolves({});
-    const repo = createPostsRepo(client, 'Posts');
+    const repo = new PostsRepo(client, 'Posts');
 
     await repo.updateTransform('abc123', {
       status: 'ready',
@@ -193,7 +193,7 @@ describe('postsRepo.updateTransform', () => {
 
   it('omits optional fields that are not provided', async () => {
     ddbMock.on(UpdateCommand).resolves({});
-    const repo = createPostsRepo(client, 'Posts');
+    const repo = new PostsRepo(client, 'Posts');
 
     await repo.updateTransform('abc123', { status: 'ready', transform: 'excerpt' });
 
@@ -203,7 +203,7 @@ describe('postsRepo.updateTransform', () => {
 
   it('writes the LLM-derived card fields', async () => {
     ddbMock.on(UpdateCommand).resolves({});
-    const repo = createPostsRepo(client, 'Posts');
+    const repo = new PostsRepo(client, 'Posts');
 
     await repo.updateTransform('abc123', {
       status: 'ready',
@@ -241,7 +241,7 @@ describe('postsRepo.updateTransform', () => {
 
   it('writes mirroredImageUrl when provided', async () => {
     ddbMock.on(UpdateCommand).resolves({});
-    const repo = createPostsRepo(client, 'Posts');
+    const repo = new PostsRepo(client, 'Posts');
 
     await repo.updateTransform('abc123', {
       status: 'ready',

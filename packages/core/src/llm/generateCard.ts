@@ -1,14 +1,12 @@
 import { errorMessage } from '../util/errors';
-import { buildCardPrompt, buildRepairPrompt } from './prompts/cardPrompt';
+import { buildCardPrompt, buildRepairPrompt, type CardPromptInput } from './prompts/cardPrompt';
 import { type LlmCardOutput, type LlmProvider, llmCardOutputSchema } from './types';
 
 const MAX_INPUT_CHARS = 4000;
 
-export interface GenerateCardInput {
-  title: string;
-  sourceName: string;
-  text: string;
-}
+/** Same shape the prompt builder consumes — one definition, re-exported under
+ * the domain-level name the rest of the codebase uses. */
+export type GenerateCardInput = CardPromptInput;
 
 export type GenerateCardResult = { ok: true; card: LlmCardOutput } | { ok: false; reason: string };
 

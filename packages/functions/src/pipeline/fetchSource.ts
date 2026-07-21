@@ -1,12 +1,12 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import {
   createSqsClient,
-  createTransformQueue,
   type FetchFeedResult,
   findDuplicateOf,
   type IngestResult,
   ingestSource,
   type SourceRecord,
+  TransformQueue,
 } from '@techtok/core';
 import { requireEnv } from '../env';
 import { lazy } from '../lazy';
@@ -14,8 +14,8 @@ import { getPostsRepo, getSourcesRepo } from '../repos';
 
 const logger = new Logger({ serviceName: 'fetchSource' });
 
-const getTransformQueue = lazy(() =>
-  createTransformQueue(createSqsClient(), requireEnv('TRANSFORM_QUEUE_URL')),
+const getTransformQueue = lazy(
+  () => new TransformQueue(createSqsClient(), requireEnv('TRANSFORM_QUEUE_URL')),
 );
 
 async function fetchFeed(source: SourceRecord): Promise<FetchFeedResult> {

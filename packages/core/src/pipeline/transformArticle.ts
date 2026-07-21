@@ -2,8 +2,9 @@ import { extractFromHtml } from '@extractus/article-extractor';
 import type { Topic } from '@techtok/shared';
 import robotsParser from 'robots-parser';
 import { toExcerpt } from '../ingest/htmlText';
-import type { GenerateCardResult } from '../llm/generateCard';
+import type { GenerateCardInput, GenerateCardResult } from '../llm/generateCard';
 import type { TransformKind } from '../posts/types';
+import type { TransformUpdateFields } from '../repos/postsRepo';
 import { errorMessage } from '../util/errors';
 
 /** Single bot identity for everything TechTok fetches — the robots.txt check
@@ -11,66 +12,54 @@ import { errorMessage } from '../util/errors';
 export const TECHTOK_BOT_USER_AGENT = 'TechTokBot/1.0 (+https://github.com/tormozz48/techtok)';
 
 export interface TransformInput {
-  postId: string;
-  url: string;
-  title: string;
-  sourceName: string;
+  readonly postId: string;
+  readonly url: string;
+  readonly title: string;
+  readonly sourceName: string;
   /** The original (hotlinked) article image, if the ingest-time fallback
    * chain found one. Mirrored to our own CDN when present (see `mirrorImage`). */
-  imageUrl?: string;
+  readonly imageUrl?: string;
 }
 
-export interface TransformFields {
-  status: 'ready';
-  transform: TransformKind;
-  summary?: string;
-  excerpt?: string;
-  s3RawKey?: string;
-  cardTitle?: string;
-  whyItMatters?: string;
-  primaryTopic?: Topic;
-  topics?: Topic[];
-  lang?: string;
-  mirroredImageUrl?: string;
+/** The transform write is the repo's update shape (single source of truth in
+ * postsRepo.ts), narrowed to the only status a completed transform can set. */
+export interface TransformFields extends Omit<TransformUpdateFields, 'status'> {
+  readonly status: 'ready';
 }
 
 export interface TransformDeps {
   /** Fetches `robots.txt` for the article's host. Returns `undefined` if it
    * can't be fetched (404, timeout, etc.) — treated as "allowed". */
-  fetchRobotsTxt: (robotsUrl: string) => Promise<string | undefined>;
+  readonly fetchRobotsTxt: (robotsUrl: string) => Promise<string | undefined>;
   /** Fetches the article page HTML. Throws on non-2xx, timeout, or the 2MB
    * size cap — all content-level failures, caught by this function. */
-  fetchPage: (url: string) => Promise<string>;
+  readonly fetchPage: (url: string) => Promise<string>;
   /** Archives the raw HTML to S3. An infra call — left unguarded so a
    * failure here propagates (SQS retry -> DLQ), not swallowed as a degrade. */
-  archiveRaw: (postId: string, html: string) => Promise<void>;
+  readonly archiveRaw: (postId: string, html: string) => Promise<void>;
   /** Atomically increments today's transform counter (DESIGN §6/§7.4) and
    * reports whether the article is still under the daily LLM cap. Over cap
    * is not a failure — it's the cost valve doing its job — so the post ships
    * as `transform: 'skipped'`, never blocking the feed. */
-  checkDailyCap: () => Promise<boolean>;
+  readonly checkDailyCap: () => Promise<boolean>;
   /** Derives card copy + topic classification from the extracted article
    * text (DESIGN §7.4). Never expected to throw — an LLM refusal, invalid
    * output, or a Bedrock hiccup is a content-level failure reported via
    * `{ ok: false }` so this function can degrade to the excerpt card. */
-  generateCard: (input: {
-    title: string;
-    sourceName: string;
-    text: string;
-  }) => Promise<GenerateCardResult>;
+  readonly generateCard: (input: GenerateCardInput) => Promise<GenerateCardResult>;
   /** Persists the transform result to DynamoDB. Also an infra call,
    * deliberately unguarded for the same reason as `archiveRaw`. */
-  updatePost: (postId: string, fields: TransformFields) => Promise<void>;
+  readonly updatePost: (postId: string, fields: TransformFields) => Promise<void>;
   /** Mirrors the article's hotlinked image to our own CDN. A content-level
    * concern, not infra: this contract never throws — any fetch/upload
    * failure is caught by the implementation and reported as `undefined`,
    * so the post always falls back to the original hotlinked `imageUrl`. */
-  mirrorImage: (postId: string, imageUrl: string) => Promise<string | undefined>;
+  readonly mirrorImage: (postId: string, imageUrl: string) => Promise<string | undefined>;
 }
 
 export interface TransformOutcome {
-  degraded: boolean;
-  reason?: string;
+  readonly degraded: boolean;
+  readonly reason?: string;
 }
 
 /**

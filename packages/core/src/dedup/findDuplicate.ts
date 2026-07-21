@@ -8,22 +8,22 @@ export const DEFAULT_WINDOW_HOURS = 48;
 const MS_PER_HOUR = 60 * 60 * 1000;
 
 export interface DuplicateCandidate {
-  postId: string;
-  sourceId: string;
-  origTitle: string;
-  primaryTopic: Topic;
-  publishedAt: string;
+  readonly postId: string;
+  readonly sourceId: string;
+  readonly origTitle: string;
+  readonly primaryTopic: Topic;
+  readonly publishedAt: string;
 }
 
 export interface FindDuplicateDeps {
   /** Recent posts in the candidate's topic, any window/limit — findDuplicateOf
    * does its own time-window filtering over whatever this returns. */
-  queryRecentByTopic: (topic: Topic) => Promise<DuplicateCandidate[]>;
+  readonly queryRecentByTopic: (topic: Topic) => Promise<DuplicateCandidate[]>;
 }
 
 export interface FindDuplicateOpts {
-  windowHours?: number;
-  threshold?: number;
+  readonly windowHours?: number;
+  readonly threshold?: number;
 }
 
 /**

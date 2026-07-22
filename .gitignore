@@ -153,7 +153,7 @@ sst-env.d.ts
 .expo/
 apps/mobile/.expo/
 apps/mobile/expo-env.d.ts
-apps/mobile/android/
+# apps/mobile/android/ is committed (bare workflow — see DESIGN §2 D18)
 apps/mobile/ios/
 *.orig.*
 web-build/

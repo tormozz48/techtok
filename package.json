@@ -11,7 +11,7 @@
     "lint:fix": "biome check --write .",
     "typecheck": "./scripts/typecheck-infra.sh && pnpm -r --if-present run typecheck",
     "test": "vitest run && pnpm --filter mobile run test",
-    "dev": "sst dev",
+    "dev": "sst dev --stage dev",
     "deploy:dev": "sst deploy --stage dev"
   },
   "devDependencies": {

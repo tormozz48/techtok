@@ -53,6 +53,23 @@ new aws.cloudwatch.MetricAlarm('Api5xxAlarm', {
   treatMissingData: 'notBreaching',
 });
 
+// Tag-based view grouping every resource carrying the `app` default tag
+// (D17) so the console shows one place per environment for billing/ops.
+new aws.resourcegroups.Group('AppResourceGroup', {
+  name: $app.stage === 'production' ? 'techtok-production' : 'techtok-dev',
+  resourceQuery: {
+    query: JSON.stringify({
+      ResourceTypeFilters: ['AWS::AllSupported'],
+      TagFilters: [
+        {
+          Key: 'app',
+          Values: [$app.stage === 'production' ? 'techtok-production' : 'techtok-dev'],
+        },
+      ],
+    }),
+  },
+});
+
 // Hobby budget ceiling (D11/§10).
 new aws.budgets.Budget('MonthlyCostBudget', {
   budgetType: 'COST',

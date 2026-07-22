@@ -30,7 +30,7 @@ pnpm install
 pnpm lint        # Biome — this repo has NO ESLint/Prettier (D7)
 pnpm typecheck   # tsc --noEmit across workspaces + sst.config.ts/infra (the latter only after a first `pnpm dev`)
 pnpm test        # vitest (shared/core/functions) + jest (mobile)
-pnpm dev         # sst dev — live Lambda on your personal stage
+pnpm dev         # sst dev --stage dev — live Lambda on your personal "dev" stage
 pnpm --filter mobile start   # Expo dev server
 ```
 
@@ -58,7 +58,7 @@ Definition of done for any change: lint + typecheck + tests green, then exercise
 
 ## AWS
 
-- Region `eu-central-1`. Stages: personal dev stage (`sst dev`) and `production` (deployed by CI only — don't `sst deploy --stage production` from a laptop).
+- Region `eu-central-1`. Stages: personal dev stage, named `dev` (`sst dev` / `sst deploy --stage dev`, formerly the OS-username default `andrey`, briefly `stage` — see D17) and `production` (deployed by CI only — don't `sst deploy --stage production` from a laptop). All resources carry default tags `app: techtok-dev|techtok-production` + `stage: <stage name>` for Cost Explorer grouping (D17).
 - Never run `sst remove` (denied in settings.json); it destroys deployed stacks.
 - Budget ceiling is **$10/mo** (D11). Anything cost-bearing — schedule rates, LLM volume/caps, log retention, new always-on resources — gets checked against DESIGN §10 first.
 

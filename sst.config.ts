@@ -10,6 +10,12 @@ export default $config({
       providers: {
         aws: {
           region: 'eu-central-1',
+          defaultTags: {
+            tags: {
+              app: input?.stage === 'production' ? 'techtok-production' : 'techtok-dev',
+              stage: input?.stage ?? 'unknown',
+            },
+          },
         },
       },
     };

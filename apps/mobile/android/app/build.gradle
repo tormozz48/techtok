@@ -146,6 +146,13 @@ android {
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
+    // Release fatal-issue lint (lintVitalRelease + the lintVitalAnalyzeRelease cascade
+    // across the Expo/RN library modules) exhausts the Gradle daemon's Metaspace on CI
+    // and adds no value to an internal preview APK — skip it for release builds.
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+    }
 }
 
 // Apply static values from `gradle.properties` to the `android.packagingOptions`

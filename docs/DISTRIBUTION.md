@@ -4,10 +4,74 @@ TechTok is distributed as an installable Android APK via EAS internal
 distribution — no Play Store listing, no review process. This is a one-time
 per-maintainer setup, then a link you can send.
 
-There are two supported paths: **EAS internal distribution** (below — quickest
-for handing friends an APK), and a **no-EAS local Gradle build for the Google
-Play Store** (see [Building & publishing without EAS](#building--publishing-without-eas-local-gradle--google-play)
-at the end).
+Three paths are supported, all on the Expo **free** tier:
+
+- **Automated CI builds → GitHub Releases** (recommended, unmetered) — every push
+  to `main` (and manual runs) builds an APK in GitHub Actions with
+  `eas build --local` and attaches it to a GitHub Release. See
+  [Automated CI builds](#automated-ci-builds-recommended) just below.
+- **Manual EAS internal distribution** — `eas build` on Expo's cloud, quickest
+  for a one-off link (spends your 15/mo free cloud-build credits). See
+  [One-time setup](#one-time-setup-maintainer) below.
+- **No-EAS local Gradle build for the Google Play Store** — see
+  [Building & publishing without EAS](#building--publishing-without-eas-local-gradle--google-play)
+  at the end.
+
+## Automated CI builds (recommended)
+
+`.github/workflows/mobile-build.yml` builds an installable Android APK on every
+push to `main` that touches the app (and on manual **Run workflow**), then
+attaches it to a **GitHub Release**. Friends install by downloading `techtok.apk`
+from the release page — no Play Store, no per-build link to generate by hand.
+
+### Why this dodges the free-tier build cap
+
+The EAS free tier includes **15 Android + 15 iOS cloud builds/month**. The
+workflow runs `eas build --local`, which compiles on the GitHub Actions runner
+instead of Expo's cloud, so it **does not consume a cloud-build credit** —
+effectively unlimited builds while staying on the free plan. (A plain `./gradlew`
+build is unmetered the same way; we use the EAS recipe here so `eas.json`
+profiles, env vars, and EAS-managed signing all apply.)
+
+### One-time setup
+
+1. **Expo account + access token.** Create a free account, then generate a
+   personal access token at <https://expo.dev/settings/access-tokens>.
+2. **GitHub secret.** Add it as the `EXPO_TOKEN` repository secret
+   (Settings → Secrets and variables → Actions).
+3. **Establish the Android keystore on EAS** (once), so CI can sign without a
+   keystore in GitHub. From `apps/mobile/`:
+
+   ```
+   npx eas credentials --platform android
+   ```
+
+   Pick the `preview` profile and let EAS generate/store a keystore. The build
+   profile's `credentialsSource` defaults to `remote`, so `eas build --local`
+   downloads it at build time using `EXPO_TOKEN`.
+
+### Getting a build
+
+- **Automatic:** merge to `main` (any change under `apps/mobile/`,
+  `packages/shared/`, or the lockfile).
+- **On demand:** GitHub → Actions → **Mobile build** → **Run workflow**.
+
+The APK lands under the repo's **Releases** as `android-build-<run#>` (marked
+pre-release). Send that release URL to a friend.
+
+### Notes & fallbacks
+
+- **Toolchain:** the job uses JDK 17 + the runner's Android SDK. Local EAS builds
+  don't manage the SDK/NDK for you, so if a first run fails on a missing NDK, add
+  an `sdkmanager "ndk;<version>"` step (the version is whatever the Expo SDK 57 /
+  RN 0.86 Gradle config requests).
+- **Local credentials instead of remote:** to avoid EAS-managed signing entirely,
+  set `"credentialsSource": "local"` on the `preview` profile, commit a
+  `credentials.json`, and have CI materialize the keystore from a base64 secret.
+  That puts the keystore in GitHub secrets — the thing remote credentials avoid —
+  so prefer the remote path above unless you have a reason.
+- **iOS:** local iOS builds need a macOS runner (`macos-latest`) plus Apple
+  signing assets; not wired up (project is Android-only, D12).
 
 ## One-time setup (maintainer)
 

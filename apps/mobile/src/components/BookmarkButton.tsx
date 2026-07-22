@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { createBookmark, deleteBookmark } from '@/api/client';
-import { Colors, Radius } from '@/constants/theme';
+import { Colors } from '@/constants/theme';
 import { useBookmarksOverlay } from '@/state/bookmarksOverlay';
 
 export interface BookmarkButtonProps {
@@ -41,16 +41,17 @@ export function BookmarkButton({ postId, isBookmarked }: BookmarkButtonProps) {
 }
 
 const styles = StyleSheet.create({
+  // No background/pill here (unlike its old floating-overlay days) — it now
+  // sits in the bottom action bar's solid row (D25), matching its four
+  // plain-icon neighbors (share, saved, history, settings).
   button: {
     width: 40,
     height: 40,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.overlay.chipBackground,
     alignItems: 'center',
     justifyContent: 'center',
   },
   icon: {
-    fontSize: 18,
+    fontSize: 20,
     color: Colors.overlay.text,
   },
 });

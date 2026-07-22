@@ -11,6 +11,16 @@ const ARTICLE_HTML = `<!doctype html><html><head><title>Test Article</title></he
 </article>
 </body></html>`;
 
+const ARTICLE_HTML_WITH_OG_IMAGE = ARTICLE_HTML.replace(
+  '<head><title>Test Article</title></head>',
+  '<head><title>Test Article</title><meta property="og:image" content="https://example.com/og-lead-image.jpg"></head>',
+);
+
+const ARTICLE_HTML_WITH_ARXIV_OG_IMAGE = ARTICLE_HTML.replace(
+  '<head><title>Test Article</title></head>',
+  '<head><title>Test Article</title><meta property="og:image" content="https://arxiv.org/static/browse/0.3.4/images/arxiv-logo-fb.png"></head>',
+);
+
 const SAMPLE_CARD: GenerateCardResult = {
   ok: true,
   card: {
@@ -193,6 +203,40 @@ describe('transformArticle', () => {
     const outcome = await transformArticle(inputWithImage, deps);
 
     expect(outcome).toEqual({ degraded: false });
+    const fields = deps.updatePost.mock.calls[0]?.[1];
+    expect(fields?.mirroredImageUrl).toBeUndefined();
+  });
+
+  it("mirrors the page's og:image (D24) when the post had no ingest-time imageUrl", async () => {
+    const deps = fakeDeps();
+    deps.fetchPage.mockResolvedValueOnce(ARTICLE_HTML_WITH_OG_IMAGE);
+    deps.mirrorImage.mockResolvedValueOnce('https://cdn.example.com/images/post1.jpg');
+
+    const outcome = await transformArticle(input, deps);
+
+    expect(outcome).toEqual({ degraded: false });
+    expect(deps.mirrorImage).toHaveBeenCalledWith('post1', 'https://example.com/og-lead-image.jpg');
+    const fields = deps.updatePost.mock.calls[0]?.[1];
+    expect(fields?.mirroredImageUrl).toBe('https://cdn.example.com/images/post1.jpg');
+  });
+
+  it('prefers the ingest-time imageUrl over the og:image when both are available', async () => {
+    const deps = fakeDeps();
+    deps.fetchPage.mockResolvedValueOnce(ARTICLE_HTML_WITH_OG_IMAGE);
+    const inputWithImage = { ...input, imageUrl: 'https://source.example.com/a.jpg' };
+
+    await transformArticle(inputWithImage, deps);
+
+    expect(deps.mirrorImage).toHaveBeenCalledWith('post1', 'https://source.example.com/a.jpg');
+  });
+
+  it('never mirrors a known-generic og:image (arXiv logo)', async () => {
+    const deps = fakeDeps();
+    deps.fetchPage.mockResolvedValueOnce(ARTICLE_HTML_WITH_ARXIV_OG_IMAGE);
+
+    await transformArticle(input, deps);
+
+    expect(deps.mirrorImage).not.toHaveBeenCalled();
     const fields = deps.updatePost.mock.calls[0]?.[1];
     expect(fields?.mirroredImageUrl).toBeUndefined();
   });

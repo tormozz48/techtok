@@ -87,6 +87,29 @@ export const backfillLlmFn = new sst.aws.Function('BackfillLlm', {
   timeout: '60 seconds',
 });
 
+// One-shot backfill (IMPLEMENTATION_PLAN.md phase 7 task 3): mines the
+// og:image out of already-archived raw HTML for posts that never got an
+// image at ingest time — no LLM, no live article refetch, so (unlike
+// BackfillLlm) it does the extract/mirror/update work inline rather than
+// re-enqueueing. Timeout set to the Lambda maximum since a stage's full
+// backlog is processed in one invocation; safe to just re-invoke if it ever
+// runs out of time; already-mirrored posts drop out of the next run's
+// candidate set. Not wired to any schedule/route — invoke manually once per
+// stage:
+//   aws lambda invoke --function-name <this fn's name> out.json
+export const backfillImagesFn = new sst.aws.Function('BackfillImages', {
+  handler: 'packages/functions/src/ops/backfillImages.handler',
+  link: [postsTable, rawArticlesBucket, imagesBucket],
+  environment: {
+    POSTS_TABLE_NAME: postsTable.name,
+    RAW_ARTICLES_BUCKET_NAME: rawArticlesBucket.name,
+    IMAGES_BUCKET_NAME: imagesBucket.name,
+    IMAGES_CDN_BASE_URL: imagesRouter.url,
+  },
+  runtime: 'nodejs22.x',
+  timeout: '900 seconds',
+});
+
 const loadSources = sst.aws.StepFunctions.lambdaInvoke({
   name: 'LoadSources',
   function: {

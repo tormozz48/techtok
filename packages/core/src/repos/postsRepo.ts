@@ -108,6 +108,24 @@ export class PostsRepo {
     );
   }
 
+  /** Narrow update used only by the image backfill (phase 7 task 3) — unlike
+   * `updateTransform`, this never touches `status`/`transform`, since the
+   * backfill mines an image out of an already-`ready` post's archive without
+   * re-running its transform. Attribute name is aliased for consistency with
+   * `updateTransform`'s own hard-won lesson, even though `mirroredImageUrl`
+   * isn't itself a reserved word. */
+  async updateMirroredImage(postId: string, mirroredImageUrl: string): Promise<void> {
+    await this.client.send(
+      new UpdateCommand({
+        TableName: this.tableName,
+        Key: { postId },
+        UpdateExpression: 'SET #mirroredImageUrl = :mirroredImageUrl',
+        ExpressionAttributeNames: { '#mirroredImageUrl': 'mirroredImageUrl' },
+        ExpressionAttributeValues: { ':mirroredImageUrl': mirroredImageUrl },
+      }),
+    );
+  }
+
   private async queryNewestFirst(
     indexName: string,
     partitionKey: string,

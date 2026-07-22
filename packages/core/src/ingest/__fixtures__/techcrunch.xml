@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:atom="http://www.w3.org/2005/Atom"
+	>
+<channel>
+<title>TechCrunch</title>
+<link>https://techcrunch.com</link>
+<description>Startup and Technology News</description>
+<lastBuildDate>Wed, 22 Jul 2026 20:36:41 +0000</lastBuildDate>
+<item>
+<title>Social media addiction lawsuit against Meta is dropped</title>
+<link>https://techcrunch.com/2026/07/22/social-media-addiction-lawsuit-against-meta-is-dropped/</link>
+<dc:creator><![CDATA[Sarah Perez]]></dc:creator>
+<pubDate>Wed, 22 Jul 2026 20:36:41 +0000</pubDate>
+<category><![CDATA[Social]]></category>
+<guid isPermaLink="false">https://techcrunch.com/?p=3145505</guid>
+<description><![CDATA[A closely watched social media addiction lawsuit that had been set to go to trial next week has been dropped after the plaintiff voluntarily dismissed his claims against Meta, leaving none of the major tech companies facing trial in the case.]]></description>
+</item>
+<item>
+<title>SoundCloud acquires decentralized music platform Nina Protocol months after its shutdown</title>
+<link>https://techcrunch.com/2026/07/22/soundcloud-acquires-decentralized-music-platform-nina-protocol-months-after-its-shutdown/</link>
+<dc:creator><![CDATA[Lauren Forristal]]></dc:creator>
+<pubDate>Wed, 22 Jul 2026 19:42:56 +0000</pubDate>
+<category><![CDATA[Media & Entertainment]]></category>
+<guid isPermaLink="false">https://techcrunch.com/?p=3145490</guid>
+<description><![CDATA[SoundCloud has acquired decentralized music platform Nina Protocol, months after the startup announced it would shut down. The deal brings Nina's artists, editorial archive, and music discovery tools to SoundCloud.]]></description>
+</item>
+<item>
+<title>How OpenAI's human mistake led to the AI-powered hack on Hugging Face</title>
+<link>https://techcrunch.com/2026/07/22/how-an-openais-human-mistake-led-to-the-ai-powered-hack-on-hugging-face/</link>
+<dc:creator><![CDATA[Lorenzo Franceschi-Bicchierai]]></dc:creator>
+<pubDate>Wed, 22 Jul 2026 19:11:46 +0000</pubDate>
+<category><![CDATA[AI]]></category>
+<guid isPermaLink="false">https://techcrunch.com/?p=3145421</guid>
+<description><![CDATA[OpenAI made a mistake setting up what it called a "highly isolated" testing environment and sandbox. According to cybersecurity experts, that human mistake is what made the AI-powered attack on Hugging Face possible.]]></description>
+</item>
+</channel>
+</rss>

@@ -12,12 +12,15 @@ import { selectImagesToPrefetch } from './prefetch';
 export interface FeedPagerProps {
   cards: CardData[];
   onNearEnd?: () => void;
+  /** Fires with the newly-active card on every page settle (D25) — drives
+   * the bottom action bar's per-card bookmark/share buttons. */
+  onPageChange?: (card: CardData) => void;
 }
 
 const NEAR_END_THRESHOLD = 5;
 const SETTLE_DELAY_MS = 1500;
 
-export function FeedPager({ cards, onNearEnd }: FeedPagerProps) {
+export function FeedPager({ cards, onNearEnd, onPageChange }: FeedPagerProps) {
   const settleTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   return (
@@ -39,6 +42,7 @@ export function FeedPager({ cards, onNearEnd }: FeedPagerProps) {
 
         const card = cards[position];
         if (card) {
+          onPageChange?.(card);
           settleTimer.current = setTimeout(() => {
             enqueueRead(card.id);
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});

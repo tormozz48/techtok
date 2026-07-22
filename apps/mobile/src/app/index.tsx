@@ -1,18 +1,20 @@
-import { Link } from 'expo-router';
-import { useMemo } from 'react';
+import type { Card as CardData } from '@techtok/shared';
+import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useFeedQuery } from '@/api/useFeedQuery';
+import { BottomActionBar } from '@/components/BottomActionBar';
 import { FeedPager } from '@/components/FeedPager';
-import { FeedSkeleton } from '@/components/FeedSkeleton';
-import { Colors, Spacing } from '@/constants/theme';
+import { LoadingScreen } from '@/components/LoadingScreen';
+import { Colors } from '@/constants/theme';
 
 export default function FeedScreen() {
   const { data, isLoading, isError, error, fetchNextPage, isFetchingNextPage } = useFeedQuery();
+  const [activeCard, setActiveCard] = useState<CardData | undefined>(undefined);
 
   const cards = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data]);
 
   if (isLoading) {
-    return <FeedSkeleton />;
+    return <LoadingScreen />;
   }
 
   if (isError) {
@@ -34,24 +36,15 @@ export default function FeedScreen() {
   }
 
   return (
-    <View style={styles.pagerWrapper}>
+    <View style={styles.root}>
       <FeedPager
         cards={cards}
+        onPageChange={setActiveCard}
         onNearEnd={() => {
           if (!isFetchingNextPage) fetchNextPage();
         }}
       />
-      <View style={styles.overlay} pointerEvents="box-none">
-        <Link href="/saved" style={styles.overlayButton}>
-          <Text style={styles.overlayButtonText}>🔖</Text>
-        </Link>
-        <Link href="/history" style={styles.overlayButton}>
-          <Text style={styles.overlayButtonText}>🕓</Text>
-        </Link>
-        <Link href="/settings" style={styles.overlayButton}>
-          <Text style={styles.overlayButtonText}>⚙</Text>
-        </Link>
-      </View>
+      <BottomActionBar activeCard={activeCard ?? cards[0]} />
     </View>
   );
 }
@@ -74,24 +67,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 16,
   },
-  pagerWrapper: {
+  root: {
     flex: 1,
-  },
-  overlay: {
-    position: 'absolute',
-    top: Spacing.six,
-    right: Spacing.three,
-    gap: Spacing.two,
-  },
-  overlayButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    textAlign: 'center',
-    lineHeight: 40,
-  },
-  overlayButtonText: {
-    fontSize: 18,
   },
 });

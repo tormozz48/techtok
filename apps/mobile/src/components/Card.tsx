@@ -3,31 +3,22 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
-import {
-  Platform,
-  Pressable,
-  Share,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { enqueueRead } from '@/state/readQueue';
 import { timeAgo } from '@/utils/timeAgo';
-import { BookmarkButton } from './BookmarkButton';
 import { ImageSkeleton } from './ImageSkeleton';
+import { ImageStub } from './ImageStub';
 
 export interface CardProps {
   card: CardData;
 }
 
 export function Card({ card }: CardProps) {
-  const { height } = useWindowDimensions();
   const [imageLoaded, setImageLoaded] = useState(false);
 
   return (
-    <View style={[styles.container, { height }]}>
+    <View style={styles.container}>
       {card.imageUrl ? (
         <>
           <Image
@@ -42,7 +33,7 @@ export function Card({ card }: CardProps) {
           {!imageLoaded && !card.blurhash ? <ImageSkeleton /> : null}
         </>
       ) : (
-        <View style={[StyleSheet.absoluteFill, styles.imageFallback]} />
+        <ImageStub postId={card.id} topic={card.primaryTopic} />
       )}
 
       <LinearGradient
@@ -80,33 +71,20 @@ export function Card({ card }: CardProps) {
           <Text style={styles.metaText}> · {timeAgo(card.publishedAt)}</Text>
         </View>
       </Pressable>
-
-      <View style={styles.actions} pointerEvents="box-none">
-        <BookmarkButton postId={card.id} isBookmarked={card.isBookmarked} />
-        <Pressable
-          style={styles.actionButton}
-          hitSlop={8}
-          onPress={() =>
-            Share.share({
-              title: card.title,
-              url: card.url,
-              message: Platform.OS === 'android' ? `${card.title}\n${card.url}` : card.title,
-            })
-          }
-        >
-          <Text style={styles.actionIcon}>↗</Text>
-        </Pressable>
-      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    // react-native-pager-view's own docs: `flex: 1` does not size a page's
+    // children correctly, use an explicit width/height instead — 100% then
+    // resolves against whatever height the pager itself is given by its
+    // parent (FeedScreen's layout, D25), so the pager shrinking for the
+    // bottom action bar "just works" without any bar-height arithmetic here.
+    width: '100%',
+    height: '100%',
     backgroundColor: Colors.overlay.surfaceBlack,
-  },
-  imageFallback: {
-    backgroundColor: Colors.overlay.surfaceDim,
   },
   content: {
     flex: 1,
@@ -168,23 +146,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-  },
-  actions: {
-    position: 'absolute',
-    top: Spacing.six,
-    left: Spacing.three,
-    gap: Spacing.two,
-  },
-  actionButton: {
-    width: 40,
-    height: 40,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.overlay.chipBackground,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionIcon: {
-    color: Colors.overlay.text,
-    fontSize: 18,
   },
 });

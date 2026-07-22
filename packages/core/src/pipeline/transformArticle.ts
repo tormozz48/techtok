@@ -6,6 +6,7 @@ import type { GenerateCardInput, GenerateCardResult } from '../llm/generateCard'
 import type { TransformKind } from '../posts.types';
 import type { TransformUpdateFields } from '../repos/postsRepo';
 import { errorMessage } from '../util/errors';
+import { isGenericImage } from './genericImageDenylist';
 
 /** Single bot identity for everything TechTok fetches — the robots.txt check
  * below and the page/image fetches in `functions` must always agree on it. */
@@ -17,7 +18,9 @@ export interface TransformInput {
   readonly title: string;
   readonly sourceName: string;
   /** The original (hotlinked) article image, if the ingest-time fallback
-   * chain found one. Mirrored to our own CDN when present (see `mirrorImage`). */
+   * chain found one. Mirrored to our own CDN when present (see
+   * `mirrorImage`). When absent, this function falls back to the page's
+   * og:image (DESIGN §2 D24) before giving up on an image entirely. */
   readonly imageUrl?: string;
 }
 
@@ -92,12 +95,19 @@ export async function transformArticle(
 
   let excerpt: string | undefined;
   let fullText: string | undefined;
+  let ogImageUrl: string | undefined;
   if (html && !reason) {
     try {
       const article = await extractFromHtml(html, input.url);
       excerpt = article?.content ? toExcerpt(article.content) : undefined;
       fullText = article?.content ? toExcerpt(article.content, 4000) : undefined;
       if (!excerpt) reason = 'extraction produced no usable text';
+      // D24: the page we already downloaded carries its own og:image — take
+      // it regardless of how the text extraction went, as long as it isn't a
+      // known-generic placeholder (e.g. arXiv's logo on every abstract page).
+      if (article?.image && !isGenericImage(article.image)) {
+        ogImageUrl = article.image;
+      }
     } catch (err) {
       reason = `extraction failed: ${errorMessage(err)}`;
     }
@@ -141,8 +151,12 @@ export async function transformArticle(
     }
   }
 
-  const mirroredImageUrl = input.imageUrl
-    ? await deps.mirrorImage(input.postId, input.imageUrl)
+  // D24: only reach for the transform-time og:image when the ingest-time
+  // fallback chain (rssMapper.ts) found nothing at all — a real imageUrl
+  // always wins.
+  const imageToMirror = input.imageUrl ?? ogImageUrl;
+  const mirroredImageUrl = imageToMirror
+    ? await deps.mirrorImage(input.postId, imageToMirror)
     : undefined;
 
   await deps.updatePost(input.postId, {

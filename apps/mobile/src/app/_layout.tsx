@@ -5,8 +5,8 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, useColorScheme, View } from 'react-native';
-import { Colors } from '@/constants/theme';
+import { useColorScheme } from 'react-native';
+import { LoadingScreen } from '@/components/LoadingScreen';
 import { startNetworkMonitoring } from '@/state/network';
 import { hasSeenOnboarding } from '@/state/onboardingStore';
 import { startReadQueueFlushing } from '@/state/readQueue';
@@ -42,12 +42,12 @@ export default function RootLayout() {
     });
   }, []);
 
+  // Same branded LoadingScreen as the feed's own first-fetch gate (D25) —
+  // native splash -> this -> the feed's loading gate should read as one
+  // continuous blue screen, not a flash of the app's usual black theme
+  // in between. Hydration (a few AsyncStorage reads) is normally near-instant.
   if (!isHydrated) {
-    return (
-      <View style={styles.splash}>
-        <ActivityIndicator color="#fff" />
-      </View>
-    );
+    return <LoadingScreen />;
   }
 
   return (
@@ -80,12 +80,3 @@ export default function RootLayout() {
     </PersistQueryClientProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  splash: {
-    flex: 1,
-    backgroundColor: Colors.dark.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

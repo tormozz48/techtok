@@ -66,7 +66,14 @@ export async function ingestSource(source: SourceRecord, deps: IngestDeps): Prom
   }
 
   try {
-    const feed = await new Parser<unknown, FeedEntry>().parseString(fetched.body ?? '');
+    const feed = await new Parser<unknown, FeedEntry>({
+      customFields: {
+        item: [
+          ['media:content', 'mediaContent', { keepArray: true }],
+          ['media:thumbnail', 'mediaThumbnail', { keepArray: true }],
+        ],
+      },
+    }).parseString(fetched.body ?? '');
 
     for (const entry of feed.items) {
       seen += 1;

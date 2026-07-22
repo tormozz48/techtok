@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+<channel>
+<title>Phys.org - latest science and technology news stories</title>
+<link>https://phys.org</link>
+<description>Phys.org internet news portal provides the latest news on science</description>
+<item>
+<title>Neural networks unlock larger quantum simulations with lower computational costs</title>
+<description>In recent years, research using artificial intelligence to predict material properties has advanced rapidly. Neural network quantum Monte Carlo methods have attracted attention as highly accurate simulation techniques.</description>
+<link>https://phys.org/news/2026-07-neural-networks-larger-quantum-simulations.html</link>
+<category>Quantum Physics</category>
+<pubDate>Wed, 22 Jul 2026 16:40:07 EDT</pubDate>
+<guid isPermaLink="false">news703946701</guid>
+<media:thumbnail url="https://scx1.b-cdn.net/csz/news/tmb/2021/neural-network-1.jpg" width="90" height="90" />
+</item>
+<item>
+<title>Detecting the body&#039;s magnetic fields with a low-power Ramsey-based magnetometer</title>
+<description>Our bodies generate extremely weak magnetic fields as electric currents flow through the heart, brain and other tissues. These signals are used in magnetocardiography and magnetoencephalography.</description>
+<link>https://phys.org/news/2026-07-body-magnetic-fields-power-ramsey.html</link>
+<category>Optics &amp; Photonics</category>
+<pubDate>Wed, 22 Jul 2026 16:40:06 EDT</pubDate>
+<guid isPermaLink="false">news703947302</guid>
+<media:thumbnail url="https://scx1.b-cdn.net/csz/news/tmb/2026/detecting-the-bodys-ma-1.jpg" width="90" height="90" />
+</item>
+<item>
+<title>Crowd reactions influence whether people receive controversial political messages positively or negatively</title>
+<description>Positive crowd reactions like applause and laughter can make controversial political messages more acceptable to viewers, according to new research by psychologist Dr. Carl Senior at Aston University.</description>
+<link>https://phys.org/news/2026-07-crowd-reactions-people-controversial-political.html</link>
+<category>Social Sciences</category>
+<pubDate>Wed, 22 Jul 2026 16:20:05 EDT</pubDate>
+<guid isPermaLink="false">news703946761</guid>
+<media:thumbnail url="https://scx1.b-cdn.net/csz/news/tmb/2026/giving-a-speech.jpg" width="90" height="90" />
+</item>
+</channel>
+</rss>

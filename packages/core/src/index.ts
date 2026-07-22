@@ -15,6 +15,8 @@ export * from './llm/bedrockClient';
 export * from './llm/generateCard';
 export * from './llm.types';
 export * from './notifications/expoPush';
+export * from './pipeline/backfillImages';
+export * from './pipeline/genericImageDenylist';
 export * from './pipeline/transformArticle';
 export * from './posts.types';
 export * from './repos/countersRepo';

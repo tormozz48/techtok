@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:media="http://search.yahoo.com/mrss/" xmlns:slash="http://purl.org/rss/1.0/modules/slash/" version="2.0">
+<channel>
+<title>Ars Technica - All content</title>
+<link>https://arstechnica.com</link>
+<description>All Ars Technica stories</description>
+<lastBuildDate>Wed, 22 Jul 2026 18:18:12 +0000</lastBuildDate>
+<item>
+<title>Hyundai claims humanoid robot plan is not part of talks with striking workers</title>
+<link>https://arstechnica.com/ai/2026/07/hyundai-claims-humanoid-robot-plan-is-not-part-of-talks-with-striking-workers/</link>
+<dc:creator><![CDATA[Jeremy Hsu]]></dc:creator>
+<pubDate>Wed, 22 Jul 2026 18:18:12 +0000</pubDate>
+<category><![CDATA[AI]]></category>
+<guid isPermaLink="true">https://arstechnica.com/ai/2026/07/hyundai-claims-humanoid-robot-plan-is-not-part-of-talks-with-striking-workers/</guid>
+<description><![CDATA[Union previously warned automaker that any robot deployment must be negotiated.]]></description>
+<content:encoded><![CDATA[<p>Hyundai Motor Company's plan to put humanoid robots to work by 2028 is not part of current negotiations with striking South Korean autoworkers, according to the company.</p>
+<p>The automaker is disputing news reports that partial labor strikes by the Hyundai Motor union at the world's largest automotive plant in South Korea were spurred by concerns about the company's planned deployment of humanoid robots.</p>
+]]></content:encoded>
+<slash:comments>4</slash:comments>
+<media:content height="648" medium="image" type="image/jpeg" url="https://cdn.arstechnica.net/wp-content/uploads/2026/07/Boston-Dynamics-robot-standing-stance-1152x648.jpg" width="1152">
+<media:thumbnail height="500" url="https://cdn.arstechnica.net/wp-content/uploads/2026/07/Boston-Dynamics-robot-standing-stance-500x500.jpg" width="500"/>
+<media:credit>Boston Dynamics</media:credit><media:text>Hyundai aims to deploy 25,000 Atlas robots starting with US factories in 2028.</media:text></media:content>
+</item>
+<item>
+<title>Next Space Force chief throws cold water on the idea of space privateers</title>
+<link>https://arstechnica.com/space/2026/07/next-space-force-chief-throws-cold-water-on-the-idea-of-space-privateers/</link>
+<dc:creator><![CDATA[Stephen Clark]]></dc:creator>
+<pubDate>Wed, 22 Jul 2026 17:02:44 +0000</pubDate>
+<category><![CDATA[Space]]></category>
+<guid isPermaLink="true">https://arstechnica.com/space/2026/07/next-space-force-chief-throws-cold-water-on-the-idea-of-space-privateers/</guid>
+<description><![CDATA[It turns out some of Benjamin Franklin's opinions from 240 years ago are still relevant today.]]></description>
+<content:encoded><![CDATA[<p>In the early years of the United States, when the nascent US Navy was still getting its sea legs, several presidents used privateers to capture or destroy enemy warships when armed naval vessels were unable to do so.</p>
+]]></content:encoded>
+<slash:comments>24</slash:comments>
+<media:content height="648" medium="image" type="image/jpeg" url="https://cdn.arstechnica.net/wp-content/uploads/2026/07/GettyImages-3071177-1152x648.jpg" width="1152">
+<media:thumbnail height="500" url="https://cdn.arstechnica.net/wp-content/uploads/2026/07/GettyImages-3071177-500x500.jpg" width="500"/>
+<media:credit>MPI/Getty Images</media:credit><media:text>October 26, 1814: The American privateer General Armstrong repulses a British attack.</media:text></media:content>
+</item>
+<item>
+<title>Range Rover answers the question: "What if we built a not-SUV?"</title>
+<link>https://arstechnica.com/cars/2026/07/heres-range-rovers-first-not-suv-the-range-rover-gt/</link>
+<dc:creator><![CDATA[Jonathan M. Gitlin]]></dc:creator>
+<pubDate>Tue, 21 Jul 2026 23:01:23 +0000</pubDate>
+<category><![CDATA[Cars]]></category>
+<guid isPermaLink="true">https://arstechnica.com/cars/2026/07/heres-range-rovers-first-not-suv-the-range-rover-gt/</guid>
+<description><![CDATA[The Range Rover GT will debut as an EV with a hybrid version to follow.]]></description>
+<content:encoded><![CDATA[<p>WOLVERHAMPTON, England&#8212;One can argue about whether or not Range Rover invented the luxury SUV category, but there's no question the brand has made itself the standard other luxury SUVs measure against.</p>
+<img width="3000" height="1688" src="https://cdn.arstechnica.net/wp-content/uploads/2026/07/RR_GT_SIDE-PROFILE.jpg" class="fullwidth full" alt="" decoding="async" loading="lazy">
+<p>Range Rover still isn't ready to reveal an uncamouflaged GT, but the car you see is much less disguised than the boxy-looking prototypes seen in earlier spy shots.</p>
+]]></content:encoded>
+<slash:comments>75</slash:comments>
+<media:content height="648" medium="image" type="image/jpeg" url="https://cdn.arstechnica.net/wp-content/uploads/2026/07/RR_GT_FRONT-3-4-1152x648.jpg" width="1152">
+<media:thumbnail height="500" url="https://cdn.arstechnica.net/wp-content/uploads/2026/07/RR_GT_FRONT-3-4-500x500.jpg" width="500"/>
+<media:credit>Range Rover</media:credit><media:text>No, not a replacement for the Velar, but an all-new Range Rover sedan.</media:text></media:content>
+</item>
+</channel>
+</rss>

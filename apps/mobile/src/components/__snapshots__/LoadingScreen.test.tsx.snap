@@ -1,0 +1,61 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`LoadingScreen renders the branded logo + spinner without crashing (snapshot) 1`] = `
+<View
+  style={
+    {
+      "alignItems": "center",
+      "backgroundColor": "#208AEF",
+      "flex": 1,
+      "justifyContent": "center",
+    }
+  }
+>
+  <ViewManagerAdapter_ExpoImage
+    aspectRatio={1.0704225352112675}
+    containerViewRef={"[React.ref]"}
+    contentFit="contain"
+    contentPosition={
+      {
+        "left": "50%",
+        "top": "50%",
+      }
+    }
+    marginBottom={24}
+    nativeViewRef={"[React.ref]"}
+    onError={[Function]}
+    onLoad={[Function]}
+    onLoadStart={[Function]}
+    onProgress={[Function]}
+    placeholder={[]}
+    sfEffect={null}
+    source={
+      [
+        {
+          "testUri": "../../../../../../apps/mobile/assets/images/splash-icon.png",
+        },
+      ]
+    }
+    style={
+      {
+        "aspectRatio": 1.0704225352112675,
+        "marginBottom": 24,
+        "width": 76,
+      }
+    }
+    symbolSize={null}
+    symbolWeight={null}
+    transition={null}
+    width={76}
+  />
+  <ActivityIndicator
+    color="#ffffff"
+    size="large"
+    style={
+      {
+        "marginTop": 8,
+      }
+    }
+  />
+</View>
+`;

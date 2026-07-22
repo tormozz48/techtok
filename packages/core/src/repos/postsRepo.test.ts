@@ -256,3 +256,20 @@ describe('postsRepo.updateTransform', () => {
     });
   });
 });
+
+describe('postsRepo.updateMirroredImage', () => {
+  it('sets only mirroredImageUrl, aliased, without touching status/transform', async () => {
+    ddbMock.on(UpdateCommand).resolves({});
+    const repo = new PostsRepo(client, 'Posts');
+
+    await repo.updateMirroredImage('abc123', 'https://cdn.example.com/images/abc123.jpg');
+
+    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
+    expect(input?.Key).toEqual({ postId: 'abc123' });
+    expect(input?.UpdateExpression).toBe('SET #mirroredImageUrl = :mirroredImageUrl');
+    expect(input?.ExpressionAttributeNames).toEqual({ '#mirroredImageUrl': 'mirroredImageUrl' });
+    expect(input?.ExpressionAttributeValues).toEqual({
+      ':mirroredImageUrl': 'https://cdn.example.com/images/abc123.jpg',
+    });
+  });
+});

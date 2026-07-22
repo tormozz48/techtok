@@ -18,7 +18,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.tormozz48dev.techtok"
     },
     "plugins": [
       "expo-router",
@@ -35,6 +36,19 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "f1138689-8319-4582-8d85-ce75b3ef36cf"
+      }
+    },
+    "owner": "tormozz48-dev",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/f1138689-8319-4582-8d85-ce75b3ef36cf"
     }
   }
 }

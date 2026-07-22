@@ -1,6 +1,6 @@
 # TechTok — Implementation Plan
 
-Companion to [DESIGN.md](DESIGN.md). Seven phases; every phase ends with something you can demo on a phone. Effort estimates are focused solo days — spread over evenings, multiply accordingly.
+Companion to [DESIGN.md](DESIGN.md). Eleven phases (0–6 original build-out, 7–10 the 2026-07-22 extension, D20–D25); every phase ends with something you can demo on a phone. Effort estimates are focused solo days — spread over evenings, multiply accordingly.
 
 **Principles**
 
@@ -20,6 +20,10 @@ Companion to [DESIGN.md](DESIGN.md). Seven phases; every phase ends with somethi
 | 4 | Feed quality & polish | CloudFront (images), ranking | 3 d+ |
 | 5 | Friends rollout | EAS distribution, (maybe) push | 2 d |
 | 6 | Hardening | Sentry, Maestro, budget review | 2 d |
+| 7 | Images & app shell | image-chain fix + backfill, stub, bottom bar, splash/loading | 2 d |
+| 8 | Localization | TranslateQueue, i18n map, language pref, chrome i18n, quotas | 2–3 d |
+| 9 | Compact reader | content Lambda, figure mirroring, reader screen, kill switch | 3 d |
+| 10 | Extension polish | digest localization, feedback loop, cost review, cap tuning | 1–2 d |
 
 ---
 
@@ -176,9 +180,102 @@ Companion to [DESIGN.md](DESIGN.md). Seven phases; every phase ends with somethi
 
 ---
 
+## Phase 7 — Images & app shell
+
+**Goal:** the feed *looks* right — real images on ~every card (1% → high coverage), a proper stub for the rest, one bottom action bar instead of scattered circles, and a branded launch sequence. No new LLM spend anywhere in this phase.
+
+**Tasks**
+
+1. **Ingest-side image chain (D24):** rss-parser `customFields` for `media:content`/`media:thumbnail` + declare `content:encoded`; extend `mapEntryToPost`'s chain to `enclosure → media:content → media:thumbnail → <img> in content:encoded → <img> in content → <img> in summary`. Fixture tests per real feed (Ars, TechCrunch, Phys.org XML samples).
+2. **Transform-side og:image rung (D24):** when the post has no `imageUrl`, take `article.image` from the existing `@extractus` result → feed it through the existing `mirrorImage` step. Known-generic denylist (arXiv logo) in `core`, unit-tested.
+3. **Image backfill:** one-shot Lambda (pattern: `seedSources`/`backfillLlm`) — scan posts lacking `imageUrl` but having `s3RawKey`, extract og:image from the S3 archive, mirror, update. No LLM, no live refetches. Run on dev, then production.
+4. **Stub component (D24):** deterministic gradient (seeded by `postId`) + topic glyph; renders wherever `imageUrl`/`mirroredImageUrl` are absent. Jest snapshot tests.
+5. **Bottom action bar (D25):** solid, layout-reserving (~56 px + safe-area insets); bookmark + share (active card) left, saved/history/settings right; pager height shrinks accordingly; remove the overlay circle buttons.
+6. **Launch sequence (D25):** branded `expo-splash-screen` (re-run `expo prebuild` for the committed `android/`, D18) + in-app loading screen (logo + spinner) shown while the first feed page is in flight; skeletons stay for later loads.
+
+**Acceptance criteria**
+
+- [ ] Re-running the production image audit (the per-source scan from 2026-07-22) shows ≥ 80% of non-arXiv posts with an image after backfill; arXiv posts show the stub.
+- [ ] A fresh ingest cycle produces imaged posts from at least 6 sources that had 0% before.
+- [ ] On a device: imageless cards render the gradient+glyph stub (no blank scrims), all five actions work from the bottom bar, no overlay circles remain, cold start shows branded splash → loading screen → feed.
+- [ ] `pnpm lint && pnpm typecheck && pnpm test` green; deployed to dev; APK built for a physical-device check.
+
+---
+
+## Phase 8 — Localization (cards, chrome, quotas)
+
+**Goal:** a friend sets Russian/Ukrainian/Polish once and the whole app — cards, topic chips, buttons — reads in their language, with English never blocking. LLM spend stays demand-shaped (D22).
+
+**Tasks**
+
+1. **Shared contracts:** `Language` enum (en/ru/uk/pl) + per-language topic labels in `packages/shared`; Card DTO gains `servedLang`/`isTranslated`/`compactLangs` (the last shipped empty until phase 9).
+2. **User preference:** `Users.language` + `PUT /v1/me/language`; `GET /v1/me` returns it; device-locale default on first sight (middleware), onboarding gains a language step; settings row to change it.
+3. **Feed serving (D21):** variant selection in `toCard` (serve `i18n[lang]`, fall back to EN); DESIGN §5.2 steps 6–7.
+4. **Translate stage (D22):** `TranslateQueue` + DLQ infra (ESM `maxConcurrency: 2`); feed-path conditional enqueue with `i18nPending` markers; consumer Lambda → self-critique-in-call translation (zod, one repair-retry, golden fixtures per language) → write `i18n[lang]`; content failures clear the marker and stay EN, infra failures throw to DLQ.
+5. **Caps & quotas (D22):** `translations#<date>` counter (default 100/day) in the translate consumer; per-source `transforms#<sourceId>#<date>` quota (default 30/day, `Sources.dailyQuota` override) gating only the LLM call in `transformArticle`; check whether Hugging Face has an official-posts-only feed URL and switch `Sources` if so.
+6. **Chrome i18n (D20):** `expo-localization` + typed string tables (settings/history/saved/onboarding/reader strings); language driven by the same stored preference; localized topic labels rendered from shared.
+7. **Digest guard:** digest builder picks the user's language variant when present (full localization polish lands in phase 10).
+
+**Acceptance criteria**
+
+- [ ] Switching to RU on a device: chrome flips immediately; the feed's next refresh serves translated cards for previously-viewed posts (pop-in demonstrated: first EN with badge, translated after the queue drains).
+- [ ] Two devices with different languages have fully independent content languages against the same posts.
+- [ ] Set the translation cap to 3 and scroll: exactly 3 posts gain `i18n` entries, the rest stay EN and re-enqueue on a later day (verified via `Counters` + post items).
+- [ ] HF (or any source) hits its per-source quota in a live cycle: its overflow posts land as `transform=skipped` excerpt cards while other sources still get LLM cards the same day.
+- [ ] Verbatim-excerpt posts translate too (Q6/D20) and read acceptably on a device.
+- [ ] All gates green; deployed; exercised on a physical device.
+
+---
+
+## Phase 9 — Compact reader
+
+**Goal:** tap a card, read a compact translated version of the article with its figures in-app, then jump to the original if hooked (D23). The rights guardrails exist before the feature does.
+
+**Tasks**
+
+1. **Guardrails first (D23):** `Sources.compactEnabled` (default true, per-source off switch) + `compacts#<date>` cap (default 20/day) — both checked before any generation; document remove-on-request in the ops runbook.
+2. **Shared contract:** compact-article block schema (`paragraph | heading | image | list | quote`, image blocks reference the provided figure list by index) in `packages/shared`.
+3. **Figure extraction + mirroring:** parse in-body `<figure>`/`<img>` from the archived HTML (≤5, minimum dimensions, dedup against the lead image) → existing `ImageStore` mirror path.
+4. **Compact generation core:** single-pass compress-to-language LLM call (~8k-char input, self-critique for non-EN), zod + one repair-retry, golden fixtures; any content failure → typed "no compact" result.
+5. **Content Lambda (D23):** `GET /v1/posts/:id/content?lang=` (30 s timeout) — S3 cache check → archive load (one live fetch fallback, robots-respecting) → figures → cap/kill-switch check → LLM → write `content/<postId>/<lang>.json` + append to `Posts.compactLangs` → return blocks. CloudFront route for `content/*` on the existing router.
+6. **Reader screen:** `/post/[id]` — block renderer, figure images, attribution header, translated ⇄ original toggle (original generates EN via the same endpoint), prominent "Read original" (in-app browser); loading state for the sync wait; graceful "couldn't prepare — open original?" fallback.
+7. **Card rewiring (Q17):** tap → reader when a compact exists or is generatable; straight to the browser otherwise; share keeps the original URL; drill-down marks the post read (existing link-open semantics).
+
+**Acceptance criteria**
+
+- [ ] Tap an uncached post: spinner → readable compact article with ≥1 mirrored in-body figure (on a post that has figures) in ≤ 15 s typical; second open (any device) is instant via CDN.
+- [ ] The reader's language toggle produces the EN variant on demand; "Read original" opens the source; share shares the original URL.
+- [ ] A post whose page can't be fetched/extracted degrades to the in-app browser with no dead end; flipping `compactEnabled=false` on a source routes its cards straight to the browser.
+- [ ] Set the compact cap to 2: third tap of the day degrades to the browser; `Counters` confirms.
+- [ ] All gates green; deployed; the full card → reader → original loop demonstrated on a physical device.
+
+---
+
+## Phase 10 — Extension polish & cost truth
+
+**Goal:** the extension earns its keep in daily use and provably stays inside the budget posture (D22).
+
+**Tasks**
+
+1. Digest localization end-to-end: push text uses the recipient's language (generate/fetch translations for the top-5 the same on-demand way, under the translation cap).
+2. Bad-translation feedback: long-press a translated card/reader → prefilled feedback mail (reuses the phase-5 mailto loop) with postId + lang; this is the data that decides whether the deferred verify pass (DESIGN §12) gets built.
+3. Cost Explorer review one week after phases 8–9 are live: per-tag spend vs. the §10 model; tune the four cap env vars deliberately; record the go/no-go on the separate verify pass in the decision log.
+4. Runbook additions (phase-6 doc): stuck TranslateQueue DLQ, compact-generation failure spike, cap-tuning playbook.
+5. Leftover UX debt from 7–9 (bar spacing, reader typography, stub palette) — small, listed, time-boxed.
+
+**Acceptance criteria**
+
+- [ ] A non-EN user's digest arrives in their language.
+- [ ] The week-after cost review is written down (numbers + any cap changes + verify-pass decision) in the decision log or §10.
+- [ ] Two weeks of daily use with no manual intervention: no DLQ alarms from the new queues, caps holding, feed + reader feel right in your own daily use.
+
+---
+
 ## Sequencing notes & standing risks
 
 - Phases 0→3 are strictly ordered; 4–6 can interleave.
-- The riskiest unknowns are front-loaded deliberately: DDB key design proves itself in phase 1 (read-exclusion at query time), pipeline semantics in phase 2 (dedup under concurrency), LLM economics in phase 3 (cap mechanics). Each phase's acceptance criteria exist to force that proof.
-- Standing rule from DESIGN §2: content-level failures degrade (excerpt cards), infra-level failures alarm (DLQ). Any new pipeline code follows the same split.
-- After phase 3, re-read DESIGN §12 (deferred defaults) and promote/kill items deliberately rather than by drift.
+- Extension ordering (Q22/D20–D25): **7 → 8 → 9 → 10.** Phase 7 is independent and lands first (visible wins, zero new LLM spend). Phase 8 precedes 9 because the reader consumes the language preference, serving contract, and translation machinery that 8 builds. Phase 10 needs real usage of 8+9 to review. Phases 7–9 don't block on phase 5's remaining EAS setup or phase 6.
+- The riskiest unknowns are front-loaded deliberately: DDB key design proves itself in phase 1 (read-exclusion at query time), pipeline semantics in phase 2 (dedup under concurrency), LLM economics in phase 3 (cap mechanics) — and in the extension, on-demand economics in phase 8 (caps/quotas before new spend exists) and the rights guardrails at the start of phase 9 (the kill switch before the feature). Each phase's acceptance criteria exist to force that proof.
+- Standing rule from DESIGN §2: content-level failures degrade (excerpt cards; for translations, degrade *is* the English fallback; for compacts, the direct link-out), infra-level failures alarm (DLQ). Any new pipeline code follows the same split.
+- Every LLM call goes through a capped path — transform (global cap + per-source quota), translate, compact (D22). No ad-hoc Bedrock calls.
+- After phase 3, re-read DESIGN §12 (deferred defaults) and promote/kill items deliberately rather than by drift; same review after phase 10.

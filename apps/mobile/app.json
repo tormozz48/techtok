@@ -44,9 +44,7 @@
       }
     },
     "owner": "tormozz48-dev",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "updates": {
       "url": "https://u.expo.dev/f1138689-8319-4582-8d85-ce75b3ef36cf"
     }

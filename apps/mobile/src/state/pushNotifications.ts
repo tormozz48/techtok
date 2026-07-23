@@ -1,10 +1,15 @@
-import Constants from 'expo-constants';
-import * as Notifications from 'expo-notifications';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Platform } from 'react-native';
 import { putPushToken } from '@/api/client';
 import { storage } from './storage';
 
 const PUSH_ENABLED_KEY = 'techtok.pushEnabled';
+
+// Expo Go dropped remote push in SDK 53, and merely executing the
+// expo-notifications module there logs a launch-time error — routes are
+// bundled eagerly by expo-router, so the import must stay lazy and never run
+// in Expo Go (see the `expo-go-native-module-constraint` memory).
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 export function isPushEnabled(): boolean {
   return storage.getString(PUSH_ENABLED_KEY) === 'true';
@@ -13,12 +18,14 @@ export function isPushEnabled(): boolean {
 /**
  * Requests notification permission, fetches an Expo push token, and registers
  * it with the server (DESIGN §6 `Users.pushToken`, phase 5 digest). Remote
- * push tokens require a real native build — this silently no-ops in plain
- * Expo Go (see the `expo-go-native-module-constraint` memory); it's expected
- * to work once distributed via the phase-5 EAS build (docs/DISTRIBUTION.md).
+ * push tokens require a real native build — this no-ops in plain Expo Go;
+ * it's expected to work once distributed via the phase-5 EAS build
+ * (docs/DISTRIBUTION.md).
  */
 export async function enablePushNotifications(): Promise<boolean> {
+  if (isExpoGo) return false;
   try {
+    const Notifications = await import('expo-notifications');
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let status = existingStatus;
     if (status !== 'granted') {

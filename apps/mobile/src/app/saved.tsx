@@ -3,6 +3,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { deleteBookmark, fetchBookmarksPage } from '@/api/client';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { useStrings } from '@/i18n/useStrings';
 import { timeAgo } from '@/utils/timeAgo';
 
 export default function SavedScreen() {
@@ -13,6 +14,7 @@ export default function SavedScreen() {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
+  const strings = useStrings();
 
   const items = data?.pages.flatMap((page) => page.items) ?? [];
 
@@ -45,7 +47,7 @@ export default function SavedScreen() {
   if (isError) {
     return (
       <View style={styles.center}>
-        <Text style={styles.emptyText}>Failed to load saved posts.</Text>
+        <Text style={styles.emptyText}>{strings.saved.error}</Text>
       </View>
     );
   }
@@ -53,7 +55,7 @@ export default function SavedScreen() {
   if (items.length === 0) {
     return (
       <View style={styles.center}>
-        <Text style={styles.emptyText}>Nothing saved yet — bookmark a card from the feed.</Text>
+        <Text style={styles.emptyText}>{strings.saved.empty}</Text>
       </View>
     );
   }

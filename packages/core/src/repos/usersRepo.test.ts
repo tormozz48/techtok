@@ -11,6 +11,10 @@ beforeEach(() => {
 });
 
 describe('usersRepo.touch', () => {
+  // `language` is a DynamoDB reserved keyword (confirmed live against real
+  // DynamoDB — aws-sdk-client-mock does not simulate this validation, so it
+  // slips past a mocked test unless the alias is asserted explicitly; see
+  // CLAUDE.md's status log for this exact bug class hitting twice before).
   it('upserts createdAt/topics only if absent and always bumps lastSeenAt', async () => {
     ddbMock.on(UpdateCommand).resolves({
       Attributes: { userId: 'device-1', topics: [], createdAt: 'x', lastSeenAt: 'y' },
@@ -25,6 +29,19 @@ describe('usersRepo.touch', () => {
     expect(input?.UpdateExpression).toContain('if_not_exists(createdAt, :now)');
     expect(input?.UpdateExpression).toContain('lastSeenAt = :now');
     expect(input?.UpdateExpression).toContain('if_not_exists(topics, :emptyTopics)');
+    expect(input?.UpdateExpression).toContain('#language = if_not_exists(#language, :language)');
+    expect(input?.ExpressionAttributeNames).toEqual({ '#language': 'language' });
+    expect(input?.ExpressionAttributeValues).toMatchObject({ ':language': 'en' });
+  });
+
+  it('seeds language from the device language when given', async () => {
+    ddbMock.on(UpdateCommand).resolves({ Attributes: { userId: 'device-1' } });
+    const repo = new UsersRepo(client, 'Users');
+
+    await repo.touch('device-1', 'uk');
+
+    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
+    expect(input?.ExpressionAttributeValues).toMatchObject({ ':language': 'uk' });
   });
 });
 
@@ -40,5 +57,21 @@ describe('usersRepo.updateTopics', () => {
     expect(user.topics).toEqual(['ai', 'dev']);
     const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
     expect(input?.ExpressionAttributeValues).toMatchObject({ ':topics': ['ai', 'dev'] });
+  });
+});
+
+describe('usersRepo.updateLanguage', () => {
+  it('sets the aliased language attribute and bumps lastSeenAt', async () => {
+    ddbMock.on(UpdateCommand).resolves({ Attributes: { userId: 'device-1', language: 'pl' } });
+    const repo = new UsersRepo(client, 'Users');
+
+    const user = await repo.updateLanguage('device-1', 'pl');
+
+    expect(user).toEqual({ userId: 'device-1', language: 'pl' });
+    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
+    expect(input?.Key).toEqual({ userId: 'device-1' });
+    expect(input?.UpdateExpression).toContain('#language = :language');
+    expect(input?.ExpressionAttributeNames).toEqual({ '#language': 'language' });
+    expect(input?.ExpressionAttributeValues).toMatchObject({ ':language': 'pl' });
   });
 });

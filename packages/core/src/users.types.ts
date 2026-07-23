@@ -1,4 +1,4 @@
-import type { Topic } from '@techtok/shared';
+import type { Language, Topic } from '@techtok/shared';
 
 export interface UserRecord {
   readonly userId: string;
@@ -6,4 +6,5 @@ export interface UserRecord {
   readonly createdAt: string;
   readonly lastSeenAt: string;
   readonly pushToken?: string;
+  readonly language?: Language;
 }

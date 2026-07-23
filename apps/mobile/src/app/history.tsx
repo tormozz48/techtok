@@ -3,6 +3,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { fetchHistoryPage } from '@/api/client';
 import { Colors, Spacing } from '@/constants/theme';
+import { useStrings } from '@/i18n/useStrings';
 import { timeAgo } from '@/utils/timeAgo';
 
 export default function HistoryScreen() {
@@ -12,6 +13,7 @@ export default function HistoryScreen() {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
+  const strings = useStrings();
 
   const items = data?.pages.flatMap((page) => page.items) ?? [];
 
@@ -26,7 +28,7 @@ export default function HistoryScreen() {
   if (isError) {
     return (
       <View style={styles.center}>
-        <Text style={styles.emptyText}>Failed to load history.</Text>
+        <Text style={styles.emptyText}>{strings.history.error}</Text>
       </View>
     );
   }
@@ -34,7 +36,7 @@ export default function HistoryScreen() {
   if (items.length === 0) {
     return (
       <View style={styles.center}>
-        <Text style={styles.emptyText}>Nothing read yet — swipe through the feed first.</Text>
+        <Text style={styles.emptyText}>{strings.history.empty}</Text>
       </View>
     );
   }

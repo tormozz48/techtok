@@ -5,9 +5,15 @@ import {
   QueryCommand,
   UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
-import type { Topic } from '@techtok/shared';
+import type { Language, Topic } from '@techtok/shared';
 import { conditionalWrite } from '../clients/dynamoClient';
-import type { NewPost, PostRecord, PostStatus, TransformKind } from '../posts.types';
+import type {
+  NewPost,
+  PostRecord,
+  PostStatus,
+  TransformKind,
+  TranslatedFields,
+} from '../posts.types';
 import { chunk } from '../util/chunk';
 
 const POST_TTL_SECONDS = 90 * 24 * 60 * 60;
@@ -46,6 +52,8 @@ export class PostsRepo {
       ingestedAt: now.toISOString(),
       ttl: Math.floor(now.getTime() / 1000) + POST_TTL_SECONDS,
       gsi1pk: BY_TIME_PARTITION,
+      i18n: {},
+      i18nPending: {},
     };
 
     return conditionalWrite(() =>
@@ -122,6 +130,56 @@ export class PostsRepo {
         UpdateExpression: 'SET #mirroredImageUrl = :mirroredImageUrl',
         ExpressionAttributeNames: { '#mirroredImageUrl': 'mirroredImageUrl' },
         ExpressionAttributeValues: { ':mirroredImageUrl': mirroredImageUrl },
+      }),
+    );
+  }
+
+  /** Stamps an enqueue-dedup marker (D22) while a translation is in flight on
+   * `TranslateQueue`. Relies on `i18nPending` always existing as a (possibly
+   * empty) map from `putIfNew`, so this nested SET never needs an
+   * `if_not_exists` seed — see `needsTranslation` for the staleness check
+   * that lets a stuck marker eventually retry. */
+  async setI18nPending(postId: string, lang: Language, pendingAt: string): Promise<void> {
+    await this.client.send(
+      new UpdateCommand({
+        TableName: this.tableName,
+        Key: { postId },
+        UpdateExpression: 'SET #i18nPending.#lang = :pendingAt',
+        ExpressionAttributeNames: { '#i18nPending': 'i18nPending', '#lang': lang },
+        ExpressionAttributeValues: { ':pendingAt': pendingAt },
+      }),
+    );
+  }
+
+  /** Writes a translation and clears its pending marker atomically (D21/D22).
+   * `i18n` and `i18nPending` are distinct top-level attributes, so this single
+   * expression never trips DynamoDB's overlapping-document-path restriction. */
+  async writeTranslation(postId: string, lang: Language, fields: TranslatedFields): Promise<void> {
+    await this.client.send(
+      new UpdateCommand({
+        TableName: this.tableName,
+        Key: { postId },
+        UpdateExpression: 'SET #i18n.#lang = :fields REMOVE #i18nPending.#lang',
+        ExpressionAttributeNames: {
+          '#i18n': 'i18n',
+          '#i18nPending': 'i18nPending',
+          '#lang': lang,
+        },
+        ExpressionAttributeValues: { ':fields': fields },
+      }),
+    );
+  }
+
+  /** Clears a pending marker without writing a translation — the degrade path
+   * for an over-cap or content-level translation failure (D22): English
+   * stays the resting state, nothing else changes. */
+  async clearI18nPending(postId: string, lang: Language): Promise<void> {
+    await this.client.send(
+      new UpdateCommand({
+        TableName: this.tableName,
+        Key: { postId },
+        UpdateExpression: 'REMOVE #i18nPending.#lang',
+        ExpressionAttributeNames: { '#i18nPending': 'i18nPending', '#lang': lang },
       }),
     );
   }

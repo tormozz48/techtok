@@ -1,12 +1,13 @@
-import type { PostRecord } from '@techtok/core';
-import type { Card } from '@techtok/shared';
+import { type PostRecord, selectCardVariant } from '@techtok/core';
+import type { Card, Language } from '@techtok/shared';
 
-export function toCard(post: PostRecord, isBookmarked = false): Card {
+export function toCard(post: PostRecord, isBookmarked = false, lang: Language = 'en'): Card {
+  const variant = selectCardVariant(post, lang);
   return {
     id: post.postId,
-    title: post.cardTitle,
-    summary: post.summary,
-    whyItMatters: post.whyItMatters,
+    title: variant.cardTitle,
+    summary: variant.summary,
+    whyItMatters: variant.whyItMatters,
     imageUrl: post.mirroredImageUrl ?? post.imageUrl,
     sourceName: post.sourceName,
     url: post.url,
@@ -15,5 +16,8 @@ export function toCard(post: PostRecord, isBookmarked = false): Card {
     publishedAt: post.publishedAt,
     transform: post.transform,
     isBookmarked,
+    servedLang: variant.servedLang,
+    isTranslated: variant.isTranslated,
+    compactLangs: [],
   };
 }

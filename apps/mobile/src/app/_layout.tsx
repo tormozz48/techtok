@@ -7,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { useColorScheme } from 'react-native';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { useLanguageStore } from '@/state/languageStore';
 import { startNetworkMonitoring } from '@/state/network';
 import { hasSeenOnboarding } from '@/state/onboardingStore';
 import { startReadQueueFlushing } from '@/state/readQueue';
@@ -37,6 +38,7 @@ export default function RootLayout() {
       startReadQueueFlushing();
       startNetworkMonitoring();
       useTopicsStore.getState().load();
+      useLanguageStore.getState().load();
       setShowOnboarding(!hasSeenOnboarding());
       setIsHydrated(true);
     });

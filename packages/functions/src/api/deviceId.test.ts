@@ -1,6 +1,6 @@
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { describe, expect, it } from 'vitest';
-import { extractDeviceId } from './deviceId';
+import { extractDeviceId, extractDeviceLanguage } from './deviceId';
 
 function eventWithHeaders(headers: Record<string, string | undefined>): APIGatewayProxyEventV2 {
   return { headers } as unknown as APIGatewayProxyEventV2;
@@ -18,5 +18,19 @@ describe('extractDeviceId', () => {
 
   it('returns undefined when the header is not a valid uuid', () => {
     expect(extractDeviceId(eventWithHeaders({ 'x-device-id': 'not-a-uuid' }))).toBeUndefined();
+  });
+});
+
+describe('extractDeviceLanguage', () => {
+  it('returns the header value when it is a supported language', () => {
+    expect(extractDeviceLanguage(eventWithHeaders({ 'x-device-language': 'ru' }))).toBe('ru');
+  });
+
+  it('returns undefined when the header is missing', () => {
+    expect(extractDeviceLanguage(eventWithHeaders({}))).toBeUndefined();
+  });
+
+  it('returns undefined when the header is not a supported language', () => {
+    expect(extractDeviceLanguage(eventWithHeaders({ 'x-device-language': 'fr' }))).toBeUndefined();
   });
 });

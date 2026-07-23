@@ -1,5 +1,6 @@
 import {
   type DynamoDBDocumentClient,
+  GetCommand,
   PutCommand,
   ScanCommand,
   UpdateCommand,
@@ -28,6 +29,15 @@ export class SourcesRepo {
       }),
     );
     return (result.Items ?? []) as SourceRecord[];
+  }
+
+  /** Used by the per-source LLM transform quota check (D22) to read a
+   * source's `dailyQuota` override. */
+  async getById(sourceId: string): Promise<SourceRecord | undefined> {
+    const result = await this.client.send(
+      new GetCommand({ TableName: this.tableName, Key: { sourceId } }),
+    );
+    return result.Item as SourceRecord | undefined;
   }
 
   async putIfNew(source: SourceRecord): Promise<boolean> {

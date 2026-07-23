@@ -5,6 +5,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { useStrings } from '@/i18n/useStrings';
 import { enqueueRead } from '@/state/readQueue';
 import { timeAgo } from '@/utils/timeAgo';
 import { ImageSkeleton } from './ImageSkeleton';
@@ -16,6 +17,7 @@ export interface CardProps {
 
 export function Card({ card }: CardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
+  const strings = useStrings();
 
   return (
     <View style={styles.container}>
@@ -57,6 +59,11 @@ export function Card({ card }: CardProps) {
         <View style={styles.topicChip}>
           <Text style={styles.topicChipText}>{card.primaryTopic}</Text>
         </View>
+        {card.isTranslated ? (
+          <View style={styles.translatedBadge}>
+            <Text style={styles.translatedBadgeText}>{strings.card.translatedBadge}</Text>
+          </View>
+        ) : null}
         <Text style={styles.title}>{card.title}</Text>
         <Text style={styles.summary} numberOfLines={4}>
           {card.summary}
@@ -106,6 +113,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  translatedBadge: {
+    alignSelf: 'flex-start',
+    borderColor: Colors.overlay.accent,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.one,
+    marginBottom: Spacing.three,
+  },
+  translatedBadgeText: {
+    color: Colors.overlay.accent,
+    ...Typography.xs,
+    fontWeight: '600',
   },
   title: {
     color: Colors.overlay.text,

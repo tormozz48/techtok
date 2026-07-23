@@ -14,7 +14,7 @@ import {
 import type { SQSBatchResponse, SQSEvent, SQSHandler } from 'aws-lambda';
 import { requireEnv } from '../env';
 import { lazy } from '../lazy';
-import { getDynamoClient, getPostsRepo } from '../repos';
+import { getDynamoClient, getPostsRepo, getSourcesRepo } from '../repos';
 
 const logger = new Logger({ serviceName: 'transform' });
 
@@ -22,6 +22,10 @@ const FETCH_TIMEOUT_MS = 10_000;
 const MAX_BYTES = 2 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const DEFAULT_DAILY_CAP = 120;
+// Per-source daily LLM transform quota (D22) — gates only the LLM call
+// itself, on top of the global daily cap; `Sources.dailyQuota` overrides it
+// per row (e.g. Hugging Face's blog, see sourcePresets.ts).
+const DEFAULT_SOURCE_DAILY_QUOTA = 30;
 
 const getS3Client = lazy(createS3Client);
 const getRawArticleStore = lazy(
@@ -36,6 +40,9 @@ const getBedrockProvider = lazy(() =>
 );
 
 const dailyCap = Number(process.env.LLM_DAILY_CAP ?? DEFAULT_DAILY_CAP);
+const sourceDailyQuotaDefault = Number(
+  process.env.SOURCE_DAILY_QUOTA ?? DEFAULT_SOURCE_DAILY_QUOTA,
+);
 
 function todayDate(): string {
   return new Date().toISOString().slice(0, 10);
@@ -151,7 +158,20 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
           fetchRobotsTxt,
           fetchPage: (pageUrl) => fetchText(pageUrl),
           archiveRaw: (id, html) => rawStore.archiveRaw(id, html),
-          checkDailyCap: () => counters.incrementIfUnderCap(todayDate(), dailyCap),
+          checkDailyCap: async () => {
+            const underGlobalCap = await counters.incrementIfUnderCap(
+              `transforms#${todayDate()}`,
+              dailyCap,
+            );
+            if (!underGlobalCap) return false;
+
+            const source = await getSourcesRepo().getById(post.sourceId);
+            const quota = source?.dailyQuota ?? sourceDailyQuotaDefault;
+            return counters.incrementIfUnderCap(
+              `transforms#${post.sourceId}#${todayDate()}`,
+              quota,
+            );
+          },
           generateCard: (cardInput) => generateCardViaLlm(cardInput, provider),
           updatePost: (id, fields) => repo.updateTransform(id, fields),
           mirrorImage,

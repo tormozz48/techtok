@@ -41,7 +41,7 @@ export async function handler(): Promise<void> {
       { userTopics: user.topics, limit: DIGEST_LIMIT },
     );
 
-    const message = composeDigestMessage(user.pushToken, page.items);
+    const message = composeDigestMessage(user.pushToken, page.items, user.language ?? 'en');
     if (message) messages.push(message);
   }
 

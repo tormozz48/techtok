@@ -51,6 +51,17 @@ describe('postsRepo.putIfNew', () => {
     expect(typeof input?.Item?.ttl).toBe('number');
   });
 
+  it('seeds empty i18n/i18nPending maps (D21/D22)', async () => {
+    ddbMock.on(PutCommand).resolves({});
+    const repo = new PostsRepo(client, 'Posts');
+
+    await repo.putIfNew(samplePost);
+
+    const input = ddbMock.commandCalls(PutCommand)[0]?.args[0]?.input;
+    expect(input?.Item?.i18n).toEqual({});
+    expect(input?.Item?.i18nPending).toEqual({});
+  });
+
   it('returns false without throwing when the post already exists', async () => {
     ddbMock.on(PutCommand).rejects(
       new ConditionalCheckFailedException({
@@ -270,6 +281,66 @@ describe('postsRepo.updateMirroredImage', () => {
     expect(input?.ExpressionAttributeNames).toEqual({ '#mirroredImageUrl': 'mirroredImageUrl' });
     expect(input?.ExpressionAttributeValues).toEqual({
       ':mirroredImageUrl': 'https://cdn.example.com/images/abc123.jpg',
+    });
+  });
+});
+
+describe('postsRepo.setI18nPending', () => {
+  it('sets a nested pending marker under the aliased i18nPending map', async () => {
+    ddbMock.on(UpdateCommand).resolves({});
+    const repo = new PostsRepo(client, 'Posts');
+
+    await repo.setI18nPending('abc123', 'ru', '2026-07-23T00:00:00.000Z');
+
+    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
+    expect(input?.Key).toEqual({ postId: 'abc123' });
+    expect(input?.UpdateExpression).toBe('SET #i18nPending.#lang = :pendingAt');
+    expect(input?.ExpressionAttributeNames).toEqual({
+      '#i18nPending': 'i18nPending',
+      '#lang': 'ru',
+    });
+    expect(input?.ExpressionAttributeValues).toEqual({ ':pendingAt': '2026-07-23T00:00:00.000Z' });
+  });
+});
+
+describe('postsRepo.writeTranslation', () => {
+  it('writes the translation and clears the pending marker in one expression', async () => {
+    ddbMock.on(UpdateCommand).resolves({});
+    const repo = new PostsRepo(client, 'Posts');
+    const fields = {
+      cardTitle: 'Заголовок',
+      summary: 'Краткое содержание.',
+      whyItMatters: 'Почему это важно.',
+      translatedAt: '2026-07-23T00:00:00.000Z',
+    };
+
+    await repo.writeTranslation('abc123', 'ru', fields);
+
+    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
+    expect(input?.Key).toEqual({ postId: 'abc123' });
+    expect(input?.UpdateExpression).toBe('SET #i18n.#lang = :fields REMOVE #i18nPending.#lang');
+    expect(input?.ExpressionAttributeNames).toEqual({
+      '#i18n': 'i18n',
+      '#i18nPending': 'i18nPending',
+      '#lang': 'ru',
+    });
+    expect(input?.ExpressionAttributeValues).toEqual({ ':fields': fields });
+  });
+});
+
+describe('postsRepo.clearI18nPending', () => {
+  it('removes only the pending marker for the given language', async () => {
+    ddbMock.on(UpdateCommand).resolves({});
+    const repo = new PostsRepo(client, 'Posts');
+
+    await repo.clearI18nPending('abc123', 'ru');
+
+    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
+    expect(input?.Key).toEqual({ postId: 'abc123' });
+    expect(input?.UpdateExpression).toBe('REMOVE #i18nPending.#lang');
+    expect(input?.ExpressionAttributeNames).toEqual({
+      '#i18nPending': 'i18nPending',
+      '#lang': 'ru',
     });
   });
 });

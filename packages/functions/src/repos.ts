@@ -1,8 +1,10 @@
 import {
   createDynamoClient,
   createSourceWeightsCache,
+  createSqsClient,
   PostsRepo,
   SourcesRepo,
+  TranslateQueue,
   UserActivityRepo,
   UsersRepo,
 } from '@techtok/core';
@@ -34,3 +36,7 @@ export const getSourcesRepo = lazy(
 );
 
 export const getSourceWeightsCache = lazy(() => createSourceWeightsCache(getSourcesRepo()));
+
+export const getTranslateQueue = lazy(
+  () => new TranslateQueue(createSqsClient(), requireEnv('TRANSLATE_QUEUE_URL')),
+);

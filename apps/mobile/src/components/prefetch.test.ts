@@ -12,6 +12,9 @@ function card(id: string, imageUrl?: string): CardData {
     topics: ['dev'],
     publishedAt: '2026-07-18T00:00:00.000Z',
     imageUrl,
+    servedLang: 'en',
+    isTranslated: false,
+    compactLangs: [],
   };
 }
 

@@ -21,6 +21,8 @@ function post(id: string, topic: Topic, publishedAt: string, sourceId = 'hn'): P
     publishedAt,
     ingestedAt: publishedAt,
     ttl: 0,
+    i18n: {},
+    i18nPending: {},
   };
 }
 

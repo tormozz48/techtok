@@ -2,15 +2,18 @@ import {
   type BookmarksResponse,
   bookmarksResponseSchema,
   DEVICE_ID_HEADER,
+  DEVICE_LANGUAGE_HEADER,
   type FeedResponse,
   feedResponseSchema,
   type HistoryResponse,
   historyResponseSchema,
+  type Language,
   type MeResponse,
   meResponseSchema,
   type Topic,
 } from '@techtok/shared';
 import { getOrCreateDeviceId } from '@/state/deviceId';
+import { detectDeviceLanguage } from '@/state/deviceLanguage';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -28,6 +31,7 @@ async function apiFetch(url: URL, init: RequestInit = {}): Promise<Response> {
     ...init,
     headers: {
       [DEVICE_ID_HEADER]: getOrCreateDeviceId(),
+      [DEVICE_LANGUAGE_HEADER]: detectDeviceLanguage() ?? 'en',
       ...(init.body ? { 'content-type': 'application/json' } : {}),
       ...init.headers,
     },
@@ -66,6 +70,14 @@ export async function putTopics(topics: Topic[]): Promise<MeResponse> {
   const response = await apiFetch(apiUrl('/v1/me/topics'), {
     method: 'PUT',
     body: JSON.stringify({ topics }),
+  });
+  return meResponseSchema.parse(await response.json());
+}
+
+export async function putLanguage(language: Language): Promise<MeResponse> {
+  const response = await apiFetch(apiUrl('/v1/me/language'), {
+    method: 'PUT',
+    body: JSON.stringify({ language }),
   });
   return meResponseSchema.parse(await response.json());
 }

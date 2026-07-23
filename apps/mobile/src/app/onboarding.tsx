@@ -1,21 +1,37 @@
-import { TOPIC_LABELS, TOPICS, type Topic } from '@techtok/shared';
+import {
+  getTopicLabel,
+  LANGUAGE_LABELS,
+  LANGUAGES,
+  type Language,
+  TOPICS,
+  type Topic,
+} from '@techtok/shared';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { useStrings } from '@/i18n/useStrings';
+import { useLanguageStore } from '@/state/languageStore';
 import { markOnboardingSeen } from '@/state/onboardingStore';
 import { useTopicsStore } from '@/state/topicsStore';
 
 export default function OnboardingScreen() {
   const { topics, isLoading, load, setTopics } = useTopicsStore();
+  const { language, load: loadLanguage, setLanguage } = useLanguageStore();
+  const strings = useStrings();
 
   useEffect(() => {
     load();
-  }, [load]);
+    loadLanguage();
+  }, [load, loadLanguage]);
 
   const toggleTopic = async (topic: Topic) => {
     const next = topics.includes(topic) ? topics.filter((t) => t !== topic) : [...topics, topic];
     await setTopics(next);
+  };
+
+  const chooseLanguage = async (next: Language) => {
+    await setLanguage(next);
   };
 
   const getStarted = () => {
@@ -26,11 +42,27 @@ export default function OnboardingScreen() {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Welcome to TechTok</Text>
+        <Text style={styles.title}>{strings.onboarding.title}</Text>
+
+        <Text style={styles.stepTitle}>{strings.onboarding.languageStepTitle}</Text>
+        {LANGUAGES.map((lang) => {
+          const selected = language === lang;
+          return (
+            <Pressable
+              key={lang}
+              style={[styles.row, selected && styles.rowSelected]}
+              onPress={() => chooseLanguage(lang)}
+            >
+              <Text style={styles.rowText}>{LANGUAGE_LABELS[lang]}</Text>
+              {selected ? <Text style={styles.rowCheck}>✓</Text> : null}
+            </Pressable>
+          );
+        })}
+
         <Text style={styles.hint}>
           {topics.length === 0
-            ? 'Pick the topics you care about, or leave everything on to see it all.'
-            : `Showing ${topics.length} of ${TOPICS.length} topics.`}
+            ? strings.onboarding.hintAll
+            : strings.onboarding.hintSome(topics.length, TOPICS.length)}
         </Text>
         {TOPICS.map((topic) => {
           const selected = topics.includes(topic);
@@ -41,14 +73,14 @@ export default function OnboardingScreen() {
               onPress={() => toggleTopic(topic)}
               disabled={isLoading}
             >
-              <Text style={styles.rowText}>{TOPIC_LABELS[topic]}</Text>
+              <Text style={styles.rowText}>{getTopicLabel(topic, language)}</Text>
               {selected ? <Text style={styles.rowCheck}>✓</Text> : null}
             </Pressable>
           );
         })}
       </ScrollView>
       <Pressable style={styles.cta} onPress={getStarted}>
-        <Text style={styles.ctaText}>Get started</Text>
+        <Text style={styles.ctaText}>{strings.onboarding.cta}</Text>
       </Pressable>
     </View>
   );
@@ -66,11 +98,20 @@ const styles = StyleSheet.create({
     color: Colors.dark.text,
     ...Typography.xl,
     fontWeight: '700',
+    marginBottom: Spacing.three,
+  },
+  stepTitle: {
+    color: Colors.dark.textSecondary,
+    ...Typography.base,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
     marginBottom: Spacing.two,
   },
   hint: {
     color: Colors.dark.textSecondary,
     ...Typography.base,
+    marginTop: Spacing.three,
     marginBottom: Spacing.three,
   },
   row: {

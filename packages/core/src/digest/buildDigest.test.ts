@@ -3,7 +3,12 @@ import { describe, expect, it } from 'vitest';
 import type { PostRecord } from '../posts.types';
 import { composeDigestMessage } from './buildDigest';
 
-function post(id: string, cardTitle: string, topic: Topic = 'ai'): PostRecord {
+function post(
+  id: string,
+  cardTitle: string,
+  topic: Topic = 'ai',
+  overrides: Partial<PostRecord> = {},
+): PostRecord {
   return {
     postId: id,
     url: `https://example.com/${id}`,
@@ -21,6 +26,9 @@ function post(id: string, cardTitle: string, topic: Topic = 'ai'): PostRecord {
     publishedAt: '2026-01-01T00:00:00.000Z',
     ingestedAt: '2026-01-01T00:00:00.000Z',
     ttl: 0,
+    i18n: {},
+    i18nPending: {},
+    ...overrides,
   };
 }
 
@@ -41,5 +49,31 @@ describe('composeDigestMessage', () => {
   it('pluralizes and counts for multiple unread items', () => {
     const message = composeDigestMessage('token-1', [post('a', 'First'), post('b', 'Second')]);
     expect(message).toMatchObject({ title: '2 new stories waiting', body: 'First' });
+  });
+
+  it('uses the english title by default', () => {
+    const message = composeDigestMessage('token-1', [post('a', 'English title')]);
+    expect(message).toMatchObject({ body: 'English title' });
+  });
+
+  it('serves the translated title when the user language has one', () => {
+    const translated = post('a', 'English title', 'ai', {
+      i18n: {
+        ru: {
+          cardTitle: 'Русский заголовок',
+          summary: 's',
+          translatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      },
+    });
+
+    const message = composeDigestMessage('token-1', [translated], 'ru');
+
+    expect(message).toMatchObject({ body: 'Русский заголовок' });
+  });
+
+  it('falls back to english when the translation is missing', () => {
+    const message = composeDigestMessage('token-1', [post('a', 'English title')], 'ru');
+    expect(message).toMatchObject({ body: 'English title' });
   });
 });

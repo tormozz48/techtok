@@ -6,10 +6,12 @@ import { BottomActionBar } from '@/components/BottomActionBar';
 import { FeedPager } from '@/components/FeedPager';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { Colors } from '@/constants/theme';
+import { useStrings } from '@/i18n/useStrings';
 
 export default function FeedScreen() {
   const { data, isLoading, isError, error, fetchNextPage, isFetchingNextPage } = useFeedQuery();
   const [activeCard, setActiveCard] = useState<CardData | undefined>(undefined);
+  const strings = useStrings();
 
   const cards = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data]);
 
@@ -21,7 +23,7 @@ export default function FeedScreen() {
     return (
       <View style={styles.center}>
         <Text style={styles.errorText}>
-          {error instanceof Error ? error.message : 'Failed to load the feed.'}
+          {error instanceof Error ? error.message : strings.feed.error}
         </Text>
       </View>
     );
@@ -30,7 +32,7 @@ export default function FeedScreen() {
   if (cards.length === 0) {
     return (
       <View style={styles.center}>
-        <Text style={styles.emptyText}>No stories yet — check back after the next ingest run.</Text>
+        <Text style={styles.emptyText}>{strings.feed.empty}</Text>
       </View>
     );
   }

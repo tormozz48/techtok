@@ -1,6 +1,7 @@
 import { ConditionalCheckFailedException } from '@aws-sdk/client-dynamodb';
 import {
   DynamoDBDocumentClient,
+  GetCommand,
   PutCommand,
   ScanCommand,
   UpdateCommand,
@@ -39,6 +40,26 @@ describe('sourcesRepo.listEnabled', () => {
     const input = ddbMock.commandCalls(ScanCommand)[0]?.args[0]?.input;
     expect(input?.FilterExpression).toBe('enabled = :true');
     expect(input?.ExpressionAttributeValues).toMatchObject({ ':true': true });
+  });
+});
+
+describe('sourcesRepo.getById', () => {
+  it('returns the item when found', async () => {
+    ddbMock.on(GetCommand).resolves({ Item: { ...sampleSource, dailyQuota: 10 } });
+    const repo = new SourcesRepo(client, 'Sources');
+
+    const source = await repo.getById('hn');
+
+    expect(source).toEqual({ ...sampleSource, dailyQuota: 10 });
+    const input = ddbMock.commandCalls(GetCommand)[0]?.args[0]?.input;
+    expect(input?.Key).toEqual({ sourceId: 'hn' });
+  });
+
+  it('returns undefined when not found', async () => {
+    ddbMock.on(GetCommand).resolves({});
+    const repo = new SourcesRepo(client, 'Sources');
+
+    expect(await repo.getById('missing')).toBeUndefined();
   });
 });
 

@@ -1,5 +1,5 @@
 import { api } from './api';
-import { ingestPipeline, transformDlq } from './pipeline';
+import { ingestPipeline, transformDlq, translateDlq } from './pipeline';
 
 // First use of raw provider resources in this repo — SST has no built-in
 // Budget/Alarm/SNS component (confirmed against the current component list).
@@ -21,6 +21,20 @@ new aws.cloudwatch.MetricAlarm('DlqDepthAlarm', {
   statistic: 'Maximum',
   threshold: 0,
   dimensions: { QueueName: transformDlq.arn.apply((arn) => arn.split(':').at(-1) ?? arn) },
+  alarmActions: [alertTopic.arn],
+  treatMissingData: 'notBreaching',
+});
+
+new aws.cloudwatch.MetricAlarm('TranslateDlqDepthAlarm', {
+  alarmDescription: 'TranslateQueue DLQ has messages — a poison message or a failing translation.',
+  comparisonOperator: 'GreaterThanThreshold',
+  evaluationPeriods: 1,
+  metricName: 'ApproximateNumberOfMessagesVisible',
+  namespace: 'AWS/SQS',
+  period: 300,
+  statistic: 'Maximum',
+  threshold: 0,
+  dimensions: { QueueName: translateDlq.arn.apply((arn) => arn.split(':').at(-1) ?? arn) },
   alarmActions: [alertTopic.arn],
   treatMissingData: 'notBreaching',
 });

@@ -1,3 +1,5 @@
+import type { Language } from './language';
+
 export const TOPICS = [
   'ai',
   'dev',
@@ -11,16 +13,54 @@ export const TOPICS = [
 
 export type Topic = (typeof TOPICS)[number];
 
-export const TOPIC_LABELS: Record<Topic, string> = {
-  ai: 'AI',
-  dev: 'Dev',
-  gadgets: 'Gadgets',
-  startups: 'Startups',
-  security: 'Security',
-  science: 'Science',
-  space: 'Space',
-  bio: 'Bio',
+/** Per-language display labels (D20) — one map per served language, English
+ * always complete since it's the source-of-truth fallback. */
+export const TOPIC_LABELS: Record<Language, Record<Topic, string>> = {
+  en: {
+    ai: 'AI',
+    dev: 'Dev',
+    gadgets: 'Gadgets',
+    startups: 'Startups',
+    security: 'Security',
+    science: 'Science',
+    space: 'Space',
+    bio: 'Bio',
+  },
+  ru: {
+    ai: 'ИИ',
+    dev: 'Разработка',
+    gadgets: 'Гаджеты',
+    startups: 'Стартапы',
+    security: 'Безопасность',
+    science: 'Наука',
+    space: 'Космос',
+    bio: 'Биология',
+  },
+  uk: {
+    ai: 'ШІ',
+    dev: 'Розробка',
+    gadgets: 'Гаджети',
+    startups: 'Стартапи',
+    security: 'Безпека',
+    science: 'Наука',
+    space: 'Космос',
+    bio: 'Біологія',
+  },
+  pl: {
+    ai: 'AI',
+    dev: 'Programowanie',
+    gadgets: 'Gadżety',
+    startups: 'Startupy',
+    security: 'Bezpieczeństwo',
+    science: 'Nauka',
+    space: 'Kosmos',
+    bio: 'Biologia',
+  },
 };
+
+export function getTopicLabel(topic: Topic, lang: Language): string {
+  return TOPIC_LABELS[lang][topic];
+}
 
 export function isTopic(value: string): value is Topic {
   return (TOPICS as readonly string[]).includes(value);

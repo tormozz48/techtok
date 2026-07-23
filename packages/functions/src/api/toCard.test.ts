@@ -20,6 +20,8 @@ const post: PostRecord = {
   publishedAt: '2026-07-18T00:00:00.000Z',
   ingestedAt: '2026-07-18T00:05:00.000Z',
   ttl: 1234567890,
+  i18n: {},
+  i18nPending: {},
 };
 
 describe('toCard', () => {
@@ -36,6 +38,9 @@ describe('toCard', () => {
       publishedAt: '2026-07-18T00:00:00.000Z',
       transform: 'excerpt',
       isBookmarked: false,
+      servedLang: 'en',
+      isTranslated: false,
+      compactLangs: [],
     });
   });
 
@@ -79,5 +84,38 @@ describe('toCard', () => {
 
   it('falls back to the original imageUrl when no mirror exists', () => {
     expect(toCard(post).imageUrl).toBe('https://example.com/a.jpg');
+  });
+
+  it('defaults to english when no lang is given', () => {
+    const card = toCard(post);
+    expect(card.servedLang).toBe('en');
+    expect(card.isTranslated).toBe(false);
+  });
+
+  it('serves the translated fields and marks isTranslated when a translation exists', () => {
+    const translated: PostRecord = {
+      ...post,
+      i18n: {
+        ru: {
+          cardTitle: 'Заголовок',
+          summary: 'Содержание.',
+          translatedAt: '2026-07-23T00:00:00.000Z',
+        },
+      },
+    };
+
+    const card = toCard(translated, false, 'ru');
+
+    expect(card.title).toBe('Заголовок');
+    expect(card.summary).toBe('Содержание.');
+    expect(card.servedLang).toBe('ru');
+    expect(card.isTranslated).toBe(true);
+  });
+
+  it('falls back to english when the requested translation is missing', () => {
+    const card = toCard(post, false, 'ru');
+    expect(card.title).toBe('Original title');
+    expect(card.servedLang).toBe('en');
+    expect(card.isTranslated).toBe(false);
   });
 });

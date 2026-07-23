@@ -6,5 +6,6 @@ export function toMeResponse(user: UserRecord): MeResponse {
     userId: user.userId,
     topics: user.topics,
     createdAt: user.createdAt,
+    language: user.language ?? 'en',
   };
 }

@@ -1,7 +1,10 @@
 import { z } from 'zod';
+import { LANGUAGES } from './language';
 import { TOPICS } from './topics';
 
 export const topicSchema = z.enum(TOPICS);
+
+export const languageSchema = z.enum(LANGUAGES);
 
 export const mediaItemSchema = z.object({
   kind: z.literal('image'),
@@ -27,6 +30,9 @@ export const cardSchema = z.object({
   media: z.array(mediaItemSchema).optional(),
   transform: transformKindSchema.optional(),
   isBookmarked: z.boolean().optional(),
+  servedLang: languageSchema,
+  isTranslated: z.boolean(),
+  compactLangs: z.array(languageSchema).default([]),
 });
 export type Card = z.infer<typeof cardSchema>;
 
@@ -46,6 +52,11 @@ export const topicsResponseSchema = z.object({
 });
 export type TopicsResponse = z.infer<typeof topicsResponseSchema>;
 
+export const topicsQuerySchema = z.object({
+  lang: languageSchema.default('en'),
+});
+export type TopicsQuery = z.infer<typeof topicsQuerySchema>;
+
 export const feedQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),
   before: z.iso.datetime().optional(),
@@ -61,11 +72,13 @@ export const errorResponseSchema = z.object({
 export type ErrorResponse = z.infer<typeof errorResponseSchema>;
 
 export const DEVICE_ID_HEADER = 'x-device-id';
+export const DEVICE_LANGUAGE_HEADER = 'x-device-language';
 
 export const meResponseSchema = z.object({
   userId: z.string(),
   topics: z.array(topicSchema),
   createdAt: z.iso.datetime(),
+  language: languageSchema,
 });
 export type MeResponse = z.infer<typeof meResponseSchema>;
 
@@ -73,6 +86,11 @@ export const topicsPrefsRequestSchema = z.object({
   topics: z.array(topicSchema),
 });
 export type TopicsPrefsRequest = z.infer<typeof topicsPrefsRequestSchema>;
+
+export const languagePrefsRequestSchema = z.object({
+  language: languageSchema,
+});
+export type LanguagePrefsRequest = z.infer<typeof languagePrefsRequestSchema>;
 
 export const pushTokenRequestSchema = z.object({
   pushToken: z.string().min(1),

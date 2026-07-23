@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { LANGUAGES } from './language';
 import {
   bookmarkCreateRequestSchema,
   bookmarkItemSchema,
@@ -6,9 +7,13 @@ import {
   cardSchema,
   feedQuerySchema,
   historyQuerySchema,
+  languagePrefsRequestSchema,
+  languageSchema,
+  meResponseSchema,
   readsRequestSchema,
   topicSchema,
   topicsPrefsRequestSchema,
+  topicsQuerySchema,
 } from './schemas';
 import { TOPICS } from './topics';
 
@@ -34,10 +39,16 @@ describe('cardSchema', () => {
     primaryTopic: 'science',
     topics: ['science'],
     publishedAt: '2026-07-17T06:04:57.000Z',
+    servedLang: 'en',
+    isTranslated: false,
   };
 
   it('parses a minimal valid card', () => {
     expect(cardSchema.parse(validCard)).toMatchObject(validCard);
+  });
+
+  it('defaults compactLangs to an empty array', () => {
+    expect(cardSchema.parse(validCard).compactLangs).toEqual([]);
   });
 
   it('rejects a card with an invalid topic', () => {
@@ -51,6 +62,65 @@ describe('cardSchema', () => {
   it('accepts an optional blurhash', () => {
     const blurhash = 'LKO2?U%2Tw=w]~RBVZRi};RPxuwH';
     expect(cardSchema.parse({ ...validCard, blurhash })).toMatchObject({ blurhash });
+  });
+
+  it('reflects a translated variant via servedLang/isTranslated', () => {
+    const translated = { ...validCard, servedLang: 'ru', isTranslated: true };
+    expect(cardSchema.parse(translated)).toMatchObject(translated);
+  });
+});
+
+describe('languageSchema', () => {
+  it('accepts every supported language', () => {
+    for (const lang of LANGUAGES) {
+      expect(languageSchema.parse(lang)).toBe(lang);
+    }
+  });
+
+  it('rejects an unsupported language', () => {
+    expect(() => languageSchema.parse('fr')).toThrow();
+  });
+});
+
+describe('meResponseSchema', () => {
+  it('requires a language', () => {
+    const valid = {
+      userId: 'device-1',
+      topics: ['ai'],
+      createdAt: '2026-07-18T00:00:00.000Z',
+      language: 'uk',
+    };
+    expect(meResponseSchema.parse(valid)).toEqual(valid);
+  });
+
+  it('rejects a missing language', () => {
+    expect(() =>
+      meResponseSchema.parse({
+        userId: 'device-1',
+        topics: [],
+        createdAt: '2026-07-18T00:00:00.000Z',
+      }),
+    ).toThrow();
+  });
+});
+
+describe('languagePrefsRequestSchema', () => {
+  it('accepts a supported language', () => {
+    expect(languagePrefsRequestSchema.parse({ language: 'pl' })).toEqual({ language: 'pl' });
+  });
+
+  it('rejects an unsupported language', () => {
+    expect(() => languagePrefsRequestSchema.parse({ language: 'fr' })).toThrow();
+  });
+});
+
+describe('topicsQuerySchema', () => {
+  it('defaults lang to en', () => {
+    expect(topicsQuerySchema.parse({})).toEqual({ lang: 'en' });
+  });
+
+  it('accepts a supported lang override', () => {
+    expect(topicsQuerySchema.parse({ lang: 'ru' })).toEqual({ lang: 'ru' });
   });
 });
 

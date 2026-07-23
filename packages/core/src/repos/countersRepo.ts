@@ -8,13 +8,15 @@ export class CountersRepo {
   ) {}
 
   /**
-   * Atomically increments today's transform counter and reports whether the
+   * Atomically increments the named daily counter and reports whether the
    * increment landed at or under `cap`. The conditional expression makes
    * concurrent Lambda invocations race safely — only as many callers as the
-   * cap allows ever see `true`, regardless of batch concurrency.
+   * cap allows ever see `true`, regardless of batch concurrency. `counterId`
+   * is the full key (e.g. `transforms#<date>`, `translations#<date>`,
+   * `transforms#<sourceId>#<date>`) — callers own the prefix, since phase 8
+   * added two more counter kinds alongside the original transform cap.
    */
-  async incrementIfUnderCap(date: string, cap: number): Promise<boolean> {
-    const counterId = `transforms#${date}`;
+  async incrementIfUnderCap(counterId: string, cap: number): Promise<boolean> {
     return conditionalWrite(() =>
       this.client.send(
         new UpdateCommand({

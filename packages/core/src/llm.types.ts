@@ -11,6 +11,13 @@ export const llmCardOutputSchema = z.object({
 });
 export type LlmCardOutput = z.infer<typeof llmCardOutputSchema>;
 
+export const llmTranslationOutputSchema = z.object({
+  cardTitle: z.string().min(1).max(80),
+  summary: z.string().min(1).max(320),
+  whyItMatters: z.string().min(1).max(160).optional(),
+});
+export type LlmTranslationOutput = z.infer<typeof llmTranslationOutputSchema>;
+
 export interface LlmProvider {
   complete(prompt: string): Promise<string>;
 }

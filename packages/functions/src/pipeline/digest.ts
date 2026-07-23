@@ -7,6 +7,7 @@ import {
 } from '@techtok/core';
 import { lazy } from '../lazy';
 import { getPostsRepo, getSourceWeightsCache, getUserActivityRepo, getUsersRepo } from '../repos';
+import { enqueueTranslations } from '../translate/enqueueTranslations';
 
 const logger = new Logger({ serviceName: 'digest' });
 const DIGEST_LIMIT = 5;
@@ -41,7 +42,10 @@ export async function handler(): Promise<void> {
       { userTopics: user.topics, limit: DIGEST_LIMIT },
     );
 
-    const message = composeDigestMessage(user.pushToken, page.items, user.language ?? 'en');
+    const lang = user.language ?? 'en';
+    await enqueueTranslations(page.items, lang);
+
+    const message = composeDigestMessage(user.pushToken, page.items, lang);
     if (message) messages.push(message);
   }
 

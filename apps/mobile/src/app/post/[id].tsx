@@ -6,6 +6,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   ScrollView,
   Share,
@@ -17,6 +18,7 @@ import { getPostContent } from '@/api/client';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
+import { translationFeedbackMailto } from '@/utils/feedback';
 
 export default function PostScreen() {
   const { id, title, sourceName, url } = useLocalSearchParams<{
@@ -67,10 +69,18 @@ export default function PostScreen() {
   }
 
   const canToggleLanguage = language !== 'en';
+  const isViewingTranslation = data.lang !== 'en';
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
+      <Pressable
+        style={styles.header}
+        onLongPress={
+          isViewingTranslation
+            ? () => Linking.openURL(translationFeedbackMailto(id, data.lang))
+            : undefined
+        }
+      >
         {sourceName ? <Text style={styles.sourceName}>{sourceName}</Text> : null}
         {canToggleLanguage ? (
           <Pressable onPress={() => setViewLang((current) => (current === 'en' ? language : 'en'))}>
@@ -79,7 +89,7 @@ export default function PostScreen() {
             </Text>
           </Pressable>
         ) : null}
-      </View>
+      </Pressable>
 
       {data.blocks.map((block, index) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: blocks are a static list returned whole per request, never reordered/filtered client-side.

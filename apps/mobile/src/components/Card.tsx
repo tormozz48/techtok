@@ -2,11 +2,12 @@ import type { Card as CardData } from '@techtok/shared';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { useStrings } from '@/i18n/useStrings';
 import { enqueueRead } from '@/state/readQueue';
+import { translationFeedbackMailto } from '@/utils/feedback';
 import { timeAgo } from '@/utils/timeAgo';
 import { ImageSkeleton } from './ImageSkeleton';
 import { ImageStub } from './ImageStub';
@@ -18,6 +19,7 @@ export interface CardProps {
 export function Card({ card }: CardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const strings = useStrings();
+  const longPressedRef = useRef(false);
 
   return (
     <View style={styles.container}>
@@ -47,12 +49,24 @@ export function Card({ card }: CardProps) {
       <Pressable
         style={styles.content}
         onPress={() => {
+          if (longPressedRef.current) {
+            longPressedRef.current = false;
+            return;
+          }
           enqueueRead(card.id);
           router.push({
             pathname: '/post/[id]',
             params: { id: card.id, title: card.title, sourceName: card.sourceName, url: card.url },
           });
         }}
+        onLongPress={
+          card.isTranslated
+            ? () => {
+                longPressedRef.current = true;
+                Linking.openURL(translationFeedbackMailto(card.id, card.servedLang));
+              }
+            : undefined
+        }
       >
         {__DEV__ && card.transform ? (
           <View style={styles.debugBadge}>

@@ -1,48 +1,10 @@
-import { Logger } from '@aws-lambda-powertools/logger';
-import { buildFeed, errorMessage, needsTranslation, type PostRecord } from '@techtok/core';
-import { feedQuerySchema, feedResponseSchema, type Language } from '@techtok/shared';
-import {
-  getPostsRepo,
-  getSourceWeightsCache,
-  getTranslateQueue,
-  getUserActivityRepo,
-  getUsersRepo,
-} from '../repos';
+import { buildFeed } from '@techtok/core';
+import { feedQuerySchema, feedResponseSchema } from '@techtok/shared';
+import { getPostsRepo, getSourceWeightsCache, getUserActivityRepo, getUsersRepo } from '../repos';
+import { enqueueTranslations } from '../translate/enqueueTranslations';
 import { extractDeviceLanguage } from './deviceId';
 import { jsonResponse, parseQuery, withDeviceId } from './http';
 import { toCard } from './toCard';
-
-const logger = new Logger({ serviceName: 'feed' });
-
-/**
- * On-demand translation enqueue (DESIGN §5.2 step 7 / D22): for posts this
- * page is about to serve in a non-EN language without a translation yet,
- * stamp a pending marker and enqueue a translate job. Best-effort — an SQS
- * or DynamoDB hiccup here must never fail the feed response itself, since
- * English is always already being served this same request.
- */
-async function enqueueTranslations(posts: PostRecord[], lang: Language): Promise<void> {
-  const now = new Date();
-  const candidates = posts.filter((post) => needsTranslation(post, lang, now));
-  if (candidates.length === 0) return;
-
-  try {
-    const nowIso = now.toISOString();
-    const postsRepo = getPostsRepo();
-    await Promise.all(
-      candidates.map((post) => postsRepo.setI18nPending(post.postId, lang, nowIso)),
-    );
-    await getTranslateQueue().enqueuePending(
-      candidates.map((post) => ({ postId: post.postId, lang })),
-    );
-  } catch (err) {
-    logger.warn('translation enqueue failed, posts stay english this cycle', {
-      lang,
-      postIds: candidates.map((post) => post.postId),
-      error: errorMessage(err),
-    });
-  }
-}
 
 export const handler = withDeviceId(async (event, deviceId) => {
   const query = parseQuery(event, feedQuerySchema);

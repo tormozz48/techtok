@@ -14,8 +14,9 @@ import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
 import { enablePushNotifications, isPushEnabled } from '@/state/pushNotifications';
 import { useTopicsStore } from '@/state/topicsStore';
+import { FEEDBACK_EMAIL } from '@/utils/feedback';
 
-const FEEDBACK_MAILTO = 'mailto:andrii@numica.com?subject=TechTok%20feedback';
+const FEEDBACK_MAILTO = `mailto:${FEEDBACK_EMAIL}?subject=TechTok%20feedback`;
 
 export default function SettingsScreen() {
   const queryClient = useQueryClient();

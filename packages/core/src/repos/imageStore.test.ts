@@ -36,4 +36,13 @@ describe('ImageStore.putImage', () => {
 
     expect(key).toBe('images/post1.jpg');
   });
+
+  it('applies a suffix to distinguish multiple images for the same post', async () => {
+    s3Mock.on(PutObjectCommand).resolves({});
+    const store = new ImageStore(client, 'Images');
+
+    const key = await store.putImage('post1', new Uint8Array(), 'image/png', '-fig0');
+
+    expect(key).toBe('images/post1-fig0.png');
+  });
 });

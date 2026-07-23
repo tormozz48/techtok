@@ -11,7 +11,7 @@ import {
 // Confirmed ACTIVE via `aws bedrock list-inference-profiles` and a live
 // `converse` call (IMPLEMENTATION_PLAN.md phase 3 task 1) — override via the
 // `BEDROCK_MODEL_ID` env var if a different profile is ever needed per stage.
-const BEDROCK_MODEL_ID =
+export const BEDROCK_MODEL_ID =
   process.env.BEDROCK_MODEL_ID ?? 'eu.anthropic.claude-haiku-4-5-20251001-v1:0';
 // Default daily transform cap (DESIGN §7.4/§10) — override via `LLM_DAILY_CAP`.
 const LLM_DAILY_CAP = process.env.LLM_DAILY_CAP ?? '120';

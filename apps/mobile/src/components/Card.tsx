@@ -1,7 +1,7 @@
 import type { Card as CardData } from '@techtok/shared';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as WebBrowser from 'expo-web-browser';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
@@ -48,7 +48,10 @@ export function Card({ card }: CardProps) {
         style={styles.content}
         onPress={() => {
           enqueueRead(card.id);
-          WebBrowser.openBrowserAsync(card.url);
+          router.push({
+            pathname: '/post/[id]',
+            params: { id: card.id, title: card.title, sourceName: card.sourceName, url: card.url },
+          });
         }}
       >
         {__DEV__ && card.transform ? (

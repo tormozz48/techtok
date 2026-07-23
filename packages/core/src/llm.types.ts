@@ -1,4 +1,4 @@
-import { topicSchema } from '@techtok/shared';
+import { compactBlockSchema, topicSchema } from '@techtok/shared';
 import { z } from 'zod';
 
 export const llmCardOutputSchema = z.object({
@@ -17,6 +17,11 @@ export const llmTranslationOutputSchema = z.object({
   whyItMatters: z.string().min(1).max(160).optional(),
 });
 export type LlmTranslationOutput = z.infer<typeof llmTranslationOutputSchema>;
+
+export const llmCompactOutputSchema = z.object({
+  blocks: z.array(compactBlockSchema).min(1),
+});
+export type LlmCompactOutput = z.infer<typeof llmCompactOutputSchema>;
 
 export interface LlmProvider {
   complete(prompt: string): Promise<string>;

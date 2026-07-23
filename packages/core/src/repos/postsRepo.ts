@@ -54,6 +54,7 @@ export class PostsRepo {
       gsi1pk: BY_TIME_PARTITION,
       i18n: {},
       i18nPending: {},
+      compactLangs: [],
     };
 
     return conditionalWrite(() =>
@@ -166,6 +167,23 @@ export class PostsRepo {
           '#lang': lang,
         },
         ExpressionAttributeValues: { ':fields': fields },
+      }),
+    );
+  }
+
+  /** Sets the full list of languages with a cached compact-article variant
+   * (D23). The caller computes the deduped list from the post it already
+   * fetched (`[...current, newLang]`) — at this table's low write volume a
+   * plain overwrite is simpler than a conditional list-append and avoids
+   * ever appending the same language twice. */
+  async setCompactLangs(postId: string, langs: Language[]): Promise<void> {
+    await this.client.send(
+      new UpdateCommand({
+        TableName: this.tableName,
+        Key: { postId },
+        UpdateExpression: 'SET #compactLangs = :langs',
+        ExpressionAttributeNames: { '#compactLangs': 'compactLangs' },
+        ExpressionAttributeValues: { ':langs': langs },
       }),
     );
   }

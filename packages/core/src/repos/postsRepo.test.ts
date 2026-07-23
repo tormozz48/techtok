@@ -62,6 +62,16 @@ describe('postsRepo.putIfNew', () => {
     expect(input?.Item?.i18nPending).toEqual({});
   });
 
+  it('seeds an empty compactLangs list (D23)', async () => {
+    ddbMock.on(PutCommand).resolves({});
+    const repo = new PostsRepo(client, 'Posts');
+
+    await repo.putIfNew(samplePost);
+
+    const input = ddbMock.commandCalls(PutCommand)[0]?.args[0]?.input;
+    expect(input?.Item?.compactLangs).toEqual([]);
+  });
+
   it('returns false without throwing when the post already exists', async () => {
     ddbMock.on(PutCommand).rejects(
       new ConditionalCheckFailedException({
@@ -325,6 +335,21 @@ describe('postsRepo.writeTranslation', () => {
       '#lang': 'ru',
     });
     expect(input?.ExpressionAttributeValues).toEqual({ ':fields': fields });
+  });
+});
+
+describe('postsRepo.setCompactLangs', () => {
+  it('overwrites the full compactLangs list under an aliased attribute name', async () => {
+    ddbMock.on(UpdateCommand).resolves({});
+    const repo = new PostsRepo(client, 'Posts');
+
+    await repo.setCompactLangs('abc123', ['en', 'ru']);
+
+    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
+    expect(input?.Key).toEqual({ postId: 'abc123' });
+    expect(input?.UpdateExpression).toBe('SET #compactLangs = :langs');
+    expect(input?.ExpressionAttributeNames).toEqual({ '#compactLangs': 'compactLangs' });
+    expect(input?.ExpressionAttributeValues).toEqual({ ':langs': ['en', 'ru'] });
   });
 });
 

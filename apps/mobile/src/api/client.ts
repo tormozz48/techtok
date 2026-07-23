@@ -1,6 +1,8 @@
 import {
   type BookmarksResponse,
   bookmarksResponseSchema,
+  type ContentResponse,
+  contentResponseSchema,
   DEVICE_ID_HEADER,
   DEVICE_LANGUAGE_HEADER,
   type FeedResponse,
@@ -141,4 +143,12 @@ export async function deleteBookmark(postId: string): Promise<void> {
   await apiFetch(apiUrl(`/v1/bookmarks/${encodeURIComponent(postId)}`), {
     method: 'DELETE',
   });
+}
+
+export async function getPostContent(postId: string, lang: Language): Promise<ContentResponse> {
+  const url = apiUrl(`/v1/posts/${encodeURIComponent(postId)}/content`);
+  url.searchParams.set('lang', lang);
+
+  const response = await apiFetch(url);
+  return contentResponseSchema.parse(await response.json());
 }

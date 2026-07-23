@@ -18,6 +18,6 @@ export function toCard(post: PostRecord, isBookmarked = false, lang: Language = 
     isBookmarked,
     servedLang: variant.servedLang,
     isTranslated: variant.isTranslated,
-    compactLangs: [],
+    compactLangs: post.compactLangs ?? [],
   };
 }

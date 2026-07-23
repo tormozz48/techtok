@@ -5,6 +5,9 @@ import {
   bookmarkItemSchema,
   bookmarksResponseSchema,
   cardSchema,
+  compactBlockSchema,
+  contentQuerySchema,
+  contentResponseSchema,
   feedQuerySchema,
   historyQuerySchema,
   languagePrefsRequestSchema,
@@ -195,5 +198,49 @@ describe('historyQuerySchema', () => {
 
   it('rejects a limit above 100', () => {
     expect(() => historyQuerySchema.parse({ limit: '999' })).toThrow();
+  });
+});
+
+describe('compactBlockSchema', () => {
+  it('parses each block variant', () => {
+    expect(compactBlockSchema.parse({ type: 'paragraph', text: 'hi' })).toMatchObject({
+      type: 'paragraph',
+    });
+    expect(compactBlockSchema.parse({ type: 'list', items: ['a', 'b'] })).toMatchObject({
+      type: 'list',
+    });
+    expect(compactBlockSchema.parse({ type: 'image', figureIndex: 0 })).toMatchObject({
+      type: 'image',
+      figureIndex: 0,
+    });
+  });
+
+  it('rejects an unknown block type', () => {
+    expect(() => compactBlockSchema.parse({ type: 'video', text: 'hi' })).toThrow();
+  });
+});
+
+describe('contentResponseSchema', () => {
+  it('parses an available response', () => {
+    const response = {
+      available: true,
+      lang: 'en',
+      blocks: [{ type: 'paragraph', text: 'hi' }],
+      figures: [{ url: 'https://example.com/fig.jpg' }],
+    };
+    expect(contentResponseSchema.parse(response)).toMatchObject(response);
+  });
+
+  it('parses an unavailable response', () => {
+    expect(contentResponseSchema.parse({ available: false, reason: 'over cap' })).toEqual({
+      available: false,
+      reason: 'over cap',
+    });
+  });
+});
+
+describe('contentQuerySchema', () => {
+  it('defaults lang to en', () => {
+    expect(contentQuerySchema.parse({})).toEqual({ lang: 'en' });
   });
 });

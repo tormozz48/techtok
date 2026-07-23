@@ -176,7 +176,9 @@ export async function transformArticle(
   return reason ? { degraded: true, reason } : { degraded: false };
 }
 
-async function isAllowedByRobots(
+/** Shared with the content stage's live-fetch fallback (D23) — one robots.txt
+ * check for every fetch TechTok's pipeline makes. */
+export async function isAllowedByRobots(
   url: string,
   fetchRobotsTxt: TransformDeps['fetchRobotsTxt'],
 ): Promise<boolean> {

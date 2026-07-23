@@ -31,6 +31,12 @@ export interface ChromeStrings {
   card: {
     translatedBadge: string;
   };
+  reader: {
+    error: string;
+    readOriginal: string;
+    showOriginal: string;
+    showTranslated: string;
+  };
 }
 
 // Hand-written chrome copy (D20) — no i18n framework dependency. Keep every
@@ -69,6 +75,12 @@ export const STRINGS: Record<Language, ChromeStrings> = {
     card: {
       translatedBadge: 'Translated',
     },
+    reader: {
+      error: "Couldn't prepare this article.",
+      readOriginal: 'Read original',
+      showOriginal: 'Show original',
+      showTranslated: 'Show translation',
+    },
   },
   ru: {
     feed: {
@@ -100,6 +112,12 @@ export const STRINGS: Record<Language, ChromeStrings> = {
     },
     card: {
       translatedBadge: 'Перевод',
+    },
+    reader: {
+      error: 'Не удалось подготовить статью.',
+      readOriginal: 'Читать оригинал',
+      showOriginal: 'Показать оригинал',
+      showTranslated: 'Показать перевод',
     },
   },
   uk: {
@@ -133,6 +151,12 @@ export const STRINGS: Record<Language, ChromeStrings> = {
     card: {
       translatedBadge: 'Переклад',
     },
+    reader: {
+      error: 'Не вдалося підготувати статтю.',
+      readOriginal: 'Читати оригінал',
+      showOriginal: 'Показати оригінал',
+      showTranslated: 'Показати переклад',
+    },
   },
   pl: {
     feed: {
@@ -164,6 +188,12 @@ export const STRINGS: Record<Language, ChromeStrings> = {
     },
     card: {
       translatedBadge: 'Tłumaczenie',
+    },
+    reader: {
+      error: 'Nie udało się przygotować artykułu.',
+      readOriginal: 'Czytaj oryginał',
+      showOriginal: 'Pokaż oryginał',
+      showTranslated: 'Pokaż tłumaczenie',
     },
   },
 };

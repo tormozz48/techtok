@@ -51,4 +51,9 @@ export interface PostRecord extends NewPost {
    * is in flight on `TranslateQueue`. Cleared on success or content-level
    * failure; a stale marker is treated as retryable (see `needsTranslation`). */
   readonly i18nPending: Partial<Record<Language, string>>;
+  /** Languages with a compact-article variant cached on the CDN (D23),
+   * seeded to `[]` by `PostsRepo.putIfNew`. Posts ingested before this field
+   * existed simply lack it (no backfill, same precedent as `i18n`) — read
+   * sites default with `post.compactLangs ?? []`. */
+  readonly compactLangs?: Language[];
 }

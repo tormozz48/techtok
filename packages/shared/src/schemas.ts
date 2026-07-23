@@ -148,3 +148,48 @@ export const bookmarksQuerySchema = z.object({
   cursor: z.string().optional(),
 });
 export type BookmarksQuery = z.infer<typeof bookmarksQuerySchema>;
+
+/** Compact-article reader (D23) — a structured block list, image blocks
+ * reference the response's own `figures[]` array by index rather than
+ * carrying a URL directly (the LLM never invents a figure URL, see
+ * `compactArticlePrompt.ts`). */
+export const compactBlockSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('paragraph'), text: z.string().min(1) }),
+  z.object({ type: z.literal('heading'), text: z.string().min(1) }),
+  z.object({ type: z.literal('list'), items: z.array(z.string().min(1)).min(1) }),
+  z.object({ type: z.literal('quote'), text: z.string().min(1) }),
+  z.object({
+    type: z.literal('image'),
+    figureIndex: z.number().int().min(0),
+    caption: z.string().optional(),
+  }),
+]);
+export type CompactBlock = z.infer<typeof compactBlockSchema>;
+
+export const compactFigureSchema = z.object({
+  url: z.url(),
+  caption: z.string().optional(),
+});
+export type CompactFigure = z.infer<typeof compactFigureSchema>;
+
+/** Always a 200 (D23/D22 degrade convention) — `available: false` is a
+ * content-level "couldn't prepare" outcome (kill switch, over cap, or a
+ * content-level generation failure), not an error status. */
+export const contentResponseSchema = z.discriminatedUnion('available', [
+  z.object({
+    available: z.literal(true),
+    lang: languageSchema,
+    blocks: z.array(compactBlockSchema),
+    figures: z.array(compactFigureSchema),
+  }),
+  z.object({
+    available: z.literal(false),
+    reason: z.string(),
+  }),
+]);
+export type ContentResponse = z.infer<typeof contentResponseSchema>;
+
+export const contentQuerySchema = z.object({
+  lang: languageSchema.default('en'),
+});
+export type ContentQuery = z.infer<typeof contentQuerySchema>;

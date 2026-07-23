@@ -1,5 +1,19 @@
-import { translateQueue } from './pipeline';
-import { postsTable, sourcesTable, userActivityTable, usersTable } from './storage';
+import { BEDROCK_MODEL_ID, translateQueue } from './pipeline';
+import {
+  contentBucket,
+  countersTable,
+  imagesBucket,
+  imagesRouter,
+  postsTable,
+  rawArticlesBucket,
+  sourcesTable,
+  userActivityTable,
+  usersTable,
+} from './storage';
+
+// Default compact-article daily cap (D23) — override via `COMPACT_DAILY_CAP`,
+// same env-tunable-default pattern as every other LLM cap (D22).
+const COMPACT_DAILY_CAP = process.env.COMPACT_DAILY_CAP ?? '20';
 
 export const api = new sst.aws.ApiGatewayV2('Api', {
   cors: {
@@ -109,4 +123,37 @@ api.route('GET /v1/bookmarks', {
   link: [userActivityTable],
   environment: { USER_ACTIVITY_TABLE_NAME: userActivityTable.name },
   runtime: 'nodejs22.x',
+});
+
+// Compact-article reader (D23, phase 9): synchronous generate-or-cache-hit,
+// 30s ceiling per DESIGN §7.5's own sync ceiling.
+api.route('GET /v1/posts/{postId}/content', {
+  handler: 'packages/functions/src/api/content.handler',
+  link: [postsTable, sourcesTable, countersTable, rawArticlesBucket, imagesBucket, contentBucket],
+  environment: {
+    POSTS_TABLE_NAME: postsTable.name,
+    SOURCES_TABLE_NAME: sourcesTable.name,
+    COUNTERS_TABLE_NAME: countersTable.name,
+    RAW_ARTICLES_BUCKET_NAME: rawArticlesBucket.name,
+    IMAGES_BUCKET_NAME: imagesBucket.name,
+    IMAGES_CDN_BASE_URL: imagesRouter.url,
+    CONTENT_BUCKET_NAME: contentBucket.name,
+    BEDROCK_MODEL_ID,
+    COMPACT_DAILY_CAP,
+  },
+  permissions: [
+    {
+      // Bedrock isn't an SST-linkable resource, so its invoke permission is
+      // granted directly. Scoped to InvokeModel only, not full bedrock:*.
+      actions: ['bedrock:InvokeModel'],
+      resources: [
+        'arn:aws:bedrock:*::foundation-model/*',
+        'arn:aws:bedrock:*:*:inference-profile/*',
+      ],
+    },
+  ],
+  runtime: 'nodejs22.x',
+  // D23's own synchronous ceiling — includes the article fetch, figure
+  // mirroring, and one Bedrock round trip (with one repair-retry).
+  timeout: '30 seconds',
 });

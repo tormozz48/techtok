@@ -60,6 +60,16 @@ export const imagesBucket = new sst.aws.Bucket('Images', {
 export const imagesRouter = new sst.aws.Router('ImagesRouter');
 imagesRouter.routeBucket('/', imagesBucket);
 
+// Phase 9: compact-article reader JSON (D23), cached at
+// `content/<postId>/<lang>.json`, on the same router/CDN as mirrored images
+// — `/content` beats the `/` fallback route since Router matches the longest
+// path prefix. Matches Posts' own 90-day TTL for the same reason as images.
+export const contentBucket = new sst.aws.Bucket('Content', {
+  access: 'cloudfront',
+  lifecycle: [{ id: 'expire-content', expiresIn: '90 days' }],
+});
+imagesRouter.routeBucket('/content', contentBucket);
+
 // Enforces the daily LLM transform cap (DESIGN §6, §7.4): one item per day,
 // keyed `transforms#<yyyy-mm-dd>`, atomically incremented by the transform
 // Lambda before every Bedrock call.

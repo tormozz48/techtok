@@ -11,9 +11,17 @@ export class ImageStore {
     private readonly bucketName: string,
   ) {}
 
-  /** Uploads image bytes and returns the S3 key they were stored under. */
-  async putImage(postId: string, body: Uint8Array, contentType: string): Promise<string> {
-    const key = `images/${postId}.${extensionFor(contentType)}`;
+  /** Uploads image bytes and returns the S3 key they were stored under.
+   * `suffix` (e.g. `-fig0`) distinguishes multiple images for the same post —
+   * the compact reader's mirrored figures (D23) — from the single lead-image
+   * key every existing caller still writes to. */
+  async putImage(
+    postId: string,
+    body: Uint8Array,
+    contentType: string,
+    suffix = '',
+  ): Promise<string> {
+    const key = `images/${postId}${suffix}.${extensionFor(contentType)}`;
     await this.client.send(
       new PutObjectCommand({
         Bucket: this.bucketName,

@@ -77,6 +77,7 @@ export default function RootLayout() {
           />
           <Stack.Screen name="history" options={{ headerShown: true, title: 'History' }} />
           <Stack.Screen name="saved" options={{ headerShown: true, title: 'Saved' }} />
+          <Stack.Screen name="post/[id]" options={{ headerShown: true, title: '' }} />
         </Stack>
       </ThemeProvider>
     </PersistQueryClientProvider>

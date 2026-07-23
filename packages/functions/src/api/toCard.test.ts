@@ -118,4 +118,13 @@ describe('toCard', () => {
     expect(card.servedLang).toBe('en');
     expect(card.isTranslated).toBe(false);
   });
+
+  it('carries compactLangs through when the post has cached compact variants', () => {
+    const withCompacts: PostRecord = { ...post, compactLangs: ['en', 'ru'] };
+    expect(toCard(withCompacts).compactLangs).toEqual(['en', 'ru']);
+  });
+
+  it('defaults compactLangs to an empty array for pre-phase-9 posts lacking the field', () => {
+    expect(toCard(post).compactLangs).toEqual([]);
+  });
 });

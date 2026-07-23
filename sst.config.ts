@@ -26,7 +26,6 @@ export default $config({
     );
     const { ingestPipeline } = await import('./infra/pipeline');
     const { api } = await import('./infra/api');
-    const { digestCron } = await import('./infra/digest');
     await import('./infra/monitoring');
 
     return {
@@ -37,7 +36,6 @@ export default $config({
       userActivityTable: userActivityTable.name,
       ingestPipeline: ingestPipeline.arn,
       imagesCdn: imagesRouter.url,
-      digestCron: digestCron.nodes.function.name,
     };
   },
 });

@@ -7,32 +7,22 @@ import {
   TOPICS,
   type Topic,
 } from '@techtok/shared';
-import { useEffect, useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { useEffect } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { Colors, Spacing } from '@/constants/theme';
 import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
-import { enablePushNotifications, isPushEnabled } from '@/state/pushNotifications';
 import { useTopicsStore } from '@/state/topicsStore';
-import { FEEDBACK_EMAIL } from '@/utils/feedback';
-
-const FEEDBACK_MAILTO = `mailto:${FEEDBACK_EMAIL}?subject=TechTok%20feedback`;
 
 export default function SettingsScreen() {
   const queryClient = useQueryClient();
   const { topics, isLoading, load, setTopics } = useTopicsStore();
   const { language, setLanguage } = useLanguageStore();
-  const [pushEnabled, setPushEnabled] = useState(isPushEnabled);
   const strings = useStrings();
 
   useEffect(() => {
     load();
   }, [load]);
-
-  const handleEnablePush = async () => {
-    const enabled = await enablePushNotifications();
-    setPushEnabled(enabled);
-  };
 
   const toggleTopic = async (topic: Topic) => {
     const next = topics.includes(topic) ? topics.filter((t) => t !== topic) : [...topics, topic];
@@ -80,14 +70,6 @@ export default function SettingsScreen() {
           </Pressable>
         );
       })}
-      <Pressable style={styles.feedbackRow} onPress={handleEnablePush} disabled={pushEnabled}>
-        <Text style={styles.feedbackText}>
-          {pushEnabled ? strings.settings.pushEnabled : strings.settings.pushEnable}
-        </Text>
-      </Pressable>
-      <Pressable style={styles.feedbackRow} onPress={() => Linking.openURL(FEEDBACK_MAILTO)}>
-        <Text style={styles.feedbackText}>{strings.settings.feedback}</Text>
-      </Pressable>
     </ScrollView>
   );
 }
@@ -136,17 +118,5 @@ const styles = StyleSheet.create({
     color: Colors.dark.text,
     fontSize: 16,
     fontWeight: '700',
-  },
-  feedbackRow: {
-    alignItems: 'center',
-    backgroundColor: Colors.dark.backgroundElement,
-    borderRadius: 12,
-    marginTop: Spacing.three,
-    paddingVertical: Spacing.three,
-  },
-  feedbackText: {
-    color: Colors.dark.text,
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

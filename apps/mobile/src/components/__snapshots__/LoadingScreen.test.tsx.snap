@@ -5,7 +5,7 @@ exports[`LoadingScreen renders the branded logo + spinner without crashing (snap
   style={
     {
       "alignItems": "center",
-      "backgroundColor": "#208AEF",
+      "backgroundColor": "#2A1B5C",
       "flex": 1,
       "justifyContent": "center",
     }

@@ -11,9 +11,7 @@ export interface CardVariant {
 
 /**
  * Picks the display variant for a post (D21): the requested language's
- * translation when present, else the English fields — the single fallback
- * point shared by the feed (`toCard.ts`) and the daily digest
- * (`buildDigest.ts`) so this decision exists in exactly one place.
+ * translation when present, else the English fields.
  */
 export function selectCardVariant(post: PostRecord, lang: Language): CardVariant {
   const translation = lang === 'en' ? undefined : post.i18n[lang];

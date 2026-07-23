@@ -87,13 +87,6 @@ api.route('PUT /v1/me/language', {
   runtime: 'nodejs22.x',
 });
 
-api.route('PUT /v1/me/push-token', {
-  handler: 'packages/functions/src/api/pushToken.handler',
-  link: [usersTable],
-  environment: { USERS_TABLE_NAME: usersTable.name },
-  runtime: 'nodejs22.x',
-});
-
 api.route('GET /v1/history', {
   handler: 'packages/functions/src/api/history.handler',
   link: [userActivityTable],

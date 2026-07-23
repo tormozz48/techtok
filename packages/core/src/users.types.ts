@@ -5,6 +5,5 @@ export interface UserRecord {
   readonly topics: Topic[];
   readonly createdAt: string;
   readonly lastSeenAt: string;
-  readonly pushToken?: string;
   readonly language?: Language;
 }

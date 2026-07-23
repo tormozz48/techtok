@@ -16,9 +16,6 @@ export interface ChromeStrings {
   settings: {
     hintAll: string;
     hintSome: (selected: number, total: number) => string;
-    pushEnable: string;
-    pushEnabled: string;
-    feedback: string;
     languageSectionTitle: string;
   };
   onboarding: {
@@ -60,9 +57,6 @@ export const STRINGS: Record<Language, ChromeStrings> = {
     settings: {
       hintAll: 'Showing all topics. Select any to narrow your feed.',
       hintSome: (selected, total) => `Showing ${selected} of ${total} topics.`,
-      pushEnable: 'Enable daily digest notifications',
-      pushEnabled: 'Daily digest notifications on',
-      feedback: 'Send feedback',
       languageSectionTitle: 'Language',
     },
     onboarding: {
@@ -98,9 +92,6 @@ export const STRINGS: Record<Language, ChromeStrings> = {
     settings: {
       hintAll: 'Показаны все темы. Выберите нужные, чтобы сузить ленту.',
       hintSome: (selected, total) => `Показано ${selected} из ${total} тем.`,
-      pushEnable: 'Включить ежедневные уведомления',
-      pushEnabled: 'Ежедневные уведомления включены',
-      feedback: 'Отправить отзыв',
       languageSectionTitle: 'Язык',
     },
     onboarding: {
@@ -136,9 +127,6 @@ export const STRINGS: Record<Language, ChromeStrings> = {
     settings: {
       hintAll: 'Показано всі теми. Оберіть потрібні, щоб звузити стрічку.',
       hintSome: (selected, total) => `Показано ${selected} з ${total} тем.`,
-      pushEnable: 'Увімкнути щоденні сповіщення',
-      pushEnabled: 'Щоденні сповіщення увімкнено',
-      feedback: 'Надіслати відгук',
       languageSectionTitle: 'Мова',
     },
     onboarding: {
@@ -174,9 +162,6 @@ export const STRINGS: Record<Language, ChromeStrings> = {
     settings: {
       hintAll: 'Wyświetlane są wszystkie tematy. Wybierz, aby zawęzić kanał.',
       hintSome: (selected, total) => `Wyświetlono ${selected} z ${total} tematów.`,
-      pushEnable: 'Włącz codzienne powiadomienia',
-      pushEnabled: 'Codzienne powiadomienia włączone',
-      feedback: 'Wyślij opinię',
       languageSectionTitle: 'Język',
     },
     onboarding: {

@@ -84,13 +84,6 @@ export async function putLanguage(language: Language): Promise<MeResponse> {
   return meResponseSchema.parse(await response.json());
 }
 
-export async function putPushToken(pushToken: string): Promise<void> {
-  await apiFetch(apiUrl('/v1/me/push-token'), {
-    method: 'PUT',
-    body: JSON.stringify({ pushToken }),
-  });
-}
-
 export async function postReads(postIds: string[]): Promise<void> {
   await apiFetch(apiUrl('/v1/reads'), {
     method: 'POST',

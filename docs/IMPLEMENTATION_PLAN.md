@@ -1,6 +1,6 @@
 # TechTok — Implementation Plan
 
-Companion to [DESIGN.md](DESIGN.md). Eleven phases (0–6 original build-out, 7–10 the 2026-07-22 extension, D20–D25); every phase ends with something you can demo on a phone. Effort estimates are focused solo days — spread over evenings, multiply accordingly.
+Companion to [DESIGN.md](DESIGN.md). Twelve phases (0–6 original build-out, 7–10 the 2026-07-22 extension, D20–D25, 11–12 the 2026-07-24 extension, D26–D30); every phase ends with something you can demo on a phone. Effort estimates are focused solo days — spread over evenings, multiply accordingly.
 
 **Principles**
 
@@ -24,6 +24,8 @@ Companion to [DESIGN.md](DESIGN.md). Eleven phases (0–6 original build-out, 7�
 | 8 | Localization | TranslateQueue, i18n map, language pref, chrome i18n, quotas | 2–3 d |
 | 9 | Compact reader | content Lambda, figure mirroring, reader screen, kill switch | 3 d |
 | 10 | Extension polish | digest localization, feedback loop, cost review, cap tuning | 1–2 d |
+| 11 | UI component library adoption | React Native Paper (MD3) | 2 d |
+| 12 | Eager translation pipeline | eager TranslateQueue enqueue, job-polling content API, progress bar | 3–4 d |
 
 ---
 
@@ -148,8 +150,8 @@ Companion to [DESIGN.md](DESIGN.md). Eleven phases (0–6 original build-out, 7�
 
 1. EAS internal distribution: `preview` APK build against production API; install-link doc for friends.
 2. Rate limiting sanity: API GW throttling defaults reviewed; per-device abuse is a non-goal (friends-scale trust).
-3. Feedback loop: in-app "send feedback" (mailto link is fine).
-4. Optional, only if wanted: daily digest push via `expo-notifications` (server: EventBridge cron → top-N unread per user → Expo push API).
+3. ~~Feedback loop: in-app "send feedback" (mailto link is fine).~~ **Removed 2026-07-24 (D29):** the standalone Settings "Send feedback" row was removed; the more targeted long-press bad-translation-report mailto (phase 10) is unrelated and stays.
+4. ~~Optional, only if wanted: daily digest push via `expo-notifications` (server: EventBridge cron → top-N unread per user → Expo push API).~~ **Retired 2026-07-24 (D29):** built, then fully removed end-to-end (infra, API route, DB field, mobile toggle) at the user's request.
 5. Watch CloudWatch dashboards for a week; fix what real usage breaks.
 
 **Acceptance criteria**
@@ -200,6 +202,18 @@ Companion to [DESIGN.md](DESIGN.md). Eleven phases (0–6 original build-out, 7�
 - [ ] On a device: imageless cards render the gradient+glyph stub (no blank scrims), all five actions work from the bottom bar, no overlay circles remain, cold start shows branded splash → loading screen → feed.
 - [ ] `pnpm lint && pnpm typecheck && pnpm test` green; deployed to dev; APK built for a physical-device check.
 
+### Amendment (2026-07-24, D28) — image quality gate
+
+Phase 7 shipped and was verified live before this was identified: some mirrored images are low-quality because their source is a small RSS thumbnail stretched to fill a full-bleed card.
+
+**Task**
+
+7. **Minimum-dimension quality gate (D28):** in the existing `mirrorImage` step, check the candidate's real pixel dimensions (`image-size`, header-only, no native decode) before mirroring; reject below 600px in either dimension. Extend the og:image rung's trigger from "no `imageUrl` at all" to also fire when an `imageUrl` exists but fails this check; a rejected/absent/denylisted og:image falls through to the existing `ImageStub`. New posts only, no backfill.
+
+**Additional acceptance criterion**
+
+- [ ] A post whose only candidate image is under 600px in either dimension renders the `ImageStub` (or a qualifying og:image, if one exists) instead of the undersized image; `pnpm lint && pnpm typecheck && pnpm test` green; deployed to dev.
+
 ---
 
 ## Phase 8 — Localization (cards, chrome, quotas)
@@ -214,7 +228,7 @@ Companion to [DESIGN.md](DESIGN.md). Eleven phases (0–6 original build-out, 7�
 4. **Translate stage (D22):** `TranslateQueue` + DLQ infra (ESM `maxConcurrency: 2`); feed-path conditional enqueue with `i18nPending` markers; consumer Lambda → self-critique-in-call translation (zod, one repair-retry, golden fixtures per language) → write `i18n[lang]`; content failures clear the marker and stay EN, infra failures throw to DLQ.
 5. **Caps & quotas (D22):** `translations#<date>` counter (default 100/day) in the translate consumer; per-source `transforms#<sourceId>#<date>` quota (default 30/day, `Sources.dailyQuota` override) gating only the LLM call in `transformArticle`; check whether Hugging Face has an official-posts-only feed URL and switch `Sources` if so.
 6. **Chrome i18n (D20):** `expo-localization` + typed string tables (settings/history/saved/onboarding/reader strings); language driven by the same stored preference; localized topic labels rendered from shared.
-7. **Digest guard:** digest builder picks the user's language variant when present (full localization polish lands in phase 10).
+7. ~~**Digest guard:** digest builder picks the user's language variant when present (full localization polish lands in phase 10).~~ **Moot as of 2026-07-24 (D29):** the digest feature this guarded was built here, then fully retired — see phase 5 task 4 and phase 10 task 1.
 
 **Acceptance criteria**
 
@@ -257,17 +271,63 @@ Companion to [DESIGN.md](DESIGN.md). Eleven phases (0–6 original build-out, 7�
 
 **Tasks**
 
-1. Digest localization end-to-end: push text uses the recipient's language (generate/fetch translations for the top-5 the same on-demand way, under the translation cap).
-2. Bad-translation feedback: long-press a translated card/reader → prefilled feedback mail (reuses the phase-5 mailto loop) with postId + lang; this is the data that decides whether the deferred verify pass (DESIGN §12) gets built.
+1. ~~Digest localization end-to-end: push text uses the recipient's language (generate/fetch translations for the top-5 the same on-demand way, under the translation cap).~~ **Moot as of 2026-07-24 (D29):** the digest feature this localized was fully retired — see phase 5 task 4.
+2. Bad-translation feedback: long-press a translated card/reader → prefilled feedback mail (`FEEDBACK_EMAIL` constant, `apps/mobile/src/utils/feedback.ts`) with postId + lang; this is the data that decides whether the deferred verify pass (DESIGN §12) gets built. (The separate standalone Settings "Send feedback" row this constant also powered was removed 2026-07-24, D29 — this long-press path is unaffected.)
 3. Cost Explorer review one week after phases 8–9 are live: per-tag spend vs. the §10 model; tune the four cap env vars deliberately; record the go/no-go on the separate verify pass in the decision log.
 4. Runbook additions (phase-6 doc): stuck TranslateQueue DLQ, compact-generation failure spike, cap-tuning playbook.
 5. Leftover UX debt from 7–9 (bar spacing, reader typography, stub palette) — small, listed, time-boxed.
 
 **Acceptance criteria**
 
-- [ ] A non-EN user's digest arrives in their language.
+- [x] ~~A non-EN user's digest arrives in their language.~~ Moot — digest retired (D29).
 - [ ] The week-after cost review is written down (numbers + any cap changes + verify-pass decision) in the decision log or §10.
 - [ ] Two weeks of daily use with no manual intervention: no DLQ alarms from the new queues, caps holding, feed + reader feel right in your own daily use.
+
+---
+
+## Phase 11 — UI component library adoption
+
+**Goal:** unify all UI components — especially buttons — behind a single component library (D26) so future screens stop growing ad hoc custom primitives.
+
+**Tasks**
+
+1. Add `react-native-paper` (pure JS, no native linking — confirmed Expo-Go-safe) as a mobile dependency; wrap the app root in `PaperProvider` with full stock `MD3LightTheme`/`MD3DarkTheme` (D26 — no custom theme seed).
+2. Replace every custom button across the app (feed actions, bottom action bar, settings rows, onboarding CTA, reader controls) with Paper's `Button`/`IconButton`.
+3. Full component sweep: replace custom cards, inputs (language/topic pickers), badges (translated badge, topic chips), and modals/dialogs with Paper's `Card`, `TextInput`/segmented controls, `Badge`/`Chip`, and `Modal`/`Dialog` equivalents.
+4. Remove now-unused custom component files and the styles/tokens Paper's theme supersedes.
+5. Verify Expo Go compatibility live on a physical device — no native-module crash on launch (per the `expo-go-native-module-constraint` memory).
+
+**Acceptance criteria**
+
+- [ ] Every button in the app is a Paper `Button`/`IconButton`; no ad hoc `Pressable`+`Text` button remains.
+- [ ] Full component sweep complete: cards, inputs, badges/chips, and modals all use Paper components.
+- [ ] App boots and renders correctly in plain Expo Go on a physical device — no native-module crash.
+- [ ] `pnpm lint && pnpm typecheck && pnpm test` green.
+- [ ] No visual regressions on feed, reader, settings, onboarding, saved, and history screens (manual pass on device).
+
+---
+
+## Phase 12 — Eager translation pipeline + on-demand progress
+
+**Goal:** every feed card is already translated into the user's language before it's ever served — no pop-in — while the compact reader keeps generating on demand but shows real staged progress instead of a spinner (D27, amends D22/D23).
+
+**Tasks**
+
+1. **Cost/cap recheck first (D27's own precondition):** recompute the `translations#<date>` daily cap needed to cover eager volume (~3 languages × every LLM-carded post) and reconcile the whole model against the $10/mo budget (D11) per DESIGN §10 — likely by lowering the global `transforms#<date>` cap rather than raising the budget. Do this before wiring the eager enqueue, not after.
+2. **Eager enqueue at transform time:** `transformArticle` enqueues one `TranslateQueue` job per non-English language (ru/uk/pl) for every post immediately after summarization, instead of the feed handler's lazy per-request enqueue.
+3. **Retire the feed-path lazy mechanism:** remove `i18nPending` stamping and the feed-read-triggered enqueue (`enqueueTranslations` call site in `feed.ts`); `selectCardVariant`'s fallback logic is unchanged (still serves EN when a translation is genuinely missing — e.g. mid-flight or failed), but the pop-in badge no longer fires for feed cards.
+4. **Content endpoint → job-based polling API:** redesign `GET /v1/posts/{postId}/content` into `POST /v1/posts/{postId}/content` (starts generation, returns `{ jobId, status: "pending" }`) + `GET /v1/posts/{postId}/content/status?jobId=` (returns `{ stage: "fetching"|"extracting"|"translating"|"done", available, content? }`); add minimal job-state storage (small DynamoDB item or S3 object, short-lived) so polling survives Lambda cold starts.
+5. **Reader progress bar:** replace the reader's spinner with a staged progress indicator driven by real polling of the new status endpoint.
+6. **New posts only:** no backfill of the historical backlog (per D27).
+
+**Acceptance criteria**
+
+- [ ] A freshly ingested post has all 4 language variants (`i18n` populated for ru/uk/pl, English is the source) before any feed request ever serves it — verified via `Posts` item inspection right after a pipeline run, with no feed read in between.
+- [ ] No feed card ever shows the `isTranslated` pop-in transition; a card renders in the target language (or English fallback, if genuinely still in flight) from its first appearance.
+- [ ] The reader shows real staged progress (fetching → extracting → translating → done) that advances in step with the actual backend job, not a fixed-timer animation.
+- [ ] `translations#<date>` cap holds under real eager volume; hitting the cap mid-day is visible in `Counters` and does not crash the transform pipeline (excess posts simply don't get pre-translated that day and fall back to English).
+- [ ] Cost Explorer spend one week after rollout is checked against the recomputed §10 model; the decision log is updated with the real numbers (task 1's recheck was a prediction, this closes the loop).
+- [ ] All gates green; deployed to dev; exercised end-to-end on a physical device (feed shows no pop-in, reader shows staged progress).
 
 ---
 
@@ -275,7 +335,8 @@ Companion to [DESIGN.md](DESIGN.md). Eleven phases (0–6 original build-out, 7�
 
 - Phases 0→3 are strictly ordered; 4–6 can interleave.
 - Extension ordering (Q22/D20–D25): **7 → 8 → 9 → 10.** Phase 7 is independent and lands first (visible wins, zero new LLM spend). Phase 8 precedes 9 because the reader consumes the language preference, serving contract, and translation machinery that 8 builds. Phase 10 needs real usage of 8+9 to review. Phases 7–9 don't block on phase 5's remaining EAS setup or phase 6.
-- The riskiest unknowns are front-loaded deliberately: DDB key design proves itself in phase 1 (read-exclusion at query time), pipeline semantics in phase 2 (dedup under concurrency), LLM economics in phase 3 (cap mechanics) — and in the extension, on-demand economics in phase 8 (caps/quotas before new spend exists) and the rights guardrails at the start of phase 9 (the kill switch before the feature). Each phase's acceptance criteria exist to force that proof.
+- Second extension (2026-07-24, D26–D30): **11 → 12**, both independent of phases 0–10 and of each other in principle, but ordered 11-then-12 since phase 12 touches the reader UI that phase 11's component sweep also touches (avoid landing both in the same screens concurrently). Phase 12 depends on phase 8's `TranslateQueue`/translate-consumer machinery and phase 9's content endpoint — it amends both rather than replacing them.
+- The riskiest unknowns are front-loaded deliberately: DDB key design proves itself in phase 1 (read-exclusion at query time), pipeline semantics in phase 2 (dedup under concurrency), LLM economics in phase 3 (cap mechanics) — and in the extension, on-demand economics in phase 8 (caps/quotas before new spend exists) and the rights guardrails at the start of phase 9 (the kill switch before the feature). Phase 12 repeats this pattern: its task 1 is the cost/cap recheck, before any eager enqueue code is written. Each phase's acceptance criteria exist to force that proof.
 - Standing rule from DESIGN §2: content-level failures degrade (excerpt cards; for translations, degrade *is* the English fallback; for compacts, the direct link-out), infra-level failures alarm (DLQ). Any new pipeline code follows the same split.
-- Every LLM call goes through a capped path — transform (global cap + per-source quota), translate, compact (D22). No ad-hoc Bedrock calls.
-- After phase 3, re-read DESIGN §12 (deferred defaults) and promote/kill items deliberately rather than by drift; same review after phase 10.
+- Every LLM call goes through a capped path — transform (global cap + per-source quota), translate (eager as of D27/phase 12), compact (D22). No ad-hoc Bedrock calls.
+- After phase 3, re-read DESIGN §12 (deferred defaults) and promote/kill items deliberately rather than by drift; same review after phase 10 and after phase 12 (the eager-translation cost recheck).

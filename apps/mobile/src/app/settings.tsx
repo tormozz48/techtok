@@ -8,7 +8,8 @@ import {
   type Topic,
 } from '@techtok/shared';
 import { useEffect } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { ScrollView, StyleSheet, Text } from 'react-native';
+import { List } from 'react-native-paper';
 import { Colors, Spacing } from '@/constants/theme';
 import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
@@ -41,14 +42,18 @@ export default function SettingsScreen() {
       {LANGUAGES.map((lang) => {
         const selected = language === lang;
         return (
-          <Pressable
+          <List.Item
             key={lang}
-            style={[styles.row, selected && styles.rowSelected]}
+            title={LANGUAGE_LABELS[lang]}
             onPress={() => chooseLanguage(lang)}
-          >
-            <Text style={styles.rowText}>{LANGUAGE_LABELS[lang]}</Text>
-            {selected ? <Text style={styles.rowCheck}>✓</Text> : null}
-          </Pressable>
+            style={[styles.row, selected && styles.rowSelected]}
+            titleStyle={styles.rowText}
+            right={
+              selected
+                ? (props) => <List.Icon {...props} icon="check" color={Colors.dark.text} />
+                : undefined
+            }
+          />
         );
       })}
       <Text style={styles.hint}>
@@ -59,15 +64,19 @@ export default function SettingsScreen() {
       {TOPICS.map((topic) => {
         const selected = topics.includes(topic);
         return (
-          <Pressable
+          <List.Item
             key={topic}
-            style={[styles.row, selected && styles.rowSelected]}
+            title={getTopicLabel(topic, language)}
             onPress={() => toggleTopic(topic)}
             disabled={isLoading}
-          >
-            <Text style={styles.rowText}>{getTopicLabel(topic, language)}</Text>
-            {selected ? <Text style={styles.rowCheck}>✓</Text> : null}
-          </Pressable>
+            style={[styles.row, selected && styles.rowSelected]}
+            titleStyle={styles.rowText}
+            right={
+              selected
+                ? (props) => <List.Icon {...props} icon="check" color={Colors.dark.text} />
+                : undefined
+            }
+          />
         );
       })}
     </ScrollView>
@@ -97,13 +106,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.three,
   },
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: Colors.dark.backgroundElement,
     borderRadius: 12,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
     marginBottom: Spacing.two,
   },
   rowSelected: {
@@ -113,10 +117,5 @@ const styles = StyleSheet.create({
     color: Colors.dark.text,
     fontSize: 16,
     fontWeight: '600',
-  },
-  rowCheck: {
-    color: Colors.dark.text,
-    fontSize: 16,
-    fontWeight: '700',
   },
 });

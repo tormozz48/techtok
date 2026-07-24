@@ -7,13 +7,13 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Linking,
-  Pressable,
   ScrollView,
   Share,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Button, IconButton, TouchableRipple } from 'react-native-paper';
 import { getPostContent } from '@/api/client';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { useStrings } from '@/i18n/useStrings';
@@ -61,9 +61,9 @@ export default function PostScreen() {
     return (
       <View style={styles.center}>
         <Text style={styles.errorText}>{strings.reader.error}</Text>
-        <Pressable style={styles.ctaButton} onPress={openOriginal}>
-          <Text style={styles.ctaButtonText}>{strings.reader.readOriginal}</Text>
-        </Pressable>
+        <Button mode="contained" onPress={openOriginal}>
+          {strings.reader.readOriginal}
+        </Button>
       </View>
     );
   }
@@ -73,7 +73,7 @@ export default function PostScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Pressable
+      <TouchableRipple
         style={styles.header}
         onLongPress={
           isViewingTranslation
@@ -81,15 +81,21 @@ export default function PostScreen() {
             : undefined
         }
       >
-        {sourceName ? <Text style={styles.sourceName}>{sourceName}</Text> : null}
-        {canToggleLanguage ? (
-          <Pressable onPress={() => setViewLang((current) => (current === 'en' ? language : 'en'))}>
-            <Text style={styles.toggleText}>
+        {/* biome-ignore lint/complexity/noUselessFragments: TouchableRipple calls React.Children.only, so multiple children need a single wrapping element. */}
+        <>
+          {sourceName ? <Text style={styles.sourceName}>{sourceName}</Text> : null}
+          {canToggleLanguage ? (
+            <Button
+              mode="text"
+              compact
+              labelStyle={styles.toggleText}
+              onPress={() => setViewLang((current) => (current === 'en' ? language : 'en'))}
+            >
               {viewLang === 'en' ? strings.reader.showTranslated : strings.reader.showOriginal}
-            </Text>
-          </Pressable>
-        ) : null}
-      </Pressable>
+            </Button>
+          ) : null}
+        </>
+      </TouchableRipple>
 
       {data.blocks.map((block, index) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: blocks are a static list returned whole per request, never reordered/filtered client-side.
@@ -97,12 +103,10 @@ export default function PostScreen() {
       ))}
 
       <View style={styles.actions}>
-        <Pressable style={styles.ctaButton} onPress={openOriginal}>
-          <Text style={styles.ctaButtonText}>{strings.reader.readOriginal}</Text>
-        </Pressable>
-        <Pressable style={styles.shareButton} hitSlop={8} onPress={share}>
-          <Text style={styles.shareIcon}>↗</Text>
-        </Pressable>
+        <Button mode="contained" onPress={openOriginal}>
+          {strings.reader.readOriginal}
+        </Button>
+        <IconButton icon="share-variant" iconColor={Colors.dark.text} onPress={share} />
       </View>
     </ScrollView>
   );
@@ -229,26 +233,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.three,
     marginTop: Spacing.four,
-  },
-  ctaButton: {
-    backgroundColor: Colors.overlay.accent,
-    borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
-  },
-  ctaButtonText: {
-    color: Colors.overlay.surfaceBlack,
-    ...Typography.md,
-    fontWeight: '700',
-  },
-  shareButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  shareIcon: {
-    fontSize: 20,
-    color: Colors.dark.text,
   },
 });

@@ -1,6 +1,7 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import * as WebBrowser from 'expo-web-browser';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { List } from 'react-native-paper';
 import { fetchHistoryPage } from '@/api/client';
 import { Colors, Spacing } from '@/constants/theme';
 import { useStrings } from '@/i18n/useStrings';
@@ -51,15 +52,15 @@ export default function HistoryScreen() {
       }}
       onEndReachedThreshold={0.5}
       renderItem={({ item }) => (
-        <Pressable style={styles.row} onPress={() => WebBrowser.openBrowserAsync(item.url)}>
-          <Text style={styles.title} numberOfLines={2}>
-            {item.cardTitle}
-          </Text>
-          <View style={styles.meta}>
-            <Text style={styles.metaText}>{item.sourceName}</Text>
-            <Text style={styles.metaText}> · {timeAgo(item.readAt)}</Text>
-          </View>
-        </Pressable>
+        <List.Item
+          title={item.cardTitle}
+          titleStyle={styles.title}
+          titleNumberOfLines={2}
+          description={`${item.sourceName} · ${timeAgo(item.readAt)}`}
+          descriptionStyle={styles.metaText}
+          onPress={() => WebBrowser.openBrowserAsync(item.url)}
+          style={styles.row}
+        />
       )}
     />
   );
@@ -93,9 +94,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: Spacing.one,
-  },
-  meta: {
-    flexDirection: 'row',
   },
   metaText: {
     color: Colors.dark.textSecondary,

@@ -1,8 +1,9 @@
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import * as WebBrowser from 'expo-web-browser';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { IconButton, List } from 'react-native-paper';
 import { deleteBookmark, fetchBookmarksPage } from '@/api/client';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Colors, Spacing } from '@/constants/theme';
 import { useStrings } from '@/i18n/useStrings';
 import { timeAgo } from '@/utils/timeAgo';
 
@@ -71,25 +72,21 @@ export default function SavedScreen() {
       onEndReachedThreshold={0.5}
       renderItem={({ item }) => (
         <View style={styles.row}>
-          <Pressable
-            style={styles.rowContent}
+          <List.Item
+            title={item.cardTitle}
+            titleStyle={styles.title}
+            titleNumberOfLines={2}
+            description={`${item.sourceName} · ${timeAgo(item.bookmarkedAt)}`}
+            descriptionStyle={styles.metaText}
             onPress={() => WebBrowser.openBrowserAsync(item.url)}
-          >
-            <Text style={styles.title} numberOfLines={2}>
-              {item.cardTitle}
-            </Text>
-            <View style={styles.meta}>
-              <Text style={styles.metaText}>{item.sourceName}</Text>
-              <Text style={styles.metaText}> · {timeAgo(item.bookmarkedAt)}</Text>
-            </View>
-          </Pressable>
-          <Pressable
-            style={styles.removeButton}
-            hitSlop={8}
+            style={styles.rowContent}
+          />
+          <IconButton
+            icon="close"
+            size={16}
+            iconColor={Colors.dark.textSecondary}
             onPress={() => removeBookmark(item.postId)}
-          >
-            <Text style={styles.removeButtonText}>✕</Text>
-          </Pressable>
+          />
         </View>
       )}
     />
@@ -130,26 +127,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: Spacing.one,
   },
-  meta: {
-    flexDirection: 'row',
-  },
   metaText: {
     color: Colors.dark.textSecondary,
     fontSize: 13,
     fontWeight: '600',
-  },
-  removeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.dark.backgroundElement,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: Spacing.two,
-  },
-  removeButtonText: {
-    color: Colors.dark.textSecondary,
-    fontSize: 14,
-    fontWeight: '700',
   },
 });

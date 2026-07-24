@@ -6,6 +6,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { useColorScheme } from 'react-native';
+import { MD3DarkTheme, MD3LightTheme, PaperProvider } from 'react-native-paper';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { useLanguageStore } from '@/state/languageStore';
 import { startNetworkMonitoring } from '@/state/network';
@@ -63,23 +64,25 @@ export default function RootLayout() {
         dehydrateOptions: { shouldDehydrateQuery: (query) => query.queryKey[0] === 'feed' },
       }}
     >
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <StatusBar style="light" />
-        <Stack
-          screenOptions={{ headerShown: false }}
-          initialRouteName={showOnboarding ? 'onboarding' : 'index'}
-        >
-          <Stack.Screen name="index" />
-          <Stack.Screen name="onboarding" />
-          <Stack.Screen
-            name="settings"
-            options={{ presentation: 'modal', headerShown: true, title: 'Settings' }}
-          />
-          <Stack.Screen name="history" options={{ headerShown: true, title: 'History' }} />
-          <Stack.Screen name="saved" options={{ headerShown: true, title: 'Saved' }} />
-          <Stack.Screen name="post/[id]" options={{ headerShown: true, title: '' }} />
-        </Stack>
-      </ThemeProvider>
+      <PaperProvider theme={colorScheme === 'dark' ? MD3DarkTheme : MD3LightTheme}>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <StatusBar style="light" />
+          <Stack
+            screenOptions={{ headerShown: false }}
+            initialRouteName={showOnboarding ? 'onboarding' : 'index'}
+          >
+            <Stack.Screen name="index" />
+            <Stack.Screen name="onboarding" />
+            <Stack.Screen
+              name="settings"
+              options={{ presentation: 'modal', headerShown: true, title: 'Settings' }}
+            />
+            <Stack.Screen name="history" options={{ headerShown: true, title: 'History' }} />
+            <Stack.Screen name="saved" options={{ headerShown: true, title: 'Saved' }} />
+            <Stack.Screen name="post/[id]" options={{ headerShown: true, title: '' }} />
+          </Stack>
+        </ThemeProvider>
+      </PaperProvider>
     </PersistQueryClientProvider>
   );
 }

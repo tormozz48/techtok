@@ -26,6 +26,9 @@ importers:
 
   apps/mobile:
     dependencies:
+      '@expo/vector-icons':
+        specifier: ^15.1.1
+        version: 15.1.1(expo-font@57.0.1)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       '@react-native-async-storage/async-storage':
         specifier: 2.2.0
         version: 2.2.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))
@@ -101,6 +104,9 @@ importers:
       react-native-pager-view:
         specifier: 8.0.4
         version: 8.0.4(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+      react-native-paper:
+        specifier: ^5.15.3
+        version: 5.15.3(react-native-safe-area-context@5.7.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       react-native-reanimated:
         specifier: 4.5.0
         version: 4.5.0(react-native-worklets@0.10.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
@@ -887,6 +893,11 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@callstack/react-theme-provider@3.0.9':
+    resolution: {integrity: sha512-tTQ0uDSCL0ypeMa8T/E9wAZRGKWj8kXP7+6RYgPTfOPs9N07C9xM8P02GJ3feETap4Ux5S69D9nteq9mEj86NA==}
+    peerDependencies:
+      react: '>=16.3.0'
+
   '@egjs/hammerjs@2.0.17':
     resolution: {integrity: sha512-XQsZgjm2EcVUiZQf11UBJQfmZeEmOW8DpI1gsFeln6w0ae0ii4dMQEQ0kjl6DspdWX1aGY1/loyXnP0JS06e/A==}
     engines: {node: '>=0.8.0'}
@@ -1078,6 +1089,13 @@ packages:
         optional: true
       react-native-worklets:
         optional: true
+
+  '@expo/vector-icons@15.1.1':
+    resolution: {integrity: sha512-Iu2VkcoI5vygbtYngm7jb4ifxElNVXQYdDrYkT7UCEIiKLeWnQY0wf2ZhHZ+Wro6Sc5TaumpKUOqDRpLi5rkvw==}
+    peerDependencies:
+      expo-font: '>=14.0.4'
+      react: '*'
+      react-native: '*'
 
   '@expo/ws-tunnel@2.0.0':
     resolution: {integrity: sha512-j+JfTRdCk820J9dU0sA2SqshQIKFOMo7ED84w9MJFcebfbNQgsLztEY/SABDkGnjatrW4xGqnUhVRxSBVyCkXw==}
@@ -2189,6 +2207,9 @@ packages:
   color-string@1.9.1:
     resolution: {integrity: sha512-shrVawQFojnZv6xM40anx4CkoDP+fZsw/ZerEMsW/pyzsRbElpsL/DBVW7q3ExxwusdNXI3lXpuhEZkzs8p5Eg==}
 
+  color@3.2.1:
+    resolution: {integrity: sha512-aBl7dZI9ENN6fUGC7mWpMTPNHmWUSNan9tuWN6ahh5ZLNk9baLJOnSMlrQkHcrfFgz2/RigjUVAjdx36VcemKA==}
+
   color@4.2.3:
     resolution: {integrity: sha512-1rXeuUUiGGrykh+CeBdu5Ie7OJwinCgQY0bc7GCRxy5xVHy+moaqkpL/jqQq0MtQOeYcrqEz4abc5f0KtU7W4A==}
     engines: {node: '>=12.5.0'}
@@ -2315,6 +2336,10 @@ packages:
     peerDependenciesMeta:
       babel-plugin-macros:
         optional: true
+
+  deepmerge@3.3.0:
+    resolution: {integrity: sha512-GRQOafGHwMHpjPx9iCvTgpu9NojZ49q794EEL94JVEw6VaeA8XTUyBKvAkOOjBX9oJNiV6G3P+T+tihFjo2TqA==}
+    engines: {node: '>=0.10.0'}
 
   deepmerge@4.3.1:
     resolution: {integrity: sha512-3sUqbMEc77XqpdNO7FRyRog+eW3ph+GYCbj+rK+uYyRMuwsVy0rMiVtPn+QJlKFvWP/1PYpapqYn0Me2knFn+A==}
@@ -3888,6 +3913,13 @@ packages:
     peerDependencies:
       react: '*'
       react-native: '*'
+
+  react-native-paper@5.15.3:
+    resolution: {integrity: sha512-GEyNTmWElIZgnYw09AjjCNupRYzCmP79uAAyGSyCEUZz7KBz1wtJcC0wVUkozR1Rn3PK/td/9LlR6+F1hzmYvA==}
+    peerDependencies:
+      react: '*'
+      react-native: '*'
+      react-native-safe-area-context: '*'
 
   react-native-reanimated@4.5.0:
     resolution: {integrity: sha512-+iPfvK34PKKYP/p/4TaBliFkbfvjGDIvXuiiaxvISP5ip7sWegvlacwU/uAV6zNDSSmX0tDyER7PurPMKGDipA==}
@@ -5650,6 +5682,12 @@ snapshots:
   '@biomejs/cli-win32-x64@2.5.4':
     optional: true
 
+  '@callstack/react-theme-provider@3.0.9(react@19.2.3)':
+    dependencies:
+      deepmerge: 3.3.0
+      hoist-non-react-statics: 3.3.2
+      react: 19.2.3
+
   '@egjs/hammerjs@2.0.17':
     dependencies:
       '@types/hammerjs': 2.0.46
@@ -6036,6 +6074,12 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react'
       - '@types/react-dom'
+
+  '@expo/vector-icons@15.1.1(expo-font@57.0.1)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)':
+    dependencies:
+      expo-font: 57.0.1(expo@57.0.7)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+      react: 19.2.3
+      react-native: 0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3)
 
   '@expo/ws-tunnel@2.0.0(ws@8.21.1)':
     dependencies:
@@ -6593,7 +6637,9 @@ snapshots:
       metro-runtime: 0.84.4
     transitivePeerDependencies:
       - '@babel/core'
+      - bufferutil
       - supports-color
+      - utf-8-validate
 
   '@react-native/normalize-colors@0.86.0': {}
 
@@ -7334,6 +7380,11 @@ snapshots:
       color-name: 1.1.4
       simple-swizzle: 0.2.4
 
+  color@3.2.1:
+    dependencies:
+      color-convert: 1.9.3
+      color-string: 1.9.1
+
   color@4.2.3:
     dependencies:
       color-convert: 2.0.1
@@ -7460,6 +7511,8 @@ snapshots:
   decode-uri-component@0.2.2: {}
 
   dedent@1.7.2: {}
+
+  deepmerge@3.3.0: {}
 
   deepmerge@4.3.1: {}
 
@@ -9296,6 +9349,15 @@ snapshots:
     dependencies:
       react: 19.2.3
       react-native: 0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3)
+
+  react-native-paper@5.15.3(react-native-safe-area-context@5.7.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3):
+    dependencies:
+      '@callstack/react-theme-provider': 3.0.9(react@19.2.3)
+      color: 3.2.1
+      react: 19.2.3
+      react-native: 0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3)
+      react-native-safe-area-context: 5.7.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+      use-latest-callback: 0.2.6(react@19.2.3)
 
   react-native-reanimated@4.5.0(react-native-worklets@0.10.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3):
     dependencies:

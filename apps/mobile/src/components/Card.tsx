@@ -3,8 +3,9 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Linking, StyleSheet, Text, View } from 'react-native';
+import { Chip, TouchableRipple } from 'react-native-paper';
+import { Colors, Spacing, Typography } from '@/constants/theme';
 import { useStrings } from '@/i18n/useStrings';
 import { enqueueRead } from '@/state/readQueue';
 import { translationFeedbackMailto } from '@/utils/feedback';
@@ -46,7 +47,7 @@ export function Card({ card }: CardProps) {
         style={StyleSheet.absoluteFill}
       />
 
-      <Pressable
+      <TouchableRipple
         style={styles.content}
         onPress={() => {
           if (longPressedRef.current) {
@@ -68,33 +69,41 @@ export function Card({ card }: CardProps) {
             : undefined
         }
       >
-        {__DEV__ && card.transform ? (
-          <View style={styles.debugBadge}>
-            <Text style={styles.debugBadgeText}>{card.transform}</Text>
-          </View>
-        ) : null}
-        <View style={styles.topicChip}>
-          <Text style={styles.topicChipText}>{card.primaryTopic}</Text>
-        </View>
-        {card.isTranslated ? (
-          <View style={styles.translatedBadge}>
-            <Text style={styles.translatedBadgeText}>{strings.card.translatedBadge}</Text>
-          </View>
-        ) : null}
-        <Text style={styles.title}>{card.title}</Text>
-        <Text style={styles.summary} numberOfLines={4}>
-          {card.summary}
-        </Text>
-        {card.whyItMatters ? (
-          <Text style={styles.whyItMatters} numberOfLines={2}>
-            {card.whyItMatters}
+        {/* biome-ignore lint/complexity/noUselessFragments: TouchableRipple calls React.Children.only, so multiple children need a single wrapping element. */}
+        <>
+          {__DEV__ && card.transform ? (
+            <Chip compact style={styles.debugBadge} textStyle={styles.debugBadgeText}>
+              {card.transform}
+            </Chip>
+          ) : null}
+          <Chip compact style={styles.topicChip} textStyle={styles.topicChipText}>
+            {card.primaryTopic}
+          </Chip>
+          {card.isTranslated ? (
+            <Chip
+              compact
+              mode="outlined"
+              style={styles.translatedBadge}
+              textStyle={styles.translatedBadgeText}
+            >
+              {strings.card.translatedBadge}
+            </Chip>
+          ) : null}
+          <Text style={styles.title}>{card.title}</Text>
+          <Text style={styles.summary} numberOfLines={4}>
+            {card.summary}
           </Text>
-        ) : null}
-        <View style={styles.meta}>
-          <Text style={styles.metaText}>{card.sourceName}</Text>
-          <Text style={styles.metaText}> · {timeAgo(card.publishedAt)}</Text>
-        </View>
-      </Pressable>
+          {card.whyItMatters ? (
+            <Text style={styles.whyItMatters} numberOfLines={2}>
+              {card.whyItMatters}
+            </Text>
+          ) : null}
+          <View style={styles.meta}>
+            <Text style={styles.metaText}>{card.sourceName}</Text>
+            <Text style={styles.metaText}> · {timeAgo(card.publishedAt)}</Text>
+          </View>
+        </>
+      </TouchableRipple>
     </View>
   );
 }
@@ -119,9 +128,6 @@ const styles = StyleSheet.create({
   topicChip: {
     alignSelf: 'flex-start',
     backgroundColor: Colors.overlay.chipBackground,
-    borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one,
     marginBottom: Spacing.three,
   },
   topicChipText: {
@@ -134,10 +140,7 @@ const styles = StyleSheet.create({
   translatedBadge: {
     alignSelf: 'flex-start',
     borderColor: Colors.overlay.accent,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one,
+    backgroundColor: 'transparent',
     marginBottom: Spacing.three,
   },
   translatedBadgeText: {
@@ -173,9 +176,6 @@ const styles = StyleSheet.create({
   debugBadge: {
     alignSelf: 'flex-start',
     backgroundColor: Colors.overlay.debugBackground,
-    borderRadius: Radius.sm,
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 2,
     marginBottom: Spacing.two,
   },
   debugBadgeText: {

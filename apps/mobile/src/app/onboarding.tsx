@@ -8,7 +8,8 @@ import {
 } from '@techtok/shared';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Button, List } from 'react-native-paper';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
@@ -48,14 +49,18 @@ export default function OnboardingScreen() {
         {LANGUAGES.map((lang) => {
           const selected = language === lang;
           return (
-            <Pressable
+            <List.Item
               key={lang}
-              style={[styles.row, selected && styles.rowSelected]}
+              title={LANGUAGE_LABELS[lang]}
               onPress={() => chooseLanguage(lang)}
-            >
-              <Text style={styles.rowText}>{LANGUAGE_LABELS[lang]}</Text>
-              {selected ? <Text style={styles.rowCheck}>✓</Text> : null}
-            </Pressable>
+              style={[styles.row, selected && styles.rowSelected]}
+              titleStyle={styles.rowText}
+              right={
+                selected
+                  ? (props) => <List.Icon {...props} icon="check" color={Colors.dark.text} />
+                  : undefined
+              }
+            />
           );
         })}
 
@@ -67,21 +72,25 @@ export default function OnboardingScreen() {
         {TOPICS.map((topic) => {
           const selected = topics.includes(topic);
           return (
-            <Pressable
+            <List.Item
               key={topic}
-              style={[styles.row, selected && styles.rowSelected]}
+              title={getTopicLabel(topic, language)}
               onPress={() => toggleTopic(topic)}
               disabled={isLoading}
-            >
-              <Text style={styles.rowText}>{getTopicLabel(topic, language)}</Text>
-              {selected ? <Text style={styles.rowCheck}>✓</Text> : null}
-            </Pressable>
+              style={[styles.row, selected && styles.rowSelected]}
+              titleStyle={styles.rowText}
+              right={
+                selected
+                  ? (props) => <List.Icon {...props} icon="check" color={Colors.dark.text} />
+                  : undefined
+              }
+            />
           );
         })}
       </ScrollView>
-      <Pressable style={styles.cta} onPress={getStarted}>
-        <Text style={styles.ctaText}>{strings.onboarding.cta}</Text>
-      </Pressable>
+      <Button mode="contained" onPress={getStarted} style={styles.cta}>
+        {strings.onboarding.cta}
+      </Button>
     </View>
   );
 }
@@ -115,13 +124,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.three,
   },
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: Colors.dark.backgroundElement,
     borderRadius: Radius.md,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
     marginBottom: Spacing.two,
   },
   rowSelected: {
@@ -132,22 +136,8 @@ const styles = StyleSheet.create({
     ...Typography.md,
     fontWeight: '600',
   },
-  rowCheck: {
-    color: Colors.dark.text,
-    ...Typography.md,
-    fontWeight: '700',
-  },
   cta: {
     margin: Spacing.four,
     marginTop: 0,
-    backgroundColor: Colors.dark.text,
-    borderRadius: Radius.md,
-    paddingVertical: Spacing.three,
-    alignItems: 'center',
-  },
-  ctaText: {
-    color: Colors.dark.background,
-    ...Typography.md,
-    fontWeight: '700',
   },
 });

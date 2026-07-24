@@ -1,6 +1,7 @@
 import type { Card as CardData } from '@techtok/shared';
 import { Link } from 'expo-router';
-import { Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Platform, Share, StyleSheet, View } from 'react-native';
+import { IconButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Spacing } from '@/constants/theme';
 import { BookmarkButton } from './BookmarkButton';
@@ -35,9 +36,10 @@ export function BottomActionBar({ activeCard }: BottomActionBarProps) {
         {activeCard ? (
           <>
             <BookmarkButton postId={activeCard.id} isBookmarked={activeCard.isBookmarked} />
-            <Pressable
-              style={styles.button}
-              hitSlop={8}
+            <IconButton
+              icon="share-variant"
+              iconColor={Colors.overlay.text}
+              size={20}
               onPress={() =>
                 Share.share({
                   title: activeCard.title,
@@ -48,21 +50,19 @@ export function BottomActionBar({ activeCard }: BottomActionBarProps) {
                       : activeCard.title,
                 })
               }
-            >
-              <Text style={styles.icon}>↗</Text>
-            </Pressable>
+            />
           </>
         ) : null}
       </View>
       <View style={styles.side}>
-        <Link href="/saved" style={styles.button}>
-          <Text style={styles.icon}>🔖</Text>
+        <Link href="/saved" asChild>
+          <IconButton icon="bookmark-multiple-outline" iconColor={Colors.overlay.text} size={20} />
         </Link>
-        <Link href="/history" style={styles.button}>
-          <Text style={styles.icon}>🕓</Text>
+        <Link href="/history" asChild>
+          <IconButton icon="history" iconColor={Colors.overlay.text} size={20} />
         </Link>
-        <Link href="/settings" style={styles.button}>
-          <Text style={styles.icon}>⚙</Text>
+        <Link href="/settings" asChild>
+          <IconButton icon="cog-outline" iconColor={Colors.overlay.text} size={20} />
         </Link>
       </View>
     </View>
@@ -82,16 +82,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
-  },
-  button: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    textAlign: 'center',
-  },
-  icon: {
-    fontSize: 20,
-    color: Colors.overlay.text,
   },
 });

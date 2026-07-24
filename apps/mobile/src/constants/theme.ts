@@ -58,9 +58,7 @@ export const Spacing = {
 } as const;
 
 export const Radius = {
-  sm: 4,
   md: 12,
-  pill: 999,
 } as const;
 
 export const Typography = {

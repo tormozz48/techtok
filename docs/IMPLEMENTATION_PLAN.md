@@ -299,11 +299,11 @@ Phase 7 shipped and was verified live before this was identified: some mirrored 
 
 **Acceptance criteria**
 
-- [ ] Every button in the app is a Paper `Button`/`IconButton`; no ad hoc `Pressable`+`Text` button remains.
-- [ ] Full component sweep complete: cards, inputs, badges/chips, and modals all use Paper components.
-- [ ] App boots and renders correctly in plain Expo Go on a physical device — no native-module crash.
-- [ ] `pnpm lint && pnpm typecheck && pnpm test` green.
-- [ ] No visual regressions on feed, reader, settings, onboarding, saved, and history screens (manual pass on device).
+- [x] Every button in the app is a Paper `Button`/`IconButton`; no ad hoc `Pressable`+`Text` button remains.
+- [x] Full component sweep complete: cards, inputs, badges/chips, and modals all use Paper components (no modal/dialog UI exists anywhere in `apps/mobile/src` — confirmed via grep — so there was nothing to migrate for that part of the sweep).
+- [ ] App boots and renders correctly in plain Expo Go on a physical device — no native-module crash. **Not verified**: no Android SDK/Xcode in this environment (maintainer's own step, same as every prior phase). `expo export` for both `android`/`ios` bundled cleanly as a proxy check.
+- [x] `pnpm lint && pnpm typecheck && pnpm test` green.
+- [ ] No visual regressions on feed, reader, settings, onboarding, saved, and history screens (manual pass on device). **Not verified** — same on-device gap as above.
 
 ---
 

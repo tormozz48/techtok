@@ -402,12 +402,12 @@ Code (tasks 1–5) is complete and verified via the unit test suite and a full `
 
 **Acceptance criteria**
 
-- [ ] A freshly ingested post has all 4 compact-article language variants cached in S3 (`compactLangs` populated with all 4) within the pipeline's normal processing lag, with zero reader taps in between — verified the same way D27 verified eager translation (inspect `Posts` right after a pipeline run, no feed/reader interaction beforehand).
-- [ ] Figure extraction/mirroring runs exactly once per post (confirmed via CloudWatch logs or a mirror-call counter), not once per language — proves the dedup actually works, not just that 4 compacts exist.
-- [ ] Zero references to `ContentJobs`, `ContentJobsRepo`, `jobId`, or staged-progress stages (`fetching`/`extracting`/`translating` as job stages) remain anywhere in `packages/`/`infra/`/`apps/mobile` (grep-confirmed).
-- [ ] `GET /v1/posts/:id/content?lang=` returns real cached content on the common path and a typed `available: false` on a deliberately-forced miss (e.g. a source with `compactEnabled: false`), with no synchronous LLM call ever happening on this request path.
-- [ ] The reader renders a compact article immediately (no progress bar) on a cache hit, and falls back gracefully on a miss.
-- [ ] `pnpm lint && pnpm typecheck && pnpm test` green; deployed to `dev` and exercised end-to-end (a real ingest run producing eagerly-cached compacts in all 4 languages, confirmed via the CDN/S3 directly, not just the API).
+- [x] A freshly ingested post has all 4 compact-article language variants cached in S3 (`compactLangs` populated with all 4) within the pipeline's normal processing lag, with zero reader taps in between — verified the same way D27 verified eager translation (inspect `Posts` right after a pipeline run, no feed/reader interaction beforehand).
+- [x] Figure extraction/mirroring runs exactly once per post (confirmed via CloudWatch logs or a mirror-call counter), not once per language — proves the dedup actually works, not just that 4 compacts exist.
+- [x] Zero references to `ContentJobs`, `ContentJobsRepo`, `jobId`, or staged-progress stages (`fetching`/`extracting`/`translating` as job stages) remain anywhere in `packages/`/`infra/`/`apps/mobile` (grep-confirmed).
+- [x] `GET /v1/posts/:id/content?lang=` returns real cached content on the common path and a typed `available: false` on a deliberately-forced miss (e.g. a source with `compactEnabled: false`), with no synchronous LLM call ever happening on this request path.
+- [x] The reader renders a compact article immediately (no progress bar) on a cache hit, and falls back gracefully on a miss.
+- [x] `pnpm lint && pnpm typecheck && pnpm test` green; deployed to `dev` and exercised end-to-end (a real ingest run producing eagerly-cached compacts in all 4 languages, confirmed via the CDN/S3 directly, not just the API).
 
 ---
 

@@ -17,6 +17,11 @@ export interface ContentInput {
   /** The post's lead image (mirrored or original hotlink), used only to
    * dedup in-body figures against it — never itself a figure candidate. */
   readonly leadImageUrl?: string;
+  /** This post's already-mirrored figure list (`Posts.mirroredFigures`), if
+   * an earlier language job for the same post already did the work (D36).
+   * Present → skip extraction/mirroring entirely and reuse this list;
+   * absent → this is the first language job for the post. */
+  readonly mirroredFigures?: CompactFigure[];
 }
 
 export interface ContentDeps {
@@ -30,8 +35,15 @@ export interface ContentDeps {
   readonly loadArticleHtml: () => Promise<string>;
   /** Mirrors candidate figures to our own CDN. A content-level concern, not
    * infra: never throws — any per-figure fetch/upload failure is dropped
-   * from the returned list rather than failing the whole request. */
+   * from the returned list rather than failing the whole request. Only
+   * invoked when `ContentInput.mirroredFigures` was absent (D36: figure
+   * work happens once per post, not once per language). */
   readonly mirrorFigures: (figures: ExtractedFigure[]) => Promise<CompactFigure[]>;
+  /** Persists this post's figure list the first time it's mirrored (D36), so
+   * every other per-language job for the same post reuses it instead of
+   * re-extracting/re-mirroring. An infra call, deliberately unguarded for the
+   * same reason as `writeContent`. Only called when `mirrorFigures` ran. */
+  readonly saveMirroredFigures: (figures: CompactFigure[]) => Promise<void>;
   /** Derives the compact block list via the LLM (D23). Never expected to
    * throw — an LLM refusal, invalid output, or a Bedrock hiccup is a
    * content-level failure reported via `{ ok: false }`. */
@@ -55,11 +67,13 @@ export type ContentOutcome =
 /**
  * Generates a compact in-app reader article for a post (D23): the kill
  * switch guardrail first, then archive-first article loading, figure
- * extraction + mirroring, and a single-pass compress+translate LLM call. Any
- * content-level failure (kill switch, article unavailable, extraction
- * yielding nothing, LLM refusal/invalid output) reports `{ ok: false }` — the
- * caller (the content API handler) degrades to the in-app browser link-out,
- * never a dead end. Only `writeContent`'s own infra failure is left to throw.
+ * extraction + mirroring (skipped when this post's figures were already
+ * mirrored by an earlier language job, D36), and a single-pass
+ * compress+translate LLM call. Any content-level failure (kill switch,
+ * article unavailable, extraction yielding nothing, LLM refusal/invalid
+ * output) reports `{ ok: false }` — the caller degrades to the in-app
+ * browser link-out, never a dead end. Only `writeContent`'s own infra
+ * failure is left to throw.
  */
 export async function generateContentArticle(
   input: ContentInput,
@@ -89,8 +103,14 @@ export async function generateContentArticle(
     return { ok: false, reason: 'extraction produced no usable text' };
   }
 
-  const candidateFigures = extractFigures(articleHtml, input.leadImageUrl);
-  const figures = await deps.mirrorFigures(candidateFigures);
+  let figures: CompactFigure[];
+  if (input.mirroredFigures) {
+    figures = input.mirroredFigures;
+  } else {
+    const candidateFigures = extractFigures(articleHtml, input.leadImageUrl);
+    figures = await deps.mirrorFigures(candidateFigures);
+    await deps.saveMirroredFigures(figures);
+  }
 
   const result = await deps.generateCompact({
     lang: input.lang,

@@ -1,6 +1,5 @@
 import {
   contentBucket,
-  contentJobsTable,
   imagesBucket,
   imagesRouter,
   postsTable,
@@ -56,6 +55,17 @@ export const translateQueue = new sst.aws.Queue('TranslateQueue', {
   dlq: { queue: translateDlq.arn, retry: 3 },
 });
 
+// Eager compact-article generation (D36): every post gets a job enqueued
+// here for all 4 languages right after its own transform completes, same
+// producer relationship as `translateQueue` above — the content Lambda
+// (subscribed further below) is this queue's only consumer.
+export const contentDlq = new sst.aws.Queue('ContentDLQ');
+
+export const contentQueue = new sst.aws.Queue('ContentQueue', {
+  visibilityTimeout: '60 seconds',
+  dlq: { queue: contentDlq.arn, retry: 3 },
+});
+
 transformQueue.subscribe(
   {
     handler: 'packages/functions/src/pipeline/transform.handler',
@@ -65,6 +75,7 @@ transformQueue.subscribe(
       imagesBucket,
       sourcesTable,
       translateQueue,
+      contentQueue,
       openRouterApiKey,
     ],
     environment: {
@@ -78,6 +89,7 @@ transformQueue.subscribe(
       OPENROUTER_MODEL_ID,
       OPENROUTER_API_KEY: openRouterApiKey.value,
       TRANSLATE_QUEUE_URL: translateQueue.url,
+      CONTENT_QUEUE_URL: contentQueue.url,
     },
     permissions: [
       {
@@ -142,27 +154,19 @@ translateQueue.subscribe(
   },
 );
 
-// Job-based compact-article generation (D23/D27): `POST /v1/posts/:id/content`
-// (packages/functions/src/api/content.ts) enqueues here instead of doing the
-// ~11s generation inline; this consumer does the real work and reports
-// staged progress through `ContentJobs`, polled via `GET .../content/status`.
-export const contentJobDlq = new sst.aws.Queue('ContentJobDLQ');
-
-export const contentJobQueue = new sst.aws.Queue('ContentJobQueue', {
-  visibilityTimeout: '60 seconds',
-  dlq: { queue: contentJobDlq.arn, retry: 3 },
-});
-
-contentJobQueue.subscribe(
+// Eager compact-article generation consumer (D36): `contentQueue` (declared
+// above, alongside `translateQueue`, so the transform Lambda can enqueue to
+// it) is consumed here — one message per language, for every post,
+// independent of any reader tap.
+contentQueue.subscribe(
   {
-    handler: 'packages/functions/src/pipeline/contentJob.handler',
+    handler: 'packages/functions/src/pipeline/content.handler',
     link: [
       postsTable,
       sourcesTable,
       rawArticlesBucket,
       imagesBucket,
       contentBucket,
-      contentJobsTable,
       openRouterApiKey,
     ],
     environment: {
@@ -172,7 +176,6 @@ contentJobQueue.subscribe(
       IMAGES_BUCKET_NAME: imagesBucket.name,
       IMAGES_CDN_BASE_URL: imagesRouter.url,
       CONTENT_BUCKET_NAME: contentBucket.name,
-      CONTENT_JOBS_TABLE_NAME: contentJobsTable.name,
       BEDROCK_MODEL_ID,
       LLM_PROVIDER,
       OPENROUTER_MODEL_ID,
@@ -189,7 +192,8 @@ contentJobQueue.subscribe(
     ],
     runtime: 'nodejs22.x',
     // Same ~11s typical generation window as the old synchronous endpoint
-    // (D23) — this consumer does the identical work, just off the request path.
+    // (D23) — this consumer does the identical work, just eagerly at ingest
+    // time (D36) instead of behind either a reader tap or a job-poll.
     timeout: '30 seconds',
   },
   { batch: { size: 5, partialResponses: true } },

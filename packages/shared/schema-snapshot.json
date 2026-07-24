@@ -374,16 +374,6 @@
     ],
     "additionalProperties": false
   },
-  "contentJobStageSchema": {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "type": "string",
-    "enum": [
-      "fetching",
-      "extracting",
-      "translating",
-      "done"
-    ]
-  },
   "contentQuerySchema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -404,63 +394,16 @@
     ],
     "additionalProperties": false
   },
-  "contentStartResponseSchema": {
+  "contentResponseSchema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "type": "object",
-    "properties": {
-      "jobId": {
-        "type": "string"
-      },
-      "status": {
-        "type": "string",
-        "const": "pending"
-      }
-    },
-    "required": [
-      "jobId",
-      "status"
-    ],
-    "additionalProperties": false
-  },
-  "contentStatusQuerySchema": {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "type": "object",
-    "properties": {
-      "jobId": {
-        "type": "string"
-      }
-    },
-    "required": [
-      "jobId"
-    ],
-    "additionalProperties": false
-  },
-  "contentStatusResponseSchema": {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "type": "object",
-    "properties": {
-      "stage": {
-        "type": "string",
-        "enum": [
-          "fetching",
-          "extracting",
-          "translating",
-          "done"
-        ]
-      },
-      "available": {
-        "anyOf": [
-          {
-            "type": "boolean"
-          },
-          {
-            "type": "null"
-          }
-        ]
-      },
-      "content": {
+    "oneOf": [
+      {
         "type": "object",
         "properties": {
+          "available": {
+            "type": "boolean",
+            "const": true
+          },
           "lang": {
             "type": "string",
             "enum": [
@@ -596,21 +539,31 @@
           }
         },
         "required": [
+          "available",
           "lang",
           "blocks",
           "figures"
         ],
         "additionalProperties": false
       },
-      "reason": {
-        "type": "string"
+      {
+        "type": "object",
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "const": false
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "available",
+          "reason"
+        ],
+        "additionalProperties": false
       }
-    },
-    "required": [
-      "stage",
-      "available"
-    ],
-    "additionalProperties": false
+    ]
   },
   "errorResponseSchema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",

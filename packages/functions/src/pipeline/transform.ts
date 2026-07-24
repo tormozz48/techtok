@@ -15,7 +15,7 @@ import { LANGUAGES } from '@techtok/shared';
 import type { SQSBatchResponse, SQSEvent, SQSHandler } from 'aws-lambda';
 import { requireEnv } from '../env';
 import { lazy } from '../lazy';
-import { getPostsRepo, getTranslateQueue } from '../repos';
+import { getContentQueue, getPostsRepo, getSourcesRepo, getTranslateQueue } from '../repos';
 
 const logger = new Logger({ serviceName: 'transform' });
 
@@ -162,6 +162,16 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
             getTranslateQueue().enqueuePending(
               NON_ENGLISH_LANGUAGES.map((lang) => ({ postId: id, lang })),
             ),
+          enqueueContentJobs: async (id) => {
+            // New checkpoint (D36): the compact-reader kill switch is
+            // checked here too, before the eager enqueue, so a disabled
+            // source's posts never get queued in the first place — the
+            // content consumer still checks it again per language (D23),
+            // in case the flag flips after this post was already enqueued.
+            const source = await getSourcesRepo().getById(post.sourceId);
+            if (source?.compactEnabled === false) return;
+            await getContentQueue().enqueuePending(LANGUAGES.map((lang) => ({ postId: id, lang })));
+          },
         },
       );
       logger.info(outcome.degraded ? 'transform degraded to excerpt' : 'transform completed', {

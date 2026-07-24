@@ -1,4 +1,4 @@
-import type { Language, Topic } from '@techtok/shared';
+import type { CompactFigure, Language, Topic } from '@techtok/shared';
 
 export type PostStatus = 'discovered' | 'ready' | 'failed';
 export type TransformKind = 'llm' | 'excerpt';
@@ -52,4 +52,12 @@ export interface PostRecord extends NewPost {
    * existed simply lack it (no backfill, same precedent as `i18n`) — read
    * sites default with `post.compactLangs ?? []`. */
   readonly compactLangs?: Language[];
+  /** This post's mirrored in-body figures (D23), extracted + mirrored once
+   * per post rather than once per language (D36) — absent means no
+   * language's content job has processed this post yet; every subsequent
+   * per-language job reuses this list instead of re-extracting/re-mirroring.
+   * Deliberately not seeded by `PostsRepo.putIfNew` (unlike `i18n`/
+   * `compactLangs`) since absence itself is the "not yet mirrored" signal —
+   * an empty array means mirroring ran and found nothing. */
+  readonly mirroredFigures?: CompactFigure[];
 }

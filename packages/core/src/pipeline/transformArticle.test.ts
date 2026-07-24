@@ -42,6 +42,7 @@ function fakeDeps() {
     updatePost: vi.fn(async (_postId: string, _fields: TransformFields) => {}),
     mirrorImage: vi.fn(async (): Promise<MirrorImageResult> => ({ status: 'failed' })),
     enqueueTranslations: vi.fn(async (_postId: string) => {}),
+    enqueueContentJobs: vi.fn(async (_postId: string) => {}),
   };
 }
 
@@ -78,6 +79,7 @@ describe('transformArticle', () => {
     expect(fields?.topics).toEqual(['dev']);
     expect(fields?.lang).toBe('en');
     expect(deps.enqueueTranslations).toHaveBeenCalledWith('post1');
+    expect(deps.enqueueContentJobs).toHaveBeenCalledWith('post1');
   });
 
   it('degrades to the excerpt card when the LLM call fails, without throwing', async () => {
@@ -93,6 +95,7 @@ describe('transformArticle', () => {
     expect(fields?.summary).toBe(fields?.excerpt);
     expect(fields?.cardTitle).toBeUndefined();
     expect(deps.enqueueTranslations).toHaveBeenCalledWith('post1');
+    expect(deps.enqueueContentJobs).toHaveBeenCalledWith('post1');
   });
 
   it('degrades without fetching the page when robots.txt disallows the url', async () => {
@@ -158,6 +161,13 @@ describe('transformArticle', () => {
   it('propagates enqueueTranslations failures instead of swallowing them', async () => {
     const deps = fakeDeps();
     deps.enqueueTranslations.mockRejectedValueOnce(new Error('sqs down'));
+
+    await expect(transformArticle(input, deps)).rejects.toThrow('sqs down');
+  });
+
+  it('propagates enqueueContentJobs failures instead of swallowing them', async () => {
+    const deps = fakeDeps();
+    deps.enqueueContentJobs.mockRejectedValueOnce(new Error('sqs down'));
 
     await expect(transformArticle(input, deps)).rejects.toThrow('sqs down');
   });

@@ -354,17 +354,54 @@ describe('postsRepo.writeTranslation', () => {
   });
 });
 
-describe('postsRepo.setCompactLangs', () => {
-  it('overwrites the full compactLangs list under an aliased attribute name', async () => {
+describe('postsRepo.appendCompactLang', () => {
+  it('atomically appends the language under an aliased attribute name', async () => {
     ddbMock.on(UpdateCommand).resolves({});
     const repo = new PostsRepo(client, 'Posts');
 
-    await repo.setCompactLangs('abc123', ['en', 'ru']);
+    await repo.appendCompactLang('abc123', 'ru');
 
     const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
     expect(input?.Key).toEqual({ postId: 'abc123' });
-    expect(input?.UpdateExpression).toBe('SET #compactLangs = :langs');
+    expect(input?.UpdateExpression).toBe(
+      'SET #compactLangs = list_append(if_not_exists(#compactLangs, :empty), :lang)',
+    );
+    expect(input?.ConditionExpression).toBe(
+      'attribute_not_exists(#compactLangs) OR NOT contains(#compactLangs, :langValue)',
+    );
     expect(input?.ExpressionAttributeNames).toEqual({ '#compactLangs': 'compactLangs' });
-    expect(input?.ExpressionAttributeValues).toEqual({ ':langs': ['en', 'ru'] });
+    expect(input?.ExpressionAttributeValues).toEqual({
+      ':empty': [],
+      ':lang': ['ru'],
+      ':langValue': 'ru',
+    });
+  });
+
+  it('is a harmless no-op when the language is already present', async () => {
+    ddbMock.on(UpdateCommand).rejects(
+      new ConditionalCheckFailedException({
+        message: 'The conditional request failed',
+        $metadata: {},
+      }),
+    );
+    const repo = new PostsRepo(client, 'Posts');
+
+    await expect(repo.appendCompactLang('abc123', 'en')).resolves.toBeUndefined();
+  });
+});
+
+describe('postsRepo.setMirroredFigures', () => {
+  it('overwrites the full mirroredFigures list under an aliased attribute name', async () => {
+    ddbMock.on(UpdateCommand).resolves({});
+    const repo = new PostsRepo(client, 'Posts');
+    const figures = [{ url: 'https://cdn.example.com/fig.jpg' }];
+
+    await repo.setMirroredFigures('abc123', figures);
+
+    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
+    expect(input?.Key).toEqual({ postId: 'abc123' });
+    expect(input?.UpdateExpression).toBe('SET #mirroredFigures = :figures');
+    expect(input?.ExpressionAttributeNames).toEqual({ '#mirroredFigures': 'mirroredFigures' });
+    expect(input?.ExpressionAttributeValues).toEqual({ ':figures': figures });
   });
 });

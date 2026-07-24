@@ -69,14 +69,3 @@ export const contentBucket = new sst.aws.Bucket('Content', {
   lifecycle: [{ id: 'expire-content', expiresIn: '90 days' }],
 });
 imagesRouter.routeBucket('/content', contentBucket);
-
-// Job-based content generation (D27): ephemeral polling state for the
-// content endpoint's start-then-poll transport — a 1-hour TTL (enforced in
-// the repo, see contentJobsRepo.ts) keeps this table from growing forever.
-export const contentJobsTable = new sst.aws.Dynamo('ContentJobs', {
-  fields: {
-    jobId: 'string',
-  },
-  primaryIndex: { hashKey: 'jobId' },
-  ttl: 'ttl',
-});

@@ -1,12 +1,5 @@
-import { contentJobQueue, translateQueue } from './pipeline';
-import {
-  contentBucket,
-  contentJobsTable,
-  postsTable,
-  sourcesTable,
-  userActivityTable,
-  usersTable,
-} from './storage';
+import { translateQueue } from './pipeline';
+import { contentBucket, postsTable, sourcesTable, userActivityTable, usersTable } from './storage';
 
 export const api = new sst.aws.ApiGatewayV2('Api', {
   cors: {
@@ -111,28 +104,16 @@ api.route('GET /v1/bookmarks', {
   runtime: 'nodejs22.x',
 });
 
-// Compact-article reader (D23, job-polling transport as of D27): starts
-// generation (cache hit completes the job inline, a miss enqueues to
-// `ContentJobQueue` — see infra/pipeline.ts) and returns a `jobId`
-// immediately. The actual ~11s generation runs in the queue's consumer, off
-// this request path entirely.
-api.route('POST /v1/posts/{postId}/content', {
+// Compact-article reader (D23; eager generation as of D36): a plain S3 cache
+// read — generation already happened during ingest (infra/pipeline.ts's
+// `contentQueue`), so this route never calls the LLM on the request path.
+api.route('GET /v1/posts/{postId}/content', {
   handler: 'packages/functions/src/api/content.handler',
-  link: [postsTable, contentBucket, contentJobsTable, contentJobQueue],
+  link: [postsTable, sourcesTable, contentBucket],
   environment: {
     POSTS_TABLE_NAME: postsTable.name,
+    SOURCES_TABLE_NAME: sourcesTable.name,
     CONTENT_BUCKET_NAME: contentBucket.name,
-    CONTENT_JOBS_TABLE_NAME: contentJobsTable.name,
-    CONTENT_JOB_QUEUE_URL: contentJobQueue.url,
-  },
-  runtime: 'nodejs22.x',
-});
-
-api.route('GET /v1/posts/{postId}/content/status', {
-  handler: 'packages/functions/src/api/contentStatus.handler',
-  link: [contentJobsTable],
-  environment: {
-    CONTENT_JOBS_TABLE_NAME: contentJobsTable.name,
   },
   runtime: 'nodejs22.x',
 });

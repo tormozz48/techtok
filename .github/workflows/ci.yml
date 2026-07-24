@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  quality:
+  setup:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,23 +22,83 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      # No AWS credentials are configured in this job — sst.config.ts/infra
-      # typecheck against generated .sst/platform types, which only exist
-      # after a local `sst dev`/`deploy`, so that step skips cleanly here.
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Every workspace's node_modules (root + each package/app) is archived as
+      # one artifact so lint/typecheck/test/schema-check can restore the exact
+      # same install instead of each re-running `pnpm install`. Symlinks pnpm
+      # creates inside each package's node_modules are relative, so they stay
+      # valid once re-extracted at the same repo path in a downstream job.
+      - name: Archive node_modules
+        run: tar -czf node_modules.tar.gz $(find . -maxdepth 3 -type d -name node_modules)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: node-modules
+          path: node_modules.tar.gz
+          retention-days: 1
+
+  lint:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: node-modules
+      - name: Restore node_modules
+        run: tar -xzf node_modules.tar.gz
       - name: Lint
         run: pnpm lint
 
+  typecheck:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: node-modules
+      - name: Restore node_modules
+        run: tar -xzf node_modules.tar.gz
+      # No AWS credentials are configured in this job — sst.config.ts/infra
+      # typecheck against generated .sst/platform types, which only exist
+      # after a local `sst dev`/`deploy`, so that step skips cleanly here.
       - name: Typecheck
         run: pnpm typecheck
 
+  test:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: node-modules
+      - name: Restore node_modules
+        run: tar -xzf node_modules.tar.gz
       - name: Test
         run: pnpm test
 
+  schema-check:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: node-modules
+      - name: Restore node_modules
+        run: tar -xzf node_modules.tar.gz
+      # Fails the PR on a removed field/narrowed type/removed enum value in
+      # packages/shared's zod contracts (DESIGN §2 D34) — additive changes
+      # (new optional field, new enum value) pass silently.
+      - name: Check schema snapshot
+        run: pnpm --filter @techtok/shared run schema:check
+
   deploy:
-    needs: quality
+    needs: [lint, typecheck, test]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:

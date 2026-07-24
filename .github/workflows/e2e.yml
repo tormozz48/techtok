@@ -1,0 +1,72 @@
+name: E2E (dev stage)
+
+# Never triggered by push/pull_request (DESIGN §2 D34) — this is the one
+# workflow allowed to hold real AWS credentials, scoped to dev-stage
+# read/invoke only via the techtok-gha-e2e OIDC role (no write/deploy access).
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * *"
+
+concurrency:
+  group: e2e-dev
+  cancel-in-progress: false
+
+jobs:
+  backend-pipeline:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_E2E_ROLE_ARN }}
+          aws-region: eu-central-1
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Starts a real IngestPipeline execution against dev and asserts the
+      # DynamoDB/SQS state transitions it should cause (Sources rows updated,
+      # Transform/Translate queues drained).
+      - name: Run backend pipeline E2E
+        run: pnpm --filter @techtok/e2e run backend-pipeline
+
+  api-contract:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_E2E_ROLE_ARN }}
+          aws-region: eu-central-1
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Calls the real deployed dev API as a fresh device and parses every
+      # response through the same packages/shared zod schemas the mobile
+      # app itself uses.
+      - name: Run API contract E2E
+        run: pnpm --filter @techtok/e2e run api-contract

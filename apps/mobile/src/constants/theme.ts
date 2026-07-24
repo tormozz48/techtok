@@ -1,19 +1,23 @@
 import { Platform } from 'react-native';
+import { buildMD3Colors } from '@/constants/materialTheme';
+
+const light = buildMD3Colors('light');
+const dark = buildMD3Colors('dark');
 
 export const Colors = {
   light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
+    text: light.onSurface,
+    background: light.surface,
+    backgroundElement: light.surfaceVariant,
+    backgroundSelected: light.primaryContainer,
+    textSecondary: light.onSurfaceVariant,
   },
   dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+    text: dark.onSurface,
+    background: dark.surface,
+    backgroundElement: dark.surfaceVariant,
+    backgroundSelected: dark.primaryContainer,
+    textSecondary: dark.onSurfaceVariant,
   },
   // Scheme-independent palette for the full-bleed photo-card overlay (Card.tsx),
   // which always renders dark scrim + light text regardless of system theme.
@@ -21,7 +25,7 @@ export const Colors = {
     text: '#ffffff',
     textMuted: '#E0E1E6',
     textSecondary: '#B0B4BA',
-    accent: '#C9A8FF',
+    accent: dark.primary,
     surfaceBlack: '#000000',
     surfaceDim: '#1a1a1a',
     chipBackground: 'rgba(255,255,255,0.15)',

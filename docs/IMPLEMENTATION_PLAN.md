@@ -425,11 +425,11 @@ Code (tasks 1–5) is complete and verified via the unit test suite and a full `
 
 **Acceptance criteria**
 
-- [ ] Decoding `android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.webp` and `drawable-xxxhdpi/splashscreen_logo.png` shows the new Orbit ring-and-dot mark, not the Expo default chevron.
-- [ ] `values/colors.xml`'s `splashscreen_background` reads `#111A33`, not `#208AEF`.
-- [ ] `apps/mobile/android/app/build.gradle`'s release `signingConfig` block is byte-identical to before this phase (confirms the surgical sync didn't clobber D18's hand-edit).
-- [ ] A real built APK, installed on a device/emulator, shows the Orbit icon and splash — the maintainer's own on-device check, actually performed this time (not deferred).
-- [ ] `pnpm lint && pnpm typecheck && pnpm test` green, including a regenerated `LoadingScreen` snapshot.
+- [x] Decoding `android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.webp` and `drawable-xxxhdpi/splashscreen_logo.png` shows the new Orbit ring-and-dot mark, not the Expo default chevron.
+- [x] `values/colors.xml`'s `splashscreen_background` reads `#111A33`, not `#208AEF`.
+- [x] `apps/mobile/android/app/build.gradle`'s release `signingConfig` block is byte-identical to before this phase (confirms the surgical sync didn't clobber D18's hand-edit) — confirmed via matching `sha256sum` before/after the sync.
+- [ ] **Blocked, not deferred:** a real built APK, installed on a device/emulator, showing the Orbit icon and splash — this environment has no Android SDK, no `adb`/`gradle`, and no Java runtime at all (`ANDROID_HOME`/`ANDROID_SDK_ROOT` unset, no SDK at the default macOS path, `java -version` can't locate a runtime), so this is the maintainer's own step, same constraint every prior phase (7, 10, 11, 12) hit.
+- [x] `pnpm lint && pnpm typecheck && pnpm test` green, including a regenerated `LoadingScreen` snapshot (294 vitest + 37 mobile-jest tests).
 
 ---
 

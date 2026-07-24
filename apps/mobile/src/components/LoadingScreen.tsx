@@ -5,8 +5,8 @@ import { Spacing } from '@/constants/theme';
 // Matches app.json's expo-splash-screen config exactly (background color,
 // same logo asset) so this reads as a continuation of the native splash
 // rather than a jump to a different screen.
-const SPLASH_BACKGROUND_COLOR = '#2A1B5C';
-const LOGO_ASPECT_RATIO = 228 / 213;
+const SPLASH_BACKGROUND_COLOR = '#111A33';
+const LOGO_ASPECT_RATIO = 228 / 228;
 
 /**
  * In-app loading screen (DESIGN §2 D25): shown between the native splash

@@ -61,7 +61,7 @@ Definition of done for any change: lint + typecheck + tests green, then exercise
 - Every API request/response shape is a zod schema in `packages/shared`; server parses inputs, app parses responses.
 - Tests never call live AWS or Bedrock: `aws-sdk-client-mock` + recorded LLM golden fixtures. CI must run with no AWS credentials.
 - Pipeline failure split (DESIGN §7.2): content-level failures **degrade** (excerpt card, feed never starves); infra-level failures **throw** → SQS retry → DLQ → alarm. Never invert this.
-- LLM calls go only through capped pipeline paths — card transform (global daily counter + per-source quota), on-demand translate, on-demand compact-article (each with its own daily counter, DESIGN §2 D22). No ad-hoc Bedrock calls anywhere else. (Reserved concurrency 2 on the transform Lambda remains deferred pending an AWS account quota fix — see DESIGN §2 D16.)
+- LLM calls go only through the three defined pipeline paths — card transform, translate (eager as of D27), on-demand compact-article. No ad-hoc Bedrock calls anywhere else. Daily caps/per-source quotas on these paths were removed for simplicity (DESIGN §2 D31, planned for phase 12) — the $10/mo AWS Budget alarm (D11) is a monitoring-only signal now, not an enforced ceiling. (Reserved concurrency 2 on the transform Lambda remains deferred pending an AWS account quota fix — see DESIGN §2 D16.)
 - Feed access follows the key design in DESIGN §6 (primaryTopic GSI, read-markers via BatchGet). No table scans or filter-expression shortcuts on `Posts`.
 - Keep React Native code cross-platform (D12): no Android-only APIs without a `Platform` guard.
 - Conventional commits: `feat:` / `fix:` / `docs:` / `chore:` / `test:` / `refactor:`.

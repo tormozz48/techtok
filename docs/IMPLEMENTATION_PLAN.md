@@ -25,7 +25,7 @@ Companion to [DESIGN.md](DESIGN.md). Twelve phases (0–6 original build-out, 7�
 | 9 | Compact reader | content Lambda, figure mirroring, reader screen, kill switch | 3 d |
 | 10 | Extension polish | digest localization, feedback loop, cost review, cap tuning | 1–2 d |
 | 11 | UI component library adoption | React Native Paper (MD3) | 2 d |
-| 12 | Eager translation pipeline | eager TranslateQueue enqueue, job-polling content API, progress bar | 3–4 d |
+| 12 | Eager translation pipeline + cap removal | remove all daily LLM caps, eager TranslateQueue enqueue, job-polling content API, progress bar | 3–4 d |
 
 ---
 
@@ -110,7 +110,7 @@ Companion to [DESIGN.md](DESIGN.md). Twelve phases (0–6 original build-out, 7�
 1. Bedrock model access enabled (one-time console step); confirm `eu.anthropic.claude-haiku-4-5-*` inference profile ID.
 2. `core/llm`: provider-agnostic interface → Bedrock Converse impl; prompt in repo; zod output schema (DESIGN §7.4); one repair-retry → excerpt fallback.
 3. Golden-fixture tests: ~10 recorded article→card pairs; CI never calls Bedrock.
-4. Daily-cap counter (atomic increment, default 120/day) — over cap ⇒ `transform=skipped` excerpt card.
+4. ~~Daily-cap counter (atomic increment, default 120/day) — over cap ⇒ `transform=skipped` excerpt card.~~ **Removed 2026-07-24 (D31, phase 12):** all daily LLM caps were deleted for simplicity; the `transform=skipped` outcome no longer exists.
 5. Topic classification from LLM replaces source-default mapping (validated against the taxonomy enum, fallback to source default).
 6. Card UI: render `whyItMatters` line + `transform` badge in a debug view.
 7. One-shot backfill script: re-enqueue recent `transform=excerpt` posts through the LLM path.
@@ -118,7 +118,7 @@ Companion to [DESIGN.md](DESIGN.md). Twelve phases (0–6 original build-out, 7�
 **Acceptance criteria**
 
 - [ ] Fresh articles show LLM cards within one pipeline cycle; malformed LLM output degrades to excerpt, never a stuck post.
-- [ ] Setting the cap to 5 and running a cycle yields exactly 5 `transform=llm` posts, rest `skipped` — feed stays full.
+- [x] ~~Setting the cap to 5 and running a cycle yields exactly 5 `transform=llm` posts, rest `skipped` — feed stays full.~~ Moot — caps removed (D31, phase 12).
 - [ ] Week-one Bedrock spend extrapolates to ≤ $10/mo (check Cost Explorer).
 - [ ] Subjective bar: you'd rather read the card than the source's RSS blurb, 8/10 times.
 
@@ -225,17 +225,17 @@ Phase 7 shipped and was verified live before this was identified: some mirrored 
 1. **Shared contracts:** `Language` enum (en/ru/uk/pl) + per-language topic labels in `packages/shared`; Card DTO gains `servedLang`/`isTranslated`/`compactLangs` (the last shipped empty until phase 9).
 2. **User preference:** `Users.language` + `PUT /v1/me/language`; `GET /v1/me` returns it; device-locale default on first sight (middleware), onboarding gains a language step; settings row to change it.
 3. **Feed serving (D21):** variant selection in `toCard` (serve `i18n[lang]`, fall back to EN); DESIGN §5.2 steps 6–7.
-4. **Translate stage (D22):** `TranslateQueue` + DLQ infra (ESM `maxConcurrency: 2`); feed-path conditional enqueue with `i18nPending` markers; consumer Lambda → self-critique-in-call translation (zod, one repair-retry, golden fixtures per language) → write `i18n[lang]`; content failures clear the marker and stay EN, infra failures throw to DLQ.
-5. **Caps & quotas (D22):** `translations#<date>` counter (default 100/day) in the translate consumer; per-source `transforms#<sourceId>#<date>` quota (default 30/day, `Sources.dailyQuota` override) gating only the LLM call in `transformArticle`; check whether Hugging Face has an official-posts-only feed URL and switch `Sources` if so.
+4. **Translate stage (D22):** `TranslateQueue` + DLQ infra (ESM `maxConcurrency: 2`); feed-path conditional enqueue with `i18nPending` markers; consumer Lambda → self-critique-in-call translation (zod, one repair-retry, golden fixtures per language) → write `i18n[lang]`; content failures clear the marker and stay EN, infra failures throw to DLQ. **Amended 2026-07-24 (D27, phase 12):** the feed-path enqueue and `i18nPending` markers are replaced by an eager enqueue at transform time; the queue/DLQ/consumer infra itself is reused as-is.
+5. ~~**Caps & quotas (D22):** `translations#<date>` counter (default 100/day) in the translate consumer; per-source `transforms#<sourceId>#<date>` quota (default 30/day, `Sources.dailyQuota` override) gating only the LLM call in `transformArticle`; check whether Hugging Face has an official-posts-only feed URL and switch `Sources` if so.~~ **Removed 2026-07-24 (D31, phase 12):** both counters and the per-source quota were deleted entirely; the Hugging Face official-feed check stands independent of the quota removal and remains valid.
 6. **Chrome i18n (D20):** `expo-localization` + typed string tables (settings/history/saved/onboarding/reader strings); language driven by the same stored preference; localized topic labels rendered from shared.
 7. ~~**Digest guard:** digest builder picks the user's language variant when present (full localization polish lands in phase 10).~~ **Moot as of 2026-07-24 (D29):** the digest feature this guarded was built here, then fully retired — see phase 5 task 4 and phase 10 task 1.
 
 **Acceptance criteria**
 
-- [ ] Switching to RU on a device: chrome flips immediately; the feed's next refresh serves translated cards for previously-viewed posts (pop-in demonstrated: first EN with badge, translated after the queue drains).
+- [x] ~~Switching to RU on a device: chrome flips immediately; the feed's next refresh serves translated cards for previously-viewed posts (pop-in demonstrated: first EN with badge, translated after the queue drains).~~ Pop-in behavior superseded by D27 (phase 12) — cards are pre-translated eagerly, no pop-in by design.
 - [ ] Two devices with different languages have fully independent content languages against the same posts.
-- [ ] Set the translation cap to 3 and scroll: exactly 3 posts gain `i18n` entries, the rest stay EN and re-enqueue on a later day (verified via `Counters` + post items).
-- [ ] HF (or any source) hits its per-source quota in a live cycle: its overflow posts land as `transform=skipped` excerpt cards while other sources still get LLM cards the same day.
+- [x] ~~Set the translation cap to 3 and scroll: exactly 3 posts gain `i18n` entries, the rest stay EN and re-enqueue on a later day (verified via `Counters` + post items).~~ Moot — caps removed (D31, phase 12).
+- [x] ~~HF (or any source) hits its per-source quota in a live cycle: its overflow posts land as `transform=skipped` excerpt cards while other sources still get LLM cards the same day.~~ Moot — per-source quota removed (D31, phase 12).
 - [ ] Verbatim-excerpt posts translate too (Q6/D20) and read acceptably on a device.
 - [ ] All gates green; deployed; exercised on a physical device.
 
@@ -247,7 +247,7 @@ Phase 7 shipped and was verified live before this was identified: some mirrored 
 
 **Tasks**
 
-1. **Guardrails first (D23):** `Sources.compactEnabled` (default true, per-source off switch) + `compacts#<date>` cap (default 20/day) — both checked before any generation; document remove-on-request in the ops runbook.
+1. **Guardrails first (D23):** `Sources.compactEnabled` (default true, per-source off switch) + `compacts#<date>` cap (default 20/day) — both checked before any generation; document remove-on-request in the ops runbook. **Amended 2026-07-24 (D31, phase 12):** the `compacts#<date>` cap was removed; `compactEnabled` is a rights guardrail, not a cost cap, and stays.
 2. **Shared contract:** compact-article block schema (`paragraph | heading | image | list | quote`, image blocks reference the provided figure list by index) in `packages/shared`.
 3. **Figure extraction + mirroring:** parse in-body `<figure>`/`<img>` from the archived HTML (≤5, minimum dimensions, dedup against the lead image) → existing `ImageStore` mirror path.
 4. **Compact generation core:** single-pass compress-to-language LLM call (~8k-char input, self-critique for non-EN), zod + one repair-retry, golden fixtures; any content failure → typed "no compact" result.
@@ -260,7 +260,7 @@ Phase 7 shipped and was verified live before this was identified: some mirrored 
 - [ ] Tap an uncached post: spinner → readable compact article with ≥1 mirrored in-body figure (on a post that has figures) in ≤ 15 s typical; second open (any device) is instant via CDN.
 - [ ] The reader's language toggle produces the EN variant on demand; "Read original" opens the source; share shares the original URL.
 - [ ] A post whose page can't be fetched/extracted degrades to the in-app browser with no dead end; flipping `compactEnabled=false` on a source routes its cards straight to the browser.
-- [ ] Set the compact cap to 2: third tap of the day degrades to the browser; `Counters` confirms.
+- [x] ~~Set the compact cap to 2: third tap of the day degrades to the browser; `Counters` confirms.~~ Moot — compact cap removed (D31, phase 12).
 - [ ] All gates green; deployed; the full card → reader → original loop demonstrated on a physical device.
 
 ---
@@ -273,15 +273,15 @@ Phase 7 shipped and was verified live before this was identified: some mirrored 
 
 1. ~~Digest localization end-to-end: push text uses the recipient's language (generate/fetch translations for the top-5 the same on-demand way, under the translation cap).~~ **Moot as of 2026-07-24 (D29):** the digest feature this localized was fully retired — see phase 5 task 4.
 2. Bad-translation feedback: long-press a translated card/reader → prefilled feedback mail (`FEEDBACK_EMAIL` constant, `apps/mobile/src/utils/feedback.ts`) with postId + lang; this is the data that decides whether the deferred verify pass (DESIGN §12) gets built. (The separate standalone Settings "Send feedback" row this constant also powered was removed 2026-07-24, D29 — this long-press path is unaffected.)
-3. Cost Explorer review one week after phases 8–9 are live: per-tag spend vs. the §10 model; tune the four cap env vars deliberately; record the go/no-go on the separate verify pass in the decision log.
-4. Runbook additions (phase-6 doc): stuck TranslateQueue DLQ, compact-generation failure spike, cap-tuning playbook.
+3. Cost Explorer review one week after phases 8–9 are live: per-tag spend vs. the §10 model; record the go/no-go on the separate verify pass in the decision log. **Amended 2026-07-24 (D31, phase 12):** the "tune the four cap env vars" half of this task is moot — caps no longer exist. This review's purpose shifts entirely to informing the phase-12 cost recheck (real spend data, since the §10 model's "at-cap" numbers stopped being meaningful).
+4. ~~Runbook additions (phase-6 doc): stuck TranslateQueue DLQ, compact-generation failure spike, cap-tuning playbook.~~ **Amended 2026-07-24 (D31, phase 12):** replace the cap-tuning playbook with an uncapped-spend response playbook (what to do when the $10 Budget alarm fires, now that it's a monitoring-only signal with no cap lever to pull).
 5. Leftover UX debt from 7–9 (bar spacing, reader typography, stub palette) — small, listed, time-boxed.
 
 **Acceptance criteria**
 
 - [x] ~~A non-EN user's digest arrives in their language.~~ Moot — digest retired (D29).
 - [ ] The week-after cost review is written down (numbers + any cap changes + verify-pass decision) in the decision log or §10.
-- [ ] Two weeks of daily use with no manual intervention: no DLQ alarms from the new queues, caps holding, feed + reader feel right in your own daily use.
+- [ ] Two weeks of daily use with no manual intervention: no DLQ alarms from the new queues, feed + reader feel right in your own daily use. (Caps no longer exist as of D31/phase 12 — this criterion drops "caps holding".)
 
 ---
 
@@ -309,24 +309,25 @@ Phase 7 shipped and was verified live before this was identified: some mirrored 
 
 ## Phase 12 — Eager translation pipeline + on-demand progress
 
-**Goal:** every feed card is already translated into the user's language before it's ever served — no pop-in — while the compact reader keeps generating on demand but shows real staged progress instead of a spinner (D27, amends D22/D23).
+**Goal:** every feed card is already translated into the user's language before it's ever served — no pop-in — the compact reader keeps generating on demand but shows real staged progress instead of a spinner, and no daily LLM cap exists anywhere in the pipeline (D27 + D31, amends D11/D22/D23).
 
 **Tasks**
 
-1. **Cost/cap recheck first (D27's own precondition):** recompute the `translations#<date>` daily cap needed to cover eager volume (~3 languages × every LLM-carded post) and reconcile the whole model against the $10/mo budget (D11) per DESIGN §10 — likely by lowering the global `transforms#<date>` cap rather than raising the budget. Do this before wiring the eager enqueue, not after.
+1. **Remove all daily LLM caps (D31), first:** delete the cap-checking code entirely — `transformArticle`, `translateArticle`, and `contentArticle` stop calling `CountersRepo.incrementIfUnderCap` and never take a cap-based skip/degrade branch (the LLM call always proceeds; non-cap degrade paths like source-fetch failure or LLM refusal are untouched). Remove `transforms#<date>` (global), `transforms#<sourceId>#<date>` (per-source), `translations#<date>`, and `compacts#<date>` entirely. Remove `Sources.dailyQuota` (the per-source override field) alongside its check. Delete the `Counters` DynamoDB table (`infra/storage.ts` + wiring) and `CountersRepo` once nothing references it. `transform=skipped` no longer exists as a post state — only `llm`/`excerpt`. Do this before task 2, since it removes the exact cap logic task 2 would otherwise need to reconcile against.
 2. **Eager enqueue at transform time:** `transformArticle` enqueues one `TranslateQueue` job per non-English language (ru/uk/pl) for every post immediately after summarization, instead of the feed handler's lazy per-request enqueue.
-3. **Retire the feed-path lazy mechanism:** remove `i18nPending` stamping and the feed-read-triggered enqueue (`enqueueTranslations` call site in `feed.ts`); `selectCardVariant`'s fallback logic is unchanged (still serves EN when a translation is genuinely missing — e.g. mid-flight or failed), but the pop-in badge no longer fires for feed cards.
-4. **Content endpoint → job-based polling API:** redesign `GET /v1/posts/{postId}/content` into `POST /v1/posts/{postId}/content` (starts generation, returns `{ jobId, status: "pending" }`) + `GET /v1/posts/{postId}/content/status?jobId=` (returns `{ stage: "fetching"|"extracting"|"translating"|"done", available, content? }`); add minimal job-state storage (small DynamoDB item or S3 object, short-lived) so polling survives Lambda cold starts.
+3. **Retire the feed-path lazy mechanism:** remove `i18nPending` stamping (including the field on `Posts`) and the feed-read-triggered enqueue (`enqueueTranslations` call site in `feed.ts`); `selectCardVariant`'s fallback logic is unchanged (still serves EN when a translation is genuinely missing — e.g. mid-flight or failed), but the pop-in badge no longer fires for feed cards.
+4. **Content endpoint → job-based polling API:** redesign `GET /v1/posts/{postId}/content` into `POST /v1/posts/{postId}/content` (starts generation, returns `{ jobId, status: "pending" }`) + `GET /v1/posts/{postId}/content/status?jobId=` (returns `{ stage: "fetching"|"extracting"|"translating"|"done", available, content? }`); add minimal job-state storage (small DynamoDB item or S3 object, short-lived) so polling survives Lambda cold starts. `Sources.compactEnabled` (the rights kill switch, D23) stays — it isn't a cost cap and D31 doesn't touch it.
 5. **Reader progress bar:** replace the reader's spinner with a staged progress indicator driven by real polling of the new status endpoint.
 6. **New posts only:** no backfill of the historical backlog (per D27).
 
 **Acceptance criteria**
 
+- [ ] Zero references to `CountersRepo`, `dailyQuota`, `incrementIfUnderCap`, or the `Counters` table remain anywhere in `packages/`/`infra/` (grep-confirmed) — the LLM call in transform, translate, and compact all proceed unconditionally.
 - [ ] A freshly ingested post has all 4 language variants (`i18n` populated for ru/uk/pl, English is the source) before any feed request ever serves it — verified via `Posts` item inspection right after a pipeline run, with no feed read in between.
 - [ ] No feed card ever shows the `isTranslated` pop-in transition; a card renders in the target language (or English fallback, if genuinely still in flight) from its first appearance.
 - [ ] The reader shows real staged progress (fetching → extracting → translating → done) that advances in step with the actual backend job, not a fixed-timer animation.
-- [ ] `translations#<date>` cap holds under real eager volume; hitting the cap mid-day is visible in `Counters` and does not crash the transform pipeline (excess posts simply don't get pre-translated that day and fall back to English).
-- [ ] Cost Explorer spend one week after rollout is checked against the recomputed §10 model; the decision log is updated with the real numbers (task 1's recheck was a prediction, this closes the loop).
+- [ ] `Sources.compactEnabled` (kill switch) still works exactly as before — flipping it false still routes a source's cards straight to the browser (confirms D31 didn't touch this unrelated guardrail).
+- [ ] Cost Explorer spend one week after rollout is checked and written down in the decision log against DESIGN §10's "no longer computable" framing — this is the first real data point for what uncapped spend actually costs.
 - [ ] All gates green; deployed to dev; exercised end-to-end on a physical device (feed shows no pop-in, reader shows staged progress).
 
 ---
@@ -335,8 +336,8 @@ Phase 7 shipped and was verified live before this was identified: some mirrored 
 
 - Phases 0→3 are strictly ordered; 4–6 can interleave.
 - Extension ordering (Q22/D20–D25): **7 → 8 → 9 → 10.** Phase 7 is independent and lands first (visible wins, zero new LLM spend). Phase 8 precedes 9 because the reader consumes the language preference, serving contract, and translation machinery that 8 builds. Phase 10 needs real usage of 8+9 to review. Phases 7–9 don't block on phase 5's remaining EAS setup or phase 6.
-- Second extension (2026-07-24, D26–D30): **11 → 12**, both independent of phases 0–10 and of each other in principle, but ordered 11-then-12 since phase 12 touches the reader UI that phase 11's component sweep also touches (avoid landing both in the same screens concurrently). Phase 12 depends on phase 8's `TranslateQueue`/translate-consumer machinery and phase 9's content endpoint — it amends both rather than replacing them.
-- The riskiest unknowns are front-loaded deliberately: DDB key design proves itself in phase 1 (read-exclusion at query time), pipeline semantics in phase 2 (dedup under concurrency), LLM economics in phase 3 (cap mechanics) — and in the extension, on-demand economics in phase 8 (caps/quotas before new spend exists) and the rights guardrails at the start of phase 9 (the kill switch before the feature). Phase 12 repeats this pattern: its task 1 is the cost/cap recheck, before any eager enqueue code is written. Each phase's acceptance criteria exist to force that proof.
+- Second extension (2026-07-24, D26–D31): **11 → 12** — 11 shipped (`react-native-paper` adopted, see CLAUDE.md). Phase 12 touches the reader UI that phase 11's component sweep also touched, so it lands after. Phase 12 depends on phase 8's `TranslateQueue`/translate-consumer machinery and phase 9's content endpoint — it amends both rather than replacing them, and also removes the daily-cap mechanism phases 3/8/9 each built (D31).
+- The riskiest unknowns are front-loaded deliberately: DDB key design proves itself in phase 1 (read-exclusion at query time), pipeline semantics in phase 2 (dedup under concurrency), LLM economics in phase 3 (cap mechanics, later removed by D31) — and in the extension, on-demand economics in phase 8 (caps/quotas before new spend exists, later removed) and the rights guardrails at the start of phase 9 (the kill switch before the feature — this one stays, D31 only removed cost caps, not rights guardrails). Phase 12 repeats the front-load pattern once more: its task 1 is removing the cap mechanism entirely, before any eager-enqueue code is written on top of it. Each phase's acceptance criteria exist to force that proof.
 - Standing rule from DESIGN §2: content-level failures degrade (excerpt cards; for translations, degrade *is* the English fallback; for compacts, the direct link-out), infra-level failures alarm (DLQ). Any new pipeline code follows the same split.
-- Every LLM call goes through a capped path — transform (global cap + per-source quota), translate (eager as of D27/phase 12), compact (D22). No ad-hoc Bedrock calls.
-- After phase 3, re-read DESIGN §12 (deferred defaults) and promote/kill items deliberately rather than by drift; same review after phase 10 and after phase 12 (the eager-translation cost recheck).
+- Every LLM call goes through one of three defined paths — transform, translate (eager as of D27/phase 12), compact — with no daily cap on any of them as of D31/phase 12. No ad-hoc Bedrock calls.
+- After phase 3, re-read DESIGN §12 (deferred defaults) and promote/kill items deliberately rather than by drift; same review after phase 10 and after phase 12 (the first real Cost Explorer read under uncapped spend, D31).

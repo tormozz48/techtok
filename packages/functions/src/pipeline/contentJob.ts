@@ -3,8 +3,7 @@ import {
   type ContentDeps,
   ContentStore,
   compactArticle as compactArticleViaLlm,
-  createBedrockClient,
-  createBedrockProvider,
+  createConfiguredLlmProvider,
   createS3Client,
   type ExtractedFigure,
   errorMessage,
@@ -34,9 +33,7 @@ const getImageStore = lazy(() => new ImageStore(getS3Client(), requireEnv('IMAGE
 const getContentStore = lazy(
   () => new ContentStore(getS3Client(), requireEnv('CONTENT_BUCKET_NAME')),
 );
-const getBedrockProvider = lazy(() =>
-  createBedrockProvider(createBedrockClient(), requireEnv('BEDROCK_MODEL_ID')),
-);
+const getLlmProvider = lazy(() => createConfiguredLlmProvider(process.env));
 
 interface FetchedBytes {
   readonly body: Buffer;
@@ -153,7 +150,7 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
   const postsRepo = getPostsRepo();
   const contentStore = getContentStore();
   const jobs = getContentJobsRepo();
-  const provider = getBedrockProvider();
+  const provider = getLlmProvider();
   const batchItemFailures: SQSBatchResponse['batchItemFailures'] = [];
 
   for (const record of event.Records) {

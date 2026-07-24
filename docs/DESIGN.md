@@ -167,14 +167,15 @@ Rules: `functions` handlers stay thin (parse → call `core` → serialize); all
 
 | Method & path | Purpose | Notes |
 |---|---|---|
-| `GET /v1/feed?limit=20&before=<iso>` | Next cards for this user | Unread, topic-filtered, newest-first; served in `Users.language` with EN fallback; enqueues missing translations (D22); returns `{ items, nextBefore }` |
+| `GET /v1/feed?limit=20&before=<iso>` | Next cards for this user | Unread, topic-filtered, newest-first; served in `Users.language` with EN fallback (translations enqueued eagerly at transform time, D27 — this path no longer enqueues on read); returns `{ items, nextBefore }` |
 | `POST /v1/reads` | Mark posts read | Body `{ postIds: string[] }`, idempotent, 204 |
 | `GET /v1/history?limit=50&cursor=` | Reading history | Newest-read-first, snapshot-based (survives post TTL) |
 | `GET /v1/me` | User profile | `{ userId, topics, language, createdAt }` |
 | `PUT /v1/me/topics` | Set topic prefs | `{ topics: string[] }`; empty = all topics |
 | `PUT /v1/me/language` | Set content/UI language | `{ language: "en"\|"ru"\|"uk"\|"pl" }` (D20) |
 | `GET /v1/topics` | Topic taxonomy | Static list with per-language labels (D20); lets app render without hardcoding |
-| `GET /v1/posts/:id/content?lang=` | Compact article (D23) | Synchronous generate-on-first-request (30 s ceiling) → structured blocks JSON; cached variants are read straight from the CDN instead (`compactLangs` on the card says which exist) |
+| `POST /v1/posts/:id/content?lang=` | Start compact-article generation (D23, job-polling as of D27) | Returns `{ jobId, status: "pending" }` immediately — a cache hit completes the job inline, a miss enqueues the real generation; cached variants otherwise read straight from the CDN (`compactLangs` on the card says which exist) |
+| `GET /v1/posts/:id/content/status?jobId=` | Poll a content job (D27) | Returns `{ stage: fetching\|extracting\|translating\|done, available: boolean\|null, content?, reason? }` |
 
 **Card DTO:** `{ id, title, summary, whyItMatters?, imageUrl?, sourceName, url, primaryTopic, topics[], publishedAt, servedLang, isTranslated, compactLangs[], media?[] }` — `title`/`summary`/`whyItMatters` carry the `servedLang` variant (D21).
 

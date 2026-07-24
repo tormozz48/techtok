@@ -70,12 +70,13 @@ export const contentBucket = new sst.aws.Bucket('Content', {
 });
 imagesRouter.routeBucket('/content', contentBucket);
 
-// Enforces the daily LLM transform cap (DESIGN §6, §7.4): one item per day,
-// keyed `transforms#<yyyy-mm-dd>`, atomically incremented by the transform
-// Lambda before every Bedrock call.
-export const countersTable = new sst.aws.Dynamo('Counters', {
+// Job-based content generation (D27): ephemeral polling state for the
+// content endpoint's start-then-poll transport — a 1-hour TTL (enforced in
+// the repo, see contentJobsRepo.ts) keeps this table from growing forever.
+export const contentJobsTable = new sst.aws.Dynamo('ContentJobs', {
   fields: {
-    counterId: 'string',
+    jobId: 'string',
   },
-  primaryIndex: { hashKey: 'counterId' },
+  primaryIndex: { hashKey: 'jobId' },
+  ttl: 'ttl',
 });

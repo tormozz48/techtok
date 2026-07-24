@@ -7,7 +7,9 @@ import {
   cardSchema,
   compactBlockSchema,
   contentQuerySchema,
-  contentResponseSchema,
+  contentStartResponseSchema,
+  contentStatusQuerySchema,
+  contentStatusResponseSchema,
   feedQuerySchema,
   historyQuerySchema,
   languagePrefsRequestSchema,
@@ -220,27 +222,49 @@ describe('compactBlockSchema', () => {
   });
 });
 
-describe('contentResponseSchema', () => {
-  it('parses an available response', () => {
-    const response = {
-      available: true,
-      lang: 'en',
-      blocks: [{ type: 'paragraph', text: 'hi' }],
-      figures: [{ url: 'https://example.com/fig.jpg' }],
-    };
-    expect(contentResponseSchema.parse(response)).toMatchObject(response);
+describe('contentQuerySchema', () => {
+  it('defaults lang to en', () => {
+    expect(contentQuerySchema.parse({})).toEqual({ lang: 'en' });
   });
+});
 
-  it('parses an unavailable response', () => {
-    expect(contentResponseSchema.parse({ available: false, reason: 'over cap' })).toEqual({
-      available: false,
-      reason: 'over cap',
+describe('contentStartResponseSchema', () => {
+  it('parses a job-start response', () => {
+    expect(contentStartResponseSchema.parse({ jobId: 'job1', status: 'pending' })).toEqual({
+      jobId: 'job1',
+      status: 'pending',
     });
   });
 });
 
-describe('contentQuerySchema', () => {
-  it('defaults lang to en', () => {
-    expect(contentQuerySchema.parse({})).toEqual({ lang: 'en' });
+describe('contentStatusQuerySchema', () => {
+  it('requires a jobId', () => {
+    expect(contentStatusQuerySchema.parse({ jobId: 'job1' })).toEqual({ jobId: 'job1' });
+    expect(() => contentStatusQuerySchema.parse({})).toThrow();
+  });
+});
+
+describe('contentStatusResponseSchema', () => {
+  it('parses an in-progress status with no content yet', () => {
+    const response = { stage: 'extracting', available: null };
+    expect(contentStatusResponseSchema.parse(response)).toMatchObject(response);
+  });
+
+  it('parses a done+available response with content', () => {
+    const response = {
+      stage: 'done',
+      available: true,
+      content: {
+        lang: 'en',
+        blocks: [{ type: 'paragraph', text: 'hi' }],
+        figures: [{ url: 'https://example.com/fig.jpg' }],
+      },
+    };
+    expect(contentStatusResponseSchema.parse(response)).toMatchObject(response);
+  });
+
+  it('parses a done+unavailable response with a reason', () => {
+    const response = { stage: 'done', available: false, reason: 'over cap' };
+    expect(contentStatusResponseSchema.parse(response)).toEqual(response);
   });
 });

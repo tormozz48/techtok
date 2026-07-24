@@ -53,7 +53,6 @@ export class PostsRepo {
       ttl: Math.floor(now.getTime() / 1000) + POST_TTL_SECONDS,
       gsi1pk: BY_TIME_PARTITION,
       i18n: {},
-      i18nPending: {},
       compactLangs: [],
     };
 
@@ -135,35 +134,15 @@ export class PostsRepo {
     );
   }
 
-  /** Stamps an enqueue-dedup marker (D22) while a translation is in flight on
-   * `TranslateQueue`. Relies on `i18nPending` always existing as a (possibly
-   * empty) map from `putIfNew`, so this nested SET never needs an
-   * `if_not_exists` seed — see `needsTranslation` for the staleness check
-   * that lets a stuck marker eventually retry. */
-  async setI18nPending(postId: string, lang: Language, pendingAt: string): Promise<void> {
-    await this.client.send(
-      new UpdateCommand({
-        TableName: this.tableName,
-        Key: { postId },
-        UpdateExpression: 'SET #i18nPending.#lang = :pendingAt',
-        ExpressionAttributeNames: { '#i18nPending': 'i18nPending', '#lang': lang },
-        ExpressionAttributeValues: { ':pendingAt': pendingAt },
-      }),
-    );
-  }
-
-  /** Writes a translation and clears its pending marker atomically (D21/D22).
-   * `i18n` and `i18nPending` are distinct top-level attributes, so this single
-   * expression never trips DynamoDB's overlapping-document-path restriction. */
+  /** Writes a translation (D21/D27). */
   async writeTranslation(postId: string, lang: Language, fields: TranslatedFields): Promise<void> {
     await this.client.send(
       new UpdateCommand({
         TableName: this.tableName,
         Key: { postId },
-        UpdateExpression: 'SET #i18n.#lang = :fields REMOVE #i18nPending.#lang',
+        UpdateExpression: 'SET #i18n.#lang = :fields',
         ExpressionAttributeNames: {
           '#i18n': 'i18n',
-          '#i18nPending': 'i18nPending',
           '#lang': lang,
         },
         ExpressionAttributeValues: { ':fields': fields },
@@ -184,20 +163,6 @@ export class PostsRepo {
         UpdateExpression: 'SET #compactLangs = :langs',
         ExpressionAttributeNames: { '#compactLangs': 'compactLangs' },
         ExpressionAttributeValues: { ':langs': langs },
-      }),
-    );
-  }
-
-  /** Clears a pending marker without writing a translation — the degrade path
-   * for an over-cap or content-level translation failure (D22): English
-   * stays the resting state, nothing else changes. */
-  async clearI18nPending(postId: string, lang: Language): Promise<void> {
-    await this.client.send(
-      new UpdateCommand({
-        TableName: this.tableName,
-        Key: { postId },
-        UpdateExpression: 'REMOVE #i18nPending.#lang',
-        ExpressionAttributeNames: { '#i18nPending': 'i18nPending', '#lang': lang },
       }),
     );
   }

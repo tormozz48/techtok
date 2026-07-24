@@ -33,6 +33,9 @@ export interface ChromeStrings {
     readOriginal: string;
     showOriginal: string;
     showTranslated: string;
+    stageFetching: string;
+    stageExtracting: string;
+    stageTranslating: string;
   };
 }
 
@@ -74,6 +77,9 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       readOriginal: 'Read original',
       showOriginal: 'Show original',
       showTranslated: 'Show translation',
+      stageFetching: 'Fetching article…',
+      stageExtracting: 'Extracting figures…',
+      stageTranslating: 'Writing summary…',
     },
   },
   ru: {
@@ -109,6 +115,9 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       readOriginal: 'Читать оригинал',
       showOriginal: 'Показать оригинал',
       showTranslated: 'Показать перевод',
+      stageFetching: 'Загружаем статью…',
+      stageExtracting: 'Извлекаем изображения…',
+      stageTranslating: 'Готовим пересказ…',
     },
   },
   uk: {
@@ -144,6 +153,9 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       readOriginal: 'Читати оригінал',
       showOriginal: 'Показати оригінал',
       showTranslated: 'Показати переклад',
+      stageFetching: 'Завантажуємо статтю…',
+      stageExtracting: 'Видобуваємо зображення…',
+      stageTranslating: 'Готуємо переказ…',
     },
   },
   pl: {
@@ -179,6 +191,9 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       readOriginal: 'Czytaj oryginał',
       showOriginal: 'Pokaż oryginał',
       showTranslated: 'Pokaż tłumaczenie',
+      stageFetching: 'Pobieramy artykuł…',
+      stageExtracting: 'Wyodrębniamy zdjęcia…',
+      stageTranslating: 'Przygotowujemy streszczenie…',
     },
   },
 };

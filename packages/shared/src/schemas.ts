@@ -12,7 +12,7 @@ export const mediaItemSchema = z.object({
 });
 export type MediaItem = z.infer<typeof mediaItemSchema>;
 
-export const transformKindSchema = z.enum(['llm', 'excerpt', 'skipped']);
+export const transformKindSchema = z.enum(['llm', 'excerpt']);
 export type TransformKind = z.infer<typeof transformKindSchema>;
 
 export const cardSchema = z.object({
@@ -167,24 +167,45 @@ export const compactFigureSchema = z.object({
 });
 export type CompactFigure = z.infer<typeof compactFigureSchema>;
 
-/** Always a 200 (D23/D22 degrade convention) — `available: false` is a
- * content-level "couldn't prepare" outcome (kill switch, over cap, or a
- * content-level generation failure), not an error status. */
-export const contentResponseSchema = z.discriminatedUnion('available', [
-  z.object({
-    available: z.literal(true),
-    lang: languageSchema,
-    blocks: z.array(compactBlockSchema),
-    figures: z.array(compactFigureSchema),
-  }),
-  z.object({
-    available: z.literal(false),
-    reason: z.string(),
-  }),
-]);
-export type ContentResponse = z.infer<typeof contentResponseSchema>;
-
 export const contentQuerySchema = z.object({
   lang: languageSchema.default('en'),
 });
 export type ContentQuery = z.infer<typeof contentQuerySchema>;
+
+/** Job-based content generation (D27): `POST` starts a job and returns
+ * immediately; the client polls `GET .../content/status?jobId=` for real
+ * staged progress instead of blocking on one ~11s synchronous call. */
+export const contentStartResponseSchema = z.object({
+  jobId: z.string(),
+  status: z.literal('pending'),
+});
+export type ContentStartResponse = z.infer<typeof contentStartResponseSchema>;
+
+export const contentStatusQuerySchema = z.object({
+  jobId: z.string(),
+});
+export type ContentStatusQuery = z.infer<typeof contentStatusQuerySchema>;
+
+/** The stage a content job is currently in, or has finished at. `done` is
+ * terminal — once reached, `available` is no longer `null`. */
+export const contentJobStageSchema = z.enum(['fetching', 'extracting', 'translating', 'done']);
+export type ContentJobStage = z.infer<typeof contentJobStageSchema>;
+
+/** Always a 200 (D23/D22 degrade convention) — `available: false` is a
+ * content-level "couldn't prepare" outcome (kill switch or a content-level
+ * generation failure), not an error status. `available` stays `null` while
+ * `stage` isn't yet `done`; `content` is only ever present once `available`
+ * is `true`. */
+export const contentStatusResponseSchema = z.object({
+  stage: contentJobStageSchema,
+  available: z.boolean().nullable(),
+  content: z
+    .object({
+      lang: languageSchema,
+      blocks: z.array(compactBlockSchema),
+      figures: z.array(compactFigureSchema),
+    })
+    .optional(),
+  reason: z.string().optional(),
+});
+export type ContentStatusResponse = z.infer<typeof contentStatusResponseSchema>;

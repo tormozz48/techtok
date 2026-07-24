@@ -23,10 +23,6 @@ export interface ContentDeps {
   /** Per-source compact-reader kill switch (D23). Checked before any work —
    * `false` means the source opted out, never generate for its posts. */
   readonly compactEnabled: () => Promise<boolean>;
-  /** Atomically increments today's compact counter (DESIGN §6/D23) and
-   * reports whether this generation is still under the daily cap. Over cap
-   * is not a failure — it's the cost valve doing its job. */
-  readonly checkDailyCap: () => Promise<boolean>;
   /** Loads the article's HTML — archived raw HTML first, one live fetch
    * attempt if unavailable (robots-respecting, same caps as transform). Any
    * failure (S3 miss and fetch failure both) is a content-level failure the
@@ -57,14 +53,13 @@ export type ContentOutcome =
   | { readonly ok: false; readonly reason: string };
 
 /**
- * Generates a compact in-app reader article for a post (D23): guardrails
- * (kill switch, daily cap) first, then archive-first article loading, figure
+ * Generates a compact in-app reader article for a post (D23): the kill
+ * switch guardrail first, then archive-first article loading, figure
  * extraction + mirroring, and a single-pass compress+translate LLM call. Any
- * content-level failure (kill switch, over cap, article unavailable,
- * extraction yielding nothing, LLM refusal/invalid output) reports
- * `{ ok: false }` — the caller (the content API handler) degrades to the
- * in-app browser link-out, never a dead end. Only `writeContent`'s own infra
- * failure is left to throw.
+ * content-level failure (kill switch, article unavailable, extraction
+ * yielding nothing, LLM refusal/invalid output) reports `{ ok: false }` — the
+ * caller (the content API handler) degrades to the in-app browser link-out,
+ * never a dead end. Only `writeContent`'s own infra failure is left to throw.
  */
 export async function generateContentArticle(
   input: ContentInput,
@@ -72,9 +67,6 @@ export async function generateContentArticle(
 ): Promise<ContentOutcome> {
   if (!(await deps.compactEnabled())) {
     return { ok: false, reason: 'compact reader disabled for this source' };
-  }
-  if (!(await deps.checkDailyCap())) {
-    return { ok: false, reason: 'over daily compact cap' };
   }
 
   let html: string;

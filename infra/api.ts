@@ -1,19 +1,12 @@
-import { BEDROCK_MODEL_ID, translateQueue } from './pipeline';
+import { contentJobQueue, translateQueue } from './pipeline';
 import {
   contentBucket,
-  countersTable,
-  imagesBucket,
-  imagesRouter,
+  contentJobsTable,
   postsTable,
-  rawArticlesBucket,
   sourcesTable,
   userActivityTable,
   usersTable,
 } from './storage';
-
-// Default compact-article daily cap (D23) — override via `COMPACT_DAILY_CAP`,
-// same env-tunable-default pattern as every other LLM cap (D22).
-const COMPACT_DAILY_CAP = process.env.COMPACT_DAILY_CAP ?? '20';
 
 export const api = new sst.aws.ApiGatewayV2('Api', {
   cors: {
@@ -118,35 +111,28 @@ api.route('GET /v1/bookmarks', {
   runtime: 'nodejs22.x',
 });
 
-// Compact-article reader (D23, phase 9): synchronous generate-or-cache-hit,
-// 30s ceiling per DESIGN §7.5's own sync ceiling.
-api.route('GET /v1/posts/{postId}/content', {
+// Compact-article reader (D23, job-polling transport as of D27): starts
+// generation (cache hit completes the job inline, a miss enqueues to
+// `ContentJobQueue` — see infra/pipeline.ts) and returns a `jobId`
+// immediately. The actual ~11s generation runs in the queue's consumer, off
+// this request path entirely.
+api.route('POST /v1/posts/{postId}/content', {
   handler: 'packages/functions/src/api/content.handler',
-  link: [postsTable, sourcesTable, countersTable, rawArticlesBucket, imagesBucket, contentBucket],
+  link: [postsTable, contentBucket, contentJobsTable, contentJobQueue],
   environment: {
     POSTS_TABLE_NAME: postsTable.name,
-    SOURCES_TABLE_NAME: sourcesTable.name,
-    COUNTERS_TABLE_NAME: countersTable.name,
-    RAW_ARTICLES_BUCKET_NAME: rawArticlesBucket.name,
-    IMAGES_BUCKET_NAME: imagesBucket.name,
-    IMAGES_CDN_BASE_URL: imagesRouter.url,
     CONTENT_BUCKET_NAME: contentBucket.name,
-    BEDROCK_MODEL_ID,
-    COMPACT_DAILY_CAP,
+    CONTENT_JOBS_TABLE_NAME: contentJobsTable.name,
+    CONTENT_JOB_QUEUE_URL: contentJobQueue.url,
   },
-  permissions: [
-    {
-      // Bedrock isn't an SST-linkable resource, so its invoke permission is
-      // granted directly. Scoped to InvokeModel only, not full bedrock:*.
-      actions: ['bedrock:InvokeModel'],
-      resources: [
-        'arn:aws:bedrock:*::foundation-model/*',
-        'arn:aws:bedrock:*:*:inference-profile/*',
-      ],
-    },
-  ],
   runtime: 'nodejs22.x',
-  // D23's own synchronous ceiling — includes the article fetch, figure
-  // mirroring, and one Bedrock round trip (with one repair-retry).
-  timeout: '30 seconds',
+});
+
+api.route('GET /v1/posts/{postId}/content/status', {
+  handler: 'packages/functions/src/api/contentStatus.handler',
+  link: [contentJobsTable],
+  environment: {
+    CONTENT_JOBS_TABLE_NAME: contentJobsTable.name,
+  },
+  runtime: 'nodejs22.x',
 });

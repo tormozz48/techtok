@@ -22,7 +22,6 @@ function samplePost(overrides: Partial<PostRecord> = {}): PostRecord {
     ingestedAt: '2026-07-18T00:00:00.000Z',
     ttl: 0,
     i18n: {},
-    i18nPending: {},
     ...overrides,
   };
 }

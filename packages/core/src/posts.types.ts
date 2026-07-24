@@ -1,7 +1,7 @@
 import type { Language, Topic } from '@techtok/shared';
 
 export type PostStatus = 'discovered' | 'ready' | 'failed';
-export type TransformKind = 'llm' | 'excerpt' | 'skipped';
+export type TransformKind = 'llm' | 'excerpt';
 
 /** One language's translated card fields (D21) — lives at `Posts.i18n[lang]`. */
 export interface TranslatedFields {
@@ -43,14 +43,10 @@ export interface PostRecord extends NewPost {
    * Falls back to the original hotlinked `imageUrl` when unset or on any
    * mirror failure — never blocks the post. */
   readonly mirroredImageUrl?: string;
-  /** Translated card variants (D21), keyed by language. Seeded to `{}` by
+  /** Translated card variants (D21/D27), keyed by language. Seeded to `{}` by
    * `PostsRepo.putIfNew` on every new post — per D22, posts ingested before
    * this map existed are simply never translated (no backfill). */
   readonly i18n: Partial<Record<Language, TranslatedFields>>;
-  /** Enqueue-dedup markers (D22): `lang -> ISO timestamp` while a translation
-   * is in flight on `TranslateQueue`. Cleared on success or content-level
-   * failure; a stale marker is treated as retryable (see `needsTranslation`). */
-  readonly i18nPending: Partial<Record<Language, string>>;
   /** Languages with a compact-article variant cached on the CDN (D23),
    * seeded to `[]` by `PostsRepo.putIfNew`. Posts ingested before this field
    * existed simply lack it (no backfill, same precedent as `i18n`) — read

@@ -1,8 +1,10 @@
 import {
   type BookmarksResponse,
   bookmarksResponseSchema,
-  type ContentResponse,
-  contentResponseSchema,
+  type ContentStartResponse,
+  type ContentStatusResponse,
+  contentStartResponseSchema,
+  contentStatusResponseSchema,
   DEVICE_ID_HEADER,
   DEVICE_LANGUAGE_HEADER,
   type FeedResponse,
@@ -138,10 +140,26 @@ export async function deleteBookmark(postId: string): Promise<void> {
   });
 }
 
-export async function getPostContent(postId: string, lang: Language): Promise<ContentResponse> {
+/** Starts compact-article generation (D27) — returns a `jobId` right away;
+ * poll `getContentJobStatus` for the real staged outcome. */
+export async function startPostContent(
+  postId: string,
+  lang: Language,
+): Promise<ContentStartResponse> {
   const url = apiUrl(`/v1/posts/${encodeURIComponent(postId)}/content`);
   url.searchParams.set('lang', lang);
 
+  const response = await apiFetch(url, { method: 'POST' });
+  return contentStartResponseSchema.parse(await response.json());
+}
+
+export async function getContentJobStatus(
+  postId: string,
+  jobId: string,
+): Promise<ContentStatusResponse> {
+  const url = apiUrl(`/v1/posts/${encodeURIComponent(postId)}/content/status`);
+  url.searchParams.set('jobId', jobId);
+
   const response = await apiFetch(url);
-  return contentResponseSchema.parse(await response.json());
+  return contentStatusResponseSchema.parse(await response.json());
 }

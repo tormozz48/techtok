@@ -45,12 +45,12 @@ describe('sourcesRepo.listEnabled', () => {
 
 describe('sourcesRepo.getById', () => {
   it('returns the item when found', async () => {
-    ddbMock.on(GetCommand).resolves({ Item: { ...sampleSource, dailyQuota: 10 } });
+    ddbMock.on(GetCommand).resolves({ Item: sampleSource });
     const repo = new SourcesRepo(client, 'Sources');
 
     const source = await repo.getById('hn');
 
-    expect(source).toEqual({ ...sampleSource, dailyQuota: 10 });
+    expect(source).toEqual(sampleSource);
     const input = ddbMock.commandCalls(GetCommand)[0]?.args[0]?.input;
     expect(input?.Key).toEqual({ sourceId: 'hn' });
   });

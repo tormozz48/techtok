@@ -51,7 +51,7 @@ describe('postsRepo.putIfNew', () => {
     expect(typeof input?.Item?.ttl).toBe('number');
   });
 
-  it('seeds empty i18n/i18nPending maps (D21/D22)', async () => {
+  it('seeds an empty i18n map (D21/D27)', async () => {
     ddbMock.on(PutCommand).resolves({});
     const repo = new PostsRepo(client, 'Posts');
 
@@ -59,7 +59,6 @@ describe('postsRepo.putIfNew', () => {
 
     const input = ddbMock.commandCalls(PutCommand)[0]?.args[0]?.input;
     expect(input?.Item?.i18n).toEqual({});
-    expect(input?.Item?.i18nPending).toEqual({});
   });
 
   it('seeds an empty compactLangs list (D23)', async () => {
@@ -295,26 +294,8 @@ describe('postsRepo.updateMirroredImage', () => {
   });
 });
 
-describe('postsRepo.setI18nPending', () => {
-  it('sets a nested pending marker under the aliased i18nPending map', async () => {
-    ddbMock.on(UpdateCommand).resolves({});
-    const repo = new PostsRepo(client, 'Posts');
-
-    await repo.setI18nPending('abc123', 'ru', '2026-07-23T00:00:00.000Z');
-
-    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
-    expect(input?.Key).toEqual({ postId: 'abc123' });
-    expect(input?.UpdateExpression).toBe('SET #i18nPending.#lang = :pendingAt');
-    expect(input?.ExpressionAttributeNames).toEqual({
-      '#i18nPending': 'i18nPending',
-      '#lang': 'ru',
-    });
-    expect(input?.ExpressionAttributeValues).toEqual({ ':pendingAt': '2026-07-23T00:00:00.000Z' });
-  });
-});
-
 describe('postsRepo.writeTranslation', () => {
-  it('writes the translation and clears the pending marker in one expression', async () => {
+  it('writes the translation under the aliased i18n map', async () => {
     ddbMock.on(UpdateCommand).resolves({});
     const repo = new PostsRepo(client, 'Posts');
     const fields = {
@@ -328,10 +309,9 @@ describe('postsRepo.writeTranslation', () => {
 
     const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
     expect(input?.Key).toEqual({ postId: 'abc123' });
-    expect(input?.UpdateExpression).toBe('SET #i18n.#lang = :fields REMOVE #i18nPending.#lang');
+    expect(input?.UpdateExpression).toBe('SET #i18n.#lang = :fields');
     expect(input?.ExpressionAttributeNames).toEqual({
       '#i18n': 'i18n',
-      '#i18nPending': 'i18nPending',
       '#lang': 'ru',
     });
     expect(input?.ExpressionAttributeValues).toEqual({ ':fields': fields });
@@ -350,22 +330,5 @@ describe('postsRepo.setCompactLangs', () => {
     expect(input?.UpdateExpression).toBe('SET #compactLangs = :langs');
     expect(input?.ExpressionAttributeNames).toEqual({ '#compactLangs': 'compactLangs' });
     expect(input?.ExpressionAttributeValues).toEqual({ ':langs': ['en', 'ru'] });
-  });
-});
-
-describe('postsRepo.clearI18nPending', () => {
-  it('removes only the pending marker for the given language', async () => {
-    ddbMock.on(UpdateCommand).resolves({});
-    const repo = new PostsRepo(client, 'Posts');
-
-    await repo.clearI18nPending('abc123', 'ru');
-
-    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
-    expect(input?.Key).toEqual({ postId: 'abc123' });
-    expect(input?.UpdateExpression).toBe('REMOVE #i18nPending.#lang');
-    expect(input?.ExpressionAttributeNames).toEqual({
-      '#i18nPending': 'i18nPending',
-      '#lang': 'ru',
-    });
   });
 });

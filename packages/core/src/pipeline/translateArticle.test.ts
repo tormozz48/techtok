@@ -13,10 +13,8 @@ const SAMPLE_TRANSLATION: TranslateCardResult = {
 
 function fakeDeps() {
   return {
-    checkDailyCap: vi.fn(async (): Promise<boolean> => true),
     translateCard: vi.fn(async (): Promise<TranslateCardResult> => SAMPLE_TRANSLATION),
     writeTranslation: vi.fn(async () => {}),
-    clearPending: vi.fn(async () => {}),
   };
 }
 
@@ -29,7 +27,7 @@ const input = {
 };
 
 describe('translateArticle', () => {
-  it('writes the translation when under cap and the LLM succeeds', async () => {
+  it('writes the translation when the LLM succeeds', async () => {
     const deps = fakeDeps();
 
     const outcome = await translateArticle(input, deps);
@@ -45,22 +43,9 @@ describe('translateArticle', () => {
         translatedAt: expect.any(String),
       }),
     );
-    expect(deps.clearPending).not.toHaveBeenCalled();
   });
 
-  it('clears the pending marker without writing anything when over cap', async () => {
-    const deps = fakeDeps();
-    deps.checkDailyCap.mockResolvedValue(false);
-
-    const outcome = await translateArticle(input, deps);
-
-    expect(outcome).toEqual({ translated: false, reason: 'over daily translation cap' });
-    expect(deps.translateCard).not.toHaveBeenCalled();
-    expect(deps.writeTranslation).not.toHaveBeenCalled();
-    expect(deps.clearPending).toHaveBeenCalledWith('post1', 'ru');
-  });
-
-  it('clears the pending marker without writing anything on an LLM content failure', async () => {
+  it('reports failure without writing anything on an LLM content failure', async () => {
     const deps = fakeDeps();
     deps.translateCard.mockResolvedValue({ ok: false, reason: 'schema validation failed' });
 
@@ -69,7 +54,6 @@ describe('translateArticle', () => {
     expect(outcome.translated).toBe(false);
     expect(outcome.reason).toContain('schema validation failed');
     expect(deps.writeTranslation).not.toHaveBeenCalled();
-    expect(deps.clearPending).toHaveBeenCalledWith('post1', 'ru');
   });
 
   it('lets an infra failure from writeTranslation propagate', async () => {

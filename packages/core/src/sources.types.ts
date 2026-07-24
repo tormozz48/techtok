@@ -14,9 +14,6 @@ export interface SourceRecord {
   readonly lastFetchAt?: string;
   readonly lastStatus?: 'ok' | 'not-modified' | 'error';
   readonly failCount: number;
-  /** Per-source daily LLM transform quota override (D22) — defaults to
-   * `DEFAULT_SOURCE_DAILY_QUOTA` in the transform Lambda when unset. */
-  readonly dailyQuota?: number;
   /** Compact-reader kill switch (D23) — `undefined`/`true` means enabled;
    * only an explicit `false` disables it for this source's posts. */
   readonly compactEnabled?: boolean;

@@ -20,7 +20,6 @@ const SAMPLE_COMPACT: CompactArticleResult = {
 function fakeDeps() {
   return {
     compactEnabled: vi.fn(async (): Promise<boolean> => true),
-    checkDailyCap: vi.fn(async (): Promise<boolean> => true),
     loadArticleHtml: vi.fn(async (): Promise<string> => SAMPLE_HTML),
     mirrorFigures: vi.fn(
       async (): Promise<CompactFigure[]> => [{ url: 'https://cdn.example.com/mirrored-fig.jpg' }],
@@ -62,17 +61,6 @@ describe('generateContentArticle', () => {
     const outcome = await generateContentArticle(input, deps);
 
     expect(outcome).toEqual({ ok: false, reason: 'compact reader disabled for this source' });
-    expect(deps.checkDailyCap).not.toHaveBeenCalled();
-    expect(deps.loadArticleHtml).not.toHaveBeenCalled();
-  });
-
-  it('degrades without generating when over the daily cap', async () => {
-    const deps = fakeDeps();
-    deps.checkDailyCap.mockResolvedValue(false);
-
-    const outcome = await generateContentArticle(input, deps);
-
-    expect(outcome).toEqual({ ok: false, reason: 'over daily compact cap' });
     expect(deps.loadArticleHtml).not.toHaveBeenCalled();
   });
 

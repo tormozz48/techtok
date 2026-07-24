@@ -1,4 +1,6 @@
 import {
+  ContentJobQueue,
+  ContentJobsRepo,
   createDynamoClient,
   createSourceWeightsCache,
   createSqsClient,
@@ -39,4 +41,12 @@ export const getSourceWeightsCache = lazy(() => createSourceWeightsCache(getSour
 
 export const getTranslateQueue = lazy(
   () => new TranslateQueue(createSqsClient(), requireEnv('TRANSLATE_QUEUE_URL')),
+);
+
+export const getContentJobsRepo = lazy(
+  () => new ContentJobsRepo(getDynamoClient(), requireEnv('CONTENT_JOBS_TABLE_NAME')),
+);
+
+export const getContentJobQueue = lazy(
+  () => new ContentJobQueue(createSqsClient(), requireEnv('CONTENT_JOB_QUEUE_URL')),
 );

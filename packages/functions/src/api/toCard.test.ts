@@ -21,7 +21,6 @@ const post: PostRecord = {
   ingestedAt: '2026-07-18T00:05:00.000Z',
   ttl: 1234567890,
   i18n: {},
-  i18nPending: {},
 };
 
 describe('toCard', () => {

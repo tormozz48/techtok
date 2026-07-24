@@ -1,6 +1,5 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import {
-  CountersRepo,
   createBedrockClient,
   createBedrockProvider,
   errorMessage,
@@ -11,23 +10,13 @@ import { isLanguage, type Language } from '@techtok/shared';
 import type { SQSBatchResponse, SQSEvent, SQSHandler } from 'aws-lambda';
 import { requireEnv } from '../env';
 import { lazy } from '../lazy';
-import { getDynamoClient, getPostsRepo } from '../repos';
+import { getPostsRepo } from '../repos';
 
 const logger = new Logger({ serviceName: 'translate' });
 
-const DEFAULT_DAILY_TRANSLATION_CAP = 100;
-const translationCap = Number(process.env.TRANSLATION_DAILY_CAP ?? DEFAULT_DAILY_TRANSLATION_CAP);
-
-const getCountersRepo = lazy(
-  () => new CountersRepo(getDynamoClient(), requireEnv('COUNTERS_TABLE_NAME')),
-);
 const getBedrockProvider = lazy(() =>
   createBedrockProvider(createBedrockClient(), requireEnv('BEDROCK_MODEL_ID')),
 );
-
-function todayDate(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 interface MessageBody {
   readonly postId: string;
@@ -44,7 +33,6 @@ function parseMessageBody(body: string): MessageBody {
 
 export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
   const repo = getPostsRepo();
-  const counters = getCountersRepo();
   const provider = getBedrockProvider();
   const batchItemFailures: SQSBatchResponse['batchItemFailures'] = [];
 
@@ -64,12 +52,9 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
           whyItMatters: post.whyItMatters,
         },
         {
-          checkDailyCap: () =>
-            counters.incrementIfUnderCap(`translations#${todayDate()}`, translationCap),
           translateCard: (input) => translateCardViaLlm(input, provider),
           writeTranslation: (id, translatedLang, fields) =>
             repo.writeTranslation(id, translatedLang, fields),
-          clearPending: (id, translatedLang) => repo.clearI18nPending(id, translatedLang),
         },
       );
       logger.info(outcome.translated ? 'translation completed' : 'translation skipped', {

@@ -1,7 +1,6 @@
 import { buildFeed } from '@techtok/core';
 import { feedQuerySchema, feedResponseSchema } from '@techtok/shared';
 import { getPostsRepo, getSourceWeightsCache, getUserActivityRepo, getUsersRepo } from '../repos';
-import { enqueueTranslations } from '../translate/enqueueTranslations';
 import { extractDeviceLanguage } from './deviceId';
 import { jsonResponse, parseQuery, withDeviceId } from './http';
 import { toCard } from './toCard';
@@ -29,8 +28,6 @@ export const handler = withDeviceId(async (event, deviceId) => {
     deviceId,
     page.items.map((post) => post.postId),
   );
-
-  await enqueueTranslations(page.items, lang);
 
   const body = feedResponseSchema.parse({
     items: page.items.map((post) => toCard(post, bookmarkedIds.has(post.postId), lang)),

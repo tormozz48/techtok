@@ -92,11 +92,6 @@ const PRESETS: SourcePreset[] = [
     siteUrl: 'https://huggingface.co/blog',
     defaultTopic: 'ai',
     topics: ['ai'],
-    // D22: this feed mixes official HF-team posts with partner/community
-    // ones (confirmed live — no distinct official-only feed URL exists to
-    // switch to), and was eating ~52% of the daily LLM transform cap. A
-    // lower per-source quota is the mitigation instead.
-    dailyQuota: 10,
   },
 ];
 

@@ -1,5 +1,6 @@
 import {
-  countersTable,
+  contentBucket,
+  contentJobsTable,
   imagesBucket,
   imagesRouter,
   postsTable,
@@ -13,13 +14,6 @@ import {
 // `BEDROCK_MODEL_ID` env var if a different profile is ever needed per stage.
 export const BEDROCK_MODEL_ID =
   process.env.BEDROCK_MODEL_ID ?? 'eu.anthropic.claude-haiku-4-5-20251001-v1:0';
-// Default daily transform cap (DESIGN §7.4/§10) — override via `LLM_DAILY_CAP`.
-const LLM_DAILY_CAP = process.env.LLM_DAILY_CAP ?? '120';
-// Per-source daily LLM transform quota (D22) — override via `SOURCE_DAILY_QUOTA`;
-// a per-row `Sources.dailyQuota` further overrides this default.
-const SOURCE_DAILY_QUOTA = process.env.SOURCE_DAILY_QUOTA ?? '30';
-// Default daily card-translation cap (D22) — override via `TRANSLATION_DAILY_CAP`.
-const TRANSLATION_DAILY_CAP = process.env.TRANSLATION_DAILY_CAP ?? '100';
 
 // One-off seed for the Sources table (DESIGN §2 preset list). Not on any
 // schedule/route — invoke manually once per stage:
@@ -39,20 +33,29 @@ export const transformQueue = new sst.aws.Queue('TransformQueue', {
   dlq: { queue: transformDlq.arn, retry: 3 },
 });
 
+// Eager card translation (D21/D27): every post gets a job enqueued here for
+// each non-English language right after its own transform completes — the
+// transform Lambda (below) is a producer, not just the translate Lambda's
+// own consumer.
+export const translateDlq = new sst.aws.Queue('TranslateDLQ');
+
+export const translateQueue = new sst.aws.Queue('TranslateQueue', {
+  visibilityTimeout: '60 seconds',
+  dlq: { queue: translateDlq.arn, retry: 3 },
+});
+
 transformQueue.subscribe(
   {
     handler: 'packages/functions/src/pipeline/transform.handler',
-    link: [postsTable, rawArticlesBucket, countersTable, imagesBucket, sourcesTable],
+    link: [postsTable, rawArticlesBucket, imagesBucket, sourcesTable, translateQueue],
     environment: {
       POSTS_TABLE_NAME: postsTable.name,
       RAW_ARTICLES_BUCKET_NAME: rawArticlesBucket.name,
-      COUNTERS_TABLE_NAME: countersTable.name,
       IMAGES_BUCKET_NAME: imagesBucket.name,
       IMAGES_CDN_BASE_URL: imagesRouter.url,
       SOURCES_TABLE_NAME: sourcesTable.name,
       BEDROCK_MODEL_ID,
-      LLM_DAILY_CAP,
-      SOURCE_DAILY_QUOTA,
+      TRANSLATE_QUEUE_URL: translateQueue.url,
     },
     permissions: [
       {
@@ -79,25 +82,13 @@ transformQueue.subscribe(
   { batch: { size: 5, partialResponses: true } },
 );
 
-// On-demand card translation (D21/D22, phase 8 task 4): fed by the feed
-// read path (packages/functions/src/api/feed.ts) whenever a non-EN user's
-// page contains untranslated posts.
-export const translateDlq = new sst.aws.Queue('TranslateDLQ');
-
-export const translateQueue = new sst.aws.Queue('TranslateQueue', {
-  visibilityTimeout: '60 seconds',
-  dlq: { queue: translateDlq.arn, retry: 3 },
-});
-
 translateQueue.subscribe(
   {
     handler: 'packages/functions/src/pipeline/translate.handler',
-    link: [postsTable, countersTable],
+    link: [postsTable],
     environment: {
       POSTS_TABLE_NAME: postsTable.name,
-      COUNTERS_TABLE_NAME: countersTable.name,
       BEDROCK_MODEL_ID,
-      TRANSLATION_DAILY_CAP,
     },
     permissions: [
       {
@@ -124,6 +115,55 @@ translateQueue.subscribe(
       },
     },
   },
+);
+
+// Job-based compact-article generation (D23/D27): `POST /v1/posts/:id/content`
+// (packages/functions/src/api/content.ts) enqueues here instead of doing the
+// ~11s generation inline; this consumer does the real work and reports
+// staged progress through `ContentJobs`, polled via `GET .../content/status`.
+export const contentJobDlq = new sst.aws.Queue('ContentJobDLQ');
+
+export const contentJobQueue = new sst.aws.Queue('ContentJobQueue', {
+  visibilityTimeout: '60 seconds',
+  dlq: { queue: contentJobDlq.arn, retry: 3 },
+});
+
+contentJobQueue.subscribe(
+  {
+    handler: 'packages/functions/src/pipeline/contentJob.handler',
+    link: [
+      postsTable,
+      sourcesTable,
+      rawArticlesBucket,
+      imagesBucket,
+      contentBucket,
+      contentJobsTable,
+    ],
+    environment: {
+      POSTS_TABLE_NAME: postsTable.name,
+      SOURCES_TABLE_NAME: sourcesTable.name,
+      RAW_ARTICLES_BUCKET_NAME: rawArticlesBucket.name,
+      IMAGES_BUCKET_NAME: imagesBucket.name,
+      IMAGES_CDN_BASE_URL: imagesRouter.url,
+      CONTENT_BUCKET_NAME: contentBucket.name,
+      CONTENT_JOBS_TABLE_NAME: contentJobsTable.name,
+      BEDROCK_MODEL_ID,
+    },
+    permissions: [
+      {
+        actions: ['bedrock:InvokeModel'],
+        resources: [
+          'arn:aws:bedrock:*::foundation-model/*',
+          'arn:aws:bedrock:*:*:inference-profile/*',
+        ],
+      },
+    ],
+    runtime: 'nodejs22.x',
+    // Same ~11s typical generation window as the old synchronous endpoint
+    // (D23) — this consumer does the identical work, just off the request path.
+    timeout: '30 seconds',
+  },
+  { batch: { size: 5, partialResponses: true } },
 );
 
 // One-shot backfill (IMPLEMENTATION_PLAN.md phase 3 task 7): re-enqueues

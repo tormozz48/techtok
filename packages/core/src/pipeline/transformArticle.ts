@@ -40,11 +40,6 @@ export interface TransformDeps {
   /** Archives the raw HTML to S3. An infra call — left unguarded so a
    * failure here propagates (SQS retry -> DLQ), not swallowed as a degrade. */
   readonly archiveRaw: (postId: string, html: string) => Promise<void>;
-  /** Atomically increments today's transform counter (DESIGN §6/§7.4) and
-   * reports whether the article is still under the daily LLM cap. Over cap
-   * is not a failure — it's the cost valve doing its job — so the post ships
-   * as `transform: 'skipped'`, never blocking the feed. */
-  readonly checkDailyCap: () => Promise<boolean>;
   /** Derives card copy + topic classification from the extracted article
    * text (DESIGN §7.4). Never expected to throw — an LLM refusal, invalid
    * output, or a Bedrock hiccup is a content-level failure reported via
@@ -53,6 +48,11 @@ export interface TransformDeps {
   /** Persists the transform result to DynamoDB. Also an infra call,
    * deliberately unguarded for the same reason as `archiveRaw`. */
   readonly updatePost: (postId: string, fields: TransformFields) => Promise<void>;
+  /** Enqueues a translate job for every non-English language (D27) — every
+   * post gets all its language variants queued eagerly at transform time, so
+   * the feed never has to enqueue a translation on demand. An infra call,
+   * deliberately unguarded for the same reason as `updatePost`. */
+  readonly enqueueTranslations: (postId: string) => Promise<void>;
   /** Mirrors the article's hotlinked image to our own CDN. A content-level
    * concern, not infra: this contract never throws — any fetch/upload
    * failure is caught by the implementation and reported as `undefined`,
@@ -67,13 +67,14 @@ export interface TransformOutcome {
 
 /**
  * Fetches an article page, archives it, and derives a card — an LLM card
- * (DESIGN §7.4) when the article extracted cleanly and the daily transform
- * cap isn't exhausted, an improved excerpt otherwise. Any content-level
- * failure (robots disallow, fetch timeout/size cap/non-2xx, extraction
- * yielding nothing, LLM refusal/invalid output) degrades to keeping the
- * best fields available — the post still flips to `ready` and the feed
- * never starves. Infra failures (`archiveRaw`, `updatePost`) are not caught
- * here; they throw so SQS's own retry/DLQ semantics take over.
+ * (DESIGN §7.4) when the article extracted cleanly, an improved excerpt
+ * otherwise. Any content-level failure (robots disallow, fetch timeout/size
+ * cap/non-2xx, extraction yielding nothing, LLM refusal/invalid output)
+ * degrades to keeping the best fields available — the post still flips to
+ * `ready` and the feed never starves. Every post, degraded or not, then gets
+ * its non-English translations enqueued eagerly (D27). Infra failures
+ * (`archiveRaw`, `updatePost`, `enqueueTranslations`) are not caught here;
+ * they throw so SQS's own retry/DLQ semantics take over.
  */
 export async function transformArticle(
   input: TransformInput,
@@ -128,26 +129,21 @@ export async function transformArticle(
   let lang: string | undefined;
 
   if (fullText && !reason) {
-    const underCap = await deps.checkDailyCap();
-    if (!underCap) {
-      transform = 'skipped';
+    const result = await deps.generateCard({
+      title: input.title,
+      sourceName: input.sourceName,
+      text: fullText,
+    });
+    if (result.ok) {
+      transform = 'llm';
+      summary = result.card.summary;
+      cardTitle = result.card.cardTitle;
+      whyItMatters = result.card.whyItMatters;
+      primaryTopic = result.card.primaryTopic;
+      topics = result.card.topics;
+      lang = result.card.lang;
     } else {
-      const result = await deps.generateCard({
-        title: input.title,
-        sourceName: input.sourceName,
-        text: fullText,
-      });
-      if (result.ok) {
-        transform = 'llm';
-        summary = result.card.summary;
-        cardTitle = result.card.cardTitle;
-        whyItMatters = result.card.whyItMatters;
-        primaryTopic = result.card.primaryTopic;
-        topics = result.card.topics;
-        lang = result.card.lang;
-      } else {
-        reason = `llm failed: ${result.reason}`;
-      }
+      reason = `llm failed: ${result.reason}`;
     }
   }
 
@@ -172,6 +168,8 @@ export async function transformArticle(
     ...(lang ? { lang } : {}),
     ...(mirroredImageUrl ? { mirroredImageUrl } : {}),
   });
+
+  await deps.enqueueTranslations(input.postId);
 
   return reason ? { degraded: true, reason } : { degraded: false };
 }

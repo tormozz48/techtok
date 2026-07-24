@@ -38,10 +38,10 @@ function fakeDeps() {
     fetchRobotsTxt: vi.fn(async (): Promise<string | undefined> => undefined),
     fetchPage: vi.fn(async (): Promise<string> => ARTICLE_HTML),
     archiveRaw: vi.fn(async (_postId: string, _html: string) => {}),
-    checkDailyCap: vi.fn(async (): Promise<boolean> => true),
     generateCard: vi.fn(async (): Promise<GenerateCardResult> => SAMPLE_CARD),
     updatePost: vi.fn(async (_postId: string, _fields: TransformFields) => {}),
     mirrorImage: vi.fn(async (): Promise<string | undefined> => undefined),
+    enqueueTranslations: vi.fn(async (_postId: string) => {}),
   };
 }
 
@@ -53,14 +53,13 @@ const input = {
 };
 
 describe('transformArticle', () => {
-  it('fetches, archives, extracts, and produces an llm card when under the daily cap', async () => {
+  it('fetches, archives, extracts, and produces an llm card', async () => {
     const deps = fakeDeps();
 
     const outcome = await transformArticle(input, deps);
 
     expect(outcome).toEqual({ degraded: false });
     expect(deps.archiveRaw).toHaveBeenCalledWith('post1', ARTICLE_HTML);
-    expect(deps.checkDailyCap).toHaveBeenCalledTimes(1);
     expect(deps.generateCard).toHaveBeenCalledWith({
       title: 'Test Article',
       sourceName: 'Example News',
@@ -78,21 +77,7 @@ describe('transformArticle', () => {
     expect(fields?.primaryTopic).toBe('dev');
     expect(fields?.topics).toEqual(['dev']);
     expect(fields?.lang).toBe('en');
-  });
-
-  it('marks the post skipped and never calls the LLM once the daily cap is reached', async () => {
-    const deps = fakeDeps();
-    deps.checkDailyCap.mockResolvedValueOnce(false);
-
-    const outcome = await transformArticle(input, deps);
-
-    expect(outcome).toEqual({ degraded: false });
-    expect(deps.generateCard).not.toHaveBeenCalled();
-    const fields = deps.updatePost.mock.calls[0]?.[1];
-    expect(fields?.transform).toBe('skipped');
-    expect(fields?.excerpt).toContain('Test Article Headline');
-    expect(fields?.summary).toBe(fields?.excerpt);
-    expect(fields?.cardTitle).toBeUndefined();
+    expect(deps.enqueueTranslations).toHaveBeenCalledWith('post1');
   });
 
   it('degrades to the excerpt card when the LLM call fails, without throwing', async () => {
@@ -107,6 +92,7 @@ describe('transformArticle', () => {
     expect(fields?.transform).toBe('excerpt');
     expect(fields?.summary).toBe(fields?.excerpt);
     expect(fields?.cardTitle).toBeUndefined();
+    expect(deps.enqueueTranslations).toHaveBeenCalledWith('post1');
   });
 
   it('degrades without fetching the page when robots.txt disallows the url', async () => {
@@ -119,7 +105,6 @@ describe('transformArticle', () => {
     expect(outcome.reason).toContain('robots.txt');
     expect(deps.fetchPage).not.toHaveBeenCalled();
     expect(deps.archiveRaw).not.toHaveBeenCalled();
-    expect(deps.checkDailyCap).not.toHaveBeenCalled();
     expect(deps.generateCard).not.toHaveBeenCalled();
     const fields = deps.updatePost.mock.calls[0]?.[1];
     expect(fields).toEqual({
@@ -138,7 +123,6 @@ describe('transformArticle', () => {
     expect(outcome.degraded).toBe(true);
     expect(outcome.reason).toContain('timed out');
     expect(deps.archiveRaw).not.toHaveBeenCalled();
-    expect(deps.checkDailyCap).not.toHaveBeenCalled();
     const fields = deps.updatePost.mock.calls[0]?.[1];
     expect(fields?.excerpt).toBeUndefined();
   });
@@ -152,7 +136,6 @@ describe('transformArticle', () => {
     expect(outcome.degraded).toBe(true);
     expect(outcome.reason).toContain('extraction');
     expect(deps.archiveRaw).toHaveBeenCalledTimes(1);
-    expect(deps.checkDailyCap).not.toHaveBeenCalled();
     const fields = deps.updatePost.mock.calls[0]?.[1];
     expect(fields?.s3RawKey).toBe('raw/post1.html');
     expect(fields?.excerpt).toBeUndefined();
@@ -170,6 +153,13 @@ describe('transformArticle', () => {
     deps.updatePost.mockRejectedValueOnce(new Error('ddb down'));
 
     await expect(transformArticle(input, deps)).rejects.toThrow('ddb down');
+  });
+
+  it('propagates enqueueTranslations failures instead of swallowing them', async () => {
+    const deps = fakeDeps();
+    deps.enqueueTranslations.mockRejectedValueOnce(new Error('sqs down'));
+
+    await expect(transformArticle(input, deps)).rejects.toThrow('sqs down');
   });
 
   it('never calls mirrorImage when the post has no original imageUrl', async () => {

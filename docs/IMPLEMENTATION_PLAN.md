@@ -295,7 +295,7 @@ Phase 7 shipped and was verified live before this was identified: some mirrored 
 
 **Tasks**
 
-1. Add `react-native-paper` (pure JS, no native linking — confirmed Expo-Go-safe) as a mobile dependency; wrap the app root in `PaperProvider` with full stock `MD3LightTheme`/`MD3DarkTheme` (D26 — no custom theme seed).
+1. Add `react-native-paper` (pure JS, no native linking — confirmed Expo-Go-safe) as a mobile dependency; wrap the app root in `PaperProvider` with an MD3 theme seeded from the app icon's brand palette (D26, amended same-day to drop "no custom theme seed" once a real identity — D37 — existed to seed from).
 2. Replace every custom button across the app (feed actions, bottom action bar, settings rows, onboarding CTA, reader controls) with Paper's `Button`/`IconButton`.
 3. Full component sweep: replace custom cards, inputs (language/topic pickers), badges (translated badge, topic chips), and modals/dialogs with Paper's `Card`, `TextInput`/segmented controls, `Badge`/`Chip`, and `Modal`/`Dialog` equivalents.
 4. Remove now-unused custom component files and the styles/tokens Paper's theme supersedes.

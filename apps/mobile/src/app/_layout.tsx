@@ -2,12 +2,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { useColorScheme } from 'react-native';
-import { MD3DarkTheme, MD3LightTheme, PaperProvider } from 'react-native-paper';
+import { PaperProvider } from 'react-native-paper';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import {
+  techtokDarkTheme,
+  techtokLightTheme,
+  techtokNavigationDarkTheme,
+  techtokNavigationLightTheme,
+} from '@/constants/paperTheme';
 import { useLanguageStore } from '@/state/languageStore';
 import { startNetworkMonitoring } from '@/state/network';
 import { hasSeenOnboarding } from '@/state/onboardingStore';
@@ -64,8 +70,10 @@ export default function RootLayout() {
         dehydrateOptions: { shouldDehydrateQuery: (query) => query.queryKey[0] === 'feed' },
       }}
     >
-      <PaperProvider theme={colorScheme === 'dark' ? MD3DarkTheme : MD3LightTheme}>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <PaperProvider theme={colorScheme === 'dark' ? techtokDarkTheme : techtokLightTheme}>
+        <ThemeProvider
+          value={colorScheme === 'dark' ? techtokNavigationDarkTheme : techtokNavigationLightTheme}
+        >
           <StatusBar style="light" />
           <Stack
             screenOptions={{ headerShown: false }}

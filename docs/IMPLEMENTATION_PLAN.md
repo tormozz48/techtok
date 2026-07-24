@@ -353,13 +353,15 @@ Phase 7 shipped and was verified live before this was identified: some mirrored 
 
 **Acceptance criteria**
 
-- [ ] `createConfiguredLlmProvider` is unit-tested for both the OpenRouter-default branch and the `LLM_PROVIDER=bedrock` branch, plus missing-required-env cases.
-- [ ] All three LLM call sites (transform, translate, contentJob) instantiate their provider via the shared factory, not `createBedrockProvider` directly.
-- [ ] `OpenRouterApiKey` exists as an `sst.Secret`, set independently on both `dev` and `production`.
-- [ ] A live call on `dev` completes via OpenRouter with `LLM_PROVIDER` unset (verified via logs/response, not just "should work").
-- [ ] Setting `LLM_PROVIDER=bedrock` on `dev` and redeploying still produces a working transform (fallback path proven live at least once), then reverted to the OpenRouter default.
-- [ ] `pnpm lint && pnpm typecheck && pnpm test` green.
-- [ ] No stale "Bedrock is the active provider" prose remains in DESIGN.md outside the explicit fallback framing (D32).
+- [x] `createConfiguredLlmProvider` is unit-tested for both the OpenRouter-default branch and the `LLM_PROVIDER=bedrock` branch, plus missing-required-env cases.
+- [x] All three LLM call sites (transform, translate, contentJob) instantiate their provider via the shared factory, not `createBedrockProvider` directly.
+- [ ] `OpenRouterApiKey` exists as an `sst.Secret`, set independently on both `dev` and `production`. **Blocked:** the `sst.Secret('OpenRouterApiKey')` resource is wired in `infra/pipeline.ts`, but the maintainer hasn't yet run `sst secret set OpenRouterApiKey <value> --stage dev`/`--stage production` in this environment.
+- [ ] A live call on `dev` completes via OpenRouter with `LLM_PROVIDER` unset (verified via logs/response, not just "should work"). **Blocked on the secret being set** (see above) and a `sst deploy --stage dev`.
+- [ ] Setting `LLM_PROVIDER=bedrock` on `dev` and redeploying still produces a working transform (fallback path proven live at least once), then reverted to the OpenRouter default. **Blocked**, same reason.
+- [x] `pnpm lint && pnpm typecheck && pnpm test` green (304 vitest + 37 mobile-jest, up from 294 vitest).
+- [x] No stale "Bedrock is the active provider" prose remains in DESIGN.md outside the explicit fallback framing (D32).
+
+Code (tasks 1–5) is complete and verified via the unit test suite and a full `pnpm lint && pnpm typecheck && pnpm test` pass. Tasks 6–7 (setting the real secret, then deploying and live-verifying both the OpenRouter default and the Bedrock fallback) are the maintainer's own steps outside this session — no API key was generated, requested, or stored anywhere in code, tests, or commits.
 
 ---
 

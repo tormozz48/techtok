@@ -14,6 +14,8 @@ export * from './ingest/sourcePresets';
 export * from './llm/bedrockClient';
 export * from './llm/compactArticle';
 export * from './llm/generateCard';
+export * from './llm/openRouterClient';
+export * from './llm/providerFactory';
 export * from './llm/translateCard';
 export * from './llm.types';
 export * from './pipeline/backfillImages';

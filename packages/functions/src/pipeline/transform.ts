@@ -1,8 +1,7 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import {
   checkImageQuality,
-  createBedrockClient,
-  createBedrockProvider,
+  createConfiguredLlmProvider,
   createS3Client,
   errorMessage,
   generateCard as generateCardViaLlm,
@@ -32,9 +31,7 @@ const getRawArticleStore = lazy(
   () => new RawArticleStore(getS3Client(), requireEnv('RAW_ARTICLES_BUCKET_NAME')),
 );
 const getImageStore = lazy(() => new ImageStore(getS3Client(), requireEnv('IMAGES_BUCKET_NAME')));
-const getBedrockProvider = lazy(() =>
-  createBedrockProvider(createBedrockClient(), requireEnv('BEDROCK_MODEL_ID')),
-);
+const getLlmProvider = lazy(() => createConfiguredLlmProvider(process.env));
 
 // Per-invocation only (not cross-invocation) — good enough at this batch
 // size (<=5 messages), avoids a repeat robots.txt fetch per host in a batch.
@@ -136,7 +133,7 @@ function parseMessageBody(body: string): MessageBody {
 export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
   const repo = getPostsRepo();
   const rawStore = getRawArticleStore();
-  const provider = getBedrockProvider();
+  const provider = getLlmProvider();
   const batchItemFailures: SQSBatchResponse['batchItemFailures'] = [];
 
   for (const record of event.Records) {

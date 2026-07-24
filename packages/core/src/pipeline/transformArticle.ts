@@ -65,6 +65,13 @@ export interface TransformDeps {
    * the feed never has to enqueue a translation on demand. An infra call,
    * deliberately unguarded for the same reason as `updatePost`. */
   readonly enqueueTranslations: (postId: string) => Promise<void>;
+  /** Enqueues one compact-article generation job per language, for every
+   * post (D36) — independent of the card LLM outcome and of
+   * `enqueueTranslations`. An infra call, deliberately unguarded for the same
+   * reason as `updatePost`. Implementations check the per-source
+   * `compactEnabled` kill switch (D23) before enqueueing, so a disabled
+   * source's posts never get queued in the first place. */
+  readonly enqueueContentJobs: (postId: string) => Promise<void>;
   /** Mirrors an image candidate to our own CDN, gated by a minimum-dimension
    * quality check (D28). A content-level concern, not infra: this contract
    * never throws. `{ status: 'failed' }` (any fetch/upload error) degrades
@@ -87,9 +94,10 @@ export interface TransformOutcome {
  * cap/non-2xx, extraction yielding nothing, LLM refusal/invalid output)
  * degrades to keeping the best fields available — the post still flips to
  * `ready` and the feed never starves. Every post, degraded or not, then gets
- * its non-English translations enqueued eagerly (D27). Infra failures
- * (`archiveRaw`, `updatePost`, `enqueueTranslations`) are not caught here;
- * they throw so SQS's own retry/DLQ semantics take over.
+ * its non-English translations (D27) and its per-language compact-article
+ * generation jobs (D36) enqueued eagerly. Infra failures (`archiveRaw`,
+ * `updatePost`, `enqueueTranslations`, `enqueueContentJobs`) are not caught
+ * here; they throw so SQS's own retry/DLQ semantics take over.
  */
 export async function transformArticle(
   input: TransformInput,
@@ -210,6 +218,7 @@ export async function transformArticle(
   });
 
   await deps.enqueueTranslations(input.postId);
+  await deps.enqueueContentJobs(input.postId);
 
   return reason ? { degraded: true, reason } : { degraded: false };
 }

@@ -2,7 +2,7 @@
 
 TikTok-style reader for tech & science news: full-screen swipeable cards, each card an LLM-condensed story with image, headline, short summary, and a link to the source.
 
-- **Status:** agreed 2026-07-18, after Q&A session (decisions logged in §2); localization + compact-reader + UX extension agreed 2026-07-22 (D20–D25, phases 7–10); UI library, eager translation, image quality, digest retirement, and visual identity agreed 2026-07-24 (D26–D30, phases 11–12); LLM provider swap to OpenRouter agreed 2026-07-24, code complete (D32, phase 13); CI/CD hardening — parallel jobs, API/mobile compatibility guardrail, mobile semver automation — agreed and implemented 2026-07-24 (D33–D35, phase 14); eager compact-article generation for all 4 languages agreed 2026-07-24 (D36, phase 15, not yet implemented); visual identity redesign ("Orbit") + native-asset sync fix agreed 2026-07-24 (D37, phase 16)
+- **Status:** agreed 2026-07-18, after Q&A session (decisions logged in §2); localization + compact-reader + UX extension agreed 2026-07-22 (D20–D25, phases 7–10); UI library, eager translation, image quality, digest retirement, and visual identity agreed 2026-07-24 (D26–D30, phases 11–12); LLM provider swap to OpenRouter agreed 2026-07-24, code complete (D32, phase 13); CI/CD hardening — parallel jobs, API/mobile compatibility guardrail, mobile semver automation — agreed and implemented 2026-07-24 (D33–D35, phase 14); eager compact-article generation for all 4 languages agreed and implemented 2026-07-24 (D36, phase 15); visual identity redesign ("Orbit") + native-asset sync fix agreed 2026-07-24 (D37, phase 16)
 - **Scale target:** you + friends (tens of users), hobby budget ~$10/mo
 - **Companion doc:** [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)
 

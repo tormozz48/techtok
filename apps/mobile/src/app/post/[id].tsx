@@ -1,37 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
-import type { CompactBlock, CompactFigure, ContentJobStage, Language } from '@techtok/shared';
+import type { CompactBlock, CompactFigure, Language } from '@techtok/shared';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
 import { Linking, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
-import { Button, IconButton, ProgressBar, TouchableRipple } from 'react-native-paper';
-import { getContentJobStatus, startPostContent } from '@/api/client';
+import { ActivityIndicator, Button, IconButton, TouchableRipple } from 'react-native-paper';
+import { fetchPostContent } from '@/api/client';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
-import type { ChromeStrings } from '@/i18n/strings';
 import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
 import { translationFeedbackMailto } from '@/utils/feedback';
-
-// Real backend-driven progress (D27) — a client-side simulated timer would
-// lie about what the content job is actually doing at any given moment.
-const STAGE_ORDER: ContentJobStage[] = ['fetching', 'extracting', 'translating', 'done'];
-
-function stageProgress(stage: ContentJobStage | undefined): number {
-  if (!stage) return 0;
-  return (STAGE_ORDER.indexOf(stage) + 1) / STAGE_ORDER.length;
-}
-
-function stageLabel(strings: ChromeStrings, stage: ContentJobStage | undefined): string {
-  switch (stage) {
-    case 'extracting':
-      return strings.reader.stageExtracting;
-    case 'translating':
-      return strings.reader.stageTranslating;
-    default:
-      return strings.reader.stageFetching;
-  }
-}
 
 export default function PostScreen() {
   const { id, title, sourceName, url } = useLocalSearchParams<{
@@ -44,49 +23,36 @@ export default function PostScreen() {
   const language = useLanguageStore((state) => state.language);
   const [viewLang, setViewLang] = useState<Language>(language);
 
-  const startQuery = useQuery({
-    queryKey: ['content-start', id, viewLang],
-    queryFn: () => startPostContent(id, viewLang),
+  const contentQuery = useQuery({
+    queryKey: ['content', id, viewLang],
+    queryFn: () => fetchPostContent(id, viewLang),
   });
-  const jobId = startQuery.data?.jobId;
+  const content = contentQuery.data;
 
-  const statusQuery = useQuery({
-    queryKey: ['content-status', id, jobId],
-    queryFn: () => getContentJobStatus(id, jobId as string),
-    enabled: Boolean(jobId),
-    refetchInterval: (query) => (query.state.data?.available === null ? 700 : false),
-  });
-  const status = statusQuery.data;
-
-  // Kill switch / content-level generation failures (D23) all come back as
-  // `available: false` — this reads as "routes straight to the browser" from
-  // the user's perspective, with only the staged progress bar in between.
+  // Kill switch / content-level generation failures (D23), and the rare case
+  // a just-ingested post's eager compact job hasn't finished yet (D36), all
+  // come back as `available: false` — this reads as "routes straight to the
+  // browser" from the user's perspective.
   useEffect(() => {
-    if (status && status.available === false) {
+    if (content && content.available === false) {
       WebBrowser.openBrowserAsync(url);
       router.back();
     }
-  }, [status, url]);
+  }, [content, url]);
 
   const openOriginal = () => WebBrowser.openBrowserAsync(url);
   const share = () => Share.share({ url, title });
 
-  const isPreparing = !status || status.available === null;
-
-  if (isPreparing || status?.available === false) {
+  if (contentQuery.isPending || content?.available === false) {
     return (
       <View style={styles.center}>
-        <ProgressBar
-          progress={stageProgress(status?.stage)}
-          color={Colors.overlay.accent}
-          style={styles.progressBar}
-        />
-        <Text style={styles.stageText}>{stageLabel(strings, status?.stage)}</Text>
+        <ActivityIndicator color={Colors.overlay.accent} />
+        <Text style={styles.stageText}>{strings.reader.loading}</Text>
       </View>
     );
   }
 
-  if (startQuery.isError || statusQuery.isError || !status.content) {
+  if (!content || contentQuery.isError || content.available !== true) {
     return (
       <View style={styles.center}>
         <Text style={styles.errorText}>{strings.reader.error}</Text>
@@ -97,7 +63,6 @@ export default function PostScreen() {
     );
   }
 
-  const content = status.content;
   const canToggleLanguage = language !== 'en';
   const isViewingTranslation = content.lang !== 'en';
 
@@ -198,15 +163,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: Spacing.four,
   },
-  progressBar: {
-    width: '100%',
-    height: 4,
-    borderRadius: 4,
-    marginBottom: Spacing.three,
-  },
   stageText: {
     color: Colors.dark.textSecondary,
     ...Typography.sm,
+    marginTop: Spacing.three,
   },
   header: {
     flexDirection: 'row',

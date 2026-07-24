@@ -15,7 +15,7 @@
       "distribution": "internal",
       "channel": "preview",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://ijhjll18xi.execute-api.eu-central-1.amazonaws.com"
+        "EXPO_PUBLIC_API_URL": "https://your-api-id.execute-api.eu-central-1.amazonaws.com"
       },
       "android": {
         "buildType": "apk"
@@ -25,7 +25,7 @@
       "distribution": "internal",
       "channel": "production",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://ijhjll18xi.execute-api.eu-central-1.amazonaws.com"
+        "EXPO_PUBLIC_API_URL": "https://your-api-id.execute-api.eu-central-1.amazonaws.com"
       },
       "android": {
         "buildType": "apk"

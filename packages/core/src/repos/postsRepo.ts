@@ -5,7 +5,7 @@ import {
   QueryCommand,
   UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
-import type { Language, Topic } from '@techtok/shared';
+import type { CompactFigure, Language, Topic } from '@techtok/shared';
 import { conditionalWrite } from '../clients/dynamoClient';
 import type {
   NewPost,
@@ -161,19 +161,44 @@ export class PostsRepo {
     );
   }
 
-  /** Sets the full list of languages with a cached compact-article variant
-   * (D23). The caller computes the deduped list from the post it already
-   * fetched (`[...current, newLang]`) — at this table's low write volume a
-   * plain overwrite is simpler than a conditional list-append and avoids
-   * ever appending the same language twice. */
-  async setCompactLangs(postId: string, langs: Language[]): Promise<void> {
+  /** Appends one language to the compact-article variant list (D23), atomic
+   * and race-safe under D36's eager per-language fan-out (up to 4 concurrent
+   * writers per post): the append happens server-side in a single
+   * `UpdateItem` call rather than a client-side read-merge-overwrite, so
+   * concurrent writers for different languages can never clobber each
+   * other. The `contains` condition makes a duplicate append (the same
+   * language processed twice, e.g. a re-transformed post) a harmless no-op
+   * instead of a double entry. */
+  async appendCompactLang(postId: string, lang: Language): Promise<void> {
+    await conditionalWrite(() =>
+      this.client.send(
+        new UpdateCommand({
+          TableName: this.tableName,
+          Key: { postId },
+          UpdateExpression:
+            'SET #compactLangs = list_append(if_not_exists(#compactLangs, :empty), :lang)',
+          ConditionExpression:
+            'attribute_not_exists(#compactLangs) OR NOT contains(#compactLangs, :langValue)',
+          ExpressionAttributeNames: { '#compactLangs': 'compactLangs' },
+          ExpressionAttributeValues: { ':empty': [], ':lang': [lang], ':langValue': lang },
+        }),
+      ),
+    );
+  }
+
+  /** Sets a post's mirrored figure list the first time a content job
+   * processes it (D36) — a plain overwrite, same last-write-wins precedent as
+   * `setCompactLangs`. Two language jobs racing on a brand-new post's first
+   * message may both mirror and both write here; harmless, just wasted work,
+   * per the phase's own accepted tradeoff. */
+  async setMirroredFigures(postId: string, figures: CompactFigure[]): Promise<void> {
     await this.client.send(
       new UpdateCommand({
         TableName: this.tableName,
         Key: { postId },
-        UpdateExpression: 'SET #compactLangs = :langs',
-        ExpressionAttributeNames: { '#compactLangs': 'compactLangs' },
-        ExpressionAttributeValues: { ':langs': langs },
+        UpdateExpression: 'SET #mirroredFigures = :figures',
+        ExpressionAttributeNames: { '#mirroredFigures': 'mirroredFigures' },
+        ExpressionAttributeValues: { ':figures': figures },
       }),
     );
   }

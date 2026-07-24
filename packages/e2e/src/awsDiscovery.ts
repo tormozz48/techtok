@@ -10,7 +10,7 @@ export interface DevResources {
   ingestPipelineArn: string;
   transformQueueUrl: string;
   translateQueueUrl: string;
-  contentJobQueueUrl: string;
+  contentQueueUrl: string;
   postsTableName: string;
   sourcesTableName: string;
   apiId: string;
@@ -77,10 +77,10 @@ export async function discoverDevResources(stage = 'dev'): Promise<DevResources>
     (arn) => arn.startsWith('arn:aws:sqs:') && arn.includes('TranslateQueueQueue'),
     'TranslateQueue',
   );
-  const contentJobQueueArn = findArn(
+  const contentQueueArn = findArn(
     arns,
-    (arn) => arn.startsWith('arn:aws:sqs:') && arn.includes('ContentJobQueueQueue'),
-    'ContentJobQueue',
+    (arn) => arn.startsWith('arn:aws:sqs:') && arn.includes('ContentQueueQueue'),
+    'ContentQueue',
   );
   const postsTableArn = findArn(
     arns,
@@ -106,7 +106,7 @@ export async function discoverDevResources(stage = 'dev'): Promise<DevResources>
     ingestPipelineArn,
     transformQueueUrl: queueUrlFromArn(transformQueueArn),
     translateQueueUrl: queueUrlFromArn(translateQueueArn),
-    contentJobQueueUrl: queueUrlFromArn(contentJobQueueArn),
+    contentQueueUrl: queueUrlFromArn(contentQueueArn),
     postsTableName: dynamoTableNameFromArn(postsTableArn),
     sourcesTableName: dynamoTableNameFromArn(sourcesTableArn),
     apiId,

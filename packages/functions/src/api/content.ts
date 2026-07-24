@@ -1,13 +1,9 @@
-import { randomUUID } from 'node:crypto';
-import { Logger } from '@aws-lambda-powertools/logger';
 import { ContentStore, createS3Client } from '@techtok/core';
-import { type ContentStartResponse, contentQuerySchema } from '@techtok/shared';
+import { type ContentResponse, contentQuerySchema } from '@techtok/shared';
 import { requireEnv } from '../env';
 import { lazy } from '../lazy';
-import { getContentJobQueue, getContentJobsRepo, getPostsRepo } from '../repos';
+import { getPostsRepo, getSourcesRepo } from '../repos';
 import { errorResponse, jsonResponse, parseQuery, withDeviceId } from './http';
-
-const logger = new Logger({ serviceName: 'content-start' });
 
 const getS3Client = lazy(createS3Client);
 const getContentStore = lazy(
@@ -15,11 +11,12 @@ const getContentStore = lazy(
 );
 
 /**
- * Starts compact-article generation (D23/D27): a cache hit completes the job
- * immediately (no queue round trip needed); a miss enqueues the real
- * generation work to `ContentJobQueue` and returns right away. Either way the
- * caller polls `GET .../content/status?jobId=` for the real outcome — this
- * endpoint never blocks on the ~11s generation itself.
+ * Reads a compact article (D23; eager generation as of D36) — a plain S3
+ * cache read, no job ids or polling. Generation already happened during
+ * ingest (`transformArticle`'s eager per-language enqueue), so a miss here is
+ * either a source with the compact-reader kill switch on, or the rare case a
+ * just-ingested post's eager job hasn't finished yet. Never calls the LLM on
+ * this request path.
  */
 export const handler = withDeviceId(async (event, _deviceId) => {
   const postId = event.pathParameters?.postId;
@@ -36,21 +33,17 @@ export const handler = withDeviceId(async (event, _deviceId) => {
     return errorResponse(404, 'not_found', `post ${postId} not found`);
   }
 
-  const jobId = randomUUID();
-  const jobs = getContentJobsRepo();
-  await jobs.create(jobId, postId, lang);
-
   const cached = await getContentStore().getContent(postId, lang);
   if (cached) {
-    await jobs.complete(jobId, {
+    return jsonResponse(200, {
       available: true,
+      lang,
       blocks: cached.blocks,
       figures: cached.figures,
-    });
-  } else {
-    await getContentJobQueue().enqueue({ jobId, postId, lang });
+    } satisfies ContentResponse);
   }
 
-  logger.info('content job started', { postId, lang, jobId, cacheHit: Boolean(cached) });
-  return jsonResponse(200, { jobId, status: 'pending' } satisfies ContentStartResponse);
+  const source = await getSourcesRepo().getById(post.sourceId);
+  const reason = source?.compactEnabled === false ? 'compactEnabled is false' : 'not ready yet';
+  return jsonResponse(200, { available: false, reason } satisfies ContentResponse);
 });

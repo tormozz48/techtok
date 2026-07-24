@@ -24,6 +24,7 @@ function fakeDeps() {
     mirrorFigures: vi.fn(
       async (): Promise<CompactFigure[]> => [{ url: 'https://cdn.example.com/mirrored-fig.jpg' }],
     ),
+    saveMirroredFigures: vi.fn(async (_figures: CompactFigure[]) => {}),
     generateCompact: vi.fn(async (): Promise<CompactArticleResult> => SAMPLE_COMPACT),
     writeContent: vi.fn(async () => {}),
   };
@@ -51,6 +52,39 @@ describe('generateContentArticle', () => {
     expect(deps.writeContent).toHaveBeenCalledWith(
       [{ type: 'paragraph', text: 'A compact summary.' }],
       [{ url: 'https://cdn.example.com/mirrored-fig.jpg' }],
+    );
+  });
+
+  it('mirrors and saves figures when this is the first job for the post', async () => {
+    const deps = fakeDeps();
+
+    await generateContentArticle(input, deps);
+
+    expect(deps.mirrorFigures).toHaveBeenCalledTimes(1);
+    expect(deps.saveMirroredFigures).toHaveBeenCalledWith([
+      { url: 'https://cdn.example.com/mirrored-fig.jpg' },
+    ]);
+  });
+
+  it('reuses already-mirrored figures without re-extracting or re-mirroring (D36)', async () => {
+    const deps = fakeDeps();
+    const existing: CompactFigure[] = [{ url: 'https://cdn.example.com/existing-fig.jpg' }];
+
+    const outcome = await generateContentArticle({ ...input, mirroredFigures: existing }, deps);
+
+    expect(deps.mirrorFigures).not.toHaveBeenCalled();
+    expect(deps.saveMirroredFigures).not.toHaveBeenCalled();
+    expect(outcome).toEqual({
+      ok: true,
+      blocks: [{ type: 'paragraph', text: 'A compact summary.' }],
+      figures: existing,
+    });
+    expect(deps.generateCompact).toHaveBeenCalledWith(
+      expect.objectContaining({ figures: [{ index: 0, caption: undefined }] }),
+    );
+    expect(deps.writeContent).toHaveBeenCalledWith(
+      [{ type: 'paragraph', text: 'A compact summary.' }],
+      existing,
     );
   });
 

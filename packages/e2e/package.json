@@ -1,0 +1,20 @@
+{
+  "name": "@techtok/e2e",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "backend-pipeline": "tsx src/backendPipeline.ts",
+    "api-contract": "tsx src/apiContract.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-apigatewayv2": "3.1090.0",
+    "@aws-sdk/client-resource-groups-tagging-api": "3.1090.0",
+    "@aws-sdk/client-sfn": "3.1090.0",
+    "@aws-sdk/client-sqs": "3.1090.0",
+    "@techtok/core": "workspace:*",
+    "@techtok/shared": "workspace:*",
+    "zod": "4.4.3"
+  }
+}

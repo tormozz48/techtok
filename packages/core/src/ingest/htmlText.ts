@@ -1,4 +1,6 @@
-import { decode } from 'he';
+import he from 'he';
+
+const { decode } = he;
 
 const TAG_RE = /<[^>]*>/g;
 const IMG_SRC_RE = /<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/i;

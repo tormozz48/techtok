@@ -18,7 +18,8 @@
       "!apps/mobile/assets",
       "!**/node_modules",
       "!**/sst-env.d.ts",
-      "!apps/mobile/expo-env.d.ts"
+      "!apps/mobile/expo-env.d.ts",
+      "!packages/shared/schema-snapshot.json"
     ]
   },
   "formatter": {

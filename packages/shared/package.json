@@ -9,7 +9,9 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "schema:snapshot": "tsx scripts/schemaSnapshot.ts",
+    "schema:check": "tsx scripts/schemaSnapshot.ts check"
   },
   "dependencies": {
     "zod": "4.4.3"

@@ -30,6 +30,18 @@ export interface TransformFields extends Omit<TransformUpdateFields, 'status'> {
   readonly status: 'ready';
 }
 
+/** Outcome of trying to mirror one image candidate to our own CDN (D28).
+ * `'ok'` and `'failed'` are content-level: `'failed'` degrades to the
+ * original hotlinked url exactly as before D28. `'rejected'` is new — the
+ * candidate decoded fine but failed the minimum-dimension quality gate, and
+ * is distinct from `'failed'` specifically so the caller can cascade to the
+ * next candidate instead of falling back to serving the low-quality image
+ * directly. */
+export type MirrorImageResult =
+  | { readonly status: 'ok'; readonly url: string }
+  | { readonly status: 'rejected' }
+  | { readonly status: 'failed' };
+
 export interface TransformDeps {
   /** Fetches `robots.txt` for the article's host. Returns `undefined` if it
    * can't be fetched (404, timeout, etc.) — treated as "allowed". */
@@ -53,11 +65,14 @@ export interface TransformDeps {
    * the feed never has to enqueue a translation on demand. An infra call,
    * deliberately unguarded for the same reason as `updatePost`. */
   readonly enqueueTranslations: (postId: string) => Promise<void>;
-  /** Mirrors the article's hotlinked image to our own CDN. A content-level
-   * concern, not infra: this contract never throws — any fetch/upload
-   * failure is caught by the implementation and reported as `undefined`,
-   * so the post always falls back to the original hotlinked `imageUrl`. */
-  readonly mirrorImage: (postId: string, imageUrl: string) => Promise<string | undefined>;
+  /** Mirrors an image candidate to our own CDN, gated by a minimum-dimension
+   * quality check (D28). A content-level concern, not infra: this contract
+   * never throws. `{ status: 'failed' }` (any fetch/upload error) degrades
+   * to the original hotlinked `imageUrl`, same as before D28. `{ status:
+   * 'rejected' }` (image decoded but is below the quality bar) is instead
+   * meant to make the caller try the next candidate in the cascade, and
+   * ultimately clear `imageUrl` if none pass. */
+  readonly mirrorImage: (postId: string, imageUrl: string) => Promise<MirrorImageResult>;
 }
 
 export interface TransformOutcome {
@@ -147,13 +162,37 @@ export async function transformArticle(
     }
   }
 
-  // D24: only reach for the transform-time og:image when the ingest-time
-  // fallback chain (rssMapper.ts) found nothing at all — a real imageUrl
-  // always wins.
-  const imageToMirror = input.imageUrl ?? ogImageUrl;
-  const mirroredImageUrl = imageToMirror
-    ? await deps.mirrorImage(input.postId, imageToMirror)
-    : undefined;
+  // D28: try the ingest-time image first; a `'rejected'` (below the
+  // minimum-dimension bar) cascades to the transform-time og:image (D24) as
+  // a second candidate. A `'failed'` (infra-level) result never cascades and
+  // never clears `imageUrl` — it degrades to the original hotlink exactly as
+  // before D28. Only when every available candidate is rejected/absent do we
+  // clear `imageUrl` so neither low-quality image gets served.
+  let mirroredImageUrl: string | undefined;
+  let bothCandidatesRejected = false;
+
+  if (input.imageUrl) {
+    const result = await deps.mirrorImage(input.postId, input.imageUrl);
+    if (result.status === 'ok') {
+      mirroredImageUrl = result.url;
+    } else if (result.status === 'rejected') {
+      if (ogImageUrl) {
+        const ogResult = await deps.mirrorImage(input.postId, ogImageUrl);
+        if (ogResult.status === 'ok') {
+          mirroredImageUrl = ogResult.url;
+        } else if (ogResult.status === 'rejected') {
+          bothCandidatesRejected = true;
+        }
+      } else {
+        bothCandidatesRejected = true;
+      }
+    }
+  } else if (ogImageUrl) {
+    const result = await deps.mirrorImage(input.postId, ogImageUrl);
+    if (result.status === 'ok') {
+      mirroredImageUrl = result.url;
+    }
+  }
 
   await deps.updatePost(input.postId, {
     status: 'ready',
@@ -167,6 +206,7 @@ export async function transformArticle(
     ...(topics ? { topics } : {}),
     ...(lang ? { lang } : {}),
     ...(mirroredImageUrl ? { mirroredImageUrl } : {}),
+    ...(bothCandidatesRejected ? { clearImageUrl: true } : {}),
   });
 
   await deps.enqueueTranslations(input.postId);

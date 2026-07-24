@@ -1,11 +1,13 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import {
+  checkImageQuality,
   createBedrockClient,
   createBedrockProvider,
   createS3Client,
   errorMessage,
   generateCard as generateCardViaLlm,
   ImageStore,
+  type MirrorImageResult,
   RawArticleStore,
   TECHTOK_BOT_USER_AGENT,
   transformArticle,
@@ -88,20 +90,33 @@ async function fetchRobotsTxt(robotsUrl: string): Promise<string | undefined> {
   return text;
 }
 
-/** Content-level: any fetch/upload failure degrades to the original hotlinked
- * imageUrl at the Card DTO layer (toCard.ts) — never blocks or retries the post. */
-async function mirrorImage(postId: string, imageUrl: string): Promise<string | undefined> {
+/** Content-level: an infra-level fetch/upload failure (`'failed'`) degrades to
+ * the original hotlinked imageUrl at the Card DTO layer (toCard.ts) — never
+ * blocks or retries the post. A quality-level rejection (`'rejected'`, D28)
+ * is reported separately so `transformArticle`'s cascade can try the next
+ * candidate instead of treating this the same as an infra failure. */
+async function mirrorImage(postId: string, imageUrl: string): Promise<MirrorImageResult> {
   try {
     const { body, contentType } = await fetchBytes(imageUrl, MAX_IMAGE_BYTES);
+    const quality = checkImageQuality(body);
+    if (!quality.passes) {
+      logger.info('image mirror rejected image below the quality bar (D28)', {
+        postId,
+        imageUrl,
+        width: quality.width,
+        height: quality.height,
+      });
+      return { status: 'rejected' };
+    }
     const key = await getImageStore().putImage(postId, body, contentType ?? 'image/jpeg');
-    return `${requireEnv('IMAGES_CDN_BASE_URL')}/${key}`;
+    return { status: 'ok', url: `${requireEnv('IMAGES_CDN_BASE_URL')}/${key}` };
   } catch (err) {
     logger.warn('image mirror failed, keeping original hotlinked url', {
       postId,
       imageUrl,
       error: errorMessage(err),
     });
-    return undefined;
+    return { status: 'failed' };
   }
 }
 

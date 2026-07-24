@@ -20,6 +20,7 @@ export * from './pipeline/backfillImages';
 export * from './pipeline/contentArticle';
 export * from './pipeline/figureExtraction';
 export * from './pipeline/genericImageDenylist';
+export * from './pipeline/imageQuality';
 export * from './pipeline/transformArticle';
 export * from './pipeline/translateArticle';
 export * from './posts.types';

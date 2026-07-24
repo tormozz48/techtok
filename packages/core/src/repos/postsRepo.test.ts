@@ -275,6 +275,42 @@ describe('postsRepo.updateTransform', () => {
       ':mirroredImageUrl': 'https://cdn.example.com/images/abc123.jpg',
     });
   });
+
+  it('removes imageUrl via a REMOVE clause when clearImageUrl is set (D28)', async () => {
+    ddbMock.on(UpdateCommand).resolves({});
+    const repo = new PostsRepo(client, 'Posts');
+
+    await repo.updateTransform('abc123', {
+      status: 'ready',
+      transform: 'excerpt',
+      clearImageUrl: true,
+    });
+
+    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
+    expect(input?.UpdateExpression).toBe(
+      'SET #status = :status, #transform = :transform REMOVE #imageUrl',
+    );
+    expect(input?.ExpressionAttributeNames).toEqual({
+      '#status': 'status',
+      '#transform': 'transform',
+      '#imageUrl': 'imageUrl',
+    });
+    expect(input?.ExpressionAttributeValues).toEqual({
+      ':status': 'ready',
+      ':transform': 'excerpt',
+    });
+  });
+
+  it('omits the REMOVE clause when clearImageUrl is not set', async () => {
+    ddbMock.on(UpdateCommand).resolves({});
+    const repo = new PostsRepo(client, 'Posts');
+
+    await repo.updateTransform('abc123', { status: 'ready', transform: 'excerpt' });
+
+    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
+    expect(input?.UpdateExpression).not.toContain('REMOVE');
+    expect(input?.ExpressionAttributeNames).not.toHaveProperty('#imageUrl');
+  });
 });
 
 describe('postsRepo.updateMirroredImage', () => {

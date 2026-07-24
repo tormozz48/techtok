@@ -37,6 +37,11 @@ export interface TransformUpdateFields {
   readonly topics?: Topic[];
   readonly lang?: string;
   readonly mirroredImageUrl?: string;
+  /** D28: clears the ingest-time `imageUrl` when every image candidate
+   * (ingest-time image, transform-time og:image) fails the minimum-dimension
+   * quality gate — a plain `SET` omission leaves the existing stored value
+   * untouched, so removing it needs its own `REMOVE` clause. */
+  readonly clearImageUrl?: boolean;
 }
 
 export class PostsRepo {
@@ -96,19 +101,25 @@ export class PostsRepo {
     // Every attribute name is aliased via ExpressionAttributeNames, so
     // DynamoDB reserved words (status, transform, ...) can never break the
     // expression — this class of bug already bit twice (see CLAUDE.md).
-    const { status, transform, ...optional } = fields;
+    const { status, transform, clearImageUrl, ...optional } = fields;
     const assigned: Record<string, unknown> = { status, transform };
     for (const [name, value] of Object.entries(optional)) {
       if (value !== undefined) assigned[name] = value;
     }
     const names = Object.keys(assigned);
 
+    const setClause = `SET ${names.map((name) => `#${name} = :${name}`).join(', ')}`;
+    const removeClause = clearImageUrl ? ' REMOVE #imageUrl' : '';
+
     await this.client.send(
       new UpdateCommand({
         TableName: this.tableName,
         Key: { postId },
-        UpdateExpression: `SET ${names.map((name) => `#${name} = :${name}`).join(', ')}`,
-        ExpressionAttributeNames: Object.fromEntries(names.map((name) => [`#${name}`, name])),
+        UpdateExpression: `${setClause}${removeClause}`,
+        ExpressionAttributeNames: {
+          ...Object.fromEntries(names.map((name) => [`#${name}`, name])),
+          ...(clearImageUrl ? { '#imageUrl': 'imageUrl' } : {}),
+        },
         ExpressionAttributeValues: Object.fromEntries(
           names.map((name) => [`:${name}`, assigned[name]]),
         ),

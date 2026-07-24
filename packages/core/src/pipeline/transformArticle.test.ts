@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { GenerateCardResult } from '../llm/generateCard';
-import type { TransformFields } from './transformArticle';
+import type { MirrorImageResult, TransformFields } from './transformArticle';
 import { transformArticle } from './transformArticle';
 
 const ARTICLE_HTML = `<!doctype html><html><head><title>Test Article</title></head><body>
@@ -40,7 +40,7 @@ function fakeDeps() {
     archiveRaw: vi.fn(async (_postId: string, _html: string) => {}),
     generateCard: vi.fn(async (): Promise<GenerateCardResult> => SAMPLE_CARD),
     updatePost: vi.fn(async (_postId: string, _fields: TransformFields) => {}),
-    mirrorImage: vi.fn(async (): Promise<string | undefined> => undefined),
+    mirrorImage: vi.fn(async (): Promise<MirrorImageResult> => ({ status: 'failed' })),
     enqueueTranslations: vi.fn(async (_postId: string) => {}),
   };
 }
@@ -174,7 +174,10 @@ describe('transformArticle', () => {
 
   it('mirrors the image and persists the CDN url when one is available', async () => {
     const deps = fakeDeps();
-    deps.mirrorImage.mockResolvedValueOnce('https://cdn.example.com/images/post1.jpg');
+    deps.mirrorImage.mockResolvedValueOnce({
+      status: 'ok',
+      url: 'https://cdn.example.com/images/post1.jpg',
+    });
     const inputWithImage = { ...input, imageUrl: 'https://source.example.com/a.jpg' };
 
     const outcome = await transformArticle(inputWithImage, deps);
@@ -185,9 +188,9 @@ describe('transformArticle', () => {
     expect(fields?.mirroredImageUrl).toBe('https://cdn.example.com/images/post1.jpg');
   });
 
-  it('leaves mirroredImageUrl unset (falls back to the original) when mirroring fails, without affecting degraded status', async () => {
+  it('leaves mirroredImageUrl unset (falls back to the original) when mirroring fails for infra reasons, without affecting degraded status', async () => {
     const deps = fakeDeps();
-    deps.mirrorImage.mockResolvedValueOnce(undefined);
+    deps.mirrorImage.mockResolvedValueOnce({ status: 'failed' });
     const inputWithImage = { ...input, imageUrl: 'https://source.example.com/a.jpg' };
 
     const outcome = await transformArticle(inputWithImage, deps);
@@ -195,12 +198,16 @@ describe('transformArticle', () => {
     expect(outcome).toEqual({ degraded: false });
     const fields = deps.updatePost.mock.calls[0]?.[1];
     expect(fields?.mirroredImageUrl).toBeUndefined();
+    expect(fields?.clearImageUrl).toBeUndefined();
   });
 
   it("mirrors the page's og:image (D24) when the post had no ingest-time imageUrl", async () => {
     const deps = fakeDeps();
     deps.fetchPage.mockResolvedValueOnce(ARTICLE_HTML_WITH_OG_IMAGE);
-    deps.mirrorImage.mockResolvedValueOnce('https://cdn.example.com/images/post1.jpg');
+    deps.mirrorImage.mockResolvedValueOnce({
+      status: 'ok',
+      url: 'https://cdn.example.com/images/post1.jpg',
+    });
 
     const outcome = await transformArticle(input, deps);
 
@@ -217,6 +224,7 @@ describe('transformArticle', () => {
 
     await transformArticle(inputWithImage, deps);
 
+    expect(deps.mirrorImage).toHaveBeenCalledTimes(1);
     expect(deps.mirrorImage).toHaveBeenCalledWith('post1', 'https://source.example.com/a.jpg');
   });
 
@@ -229,5 +237,96 @@ describe('transformArticle', () => {
     expect(deps.mirrorImage).not.toHaveBeenCalled();
     const fields = deps.updatePost.mock.calls[0]?.[1];
     expect(fields?.mirroredImageUrl).toBeUndefined();
+  });
+
+  describe('D28 quality-gate cascade', () => {
+    it('cascades to og:image when the ingest-time image is rejected for quality, and persists the og mirror on success', async () => {
+      const deps = fakeDeps();
+      deps.fetchPage.mockResolvedValueOnce(ARTICLE_HTML_WITH_OG_IMAGE);
+      deps.mirrorImage.mockResolvedValueOnce({ status: 'rejected' });
+      deps.mirrorImage.mockResolvedValueOnce({
+        status: 'ok',
+        url: 'https://cdn.example.com/images/post1.jpg',
+      });
+      const inputWithImage = { ...input, imageUrl: 'https://source.example.com/a.jpg' };
+
+      const outcome = await transformArticle(inputWithImage, deps);
+
+      expect(outcome).toEqual({ degraded: false });
+      expect(deps.mirrorImage).toHaveBeenNthCalledWith(
+        1,
+        'post1',
+        'https://source.example.com/a.jpg',
+      );
+      expect(deps.mirrorImage).toHaveBeenNthCalledWith(
+        2,
+        'post1',
+        'https://example.com/og-lead-image.jpg',
+      );
+      const fields = deps.updatePost.mock.calls[0]?.[1];
+      expect(fields?.mirroredImageUrl).toBe('https://cdn.example.com/images/post1.jpg');
+      expect(fields?.clearImageUrl).toBeUndefined();
+    });
+
+    it('clears imageUrl when both the ingest-time image and the og:image are rejected for quality', async () => {
+      const deps = fakeDeps();
+      deps.fetchPage.mockResolvedValueOnce(ARTICLE_HTML_WITH_OG_IMAGE);
+      deps.mirrorImage.mockResolvedValueOnce({ status: 'rejected' });
+      deps.mirrorImage.mockResolvedValueOnce({ status: 'rejected' });
+      const inputWithImage = { ...input, imageUrl: 'https://source.example.com/a.jpg' };
+
+      const outcome = await transformArticle(inputWithImage, deps);
+
+      expect(outcome).toEqual({ degraded: false });
+      expect(deps.mirrorImage).toHaveBeenCalledTimes(2);
+      const fields = deps.updatePost.mock.calls[0]?.[1];
+      expect(fields?.mirroredImageUrl).toBeUndefined();
+      expect(fields?.clearImageUrl).toBe(true);
+    });
+
+    it('clears imageUrl when the ingest-time image is rejected and there is no og:image to cascade to', async () => {
+      const deps = fakeDeps();
+      deps.mirrorImage.mockResolvedValueOnce({ status: 'rejected' });
+      const inputWithImage = { ...input, imageUrl: 'https://source.example.com/a.jpg' };
+
+      const outcome = await transformArticle(inputWithImage, deps);
+
+      expect(outcome).toEqual({ degraded: false });
+      expect(deps.mirrorImage).toHaveBeenCalledTimes(1);
+      const fields = deps.updatePost.mock.calls[0]?.[1];
+      expect(fields?.mirroredImageUrl).toBeUndefined();
+      expect(fields?.clearImageUrl).toBe(true);
+    });
+
+    it('does not clear imageUrl when the ingest-time image is rejected but the og:image cascade fails for infra reasons', async () => {
+      const deps = fakeDeps();
+      deps.fetchPage.mockResolvedValueOnce(ARTICLE_HTML_WITH_OG_IMAGE);
+      deps.mirrorImage.mockResolvedValueOnce({ status: 'rejected' });
+      deps.mirrorImage.mockResolvedValueOnce({ status: 'failed' });
+      const inputWithImage = { ...input, imageUrl: 'https://source.example.com/a.jpg' };
+
+      const outcome = await transformArticle(inputWithImage, deps);
+
+      expect(outcome).toEqual({ degraded: false });
+      const fields = deps.updatePost.mock.calls[0]?.[1];
+      expect(fields?.mirroredImageUrl).toBeUndefined();
+      expect(fields?.clearImageUrl).toBeUndefined();
+    });
+
+    it('passes ingest image quality unchanged when it clears the bar (no cascade, no clear)', async () => {
+      const deps = fakeDeps();
+      deps.mirrorImage.mockResolvedValueOnce({
+        status: 'ok',
+        url: 'https://cdn.example.com/images/post1.jpg',
+      });
+      const inputWithImage = { ...input, imageUrl: 'https://source.example.com/a.jpg' };
+
+      await transformArticle(inputWithImage, deps);
+
+      expect(deps.mirrorImage).toHaveBeenCalledTimes(1);
+      const fields = deps.updatePost.mock.calls[0]?.[1];
+      expect(fields?.mirroredImageUrl).toBe('https://cdn.example.com/images/post1.jpg');
+      expect(fields?.clearImageUrl).toBeUndefined();
+    });
   });
 });

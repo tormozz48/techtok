@@ -21,6 +21,7 @@
     "@techtok/shared": "workspace:*",
     "cheerio": "1.2.0",
     "he": "1.2.0",
+    "image-size": "2.0.2",
     "robots-parser": "3.0.1",
     "rss-parser": "3.13.0",
     "zod": "4.4.3"

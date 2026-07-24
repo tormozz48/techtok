@@ -4,7 +4,7 @@ A TikTok-style, full-screen swipeable card feed for tech & science news. The bac
 
 See [CLAUDE.md](CLAUDE.md) for the full working contract, [docs/DESIGN.md](docs/DESIGN.md) for the complete architecture + decision log (D1–D37), and [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) for the phased build-out and acceptance criteria. This README covers what's needed to run, develop, and deploy the project day to day.
 
-**Status:** phases 0–14 and 16 are code-complete and deployed to the `dev` stage (phase 13's OpenRouter swap is code-complete but not yet deployed — see [Backend](#backend-aws-via-sst) below). Phase 15 (eager compact-article generation for all languages) and phase 6 (hardening) are not yet built — the architecture below reflects what's actually running today. See CLAUDE.md's "Status" section for the full phase-by-phase history.
+**Status:** phases 0–16 are code-complete and deployed to the `dev` stage (phase 13's OpenRouter swap is code-complete but not yet deployed — see [Backend](#backend-aws-via-sst) below). Phase 6 (hardening) is not yet built — the architecture below reflects what's actually running today. See CLAUDE.md's "Status" section for the full phase-by-phase history.
 
 ---
 
@@ -19,16 +19,16 @@ flowchart LR
   subgraph AWS["AWS eu-central-1 (SST v4 / Ion)"]
     APIGW[API Gateway HTTP API /v1]
     FN_API[API Lambdas<br/>feed · reads · prefs · history ·<br/>bookmarks · topics · content]
-    DDB[(DynamoDB<br/>Sources · Posts · Users ·<br/>UserActivity · ContentJobs)]
+    DDB[(DynamoDB<br/>Sources · Posts · Users ·<br/>UserActivity)]
     EB[EventBridge Scheduler<br/>rate 30 min]
     SFN[Step Functions<br/>IngestPipeline]
     FETCH[FetchSource Lambda<br/>Map, concurrency 4]
     TQ[SQS TransformQueue + DLQ]
     TRQ[SQS TranslateQueue + DLQ]
-    CJQ[SQS ContentJobQueue + DLQ]
+    CQ[SQS ContentQueue + DLQ]
     TRANSFORM[Transform Lambda<br/>article fetch · og:image · card LLM]
     TRANSLATE[Translate Lambda<br/>self-critique in-call]
-    CONTENTJOB[Content-job Lambda<br/>on-demand compact article]
+    CONTENT[Content Lambda<br/>eager compact article, all 4 langs]
     S3RAW[(S3 raw article HTML<br/>90-day lifecycle)]
     CDN[(CloudFront + S3<br/>mirrored images · compact JSON)]
     LLM[OpenRouter · Claude Haiku 4.5<br/>Bedrock: dormant fallback, D32]
@@ -38,7 +38,7 @@ flowchart LR
 
   SOURCES[RSS feeds] --> FETCH
   APP -- "X-Device-Id" --> APIGW --> FN_API --> DDB
-  APP -- cached images / compact reads --> CDN
+  APP -- mirrored images / cached compact reads --> CDN
   EB --> SFN --> FETCH
   FETCH -- new postIds --> TQ --> TRANSFORM
   FETCH -- skeleton posts --> DDB
@@ -49,13 +49,14 @@ flowchart LR
   TRANSFORM -- mirrored images --> CDN
   TRANSFORM --> LLM
   TRANSFORM -- card fields --> DDB
-  FN_API -- "POST content: cache hit or enqueue" --> CJQ --> CONTENTJOB
-  CONTENTJOB --> LLM
-  CONTENTJOB -- figures + compact JSON --> CDN
-  CONTENTJOB -- job stage/result --> DDB
-  APP -- "GET content/status: poll jobId" --> APIGW
+  TRANSFORM -- eager, 4 langs, D36 --> CQ --> CONTENT
+  CONTENT --> LLM
+  CONTENT -- figures + compact JSON --> CDN
+  CONTENT -- compactLangs / mirroredFigures --> DDB
+  FN_API -- "GET content?lang=: plain cache read" --> CDN
   TQ -.-> CW
   TRQ -.-> CW
+  CQ -.-> CW
   SFN -.-> CW
   APIGW -.-> CW
   AWS -.-> BUDGET
@@ -64,10 +65,10 @@ flowchart LR
 **Data flow, start to finish:**
 
 1. **Ingest** — an EventBridge schedule kicks a Step Functions state machine every 30 min: `LoadSources` scans enabled sources → `Map` over them (concurrency 4, per-item catch so one bad feed never fails the run) → `FetchSource` does a conditional GET on each RSS feed, dedups entries by a hash of the canonicalized URL (`postId`, enforced by a conditional DynamoDB put), and enqueues only genuinely new posts to `TransformQueue` → `Summarize` emits run metrics.
-2. **Transform** — a consumer fetches the article page (robots.txt-respecting, 10s/2MB-capped), archives the raw HTML to S3, extracts text + an og:image fallback, mirrors the image to CloudFront (rejecting anything under 600px, D28), and calls the configured LLM provider (**OpenRouter by default, Bedrock as a dormant fallback**, D32) for the card copy + topic classification. Failures here degrade to an excerpt card rather than failing the post. It then **eagerly** enqueues a `TranslateQueue` job for each of the 3 non-English languages (D27) — every card is pre-translated before it ever reaches a feed response.
+2. **Transform** — a consumer fetches the article page (robots.txt-respecting, 10s/2MB-capped), archives the raw HTML to S3, extracts text + an og:image fallback, mirrors the image to CloudFront (rejecting anything under 600px, D28), and calls the configured LLM provider (**OpenRouter by default, Bedrock as a dormant fallback**, D32) for the card copy + topic classification. Failures here degrade to an excerpt card rather than failing the post. It then **eagerly** enqueues a `TranslateQueue` job for each of the 3 non-English languages (D27) and a `ContentQueue` job for all 4 languages (D36) — both fire regardless of whether the card LLM call degraded, so every post gets its translations and its compact articles queued before it ever reaches a feed response or a reader tap.
 3. **Translate** — a consumer LLM-translates the card (self-critique in one call) and writes the result into an `i18n` map on the same `Posts` item; failures simply leave the post on its English fallback.
 4. **Serve** — the API is plain request/response Lambdas over DynamoDB: feed (topic-filtered, read-excluding, newest-first), read markers, topic/language prefs, history, bookmarks. `GET /v1/feed` serves each card in the user's `language` with an English fallback.
-5. **Compact reader (on demand)** — tapping a card calls `POST /v1/posts/{id}/content`; a cache hit on the CDN returns immediately, a miss enqueues a job to `ContentJobQueue`. The content-job Lambda extracts + mirrors up to 5 in-body figures, generates a ~400–600 word structured compact article (single LLM pass, straight to the requested language), and caches it as `content/<postId>/<lang>.json` behind CloudFront. The app polls `GET /v1/posts/{id}/content/status?jobId=` for staged progress (`fetching → extracting → translating → done`) instead of blocking on one long call. *(Not yet eager — that's phase 15, D36, agreed but not implemented.)*
+5. **Compact reader (eager, D36)** — the content consumer processes one `ContentQueue` message per language, per post. On the first message for a given post it extracts + mirrors up to 5 in-body figures once and stores them on `Posts.mirroredFigures`; every other language reuses that list instead of re-extracting/re-mirroring. Each language then gets a ~400–600 word structured compact article (single LLM pass, compress + translate together) cached as `content/<postId>/<lang>.json` behind CloudFront. Tapping a card in the app calls `GET /v1/posts/{id}/content?lang=` — a plain S3 cache read, no LLM call on the request path: a hit returns the blocks/figures immediately, a miss returns a typed `available: false` (the compact-reader kill switch, or the rare case a just-ingested post's eager job hasn't finished yet).
 6. **Observability & cost** — CloudWatch alarms (DLQ depth, Step Functions failures, API 5xx) page via one SNS topic; a $10/mo AWS Budget alarm is a monitoring-only signal (not an enforced ceiling — daily LLM caps were removed, D31) and doesn't see OpenRouter spend at all (a separate bill, D32).
 
 ### Component reference
@@ -77,10 +78,10 @@ flowchart LR
 | `apps/mobile` | Expo/React Native app (`expo-router`): vertical card pager, compact reader, onboarding, settings, history, saved. React Native Paper (MD3) component library. |
 | API Gateway + API Lambdas | One Lambda per route (`packages/functions/src/api/*`), thin handlers over `packages/core` repos, validated by `packages/shared` zod schemas. |
 | `IngestPipeline` (Step Functions) | Fans out RSS fetching across all sources on a schedule; isolates per-source failures. |
-| `TransformQueue` → Transform Lambda | Article fetch, archive, image mirror, card-copy LLM call, eager translate/compact triggering. |
+| `TransformQueue` → Transform Lambda | Article fetch, archive, image mirror, card-copy LLM call, eager translate/compact enqueue. |
 | `TranslateQueue` → Translate Lambda | Per-language card translation, eager per post (D27). |
-| `ContentJobQueue` → Content-job Lambda | On-demand compact-article generation + figure mirroring, job-polling API (D23/D27). |
-| DynamoDB: `Sources` / `Posts` / `Users` / `UserActivity` / `ContentJobs` | Source registry, post + i18n data, user prefs, read/bookmark activity, ephemeral job-polling state. |
+| `ContentQueue` → Content Lambda | Eager compact-article generation + once-per-post figure mirroring, for all 4 languages (D23/D36). |
+| DynamoDB: `Sources` / `Posts` / `Users` / `UserActivity` | Source registry, post + i18n/compact data, user prefs, read/bookmark activity. |
 | S3 + CloudFront | Private raw-HTML archive (90-day lifecycle); public mirrored images + compact-article JSON behind one `Router`. |
 | LLM provider | OpenRouter (`anthropic/claude-haiku-4.5`) primary; AWS Bedrock kept wired as a dormant, env-switchable fallback (`LLM_PROVIDER`). |
 | CloudWatch + SNS + AWS Budget | DLQ/failure/5xx alarms to one email-subscribed SNS topic; $10/mo budget as a monitoring-only spend signal. |
@@ -129,7 +130,7 @@ pnpm deploy:dev       # sst deploy --stage dev — one-off deploy of the dev sta
 
 The first run bootstraps your AWS account and prints the API's URL (`Api: https://....execute-api.eu-central-1.amazonaws.com`) — copy it for the mobile app's `.env`, below. Leave `sst dev` running; it keeps your stage in sync with local changes.
 
-**LLM provider secret (D32):** the transform/translate/content-job Lambdas call OpenRouter by default and need a per-stage secret set once before they can complete an LLM call:
+**LLM provider secret (D32):** the transform/translate/content Lambdas call OpenRouter by default and need a per-stage secret set once before they can complete an LLM call:
 
 ```bash
 npx sst secret set OpenRouterApiKey <your-key> --stage dev

@@ -1,22 +1,18 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import {
-  createBedrockClient,
-  createBedrockProvider,
+  createConfiguredLlmProvider,
   errorMessage,
   translateArticle,
   translateCard as translateCardViaLlm,
 } from '@techtok/core';
 import { isLanguage, type Language } from '@techtok/shared';
 import type { SQSBatchResponse, SQSEvent, SQSHandler } from 'aws-lambda';
-import { requireEnv } from '../env';
 import { lazy } from '../lazy';
 import { getPostsRepo } from '../repos';
 
 const logger = new Logger({ serviceName: 'translate' });
 
-const getBedrockProvider = lazy(() =>
-  createBedrockProvider(createBedrockClient(), requireEnv('BEDROCK_MODEL_ID')),
-);
+const getLlmProvider = lazy(() => createConfiguredLlmProvider(process.env));
 
 interface MessageBody {
   readonly postId: string;
@@ -33,7 +29,7 @@ function parseMessageBody(body: string): MessageBody {
 
 export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
   const repo = getPostsRepo();
-  const provider = getBedrockProvider();
+  const provider = getLlmProvider();
   const batchItemFailures: SQSBatchResponse['batchItemFailures'] = [];
 
   for (const record of event.Records) {

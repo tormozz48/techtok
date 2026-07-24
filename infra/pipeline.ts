@@ -12,8 +12,20 @@ import {
 // Confirmed ACTIVE via `aws bedrock list-inference-profiles` and a live
 // `converse` call (IMPLEMENTATION_PLAN.md phase 3 task 1) — override via the
 // `BEDROCK_MODEL_ID` env var if a different profile is ever needed per stage.
+// Kept as a dormant, env-switchable fallback as of D32 — not the default
+// provider anymore, but still fully wired (IAM grants, env var) below.
 export const BEDROCK_MODEL_ID =
   process.env.BEDROCK_MODEL_ID ?? 'eu.anthropic.claude-haiku-4-5-20251001-v1:0';
+
+// LLM provider swap to OpenRouter (D32, phase 13): all three LLM pipeline
+// paths call OpenRouter by default, selectable back to Bedrock per stage via
+// `LLM_PROVIDER`. Same model as the Bedrock default, via OpenRouter's catalog.
+export const LLM_PROVIDER = process.env.LLM_PROVIDER ?? 'openrouter';
+export const OPENROUTER_MODEL_ID = process.env.OPENROUTER_MODEL_ID ?? 'anthropic/claude-haiku-4.5';
+
+// The project's first real secret (D32) — set per-stage by the maintainer:
+//   npx sst secret set OpenRouterApiKey <value> --stage <dev|production>
+export const openRouterApiKey = new sst.Secret('OpenRouterApiKey');
 
 // One-off seed for the Sources table (DESIGN §2 preset list). Not on any
 // schedule/route — invoke manually once per stage:
@@ -47,7 +59,14 @@ export const translateQueue = new sst.aws.Queue('TranslateQueue', {
 transformQueue.subscribe(
   {
     handler: 'packages/functions/src/pipeline/transform.handler',
-    link: [postsTable, rawArticlesBucket, imagesBucket, sourcesTable, translateQueue],
+    link: [
+      postsTable,
+      rawArticlesBucket,
+      imagesBucket,
+      sourcesTable,
+      translateQueue,
+      openRouterApiKey,
+    ],
     environment: {
       POSTS_TABLE_NAME: postsTable.name,
       RAW_ARTICLES_BUCKET_NAME: rawArticlesBucket.name,
@@ -55,6 +74,9 @@ transformQueue.subscribe(
       IMAGES_CDN_BASE_URL: imagesRouter.url,
       SOURCES_TABLE_NAME: sourcesTable.name,
       BEDROCK_MODEL_ID,
+      LLM_PROVIDER,
+      OPENROUTER_MODEL_ID,
+      OPENROUTER_API_KEY: openRouterApiKey.value,
       TRANSLATE_QUEUE_URL: translateQueue.url,
     },
     permissions: [
@@ -85,10 +107,13 @@ transformQueue.subscribe(
 translateQueue.subscribe(
   {
     handler: 'packages/functions/src/pipeline/translate.handler',
-    link: [postsTable],
+    link: [postsTable, openRouterApiKey],
     environment: {
       POSTS_TABLE_NAME: postsTable.name,
       BEDROCK_MODEL_ID,
+      LLM_PROVIDER,
+      OPENROUTER_MODEL_ID,
+      OPENROUTER_API_KEY: openRouterApiKey.value,
     },
     permissions: [
       {
@@ -138,6 +163,7 @@ contentJobQueue.subscribe(
       imagesBucket,
       contentBucket,
       contentJobsTable,
+      openRouterApiKey,
     ],
     environment: {
       POSTS_TABLE_NAME: postsTable.name,
@@ -148,6 +174,9 @@ contentJobQueue.subscribe(
       CONTENT_BUCKET_NAME: contentBucket.name,
       CONTENT_JOBS_TABLE_NAME: contentJobsTable.name,
       BEDROCK_MODEL_ID,
+      LLM_PROVIDER,
+      OPENROUTER_MODEL_ID,
+      OPENROUTER_API_KEY: openRouterApiKey.value,
     },
     permissions: [
       {

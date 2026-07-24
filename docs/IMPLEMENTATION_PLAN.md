@@ -1,6 +1,6 @@
 # TechTok — Implementation Plan
 
-Companion to [DESIGN.md](DESIGN.md). Twelve phases (0–6 original build-out, 7–10 the 2026-07-22 extension, D20–D25, 11–12 the 2026-07-24 extension, D26–D30); every phase ends with something you can demo on a phone. Effort estimates are focused solo days — spread over evenings, multiply accordingly.
+Companion to [DESIGN.md](DESIGN.md). Sixteen phases (0–6 original build-out, 7–10 the 2026-07-22 extension, D20–D25, 11–12 the 2026-07-24 extension, D26–D30, 13 the 2026-07-24 LLM provider swap, D32, 14 the 2026-07-24 CI/CD hardening, D33–D35, 15 the 2026-07-24 eager compact-article generation, D36, 16 the 2026-07-24 visual identity redesign + native-asset sync fix, D37); every phase ends with something you can demo on a phone. Effort estimates are focused solo days — spread over evenings, multiply accordingly.
 
 **Principles**
 
@@ -26,6 +26,10 @@ Companion to [DESIGN.md](DESIGN.md). Twelve phases (0–6 original build-out, 7�
 | 10 | Extension polish | digest localization, feedback loop, cost review, cap tuning | 1–2 d |
 | 11 | UI component library adoption | React Native Paper (MD3) | 2 d |
 | 12 | Eager translation pipeline + cap removal | remove all daily LLM caps, eager TranslateQueue enqueue, job-polling content API, progress bar | 3–4 d |
+| 13 | LLM provider swap (OpenRouter) | `sst.Secret` for OpenRouter API key, OpenRouter provider + env-switchable Bedrock fallback | 1 d |
+| 14 | CI/CD hardening | Parallel CI jobs, schema-snapshot-diff guardrail, dev-stage E2E workflow, mobile semver automation | 2–3 d |
+| 15 | Eager compact-article generation | `ContentQueue` (eager, all 4 languages), per-post figure-mirror dedup, `ContentJobs` table removal, reader API simplification | 2 d |
+| 16 | Visual identity redesign ("Orbit") + native-asset sync fix | New icon/splash assets, surgical `expo prebuild` resource sync preserving D18's signing config, real on-device APK verification | 1 d |
 
 ---
 
@@ -332,12 +336,111 @@ Phase 7 shipped and was verified live before this was identified: some mirrored 
 
 ---
 
+## Phase 13 — LLM provider swap (OpenRouter)
+
+**Goal:** all three LLM pipeline paths (card transform, translation, compact-article) call OpenRouter instead of Bedrock by default, using the same model (`anthropic/claude-haiku-4.5`) with no prompt/behavior change; Bedrock stays in the codebase as a dormant, env-switchable fallback (D32, amends D6).
+
+**Tasks**
+
+1. `packages/core/src/llm/openRouterClient.ts`: `createOpenRouterProvider(apiKey, model): LlmProvider`, calling OpenRouter's OpenAI-compatible chat-completions endpoint via Node 22's built-in `fetch` — same shape as `bedrockClient.ts`'s `complete(prompt): Promise<string>`, no new dependency.
+2. `packages/core/src/llm/providerFactory.ts`: `createConfiguredLlmProvider(env)` — a pure, unit-testable function that reads `LLM_PROVIDER` (default `'openrouter'`) and returns either the OpenRouter or Bedrock provider, reusing the existing `createBedrockClient`/`createBedrockProvider` for the fallback branch. Export both from `packages/core/src/index.ts`.
+3. `infra/pipeline.ts`: add `const openRouterApiKey = new sst.Secret('OpenRouterApiKey')`; add `OPENROUTER_MODEL_ID` (default `'anthropic/claude-haiku-4.5'`) and `LLM_PROVIDER` (default `'openrouter'`) constants alongside the existing `BEDROCK_MODEL_ID`; link the secret and add both new env vars to the three functions that currently receive `BEDROCK_MODEL_ID` (the transform consumer, translate consumer, content-job consumer). Leave the existing `bedrock:InvokeModel` IAM permission blocks and `BEDROCK_MODEL_ID` wiring untouched — the fallback needs them live.
+4. Rewire `packages/functions/src/pipeline/transform.ts`, `translate.ts`, and `contentJob.ts`: replace each handler's `getBedrockProvider = lazy(() => createBedrockProvider(createBedrockClient(), requireEnv('BEDROCK_MODEL_ID')))` with a call to `createConfiguredLlmProvider(process.env)`.
+5. Tests: unit tests for `openRouterClient.ts` (mocked global `fetch` — success, non-OK response, missing/malformed content) and `providerFactory.ts` (both branches, missing required env). No changes needed to `generateCard`/`translateCard`/`compactArticle` tests — they depend only on the `LlmProvider` interface.
+6. Maintainer sets the real secret once per stage, outside any AI session: `npx sst secret set OpenRouterApiKey <value> --stage dev` and again `--stage production`.
+7. Deploy to `dev`; confirm a real transform/translate/compact call completes via OpenRouter (CloudWatch logs show the OpenRouter request, not a Bedrock ARN) with `LLM_PROVIDER` unset (default). Then temporarily set `LLM_PROVIDER=bedrock` on `dev` only, redeploy, confirm the fallback path still produces a working transform, and revert.
+8. Update DESIGN.md's D6 cross-references and cost/risk sections as needed if real OpenRouter billing data surfaces anything the D32 log entry didn't anticipate.
+
+**Acceptance criteria**
+
+- [ ] `createConfiguredLlmProvider` is unit-tested for both the OpenRouter-default branch and the `LLM_PROVIDER=bedrock` branch, plus missing-required-env cases.
+- [ ] All three LLM call sites (transform, translate, contentJob) instantiate their provider via the shared factory, not `createBedrockProvider` directly.
+- [ ] `OpenRouterApiKey` exists as an `sst.Secret`, set independently on both `dev` and `production`.
+- [ ] A live call on `dev` completes via OpenRouter with `LLM_PROVIDER` unset (verified via logs/response, not just "should work").
+- [ ] Setting `LLM_PROVIDER=bedrock` on `dev` and redeploying still produces a working transform (fallback path proven live at least once), then reverted to the OpenRouter default.
+- [ ] `pnpm lint && pnpm typecheck && pnpm test` green.
+- [ ] No stale "Bedrock is the active provider" prose remains in DESIGN.md outside the explicit fallback framing (D32).
+
+---
+
+## Phase 14 — CI/CD hardening
+
+**Goal:** faster CI feedback, a real guardrail against breaking the deployed API against already-installed mobile clients, and a mobile app version that reflects what actually changed (D33–D35).
+
+**Tasks**
+
+1. **Parallel CI jobs (D33):** split `.github/workflows/ci.yml`'s single `quality` job into a `setup` job (installs deps once via `pnpm install --frozen-lockfile`, caches/uploads `node_modules` — and any other install artifacts the other jobs need — via `actions/cache` or `actions/upload-artifact`/`download-artifact`) plus three jobs that depend only on `setup` and run in parallel: `lint` (`pnpm lint`), `typecheck` (`pnpm typecheck`), `test` (`pnpm test`). Update the `deploy` job's `needs:` from `quality` to `[lint, typecheck, test]`.
+2. **Schema snapshot diff (D34, part 1):** add a script (e.g. `packages/shared/scripts/schemaSnapshot.ts`) that serializes every exported zod schema in `packages/shared/src/schemas.ts` (field names, optionality, primitive/enum shapes) to a committed JSON snapshot file. A new CI job runs the script against `main` and against the PR branch, diffs the two, and fails if the diff contains a removed field, a narrowed/changed field type, or a removed enum value that isn't explicitly listed in an accompanying "acknowledged breaking change" marker (e.g. a line in the PR-body or a committed override file) — additive changes (new optional field, new enum value) pass silently.
+3. **Dev-stage E2E workflow (D34, part 2):** new `.github/workflows/e2e.yml`, triggered by `workflow_dispatch` and a schedule (e.g. nightly), authenticating via the existing AWS OIDC role (scoped to `dev`-stage read/invoke permissions only). Two suites: (a) backend pipeline E2E — trigger a real ingest/transform/translate/content-job cycle against the deployed `dev` stage and assert the expected DynamoDB/SQS/S3 state transitions occur; (b) API-contract E2E — call the real deployed `dev` API over HTTP and parse every response through the same `packages/shared` zod schemas the mobile app itself uses, failing on any parse error. Neither suite touches production or runs on a PR.
+4. **Mobile semver automation (D35):** a CI script (run on merge to `main` when `apps/mobile/**` or `packages/shared/**` changed, mirroring `mobile-build.yml`'s existing path filter) that parses conventional-commit messages since the last mobile version tag, computes the next semver (`feat:` → minor, `fix:` → patch, `BREAKING CHANGE:`/`!` → major), writes the new version into `apps/mobile/app.json`, syncs `apps/mobile/package.json`'s `version` and `android/app/build.gradle`'s `versionName` to match, increments `versionCode` by 1, commits the bump, and tags it.
+5. Fix the pre-existing version drift as part of task 4's first run: `app.json` (`0.0.1`), `package.json` (`0.0.0`), and `build.gradle` (`versionName "0.0.1"`, `versionCode 1`) are all out of sync today — reconcile them to one value before automation takes over.
+
+**Acceptance criteria**
+
+- [ ] `lint`, `typecheck`, and `test` run as separate parallel jobs in CI (confirmed via the Actions run graph — not just declared, actually overlapping in wall-clock time); `deploy` still only proceeds once all three pass.
+- [ ] A deliberately-introduced breaking change to a `packages/shared` schema (e.g. remove a required response field) in a scratch PR is caught and fails the schema-snapshot-diff job; a purely additive change (new optional field) passes.
+- [ ] The E2E workflow runs successfully against the real `dev` stage at least once (both suites), confirmed via its own Actions run, and never runs on a PR trigger.
+- [ ] A merge to `main` touching `apps/mobile/**` with a `feat:` commit bumps the minor version automatically; `app.json`, `package.json`, and `build.gradle` all agree afterward; `versionCode` increased by exactly 1.
+- [ ] `pnpm lint && pnpm typecheck && pnpm test` green (the new scripts/jobs themselves are covered by whatever unit tests make sense for the schema-diff and version-bump logic).
+
+---
+
+## Phase 15 — Eager compact-article generation
+
+**Goal:** compact articles generate inside the ingest pipeline for all 4 languages, for every post, before any reader tap — no more on-demand/job-polling (D36, amends D23/D27).
+
+**Tasks**
+
+1. **Eager enqueue in `transformArticle`:** right after the raw-HTML archive step (independent of whether the card LLM call degrades to excerpt), enqueue one `ContentQueue` message per language (en/ru/uk/pl) for the post — same trigger point and independence-from-card-generation as the existing `TranslateQueue` enqueue (D27), but a separate queue since compact generation doesn't depend on card translation.
+2. **Per-post figure-mirror dedup:** the content consumer, on the first message it processes for a given `postId` (check `Posts.mirroredFigures` — if absent, this is the first), extracts + mirrors that post's in-body figures once and writes the result to a new `Posts.mirroredFigures` field; every other per-language message for that post reads the stored list instead of re-extracting/re-mirroring. Guard against a races-on-first-message scenario (two language jobs for a brand-new post both see `mirroredFigures` absent and both mirror) — last-write-wins is acceptable here (same idempotency precedent as the existing compact-JSON S3 writes), or add a conditional write if double-mirroring in that narrow race proves wasteful enough to matter.
+3. **Rename `ContentJobQueue` → `ContentQueue`, delete the `ContentJobs` DynamoDB table:** update `infra/pipeline.ts`, `packages/functions/src/pipeline/contentJob.ts` (rename to `content.ts` or similar — no more "job" concept), and `ContentJobsRepo` (delete entirely, same pattern as D31's `CountersRepo` removal). The consumer keeps its existing per-language logic (compactEnabled check → LLM call → write S3 + `compactLangs`) minus the job-stage-stamping wrapper D27 added (no more `updateStage('fetching'|'extracting'|'translating')` calls — nothing polls those stages anymore).
+4. **Simplify the API route:** collapse `POST /v1/posts/:id/content` + `GET /v1/posts/:id/content/status?jobId=` into a single `GET /v1/posts/:id/content?lang=` that reads the S3 cache directly — cache hit returns `{ available: true, blocks, figures }`; miss returns `{ available: false, reason }` (compactEnabled false, or genuinely not ready yet — same typed shape, no jobId anywhere).
+5. **Reader update:** `post/[id].tsx` drops the `ProgressBar`/job-polling `react-query` logic (phase 12's contribution) in favor of a plain fetch-and-render — a miss shows the existing "couldn't prepare" fallback (already built for the compactEnabled/error case) rather than a new UI state.
+6. **New posts only:** no backfill Lambda for the historical backlog, matching D24/D27/D28's precedent.
+
+**Acceptance criteria**
+
+- [ ] A freshly ingested post has all 4 compact-article language variants cached in S3 (`compactLangs` populated with all 4) within the pipeline's normal processing lag, with zero reader taps in between — verified the same way D27 verified eager translation (inspect `Posts` right after a pipeline run, no feed/reader interaction beforehand).
+- [ ] Figure extraction/mirroring runs exactly once per post (confirmed via CloudWatch logs or a mirror-call counter), not once per language — proves the dedup actually works, not just that 4 compacts exist.
+- [ ] Zero references to `ContentJobs`, `ContentJobsRepo`, `jobId`, or staged-progress stages (`fetching`/`extracting`/`translating` as job stages) remain anywhere in `packages/`/`infra/`/`apps/mobile` (grep-confirmed).
+- [ ] `GET /v1/posts/:id/content?lang=` returns real cached content on the common path and a typed `available: false` on a deliberately-forced miss (e.g. a source with `compactEnabled: false`), with no synchronous LLM call ever happening on this request path.
+- [ ] The reader renders a compact article immediately (no progress bar) on a cache hit, and falls back gracefully on a miss.
+- [ ] `pnpm lint && pnpm typecheck && pnpm test` green; deployed to `dev` and exercised end-to-end (a real ingest run producing eagerly-cached compacts in all 4 languages, confirmed via the CDN/S3 directly, not just the API).
+
+---
+
+## Phase 16 — Visual identity redesign ("Orbit") + native-asset sync fix
+
+**Goal:** replace D30's violet/magenta lettermark with the new "Orbit" identity (navy background, amber ring-and-dot), and this time actually verify it reaches a real installed APK — fixing the sync gap D30 left behind (D37).
+
+**Tasks**
+
+1. **Root-cause fix, first:** confirm exactly which native resources are stale by decoding the current compiled files (`android/app/src/main/res/mipmap-*/ic_launcher*.webp`, `drawable-*/splashscreen_logo.png`, `values/colors.xml`'s `splashscreen_background`) — already done during this decision's own investigation, all confirmed still the default Expo template (`#208AEF` chevron), not D30's violet/magenta.
+2. **Generate the new Orbit source assets:** SVG source (navy `#111A33` background, amber `#FF9F1C` ring-and-dot mark, flat/no gradients) rasterized locally via `sharp` (same tool D30 used, no design-tool dependency) into `apps/mobile/assets/images/` (icon, android adaptive-icon foreground/background/monochrome, favicon, splash-icon), matching D30's exact file set.
+3. **Update `app.json`** (icon/adaptiveIcon/splash-screen config) and `LoadingScreen.tsx`'s background color to `#111A33` — regenerate its snapshot test.
+4. **Surgically sync the committed `android/` project** — the actual fix for D30's gap: run `expo prebuild --platform android` into a scratch/throwaway location (or a temporary git worktree) with the updated `app.json`/assets, then copy only the icon/splash-derived generated files (the `mipmap-*/ic_launcher*`, `drawable*/splashscreen_logo.png`, and the `colors.xml` background value) into the real committed `apps/mobile/android/` tree. Do **not** run `expo prebuild --clean` directly on the committed project — that would regenerate `build.gradle` from scratch and wipe D18's hand-edited release-`signingConfig` block, which would then need to be manually reapplied. Diff the full scratch-prebuild output against the committed tree first to confirm nothing else unexpectedly changed before copying.
+5. **Real verification, not a repeat of D30's gap:** build an actual APK (`./gradlew` or `eas build --local`), install it on a physical device or emulator, and visually confirm the new icon (home screen + app switcher) and splash screen render — decode the resulting APK's resources programmatically as a first check, then an actual on-device look, since decoding alone is what should have caught D30's gap and didn't get done.
+
+**Acceptance criteria**
+
+- [x] Decoding `android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.webp` and `drawable-xxxhdpi/splashscreen_logo.png` shows the new Orbit ring-and-dot mark, not the Expo default chevron.
+- [x] `values/colors.xml`'s `splashscreen_background` reads `#111A33`, not `#208AEF`.
+- [x] `apps/mobile/android/app/build.gradle`'s release `signingConfig` block is byte-identical to before this phase (confirms the surgical sync didn't clobber D18's hand-edit) — confirmed via matching `sha256sum` before/after the sync.
+- [ ] **Blocked, not deferred:** a real built APK, installed on a device/emulator, showing the Orbit icon and splash — this environment has no Android SDK, no `adb`/`gradle`, and no Java runtime at all (`ANDROID_HOME`/`ANDROID_SDK_ROOT` unset, no SDK at the default macOS path, `java -version` can't locate a runtime), so this is the maintainer's own step, same constraint every prior phase (7, 10, 11, 12) hit.
+- [x] `pnpm lint && pnpm typecheck && pnpm test` green, including a regenerated `LoadingScreen` snapshot (294 vitest + 37 mobile-jest tests).
+
+---
+
 ## Sequencing notes & standing risks
 
 - Phases 0→3 are strictly ordered; 4–6 can interleave.
 - Extension ordering (Q22/D20–D25): **7 → 8 → 9 → 10.** Phase 7 is independent and lands first (visible wins, zero new LLM spend). Phase 8 precedes 9 because the reader consumes the language preference, serving contract, and translation machinery that 8 builds. Phase 10 needs real usage of 8+9 to review. Phases 7–9 don't block on phase 5's remaining EAS setup or phase 6.
 - Second extension (2026-07-24, D26–D31): **11 → 12** — 11 shipped (`react-native-paper` adopted, see CLAUDE.md). Phase 12 touches the reader UI that phase 11's component sweep also touched, so it lands after. Phase 12 depends on phase 8's `TranslateQueue`/translate-consumer machinery and phase 9's content endpoint — it amends both rather than replacing them, and also removes the daily-cap mechanism phases 3/8/9 each built (D31).
-- The riskiest unknowns are front-loaded deliberately: DDB key design proves itself in phase 1 (read-exclusion at query time), pipeline semantics in phase 2 (dedup under concurrency), LLM economics in phase 3 (cap mechanics, later removed by D31) — and in the extension, on-demand economics in phase 8 (caps/quotas before new spend exists, later removed) and the rights guardrails at the start of phase 9 (the kill switch before the feature — this one stays, D31 only removed cost caps, not rights guardrails). Phase 12 repeats the front-load pattern once more: its task 1 is removing the cap mechanism entirely, before any eager-enqueue code is written on top of it. Each phase's acceptance criteria exist to force that proof.
+- Third extension (2026-07-24, D32): **13**, standalone — it's a pure transport swap behind the existing `LlmProvider` interface, so it has no dependency on 11 or 12 and could in principle land before them; ordered last here only because it was decided last.
+- Fourth extension (2026-07-24, D33–D35): **14**, standalone — CI/CD process changes with no dependency on phase 13's provider swap or any other phase's application code; could land independently, in any order, alongside it.
+- Fifth extension (2026-07-24, D36): **13 → 15** — the user explicitly asked for this after the OpenRouter swap, and phase 15's own reasoning depends on it: the eager-compact cost multiplier is only an acceptable tradeoff because D32 already moved LLM spend off the AWS Budget alarm and D31 already removed caps. Phase 15 also reuses phase 12's eager-enqueue pattern (D27) as its template and touches the same reader screen phases 9/11/12 built, so it lands after all of those; it has no dependency on phase 14's CI/CD work.
+- Sixth extension (2026-07-24, D37): **16**, standalone — a mobile-asset/build-pipeline fix plus a redesign, with no dependency on 13/14/15's backend work. Surfaced by the user actually performing the on-device APK check every prior phase (7, 10, 11, 12) had deferred to "the maintainer's own step" without ever running — a reminder that a phase's own acceptance criteria checkbox staying unchecked is exactly the gap it's meant to flag, not a formality.
+- The riskiest unknowns are front-loaded deliberately: DDB key design proves itself in phase 1 (read-exclusion at query time), pipeline semantics in phase 2 (dedup under concurrency), LLM economics in phase 3 (cap mechanics, later removed by D31) — and in the extension, on-demand economics in phase 8 (caps/quotas before new spend exists, later removed) and the rights guardrails at the start of phase 9 (the kill switch before the feature — this one stays, D31 only removed cost caps, not rights guardrails). Phase 12 repeats the front-load pattern once more: its task 1 is removing the cap mechanism entirely, before any eager-enqueue code is written on top of it. Phase 13 has no analogous risk to front-load — the provider swap is contained entirely behind the pre-existing `LlmProvider` interface, which is precisely why it's low-risk enough to sequence last. Each phase's acceptance criteria exist to force that proof.
 - Standing rule from DESIGN §2: content-level failures degrade (excerpt cards; for translations, degrade *is* the English fallback; for compacts, the direct link-out), infra-level failures alarm (DLQ). Any new pipeline code follows the same split.
-- Every LLM call goes through one of three defined paths — transform, translate (eager as of D27/phase 12), compact — with no daily cap on any of them as of D31/phase 12. No ad-hoc Bedrock calls.
-- After phase 3, re-read DESIGN §12 (deferred defaults) and promote/kill items deliberately rather than by drift; same review after phase 10 and after phase 12 (the first real Cost Explorer read under uncapped spend, D31).
+- Every LLM call goes through one of three defined paths — transform, translate (eager as of D27/phase 12), compact (eager as of D36/phase 15) — with no daily cap on any of them as of D31/phase 12, and no usage-gating (taps) left on any of them as of D36/phase 15. No ad-hoc LLM-provider calls outside those three paths, regardless of which provider (OpenRouter or Bedrock, D32/phase 13) is active.
+- After phase 3, re-read DESIGN §12 (deferred defaults) and promote/kill items deliberately rather than by drift; same review after phase 10 and after phase 12 (the first real Cost Explorer read under uncapped spend, D31). Phase 13 shifts that spend off Cost Explorer entirely (D32) — its own equivalent check is against OpenRouter's dashboard, not §12.

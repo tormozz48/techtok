@@ -9,7 +9,7 @@ import {
 } from '@techtok/shared';
 import { useEffect } from 'react';
 import { ScrollView, StyleSheet, Text } from 'react-native';
-import { List } from 'react-native-paper';
+import { SelectableList } from '@/components/SelectableList';
 import { Colors, Spacing } from '@/constants/theme';
 import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
@@ -39,46 +39,30 @@ export default function SettingsScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.sectionTitle}>{strings.settings.languageSectionTitle}</Text>
-      {LANGUAGES.map((lang) => {
-        const selected = language === lang;
-        return (
-          <List.Item
-            key={lang}
-            title={LANGUAGE_LABELS[lang]}
-            onPress={() => chooseLanguage(lang)}
-            style={[styles.row, selected && styles.rowSelected]}
-            titleStyle={styles.rowText}
-            right={
-              selected
-                ? (props) => <List.Icon {...props} icon="check" color={Colors.dark.text} />
-                : undefined
-            }
-          />
-        );
-      })}
+      <SelectableList
+        items={LANGUAGES}
+        isSelected={(lang) => language === lang}
+        label={(lang) => LANGUAGE_LABELS[lang]}
+        onSelect={chooseLanguage}
+        rowStyle={styles.row}
+        rowSelectedStyle={styles.rowSelected}
+        rowTextStyle={styles.rowText}
+      />
       <Text style={styles.hint}>
         {topics.length === 0
           ? strings.settings.hintAll
           : strings.settings.hintSome(topics.length, TOPICS.length)}
       </Text>
-      {TOPICS.map((topic) => {
-        const selected = topics.includes(topic);
-        return (
-          <List.Item
-            key={topic}
-            title={getTopicLabel(topic, language)}
-            onPress={() => toggleTopic(topic)}
-            disabled={isLoading}
-            style={[styles.row, selected && styles.rowSelected]}
-            titleStyle={styles.rowText}
-            right={
-              selected
-                ? (props) => <List.Icon {...props} icon="check" color={Colors.dark.text} />
-                : undefined
-            }
-          />
-        );
-      })}
+      <SelectableList
+        items={TOPICS}
+        isSelected={(topic) => topics.includes(topic)}
+        label={(topic) => getTopicLabel(topic, language)}
+        onSelect={toggleTopic}
+        disabled={isLoading}
+        rowStyle={styles.row}
+        rowSelectedStyle={styles.rowSelected}
+        rowTextStyle={styles.rowText}
+      />
     </ScrollView>
   );
 }

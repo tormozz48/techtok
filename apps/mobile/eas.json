@@ -14,9 +14,6 @@
     "preview": {
       "distribution": "internal",
       "channel": "preview",
-      "env": {
-        "EXPO_PUBLIC_API_URL": "https://ijhjll18xi.execute-api.eu-central-1.amazonaws.com"
-      },
       "android": {
         "buildType": "apk"
       }
@@ -24,9 +21,6 @@
     "production": {
       "distribution": "internal",
       "channel": "production",
-      "env": {
-        "EXPO_PUBLIC_API_URL": "https://ijhjll18xi.execute-api.eu-central-1.amazonaws.com"
-      },
       "android": {
         "buildType": "apk"
       }

@@ -7,9 +7,7 @@ import {
   cardSchema,
   compactBlockSchema,
   contentQuerySchema,
-  contentStartResponseSchema,
-  contentStatusQuerySchema,
-  contentStatusResponseSchema,
+  contentResponseSchema,
   feedQuerySchema,
   historyQuerySchema,
   languagePrefsRequestSchema,
@@ -228,43 +226,19 @@ describe('contentQuerySchema', () => {
   });
 });
 
-describe('contentStartResponseSchema', () => {
-  it('parses a job-start response', () => {
-    expect(contentStartResponseSchema.parse({ jobId: 'job1', status: 'pending' })).toEqual({
-      jobId: 'job1',
-      status: 'pending',
-    });
-  });
-});
-
-describe('contentStatusQuerySchema', () => {
-  it('requires a jobId', () => {
-    expect(contentStatusQuerySchema.parse({ jobId: 'job1' })).toEqual({ jobId: 'job1' });
-    expect(() => contentStatusQuerySchema.parse({})).toThrow();
-  });
-});
-
-describe('contentStatusResponseSchema', () => {
-  it('parses an in-progress status with no content yet', () => {
-    const response = { stage: 'extracting', available: null };
-    expect(contentStatusResponseSchema.parse(response)).toMatchObject(response);
-  });
-
-  it('parses a done+available response with content', () => {
+describe('contentResponseSchema', () => {
+  it('parses an available response with blocks and figures', () => {
     const response = {
-      stage: 'done',
       available: true,
-      content: {
-        lang: 'en',
-        blocks: [{ type: 'paragraph', text: 'hi' }],
-        figures: [{ url: 'https://example.com/fig.jpg' }],
-      },
+      lang: 'en',
+      blocks: [{ type: 'paragraph', text: 'hi' }],
+      figures: [{ url: 'https://example.com/fig.jpg' }],
     };
-    expect(contentStatusResponseSchema.parse(response)).toMatchObject(response);
+    expect(contentResponseSchema.parse(response)).toEqual(response);
   });
 
-  it('parses a done+unavailable response with a reason', () => {
-    const response = { stage: 'done', available: false, reason: 'over cap' };
-    expect(contentStatusResponseSchema.parse(response)).toEqual(response);
+  it('parses an unavailable response with a reason', () => {
+    const response = { available: false, reason: 'not ready yet' };
+    expect(contentResponseSchema.parse(response)).toEqual(response);
   });
 });

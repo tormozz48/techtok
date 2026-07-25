@@ -17,9 +17,9 @@ import { type CompactFigure, isLanguage, type Language } from '@techtok/shared';
 import type { SQSBatchResponse, SQSEvent, SQSHandler } from 'aws-lambda';
 import { requireEnv } from '../env';
 import { lazy } from '../lazy';
-import { getContentJobsRepo, getPostsRepo, getSourcesRepo } from '../repos';
+import { getPostsRepo, getSourcesRepo } from '../repos';
 
-const logger = new Logger({ serviceName: 'content-job' });
+const logger = new Logger({ serviceName: 'content' });
 
 const FETCH_TIMEOUT_MS = 10_000;
 const MAX_BYTES = 2 * 1024 * 1024;
@@ -127,38 +127,40 @@ async function loadArticleHtml(post: { s3RawKey?: string; url: string }): Promis
 }
 
 interface MessageBody {
-  readonly jobId: string;
   readonly postId: string;
   readonly lang: Language;
 }
 
 function parseMessageBody(body: string): MessageBody {
-  const parsed = JSON.parse(body) as Partial<Record<'jobId' | 'postId' | 'lang', string>>;
-  if (!parsed.jobId || !parsed.postId || !parsed.lang || !isLanguage(parsed.lang)) {
-    throw new Error('content job message missing jobId/postId/lang');
+  const parsed = JSON.parse(body) as Partial<Record<'postId' | 'lang', string>>;
+  if (!parsed.postId || !parsed.lang || !isLanguage(parsed.lang)) {
+    throw new Error('content message missing postId/lang');
   }
-  return { jobId: parsed.jobId, postId: parsed.postId, lang: parsed.lang };
+  return { postId: parsed.postId, lang: parsed.lang };
 }
 
 /**
- * Runs the actual compact-article generation for a job started by `POST
- * .../content` (D27) — same `generateContentArticle` core logic as before,
- * only the transport changed. Stage transitions are stamped by wrapping each
- * dep, so `contentArticle.ts` itself needs no knowledge of jobs at all.
+ * Consumes eager per-language compact-generation messages enqueued by
+ * `transformArticle` (D36) — one per language, for every post. On the first
+ * message it processes for a given post (`Posts.mirroredFigures` absent), it
+ * extracts + mirrors that post's in-body figures once and persists them;
+ * every other language reuses the stored list. Two language jobs racing on a
+ * brand-new post's first message may both see `mirroredFigures` absent and
+ * both mirror — last-write-wins, an accepted narrow-race tradeoff (D36), not
+ * guarded against.
  */
 export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
   const postsRepo = getPostsRepo();
   const contentStore = getContentStore();
-  const jobs = getContentJobsRepo();
   const provider = getLlmProvider();
   const batchItemFailures: SQSBatchResponse['batchItemFailures'] = [];
 
   for (const record of event.Records) {
     try {
-      const { jobId, postId, lang } = parseMessageBody(record.body);
+      const { postId, lang } = parseMessageBody(record.body);
       const [post] = await postsRepo.getByIds([postId]);
       if (!post) {
-        throw new Error(`post ${postId} not found for content job ${jobId}`);
+        throw new Error(`post ${postId} not found for content job`);
       }
 
       const deps: ContentDeps = {
@@ -166,22 +168,13 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
           const source = await getSourcesRepo().getById(post.sourceId);
           return source?.compactEnabled !== false;
         },
-        loadArticleHtml: async () => {
-          await jobs.updateStage(jobId, 'fetching');
-          return loadArticleHtml(post);
-        },
-        mirrorFigures: async (figures) => {
-          await jobs.updateStage(jobId, 'extracting');
-          return mirrorFigures(postId, figures);
-        },
-        generateCompact: async (input) => {
-          await jobs.updateStage(jobId, 'translating');
-          return compactArticleViaLlm(input, provider);
-        },
+        loadArticleHtml: () => loadArticleHtml(post),
+        mirrorFigures: (figures) => mirrorFigures(postId, figures),
+        saveMirroredFigures: (figures) => postsRepo.setMirroredFigures(postId, figures),
+        generateCompact: (input) => compactArticleViaLlm(input, provider),
         writeContent: async (blocks, figures) => {
           await contentStore.putContent(postId, lang, { blocks, figures });
-          const nextLangs = Array.from(new Set([...(post.compactLangs ?? []), lang]));
-          await postsRepo.setCompactLangs(postId, nextLangs);
+          await postsRepo.appendCompactLang(postId, lang);
         },
       };
 
@@ -193,19 +186,15 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
           sourceName: post.sourceName,
           url: post.url,
           leadImageUrl: post.mirroredImageUrl ?? post.imageUrl,
+          mirroredFigures: post.mirroredFigures,
         },
         deps,
       );
 
       if (outcome.ok) {
-        await jobs.complete(jobId, {
-          available: true,
-          blocks: outcome.blocks,
-          figures: outcome.figures,
-        });
+        logger.info('content generated', { postId, lang });
       } else {
-        logger.info('content generation degraded', { postId, lang, jobId, reason: outcome.reason });
-        await jobs.complete(jobId, { available: false, reason: outcome.reason });
+        logger.info('content generation degraded', { postId, lang, reason: outcome.reason });
       }
     } catch (err) {
       logger.error('content job failed for message', {

@@ -76,13 +76,19 @@ pre-release). Send that release URL to a friend.
 ## One-time setup (maintainer)
 
 1. `npx eas login` (creates/uses an Expo account — free tier is enough).
-2. From `apps/mobile/`, run `npx eas init` to link the project; this writes a
-   real `projectId` into `app.json` under `expo.extra.eas`.
+2. ~~From `apps/mobile/`, run `npx eas init` to link the project.~~ **Already
+   done** — `app.json`'s `expo.extra.eas.projectId` is a real, committed
+   value, and `expo-updates` is wired up (`updates.url` points at
+   `u.expo.dev`). Only re-run `eas init` if the project is ever re-linked to
+   a different Expo account/project.
 3. Get the deployed production API URL (`aws apigatewayv2 get-apis --region
    eu-central-1 --query "Items[?Name=='techtok-production-Api'].ApiEndpoint"`
    or read it from the `sst deploy --stage production` CI log), then replace
-   `REPLACE_WITH_PRODUCTION_API_URL` in both the `preview` and `production`
-   profiles of `apps/mobile/eas.json`.
+   the placeholder `EXPO_PUBLIC_API_URL` (`https://your-api-id.execute-api.eu-central-1.amazonaws.com`)
+   in both the `preview` and `production` profiles of `apps/mobile/eas.json`.
+   This has been filled in for real before (pointing at what was then the
+   `andrey`/`dev` stage) and reset back to a placeholder when that stage was
+   renamed (D17) — don't assume the committed value is live without checking.
 
 ## Building an install link
 
@@ -170,8 +176,15 @@ cd apps/mobile && pnpm build:android
   (an **AAB**, which is what Play requires for new apps).
 - `pnpm build:android:apk` instead produces a sideloadable APK for quick device
   testing (not for Play).
-- Bump `versionCode` (and `versionName`) in `android/app/build.gradle` before
-  **every** Play upload — Play rejects a re-used `versionCode`.
+- `versionCode`/`versionName` in `android/app/build.gradle` are now kept in
+  sync automatically by CI (`.github/workflows/mobile-version.yml`, D35):
+  every mobile-relevant merge to `main` bumps `app.json`'s canonical
+  `version` from conventional-commit messages and propagates it here,
+  incrementing `versionCode` by 1 every time. Play still rejects a re-used
+  `versionCode`, so before uploading, `git pull` and confirm `versionCode`
+  has actually advanced since your last Play release — the automation runs
+  on merge, not on your publish schedule, so don't bump it by hand unless
+  the auto-bump genuinely hasn't run yet.
 
 ### Publishing to Google Play (first time)
 
@@ -187,8 +200,8 @@ cd apps/mobile && pnpm build:android
    100 tester emails), then promote to Closed/Open/Production. Upload the `.aab`
    and roll out.
 
-Subsequent releases: bump `versionCode`, `pnpm build:android`, upload the new
-`.aab`.
+Subsequent releases: confirm `versionCode` has advanced (see above),
+`pnpm build:android`, upload the new `.aab`.
 
 ### Caveats specific to this app
 
@@ -196,8 +209,10 @@ Subsequent releases: bump `versionCode`, `pnpm build:android`, upload the new
   Update. A non-EAS store build simply never fetches OTA updates — ship changes
   as new store builds. To drop the dependency entirely, remove the `updates`
   block and `expo-updates`.
-- **Push notifications** (`expo-notifications`, the Phase 5 digest) need FCM
-  credentials for Android delivery. EAS normally uploads these for you; off EAS
-  you register an FCM sender (`google-services.json`) and give the FCM key to
-  Expo's push service (the backend still sends via the Expo Push API). Only
-  relevant once the digest push is turned on.
+- **No push notifications.** The Phase 5 daily-digest push feature
+  (`expo-notifications`, an Expo-push-token field on `Users`, a settings
+  toggle) was built, then fully retired end-to-end (D29) — there's nothing
+  to configure here. If push is ever rebuilt, it would need its own FCM
+  setup for a non-EAS build (register an FCM sender, `google-services.json`,
+  hand the FCM key to Expo's push service) the same way this note used to
+  describe.

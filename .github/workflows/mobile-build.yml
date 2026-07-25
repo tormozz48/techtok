@@ -1,17 +1,25 @@
 name: Mobile build
 
+# Called by ci.yml as step 5 of the main-branch release pipeline (D38), after
+# a production deploy, receiving that deploy's real API URL as an input.
+# workflow_dispatch is kept for an ad hoc manual rebuild — pass the current
+# production API URL by hand (find it via the deploy-production workflow's
+# most recent run output, or `npx sst deploy --stage production` locally).
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "apps/mobile/**"
-      - "packages/shared/**"
-      - "pnpm-lock.yaml"
-      - ".github/workflows/mobile-build.yml"
+    inputs:
+      api_url:
+        description: API URL to bake into the build (EXPO_PUBLIC_API_URL)
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      api_url:
+        required: true
+        type: string
 
 concurrency:
-  group: mobile-build-${{ github.ref }}
+  group: mobile-build
   cancel-in-progress: true
 
 jobs:
@@ -64,9 +72,14 @@ jobs:
       # `--local` runs the build on this runner, so it does NOT consume an EAS
       # cloud-build credit (free tier = 15/mo) — effectively unlimited. Signing
       # credentials are pulled from EAS (credentialsSource defaults to "remote")
-      # using EXPO_TOKEN, so no keystore is stored in GitHub.
+      # using EXPO_TOKEN, so no keystore is stored in GitHub. EXPO_PUBLIC_API_URL
+      # comes from this workflow's own `api_url` input (the caller passes the
+      # production deploy's real URL) — it never lives in eas.json or anywhere
+      # else in source control.
       - name: Build Android APK (eas build --local)
         working-directory: apps/mobile
+        env:
+          EXPO_PUBLIC_API_URL: ${{ inputs.api_url }}
         run: eas build --platform android --profile preview --local --non-interactive --output "${{ github.workspace }}/techtok.apk"
 
       - name: Publish APK to GitHub Release

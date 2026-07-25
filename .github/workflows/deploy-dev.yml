@@ -1,0 +1,43 @@
+name: Deploy dev
+
+# Called by ci.yml as step 2 of the main-branch release pipeline (D38), after
+# the quality jobs pass and before e2e runs against the freshly-deployed dev
+# stage. workflow_dispatch is kept for an ad hoc manual redeploy.
+on:
+  workflow_dispatch:
+  workflow_call:
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # techtok-gha-dev-deploy: a distinct, least-privilege OIDC role scoped
+      # to techtok-dev-* resources only (own IAM policy, not a copy of the
+      # production deploy role) — a compromised dev-deploy credential can't
+      # touch anything tagged/named production.
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEV_DEPLOY_ROLE_ARN }}
+          aws-region: eu-central-1
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Deploy dev
+        run: npx sst deploy --stage dev

@@ -1,10 +1,15 @@
 name: E2E (dev stage)
 
-# Never triggered by push/pull_request (DESIGN §2 D34) — this is the one
-# workflow allowed to hold real AWS credentials, scoped to dev-stage
-# read/invoke only via the techtok-gha-e2e OIDC role (no write/deploy access).
+# This is the one workflow allowed to hold real AWS credentials, scoped to
+# dev-stage read/invoke only via the techtok-gha-e2e OIDC role (no
+# write/deploy access). Never triggered directly by push/pull_request (DESIGN
+# §2 D34); ci.yml invokes it as a reusable workflow (workflow_call) as step 3
+# of the main-branch release pipeline, after dev is deployed and before
+# production (D38) — that call happens only on a push to main, never a PR, so
+# the no-AWS-credentials-in-CI guarantee for PR-triggered jobs still holds.
 on:
   workflow_dispatch:
+  workflow_call:
   schedule:
     - cron: "0 6 * * *"
 

@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -117,30 +118,37 @@ jobs:
       - name: Check schema snapshot
         run: pnpm --filter @techtok/shared run schema:check
 
-  deploy:
-    needs: [lint, typecheck, test]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
+  # From here down (D38): this is the single linear release pipeline for a
+  # merge to main — dev deploy -> e2e against dev -> production deploy ->
+  # mobile build. Each stage gates the next so a broken dev deploy or a
+  # failing e2e suite blocks production, and production never redeploys
+  # again just to hand the mobile build a URL (it reads the same deploy's
+  # own output instead). Each stage's actual steps live in their own
+  # workflow file (deploy-dev.yml / e2e.yml / deploy-production.yml /
+  # mobile-build.yml) and are pulled in here as reusable workflows, so each
+  # can also be run standalone via workflow_dispatch.
+  deploy-dev:
+    needs: [lint, typecheck, test, schema-check]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    uses: ./.github/workflows/deploy-dev.yml
+    secrets: inherit
 
-      - uses: pnpm/action-setup@v4
+  e2e:
+    needs: deploy-dev
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    uses: ./.github/workflows/e2e.yml
+    secrets: inherit
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
+  deploy-production:
+    needs: e2e
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    uses: ./.github/workflows/deploy-production.yml
+    secrets: inherit
 
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: eu-central-1
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Deploy production
-        run: npx sst deploy --stage production
+  mobile-build:
+    needs: deploy-production
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    uses: ./.github/workflows/mobile-build.yml
+    with:
+      api_url: ${{ needs.deploy-production.outputs.api_url }}
+    secrets: inherit

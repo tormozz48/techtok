@@ -94,3 +94,4 @@ Definition of done for any change: lint + typecheck + tests green, then exercise
 - `/check` — run all quality gates and fix until green
 - `/phase` — report progress against the implementation plan, propose next increment
 - `/log-decision` — append a decision to the DESIGN.md decision log
+- `/ship` — run `/check`, commit, push, and print a PR compare link (gh pr create is not usable here — read-only account)

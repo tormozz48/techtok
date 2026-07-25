@@ -1,0 +1,72 @@
+name: Release cleanup
+
+# Called by ci.yml as the last step of the main-branch release pipeline (D38),
+# after mobile-build.yml has published a fresh `android-build-<run_number>`
+# prerelease. Every merge to main adds one such release carrying a full APK, so
+# without this they accumulate forever. Keeps the 3 most recent and deletes the
+# rest (release + its git tag). workflow_dispatch is kept for an ad hoc sweep —
+# pass dry_run to see what would go without deleting anything.
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: List what would be deleted without deleting it
+        type: boolean
+        default: false
+  workflow_call:
+
+concurrency:
+  group: release-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # delete releases and their tags
+    steps:
+      # No checkout: gh talks to the remote repo directly via GH_REPO/GH_TOKEN.
+      - name: Delete stale android-build releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          KEEP: "3"
+          DRY_RUN: ${{ inputs.dry_run || false }}
+        run: |
+          set -euo pipefail
+
+          # Only ever considers tags this repo's own mobile-build.yml creates —
+          # any other release (a real versioned one later on) is never touched.
+          # --limit caps how far back we look; if it ever truncates, the oldest
+          # releases are simply skipped this run, so the failure direction is
+          # under-deleting, never over-deleting.
+          stale=$(gh release list --limit 200 --json tagName,createdAt \
+            --jq "map(select(.tagName | startswith(\"android-build-\")))
+                  | sort_by(.createdAt) | reverse | .[${KEEP}:] | .[].tagName")
+
+          if [ -z "$stale" ]; then
+            echo "Nothing to delete: at most ${KEEP} android-build-* releases exist."
+            echo "Nothing to delete." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          count=$(echo "$stale" | wc -l | tr -d ' ')
+          echo "Keeping the ${KEEP} most recent android-build-* releases; ${count} to delete:"
+          echo "$stale"
+
+          {
+            echo "### Release cleanup"
+            echo "Kept the ${KEEP} most recent \`android-build-*\` releases."
+            echo "Deleted ${count} (dry run: ${DRY_RUN}):"
+            echo "$stale" | sed 's/^/- /'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "DRY RUN — nothing deleted."
+            exit 0
+          fi
+
+          echo "$stale" | while read -r tag; do
+            echo "Deleting $tag"
+            gh release delete "$tag" --yes --cleanup-tag
+          done

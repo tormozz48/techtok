@@ -85,7 +85,7 @@ Definition of done for any change: lint + typecheck + tests green, then exercise
 
 ## Claude config in this repo
 
-- `.claude/settings.json` — permission allowlist for the common loop + a PostToolUse hook that auto-formats edited files with Biome (no-ops until Biome is installed in Phase 0).
+- `.claude/settings.json` — permission allowlist for the common loop + two PostToolUse hooks on Edit/Write: one auto-formats with Biome (no-ops until Biome is installed in Phase 0), one runs a scoped `typecheck` for the edited file's workspace package and surfaces errors immediately instead of waiting for `/check`.
 - `/check` — run all quality gates and fix until green
 - `/phase` — report progress against the implementation plan, propose next increment
 - `/log-decision` — append a decision to the DESIGN.md decision log

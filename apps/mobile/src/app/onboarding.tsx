@@ -9,7 +9,8 @@ import {
 import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Button, List } from 'react-native-paper';
+import { Button } from 'react-native-paper';
+import { SelectableList } from '@/components/SelectableList';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
@@ -46,47 +47,31 @@ export default function OnboardingScreen() {
         <Text style={styles.title}>{strings.onboarding.title}</Text>
 
         <Text style={styles.stepTitle}>{strings.onboarding.languageStepTitle}</Text>
-        {LANGUAGES.map((lang) => {
-          const selected = language === lang;
-          return (
-            <List.Item
-              key={lang}
-              title={LANGUAGE_LABELS[lang]}
-              onPress={() => chooseLanguage(lang)}
-              style={[styles.row, selected && styles.rowSelected]}
-              titleStyle={styles.rowText}
-              right={
-                selected
-                  ? (props) => <List.Icon {...props} icon="check" color={Colors.dark.text} />
-                  : undefined
-              }
-            />
-          );
-        })}
+        <SelectableList
+          items={LANGUAGES}
+          isSelected={(lang) => language === lang}
+          label={(lang) => LANGUAGE_LABELS[lang]}
+          onSelect={chooseLanguage}
+          rowStyle={styles.row}
+          rowSelectedStyle={styles.rowSelected}
+          rowTextStyle={styles.rowText}
+        />
 
         <Text style={styles.hint}>
           {topics.length === 0
             ? strings.onboarding.hintAll
             : strings.onboarding.hintSome(topics.length, TOPICS.length)}
         </Text>
-        {TOPICS.map((topic) => {
-          const selected = topics.includes(topic);
-          return (
-            <List.Item
-              key={topic}
-              title={getTopicLabel(topic, language)}
-              onPress={() => toggleTopic(topic)}
-              disabled={isLoading}
-              style={[styles.row, selected && styles.rowSelected]}
-              titleStyle={styles.rowText}
-              right={
-                selected
-                  ? (props) => <List.Icon {...props} icon="check" color={Colors.dark.text} />
-                  : undefined
-              }
-            />
-          );
-        })}
+        <SelectableList
+          items={TOPICS}
+          isSelected={(topic) => topics.includes(topic)}
+          label={(topic) => getTopicLabel(topic, language)}
+          onSelect={toggleTopic}
+          disabled={isLoading}
+          rowStyle={styles.row}
+          rowSelectedStyle={styles.rowSelected}
+          rowTextStyle={styles.rowText}
+        />
       </ScrollView>
       <Button mode="contained" onPress={getStarted} style={styles.cta}>
         {strings.onboarding.cta}

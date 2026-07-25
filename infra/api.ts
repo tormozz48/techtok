@@ -29,19 +29,19 @@ const feedEnvironment = {
 };
 
 api.route('GET /v1/feed', {
-  handler: 'packages/functions/src/api/feed.handler',
+  handler: 'packages/functions/src/api/handlers/feed.handler',
   link: [postsTable, usersTable, userActivityTable, sourcesTable],
   environment: feedEnvironment,
   runtime: 'nodejs22.x',
 });
 
 api.route('GET /v1/topics', {
-  handler: 'packages/functions/src/api/topics.handler',
+  handler: 'packages/functions/src/api/handlers/topics.handler',
   runtime: 'nodejs22.x',
 });
 
 api.route('POST /v1/reads', {
-  handler: 'packages/functions/src/api/reads.handler',
+  handler: 'packages/functions/src/api/handlers/reads.handler',
   link: [postsTable, userActivityTable],
   environment: {
     POSTS_TABLE_NAME: postsTable.name,
@@ -51,35 +51,35 @@ api.route('POST /v1/reads', {
 });
 
 api.route('GET /v1/me', {
-  handler: 'packages/functions/src/api/me.handler',
+  handler: 'packages/functions/src/api/handlers/me.handler',
   link: [usersTable],
   environment: { USERS_TABLE_NAME: usersTable.name },
   runtime: 'nodejs22.x',
 });
 
 api.route('PUT /v1/me/topics', {
-  handler: 'packages/functions/src/api/topicsPrefs.handler',
+  handler: 'packages/functions/src/api/handlers/topicsPrefs.handler',
   link: [usersTable],
   environment: { USERS_TABLE_NAME: usersTable.name },
   runtime: 'nodejs22.x',
 });
 
 api.route('PUT /v1/me/language', {
-  handler: 'packages/functions/src/api/languagePrefs.handler',
+  handler: 'packages/functions/src/api/handlers/languagePrefs.handler',
   link: [usersTable],
   environment: { USERS_TABLE_NAME: usersTable.name },
   runtime: 'nodejs22.x',
 });
 
 api.route('GET /v1/history', {
-  handler: 'packages/functions/src/api/history.handler',
+  handler: 'packages/functions/src/api/handlers/history.handler',
   link: [userActivityTable],
   environment: { USER_ACTIVITY_TABLE_NAME: userActivityTable.name },
   runtime: 'nodejs22.x',
 });
 
 api.route('POST /v1/bookmarks', {
-  handler: 'packages/functions/src/api/bookmarkCreate.handler',
+  handler: 'packages/functions/src/api/handlers/bookmarkCreate.handler',
   link: [postsTable, userActivityTable],
   environment: {
     POSTS_TABLE_NAME: postsTable.name,
@@ -89,14 +89,14 @@ api.route('POST /v1/bookmarks', {
 });
 
 api.route('DELETE /v1/bookmarks/{postId}', {
-  handler: 'packages/functions/src/api/bookmarkDelete.handler',
+  handler: 'packages/functions/src/api/handlers/bookmarkDelete.handler',
   link: [userActivityTable],
   environment: { USER_ACTIVITY_TABLE_NAME: userActivityTable.name },
   runtime: 'nodejs22.x',
 });
 
 api.route('GET /v1/bookmarks', {
-  handler: 'packages/functions/src/api/bookmarkList.handler',
+  handler: 'packages/functions/src/api/handlers/bookmarkList.handler',
   link: [userActivityTable],
   environment: { USER_ACTIVITY_TABLE_NAME: userActivityTable.name },
   runtime: 'nodejs22.x',
@@ -106,7 +106,7 @@ api.route('GET /v1/bookmarks', {
 // read — generation already happened during ingest (infra/pipeline.ts's
 // `contentQueue`), so this route never calls the LLM on the request path.
 api.route('GET /v1/posts/{postId}/content', {
-  handler: 'packages/functions/src/api/content.handler',
+  handler: 'packages/functions/src/api/handlers/content.handler',
   link: [postsTable, sourcesTable, contentBucket],
   environment: {
     POSTS_TABLE_NAME: postsTable.name,

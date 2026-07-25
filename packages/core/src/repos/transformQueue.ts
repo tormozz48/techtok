@@ -1,8 +1,6 @@
-import { SendMessageBatchCommand, type SQSClient } from '@aws-sdk/client-sqs';
+import type { SQSClient } from '@aws-sdk/client-sqs';
 import type { NewPost } from '../posts.types';
-import { chunk } from '../util/chunk';
-
-const SQS_BATCH_LIMIT = 10;
+import { sendBatched } from './batchedSqsSend';
 
 export class TransformQueue {
   constructor(
@@ -11,16 +9,9 @@ export class TransformQueue {
   ) {}
 
   async enqueueNew(posts: NewPost[]): Promise<void> {
-    for (const batch of chunk(posts, SQS_BATCH_LIMIT)) {
-      await this.client.send(
-        new SendMessageBatchCommand({
-          QueueUrl: this.queueUrl,
-          Entries: batch.map((post) => ({
-            Id: post.postId,
-            MessageBody: JSON.stringify({ postId: post.postId, url: post.url }),
-          })),
-        }),
-      );
-    }
+    await sendBatched(this.client, this.queueUrl, posts, (post) => ({
+      id: post.postId,
+      body: { postId: post.postId, url: post.url },
+    }));
   }
 }

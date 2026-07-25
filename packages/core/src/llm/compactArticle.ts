@@ -1,5 +1,5 @@
 import { type LlmCompactOutput, type LlmProvider, llmCompactOutputSchema } from '../llm.types';
-import { errorMessage } from '../util/errors';
+import { callLlmWithRepair } from './callWithRepair';
 import {
   buildCompactArticlePrompt,
   buildCompactArticleRepairPrompt,
@@ -13,43 +13,6 @@ export type CompactArticleInput = CompactArticlePromptInput;
 export type CompactArticleResult =
   | { ok: true; compact: LlmCompactOutput }
   | { ok: false; reason: string };
-
-type AttemptResult =
-  | ({ ok: true } & { compact: LlmCompactOutput })
-  | ({ ok: false } & { reason: string; raw?: string });
-
-/**
- * Calls the LLM once, parses and zod-validates its response. Any failure
- * (network error, non-JSON response, schema mismatch) is reported back
- * instead of thrown — the caller decides whether to repair-retry or degrade.
- */
-async function attempt(provider: LlmProvider, prompt: string): Promise<AttemptResult> {
-  let raw: string;
-  try {
-    raw = await provider.complete(prompt);
-  } catch (err) {
-    return { ok: false, reason: `llm call failed: ${errorMessage(err)}` };
-  }
-
-  let json: unknown;
-  try {
-    json = JSON.parse(extractJson(raw));
-  } catch (err) {
-    return { ok: false, reason: `invalid JSON: ${errorMessage(err)}`, raw };
-  }
-
-  const parsed = llmCompactOutputSchema.safeParse(json);
-  if (!parsed.success) {
-    return { ok: false, reason: `schema validation failed: ${parsed.error.message}`, raw };
-  }
-  return { ok: true, compact: parsed.data };
-}
-
-function extractJson(raw: string): string {
-  // Models sometimes wrap JSON in markdown fences despite instructions.
-  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  return (fenced?.[1] ?? raw).trim();
-}
 
 /**
  * Compresses (and, for non-English targets, translates) an article into a
@@ -65,16 +28,11 @@ export async function compactArticle(
 ): Promise<CompactArticleResult> {
   const prompt = buildCompactArticlePrompt(input);
 
-  const first = await attempt(provider, prompt);
-  if (first.ok) return first;
-
-  const repairPrompt = buildCompactArticleRepairPrompt(
+  const result = await callLlmWithRepair(
+    provider,
     prompt,
-    first.raw ?? '(no response)',
-    first.reason,
+    llmCompactOutputSchema,
+    buildCompactArticleRepairPrompt,
   );
-  const second = await attempt(provider, repairPrompt);
-  if (second.ok) return second;
-
-  return { ok: false, reason: `${first.reason}; repair retry: ${second.reason}` };
+  return result.ok ? { ok: true, compact: result.value } : result;
 }

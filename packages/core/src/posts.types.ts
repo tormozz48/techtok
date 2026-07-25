@@ -1,7 +1,7 @@
-import type { CompactFigure, Language, Topic } from '@techtok/shared';
+import type { CompactFigure, Language, Topic, TransformKind } from '@techtok/shared';
 
+export type { TransformKind };
 export type PostStatus = 'discovered' | 'ready' | 'failed';
-export type TransformKind = 'llm' | 'excerpt';
 
 /** One language's translated card fields (D21) — lives at `Posts.i18n[lang]`. */
 export interface TranslatedFields {

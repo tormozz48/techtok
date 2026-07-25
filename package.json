@@ -13,7 +13,8 @@
     "test": "vitest run && pnpm --filter mobile run test",
     "dev": "sst dev --stage dev",
     "deploy:dev": "sst deploy --stage dev",
-    "mobile:bump-version": "tsx scripts/bumpMobileVersion.ts"
+    "mobile:bump-version": "tsx scripts/bumpMobileVersion.ts",
+    "preflight": "tsx scripts/preflight.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.4",
@@ -21,6 +22,7 @@
     "sst": "4.17.1",
     "tsx": "^4.23.1",
     "typescript": "5.9.3",
-    "vitest": "4.1.10"
+    "vitest": "4.1.10",
+    "yaml": "^2.9.0"
   }
 }

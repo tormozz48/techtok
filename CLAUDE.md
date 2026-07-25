@@ -52,6 +52,7 @@ pnpm typecheck   # tsc --noEmit across workspaces + sst.config.ts/infra (the lat
 pnpm test        # vitest (shared/core/functions) + jest (mobile)
 pnpm dev         # sst dev --stage dev — live Lambda on your personal "dev" stage
 pnpm --filter mobile start   # Expo dev server
+pnpm preflight   # static scan: unaliased DynamoDB reserved words, workflow YAML validity
 ```
 
 Definition of done for any change: lint + typecheck + tests green, then exercised on the dev stage / a device. Verify by running the commands, not by reading the code.

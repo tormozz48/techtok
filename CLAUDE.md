@@ -89,6 +89,10 @@ Definition of done for any change: lint + typecheck + tests green, then exercise
 - After a change is ready (quality gates green, commit pushed): push the branch, then print a ready-to-click compare link — `https://github.com/tormozz48/techtok/compare/main...<branch>?expand=1` — plus a suggested PR title and body. Let the maintainer open the PR from that link.
 - If repo permissions change (confirm via `gh repo view tormozz48/techtok --json viewerPermission`), this restriction can be dropped.
 
+## Quality Gates
+
+Before every commit: `pnpm lint`, then `pnpm typecheck`, then `pnpm test` — all must exit 0. For any `apps/mobile` change, also run a Metro bundle check (`pnpm --filter mobile exec expo export --platform android`) as a cheap proxy for a real device pass. Use `/check` to run this loop and fix failures until green; don't commit on a partial pass.
+
 ## Schema & Data Migrations
 
 - Never narrow or otherwise change a `packages/shared` zod schema (or a DynamoDB item shape) without first counting existing rows in every live stage that would violate the new shape, and writing an explicit migration or cleanup plan for them. (D31's `TransformKind` narrowing shipped without this check and 500'd `GET /v1/feed` on 1,740 pre-existing `dev` rows.)
@@ -100,3 +104,4 @@ Definition of done for any change: lint + typecheck + tests green, then exercise
 - `/check` — run all quality gates and fix until green
 - `/phase` — report progress against the implementation plan, propose next increment
 - `/log-decision` — append a decision to the DESIGN.md decision log
+- `/ship` — run `/check`, commit, push, and print a PR compare link (gh pr create is not usable here — read-only account)

@@ -1,7 +1,7 @@
 import { historyQuerySchema, historyResponseSchema } from '@techtok/shared';
-import { getUserActivityRepo } from '../repos';
-import { jsonResponse, parseQuery, withDeviceId } from './http';
-import { toHistoryItem } from './toHistoryItem';
+import { getUserActivityRepo } from '../../repos';
+import { jsonResponse, parseQuery, withDeviceId } from '../lib/http';
+import { toHistoryItem } from '../transformers/toHistoryItem';
 
 export const handler = withDeviceId(async (event, deviceId) => {
   const query = parseQuery(event, historyQuerySchema);

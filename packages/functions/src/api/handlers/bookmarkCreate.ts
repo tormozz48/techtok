@@ -1,6 +1,6 @@
 import { bookmarkCreateRequestSchema } from '@techtok/shared';
-import { getPostsRepo, getUserActivityRepo } from '../repos';
-import { errorResponse, noContent, parseJsonBody, withDeviceId } from './http';
+import { getPostsRepo, getUserActivityRepo } from '../../repos';
+import { errorResponse, noContent, parseJsonBody, withDeviceId } from '../lib/http';
 
 export const handler = withDeviceId(async (event, deviceId) => {
   const body = parseJsonBody(event, bookmarkCreateRequestSchema);

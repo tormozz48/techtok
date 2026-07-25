@@ -83,6 +83,10 @@ Definition of done for any change: lint + typecheck + tests green, then exercise
 - Never run `sst remove` (denied in settings.json); it destroys deployed stacks.
 - Budget ceiling is **$10/mo** (D11). Anything cost-bearing — schedule rates, LLM volume/caps, log retention, new always-on resources — gets checked against DESIGN §10 first.
 
+## CI Monitoring
+
+Watch a CI run with a single blocking call — `gh run watch --exit-status <run-id>` — never a polling loop with repeated output. On failure, fetch only the failing job's log with `gh run view --log-failed` and summarize the error lines. Note: the authenticated `gh` account can't re-run a workflow (read-only, see Git & PR Workflow) — if a rerun is needed, say so and let the maintainer trigger it, don't push an empty commit as a workaround.
+
 ## Destructive Operations
 
 For bulk deletes or cleanups against live AWS data (DynamoDB rows, S3 objects, etc.): take a backup first (e.g. export the affected items to a scratchpad file), print the exact count of affected rows, and ask for a single explicit confirmation before executing. Prefer one idempotent script over interactive per-row prompts.

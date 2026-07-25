@@ -83,6 +83,11 @@ Definition of done for any change: lint + typecheck + tests green, then exercise
 - Never run `sst remove` (denied in settings.json); it destroys deployed stacks.
 - Budget ceiling is **$10/mo** (D11). Anything cost-bearing — schedule rates, LLM volume/caps, log retention, new always-on resources — gets checked against DESIGN §10 first.
 
+## Diagrams & Interactive Intake
+
+- Render architecture/pipeline diagrams as native artifacts or images, not fenced ```mermaid code blocks.
+- When gathering design decisions (ADRs, decision-log entries, phase intake), ask questions ONE at a time and wait for the answer — never dump a bulk question list.
+
 ## Git & PR Workflow
 
 - The `gh` account authenticated in this environment is a non-collaborator with read-only access to this repo (`viewerPermission: READ`) — `gh pr create` will fail every time. Don't attempt it.

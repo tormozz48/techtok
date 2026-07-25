@@ -87,9 +87,15 @@ Definition of done for any change: lint + typecheck + tests green, then exercise
 
 Watch a CI run with a single blocking call — `gh run watch --exit-status <run-id>` — never a polling loop with repeated output. On failure, fetch only the failing job's log with `gh run view --log-failed` and summarize the error lines. Note: the authenticated `gh` account can't re-run a workflow (read-only, see Git & PR Workflow) — if a rerun is needed, say so and let the maintainer trigger it, don't push an empty commit as a workaround.
 
+## Schema & Data Migrations
+
+- Never narrow or otherwise change a `packages/shared` zod schema (or a DynamoDB item shape) without first counting existing rows in every live stage that would violate the new shape, and writing an explicit migration or cleanup plan for them. (D31's `TransformKind` narrowing shipped without this check and 500'd `GET /v1/feed` on 1,740 pre-existing `dev` rows.)
+- Watch for DynamoDB reserved keywords (e.g. `language`, `status`, `name`) in any `UpdateExpression`/`ProjectionExpression` — always alias them via `ExpressionAttributeNames`. `aws-sdk-client-mock` does not catch this; it only surfaces live.
+
 ## Claude config in this repo
 
 - `.claude/settings.json` — permission allowlist for the common loop + a PostToolUse hook that auto-formats edited files with Biome (no-ops until Biome is installed in Phase 0).
 - `/check` — run all quality gates and fix until green
 - `/phase` — report progress against the implementation plan, propose next increment
 - `/log-decision` — append a decision to the DESIGN.md decision log
+- `/ship` — run `/check`, commit, push, and print a PR compare link (gh pr create is not usable here — read-only account)

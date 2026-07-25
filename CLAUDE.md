@@ -83,6 +83,10 @@ Definition of done for any change: lint + typecheck + tests green, then exercise
 - Never run `sst remove` (denied in settings.json); it destroys deployed stacks.
 - Budget ceiling is **$10/mo** (D11). Anything cost-bearing — schedule rates, LLM volume/caps, log retention, new always-on resources — gets checked against DESIGN §10 first.
 
+## Quality Gates
+
+Before every commit: `pnpm lint`, then `pnpm typecheck`, then `pnpm test` — all must exit 0. For any `apps/mobile` change, also run a Metro bundle check (`pnpm --filter mobile exec expo export --platform android`) as a cheap proxy for a real device pass. Use `/check` to run this loop and fix failures until green; don't commit on a partial pass.
+
 ## Schema & Data Migrations
 
 - Never narrow or otherwise change a `packages/shared` zod schema (or a DynamoDB item shape) without first counting existing rows in every live stage that would violate the new shape, and writing an explicit migration or cleanup plan for them. (D31's `TransformKind` narrowing shipped without this check and 500'd `GET /v1/feed` on 1,740 pre-existing `dev` rows.)

@@ -83,6 +83,11 @@ Definition of done for any change: lint + typecheck + tests green, then exercise
 - Never run `sst remove` (denied in settings.json); it destroys deployed stacks.
 - Budget ceiling is **$10/mo** (D11). Anything cost-bearing — schedule rates, LLM volume/caps, log retention, new always-on resources — gets checked against DESIGN §10 first.
 
+## Diagrams & Interactive Intake
+
+- Render architecture/pipeline diagrams as native artifacts or images, not fenced ```mermaid code blocks.
+- When gathering design decisions (ADRs, decision-log entries, phase intake), ask questions ONE at a time and wait for the answer — never dump a bulk question list.
+
 ## Claude config in this repo
 
 - `.claude/settings.json` — permission allowlist for the common loop + a PostToolUse hook that auto-formats edited files with Biome (no-ops until Biome is installed in Phase 0).

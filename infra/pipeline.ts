@@ -18,9 +18,12 @@ export const BEDROCK_MODEL_ID =
 
 // LLM provider swap to OpenRouter (D32, phase 13): all three LLM pipeline
 // paths call OpenRouter by default, selectable back to Bedrock per stage via
-// `LLM_PROVIDER`. Same model as the Bedrock default, via OpenRouter's catalog.
+// `LLM_PROVIDER`. Model default switched to Gemini 3.1 Flash Lite (D38) —
+// ~75%/70% cheaper than the original Claude Haiku 4.5 default on OpenRouter's
+// per-token rate, same tier, larger context window.
 export const LLM_PROVIDER = process.env.LLM_PROVIDER ?? 'openrouter';
-export const OPENROUTER_MODEL_ID = process.env.OPENROUTER_MODEL_ID ?? 'anthropic/claude-haiku-4.5';
+export const OPENROUTER_MODEL_ID =
+  process.env.OPENROUTER_MODEL_ID ?? 'google/gemini-3.1-flash-lite';
 
 // The project's first real secret (D32) — set per-stage by the maintainer:
 //   npx sst secret set OpenRouterApiKey <value> --stage <dev|production>

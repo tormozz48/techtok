@@ -11,7 +11,6 @@ const PRESETS: SourcePreset[] = [
     rssUrl: 'https://hnrss.org/frontpage',
     siteUrl: 'https://news.ycombinator.com',
     defaultTopic: 'dev',
-    topics: ['dev'],
   },
   {
     sourceId: 'verge',
@@ -19,7 +18,6 @@ const PRESETS: SourcePreset[] = [
     rssUrl: 'https://www.theverge.com/rss/index.xml',
     siteUrl: 'https://www.theverge.com',
     defaultTopic: 'gadgets',
-    topics: ['gadgets'],
   },
   {
     sourceId: 'arstechnica',
@@ -27,7 +25,6 @@ const PRESETS: SourcePreset[] = [
     rssUrl: 'https://feeds.arstechnica.com/arstechnica/index',
     siteUrl: 'https://arstechnica.com',
     defaultTopic: 'gadgets',
-    topics: ['gadgets', 'dev'],
   },
   {
     sourceId: 'techcrunch',
@@ -35,7 +32,6 @@ const PRESETS: SourcePreset[] = [
     rssUrl: 'https://techcrunch.com/feed/',
     siteUrl: 'https://techcrunch.com',
     defaultTopic: 'startups',
-    topics: ['startups'],
   },
   {
     sourceId: 'sciencedaily',
@@ -43,7 +39,6 @@ const PRESETS: SourcePreset[] = [
     rssUrl: 'https://www.sciencedaily.com/rss/top/technology.xml',
     siteUrl: 'https://www.sciencedaily.com',
     defaultTopic: 'science',
-    topics: ['science'],
   },
   {
     sourceId: 'physorg',
@@ -51,7 +46,6 @@ const PRESETS: SourcePreset[] = [
     rssUrl: 'https://phys.org/rss-feed/',
     siteUrl: 'https://phys.org',
     defaultTopic: 'science',
-    topics: ['science'],
   },
   {
     sourceId: 'quanta',
@@ -59,7 +53,6 @@ const PRESETS: SourcePreset[] = [
     rssUrl: 'https://www.quantamagazine.org/feed/',
     siteUrl: 'https://www.quantamagazine.org',
     defaultTopic: 'science',
-    topics: ['science'],
   },
   {
     sourceId: 'nature',
@@ -67,7 +60,6 @@ const PRESETS: SourcePreset[] = [
     rssUrl: 'https://www.nature.com/nature.rss',
     siteUrl: 'https://www.nature.com',
     defaultTopic: 'science',
-    topics: ['science', 'bio'],
   },
   {
     sourceId: 'arxiv-ai',
@@ -75,7 +67,6 @@ const PRESETS: SourcePreset[] = [
     rssUrl: 'https://rss.arxiv.org/rss/cs.AI',
     siteUrl: 'https://arxiv.org/list/cs.AI/recent',
     defaultTopic: 'ai',
-    topics: ['ai'],
   },
   {
     sourceId: 'github-blog',
@@ -83,7 +74,6 @@ const PRESETS: SourcePreset[] = [
     rssUrl: 'https://github.blog/feed/',
     siteUrl: 'https://github.blog',
     defaultTopic: 'dev',
-    topics: ['dev'],
   },
   {
     sourceId: 'huggingface-blog',
@@ -91,7 +81,6 @@ const PRESETS: SourcePreset[] = [
     rssUrl: 'https://huggingface.co/blog/feed.xml',
     siteUrl: 'https://huggingface.co/blog',
     defaultTopic: 'ai',
-    topics: ['ai'],
   },
 ];
 

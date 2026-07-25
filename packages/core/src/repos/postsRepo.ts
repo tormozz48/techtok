@@ -1,12 +1,11 @@
 import {
-  BatchGetCommand,
   type DynamoDBDocumentClient,
   PutCommand,
   QueryCommand,
   UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
 import type { CompactFigure, Language, Topic } from '@techtok/shared';
-import { conditionalWrite } from '../clients/dynamoClient';
+import { batchGetChunked, conditionalWrite } from '../clients/dynamoClient';
 import type {
   NewPost,
   PostRecord,
@@ -14,7 +13,6 @@ import type {
   TransformKind,
   TranslatedFields,
 } from '../posts.types';
-import { chunk } from '../util/chunk';
 
 const POST_TTL_SECONDS = 90 * 24 * 60 * 60;
 const BY_TIME_PARTITION = 'POST';
@@ -81,20 +79,13 @@ export class PostsRepo {
   }
 
   async getByIds(postIds: string[]): Promise<PostRecord[]> {
-    if (postIds.length === 0) return [];
-
-    const posts: PostRecord[] = [];
-    for (const batch of chunk(postIds, BATCH_GET_CHUNK_SIZE)) {
-      const result = await this.client.send(
-        new BatchGetCommand({
-          RequestItems: {
-            [this.tableName]: { Keys: batch.map((postId) => ({ postId })) },
-          },
-        }),
-      );
-      posts.push(...((result.Responses?.[this.tableName] ?? []) as PostRecord[]));
-    }
-    return posts;
+    return batchGetChunked<string, PostRecord>(
+      this.client,
+      this.tableName,
+      postIds,
+      (postId) => ({ postId }),
+      BATCH_GET_CHUNK_SIZE,
+    );
   }
 
   async updateTransform(postId: string, fields: TransformUpdateFields): Promise<void> {
@@ -187,10 +178,9 @@ export class PostsRepo {
   }
 
   /** Sets a post's mirrored figure list the first time a content job
-   * processes it (D36) — a plain overwrite, same last-write-wins precedent as
-   * `setCompactLangs`. Two language jobs racing on a brand-new post's first
-   * message may both mirror and both write here; harmless, just wasted work,
-   * per the phase's own accepted tradeoff. */
+   * processes it (D36) — a plain overwrite. Two language jobs racing on a
+   * brand-new post's first message may both mirror and both write here;
+   * harmless, just wasted work, per the phase's own accepted tradeoff. */
   async setMirroredFigures(postId: string, figures: CompactFigure[]): Promise<void> {
     await this.client.send(
       new UpdateCommand({

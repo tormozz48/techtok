@@ -1,5 +1,5 @@
-import { getUserActivityRepo } from '../repos';
-import { errorResponse, noContent, withDeviceId } from './http';
+import { getUserActivityRepo } from '../../repos';
+import { errorResponse, noContent, withDeviceId } from '../lib/http';
 
 export const handler = withDeviceId(async (event, deviceId) => {
   const postId = event.pathParameters?.postId;

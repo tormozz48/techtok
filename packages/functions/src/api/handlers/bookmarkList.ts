@@ -1,7 +1,7 @@
 import { bookmarksQuerySchema, bookmarksResponseSchema } from '@techtok/shared';
-import { getUserActivityRepo } from '../repos';
-import { jsonResponse, parseQuery, withDeviceId } from './http';
-import { toBookmarkItem } from './toBookmarkItem';
+import { getUserActivityRepo } from '../../repos';
+import { jsonResponse, parseQuery, withDeviceId } from '../lib/http';
+import { toBookmarkItem } from '../transformers/toBookmarkItem';
 
 export const handler = withDeviceId(async (event, deviceId) => {
   const query = parseQuery(event, bookmarksQuerySchema);

@@ -1,12 +1,11 @@
 import {
-  BatchGetCommand,
   DeleteCommand,
   type DynamoDBDocumentClient,
   PutCommand,
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
+import { batchGetChunked } from '../clients/dynamoClient';
 import type { ActivityRecord, BookmarkRecord, ReadSnapshot } from '../history.types';
-import { chunk } from '../util/chunk';
 
 const BATCH_GET_CHUNK_SIZE = 100;
 
@@ -112,24 +111,14 @@ export class UserActivityRepo {
     postIds: string[],
     sortKey: (postId: string) => string,
   ): Promise<Set<string>> {
-    if (postIds.length === 0) return new Set();
-
-    const markedIds = new Set<string>();
-    for (const batch of chunk(postIds, BATCH_GET_CHUNK_SIZE)) {
-      const result = await this.client.send(
-        new BatchGetCommand({
-          RequestItems: {
-            [this.tableName]: {
-              Keys: batch.map((postId) => ({ userId, sk: sortKey(postId) })),
-            },
-          },
-        }),
-      );
-      for (const item of result.Responses?.[this.tableName] ?? []) {
-        markedIds.add((item as ActivityRecord | BookmarkRecord).postId);
-      }
-    }
-    return markedIds;
+    const items = await batchGetChunked<string, ActivityRecord | BookmarkRecord>(
+      this.client,
+      this.tableName,
+      postIds,
+      (postId) => ({ userId, sk: sortKey(postId) }),
+      BATCH_GET_CHUNK_SIZE,
+    );
+    return new Set(items.map((item) => item.postId));
   }
 
   private async queryNewestFirstPage<T>(

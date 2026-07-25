@@ -1,9 +1,9 @@
 import { ContentStore, createS3Client, isCompactEnabled } from '@techtok/core';
 import { type ContentResponse, contentQuerySchema } from '@techtok/shared';
-import { requireEnv } from '../env';
-import { lazy } from '../lazy';
-import { getPostsRepo, getSourcesRepo } from '../repos';
-import { errorResponse, jsonResponse, parseQuery, withDeviceId } from './http';
+import { requireEnv } from '../../env';
+import { lazy } from '../../lazy';
+import { getPostsRepo, getSourcesRepo } from '../../repos';
+import { errorResponse, jsonResponse, parseQuery, withDeviceId } from '../lib/http';
 
 const getS3Client = lazy(createS3Client);
 const getContentStore = lazy(

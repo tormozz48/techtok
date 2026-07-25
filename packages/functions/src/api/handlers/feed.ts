@@ -1,9 +1,14 @@
 import { buildFeed } from '@techtok/core';
 import { feedQuerySchema, feedResponseSchema } from '@techtok/shared';
-import { getPostsRepo, getSourceWeightsCache, getUserActivityRepo, getUsersRepo } from '../repos';
-import { extractDeviceLanguage } from './deviceId';
-import { jsonResponse, parseQuery, withDeviceId } from './http';
-import { toCard } from './toCard';
+import {
+  getPostsRepo,
+  getSourceWeightsCache,
+  getUserActivityRepo,
+  getUsersRepo,
+} from '../../repos';
+import { extractDeviceLanguage } from '../lib/deviceId';
+import { jsonResponse, parseQuery, withDeviceId } from '../lib/http';
+import { toCard } from '../transformers/toCard';
 
 export const handler = withDeviceId(async (event, deviceId) => {
   const query = parseQuery(event, feedQuerySchema);

@@ -1,6 +1,6 @@
 import { readsRequestSchema } from '@techtok/shared';
-import { getPostsRepo, getUserActivityRepo } from '../repos';
-import { noContent, parseJsonBody, withDeviceId } from './http';
+import { getPostsRepo, getUserActivityRepo } from '../../repos';
+import { noContent, parseJsonBody, withDeviceId } from '../lib/http';
 
 export const handler = withDeviceId(async (event, deviceId) => {
   const body = parseJsonBody(event, readsRequestSchema);

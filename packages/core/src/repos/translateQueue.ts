@@ -1,8 +1,6 @@
-import { SendMessageBatchCommand, type SQSClient } from '@aws-sdk/client-sqs';
+import type { SQSClient } from '@aws-sdk/client-sqs';
 import type { Language } from '@techtok/shared';
-import { chunk } from '../util/chunk';
-
-const SQS_BATCH_LIMIT = 10;
+import { sendBatched } from './batchedSqsSend';
 
 export interface TranslateJob {
   readonly postId: string;
@@ -16,16 +14,9 @@ export class TranslateQueue {
   ) {}
 
   async enqueuePending(jobs: TranslateJob[]): Promise<void> {
-    for (const batch of chunk(jobs, SQS_BATCH_LIMIT)) {
-      await this.client.send(
-        new SendMessageBatchCommand({
-          QueueUrl: this.queueUrl,
-          Entries: batch.map((job) => ({
-            Id: `${job.postId}-${job.lang}`,
-            MessageBody: JSON.stringify({ postId: job.postId, lang: job.lang }),
-          })),
-        }),
-      );
-    }
+    await sendBatched(this.client, this.queueUrl, jobs, (job) => ({
+      id: `${job.postId}-${job.lang}`,
+      body: { postId: job.postId, lang: job.lang },
+    }));
   }
 }

@@ -6,7 +6,6 @@ export interface SourceRecord {
   readonly rssUrl: string;
   readonly siteUrl?: string;
   readonly defaultTopic: Topic;
-  readonly topics: Topic[];
   readonly weight: number;
   readonly enabled: boolean;
   readonly etag?: string;

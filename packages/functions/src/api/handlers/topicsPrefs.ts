@@ -1,7 +1,7 @@
 import { meResponseSchema, topicsPrefsRequestSchema } from '@techtok/shared';
-import { getUsersRepo } from '../repos';
-import { jsonResponse, parseJsonBody, withDeviceId } from './http';
-import { toMeResponse } from './toMeResponse';
+import { getUsersRepo } from '../../repos';
+import { jsonResponse, parseJsonBody, withDeviceId } from '../lib/http';
+import { toMeResponse } from '../transformers/toMeResponse';
 
 export const handler = withDeviceId(async (event, deviceId) => {
   const body = parseJsonBody(event, topicsPrefsRequestSchema);

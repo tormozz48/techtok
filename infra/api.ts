@@ -1,4 +1,3 @@
-import { translateQueue } from './pipeline';
 import { contentBucket, postsTable, sourcesTable, userActivityTable, usersTable } from './storage';
 
 export const api = new sst.aws.ApiGatewayV2('Api', {
@@ -27,12 +26,11 @@ const feedEnvironment = {
   USERS_TABLE_NAME: usersTable.name,
   USER_ACTIVITY_TABLE_NAME: userActivityTable.name,
   SOURCES_TABLE_NAME: sourcesTable.name,
-  TRANSLATE_QUEUE_URL: translateQueue.url,
 };
 
 api.route('GET /v1/feed', {
   handler: 'packages/functions/src/api/handlers/feed.handler',
-  link: [postsTable, usersTable, userActivityTable, sourcesTable, translateQueue],
+  link: [postsTable, usersTable, userActivityTable, sourcesTable],
   environment: feedEnvironment,
   runtime: 'nodejs22.x',
 });

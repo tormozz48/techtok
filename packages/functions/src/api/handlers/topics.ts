@@ -1,6 +1,6 @@
 import { getTopicLabel, TOPICS, topicsQuerySchema, topicsResponseSchema } from '@techtok/shared';
 import type { APIGatewayProxyHandlerV2 } from 'aws-lambda';
-import { jsonResponse, parseQuery } from './http';
+import { jsonResponse, parseQuery } from '../lib/http';
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   const query = parseQuery(event, topicsQuerySchema);

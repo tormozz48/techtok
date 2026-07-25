@@ -127,28 +127,43 @@ jobs:
   # workflow file (deploy-dev.yml / e2e.yml / deploy-production.yml /
   # mobile-build.yml) and are pulled in here as reusable workflows, so each
   # can also be run standalone via workflow_dispatch.
+  # A reusable workflow's own jobs can only ever be granted permissions the
+  # calling job itself was granted (permissions narrow down the call chain,
+  # never widen) — so each caller job below must re-declare whatever its
+  # nested workflow's jobs request, or GitHub silently caps it to none.
   deploy-dev:
     needs: [lint, typecheck, test, schema-check]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     uses: ./.github/workflows/deploy-dev.yml
+    permissions:
+      id-token: write
+      contents: read
     secrets: inherit
 
   e2e:
     needs: deploy-dev
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     uses: ./.github/workflows/e2e.yml
+    permissions:
+      id-token: write
+      contents: read
     secrets: inherit
 
   deploy-production:
     needs: e2e
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     uses: ./.github/workflows/deploy-production.yml
+    permissions:
+      id-token: write
+      contents: read
     secrets: inherit
 
   mobile-build:
     needs: deploy-production
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     uses: ./.github/workflows/mobile-build.yml
+    permissions:
+      contents: write
     with:
       api_url: ${{ needs.deploy-production.outputs.api_url }}
     secrets: inherit

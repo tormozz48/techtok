@@ -89,6 +89,11 @@ Definition of done for any change: lint + typecheck + tests green, then exercise
 - After a change is ready (quality gates green, commit pushed): push the branch, then print a ready-to-click compare link — `https://github.com/tormozz48/techtok/compare/main...<branch>?expand=1` — plus a suggested PR title and body. Let the maintainer open the PR from that link.
 - If repo permissions change (confirm via `gh repo view tormozz48/techtok --json viewerPermission`), this restriction can be dropped.
 
+## Schema & Data Migrations
+
+- Never narrow or otherwise change a `packages/shared` zod schema (or a DynamoDB item shape) without first counting existing rows in every live stage that would violate the new shape, and writing an explicit migration or cleanup plan for them. (D31's `TransformKind` narrowing shipped without this check and 500'd `GET /v1/feed` on 1,740 pre-existing `dev` rows.)
+- Watch for DynamoDB reserved keywords (e.g. `language`, `status`, `name`) in any `UpdateExpression`/`ProjectionExpression` — always alias them via `ExpressionAttributeNames`. `aws-sdk-client-mock` does not catch this; it only surfaces live.
+
 ## Claude config in this repo
 
 - `.claude/settings.json` — permission allowlist for the common loop + a PostToolUse hook that auto-formats edited files with Biome (no-ops until Biome is installed in Phase 0).

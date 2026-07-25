@@ -122,14 +122,16 @@ jobs:
       - name: Check schema snapshot
         run: pnpm --filter @techtok/shared run schema:check
 
-  # From here down (D38): this is the single linear release pipeline for a
+  # From here down (D38, extended by D39): this is the release pipeline for a
   # merge to main — dev deploy -> e2e against dev -> production deploy ->
-  # mobile build. Each stage gates the next so a broken dev deploy or a
-  # failing e2e suite blocks production, and production never redeploys
-  # again just to hand the mobile build a URL (it reads the same deploy's
-  # own output instead). Each stage's actual steps live in their own
-  # workflow file (deploy-dev.yml / e2e.yml / deploy-production.yml /
-  # mobile-build.yml) and are pulled in here as reusable workflows, so each
+  # mobile build -> {site deploy, release cleanup} (the last two run in
+  # parallel; neither depends on the other). Each stage gates the next so a
+  # broken dev deploy or a failing e2e suite blocks production, and
+  # production never redeploys again just to hand the mobile build a URL (it
+  # reads the same deploy's own output instead). Each stage's actual steps
+  # live in their own workflow file (deploy-dev.yml / e2e.yml /
+  # deploy-production.yml / mobile-build.yml / deploy-site.yml /
+  # release-cleanup.yml) and are pulled in here as reusable workflows, so each
   # can also be run standalone via workflow_dispatch.
   # A reusable workflow's own jobs can only ever be granted permissions the
   # calling job itself was granted (permissions narrow down the call chain,
@@ -170,6 +172,16 @@ jobs:
       contents: write
     with:
       api_url: ${{ needs.deploy-production.outputs.api_url }}
+    secrets: inherit
+
+  deploy-site:
+    needs: mobile-build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    uses: ./.github/workflows/deploy-site.yml
+    permissions:
+      pages: write
+      id-token: write
+      contents: read
     secrets: inherit
 
   # Prunes the APK-carrying prereleases mobile-build just added to, keeping the

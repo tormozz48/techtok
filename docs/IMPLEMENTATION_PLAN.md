@@ -1,6 +1,6 @@
 # TechTok — Implementation Plan
 
-Companion to [DESIGN.md](DESIGN.md). Sixteen phases (0–6 original build-out, 7–10 the 2026-07-22 extension, D20–D25, 11–12 the 2026-07-24 extension, D26–D30, 13 the 2026-07-24 LLM provider swap, D32, 14 the 2026-07-24 CI/CD hardening, D33–D35, 15 the 2026-07-24 eager compact-article generation, D36, 16 the 2026-07-24 visual identity redesign + native-asset sync fix, D37); every phase ends with something you can demo on a phone. Effort estimates are focused solo days — spread over evenings, multiply accordingly.
+Companion to [DESIGN.md](DESIGN.md). Seventeen phases (0–6 original build-out, 7–10 the 2026-07-22 extension, D20–D25, 11–12 the 2026-07-24 extension, D26–D30, 13 the 2026-07-24 LLM provider swap, D32, 14 the 2026-07-24 CI/CD hardening, D33–D35, 15 the 2026-07-24 eager compact-article generation, D36, 16 the 2026-07-24 visual identity redesign + native-asset sync fix, D37, 17 the 2026-07-25 public project site on GitHub Pages, D39); every phase ends with something you can demo on a phone. Effort estimates are focused solo days — spread over evenings, multiply accordingly.
 
 **Principles**
 
@@ -30,6 +30,7 @@ Companion to [DESIGN.md](DESIGN.md). Sixteen phases (0–6 original build-out, 7
 | 14 | CI/CD hardening | Parallel CI jobs, schema-snapshot-diff guardrail, dev-stage E2E workflow, mobile semver automation | 2–3 d |
 | 15 | Eager compact-article generation | `ContentQueue` (eager, all 4 languages), per-post figure-mirror dedup, `ContentJobs` table removal, reader API simplification | 2 d |
 | 16 | Visual identity redesign ("Orbit") + native-asset sync fix | New icon/splash assets, surgical `expo prebuild` resource sync preserving D18's signing config, real on-device APK verification | 1 d |
+| 17 | Public project site on GitHub Pages | New `apps/site` (Astro) workspace package, `deploy-site.yml` release-pipeline stage, non-prerelease APK releases | 1 d |
 
 ---
 
@@ -433,6 +434,29 @@ Code (tasks 1–5) is complete and verified via the unit test suite and a full `
 
 ---
 
+## Phase 17 — Public project site on GitHub Pages
+
+**Goal:** a public landing page for the mobile app — what it is, its topics and sources, Orbit branding, and an always-current APK download (link + QR) — published automatically as a final stage of the existing release pipeline.
+
+**Tasks**
+
+1. **New `apps/site` workspace package (Astro, static output):** hero, a pure-CSS/SVG phone mockup, a features list, all 8 topics (`packages/shared`'s `TOPIC_LABELS`) and all 11 seed sources (`packages/core`'s `FULL_SOURCE_PRESETS`, exposed via a new `./ingest/sourcePresets` subpath export so the site never pulls in the core package's AWS-SDK-loading default barrel), and a download section with an inline SVG QR code + button. Localized to all 4 app languages (en/ru/uk/pl) via an unprefixed default-locale page plus a `[lang]` dynamic route, sharing one layout and one `SITE_COPY` copy module (mirrors `apps/mobile/src/i18n/strings.ts`'s one-file-all-languages discipline, D20).
+2. **Redraw the Orbit mark as inline SVG:** D37's mark was never committed as a source file, only described in prose and baked into raster app assets — recreate it from that description (ring radius 216/stroke 52, dot radius 50 at −40° with a 34px gap, navy `#111A33`/amber `#FF9F1C`) for the header, favicon, and the CSS phone mockup.
+3. **Stable APK link, permanently:** flip `mobile-build.yml`'s GitHub Release from `prerelease: true` to `prerelease: false` so `releases/latest/download/techtok.apk` resolves — the download button and QR both point at this one URL, which never needs reprinting as new builds ship.
+4. **New `deploy-site.yml` reusable workflow:** `actions/configure-pages` → `astro build` → `actions/upload-pages-artifact` → `actions/deploy-pages` (`GITHUB_TOKEN` only, no AWS credentials) wired into `ci.yml` as the stage after `mobile-build`, gated the same way every other release-pipeline stage is (`main` only, never a PR).
+5. **Version badge sourced from code:** read `apps/mobile/app.json`'s `version` (D35's canonical source) at build time rather than hand-copying it, so the site's version display can't drift from what's actually shipping.
+
+**Acceptance criteria**
+
+- [x] `pnpm lint && pnpm typecheck && pnpm test` green (336 vitest + 37 mobile-jest tests), including 3 new site-side vitest files.
+- [x] `astro build` produces all 4 locale pages; all 4 browser-checked (desktop + mobile viewport widths) via a local `astro preview`.
+- [x] The QR code extracted from the real build output decodes (via an ephemeral scratchpad `sharp`+`jsqr` install) to the exact stable APK URL.
+- [x] Topics/sources/version rendered on the page match the live taxonomy/preset list/`app.json` exactly (sourced from the same code, not hand-copied).
+- [ ] **Deferred, not blocked:** GitHub Pages isn't yet enabled on the repo (`actions/configure-pages`'s `enablement: true` may turn it on automatically on the first real run; otherwise it's a one-time Settings → Pages → Source: "GitHub Actions" step) — the maintainer's own step, since this environment has no write access to repo settings.
+- [ ] **Blocked, not deferred:** an actual phone-camera scan of the deployed QR and a real Pages URL visit — needs the live deploy above to exist first.
+
+---
+
 ## Sequencing notes & standing risks
 
 - Phases 0→3 are strictly ordered; 4–6 can interleave.
@@ -442,6 +466,7 @@ Code (tasks 1–5) is complete and verified via the unit test suite and a full `
 - Fourth extension (2026-07-24, D33–D35): **14**, standalone — CI/CD process changes with no dependency on phase 13's provider swap or any other phase's application code; could land independently, in any order, alongside it.
 - Fifth extension (2026-07-24, D36): **13 → 15** — the user explicitly asked for this after the OpenRouter swap, and phase 15's own reasoning depends on it: the eager-compact cost multiplier is only an acceptable tradeoff because D32 already moved LLM spend off the AWS Budget alarm and D31 already removed caps. Phase 15 also reuses phase 12's eager-enqueue pattern (D27) as its template and touches the same reader screen phases 9/11/12 built, so it lands after all of those; it has no dependency on phase 14's CI/CD work.
 - Sixth extension (2026-07-24, D37): **16**, standalone — a mobile-asset/build-pipeline fix plus a redesign, with no dependency on 13/14/15's backend work. Surfaced by the user actually performing the on-device APK check every prior phase (7, 10, 11, 12) had deferred to "the maintainer's own step" without ever running — a reminder that a phase's own acceptance criteria checkbox staying unchecked is exactly the gap it's meant to flag, not a formality.
+- Seventh extension (2026-07-25, D39): **17**, standalone — a new static site with no dependency on any backend/mobile code from phases 0–16 beyond reading already-existing exported constants (topics, sources, app version) at build time. Its only real dependency is `mobile-build`'s GitHub Release step already existing (amended to non-prerelease) — true since D38/phase 14, so it could in principle have landed any time after that; ordered last only because it was decided last.
 - The riskiest unknowns are front-loaded deliberately: DDB key design proves itself in phase 1 (read-exclusion at query time), pipeline semantics in phase 2 (dedup under concurrency), LLM economics in phase 3 (cap mechanics, later removed by D31) — and in the extension, on-demand economics in phase 8 (caps/quotas before new spend exists, later removed) and the rights guardrails at the start of phase 9 (the kill switch before the feature — this one stays, D31 only removed cost caps, not rights guardrails). Phase 12 repeats the front-load pattern once more: its task 1 is removing the cap mechanism entirely, before any eager-enqueue code is written on top of it. Phase 13 has no analogous risk to front-load — the provider swap is contained entirely behind the pre-existing `LlmProvider` interface, which is precisely why it's low-risk enough to sequence last. Each phase's acceptance criteria exist to force that proof.
 - Standing rule from DESIGN §2: content-level failures degrade (excerpt cards; for translations, degrade *is* the English fallback; for compacts, the direct link-out), infra-level failures alarm (DLQ). Any new pipeline code follows the same split.
 - Every LLM call goes through one of three defined paths — transform, translate (eager as of D27/phase 12), compact (eager as of D36/phase 15) — with no daily cap on any of them as of D31/phase 12, and no usage-gating (taps) left on any of them as of D36/phase 15. No ad-hoc LLM-provider calls outside those three paths, regardless of which provider (OpenRouter or Bedrock, D32/phase 13) is active.

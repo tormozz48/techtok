@@ -1,0 +1,40 @@
+---
+import { LANGUAGES, LANGUAGE_LABELS } from '@techtok/shared';
+import type { Language } from '@techtok/shared';
+import { localeHref } from '../lib/locale';
+import type { SiteStrings } from '../lib/copy';
+import OrbitMark from './OrbitMark.astro';
+
+interface Props {
+  lang: Language;
+  copy: SiteStrings;
+}
+
+const { lang, copy } = Astro.props;
+---
+
+<header class="site-header">
+  <a class="brand" href={localeHref(lang)}>
+    <OrbitMark size={28} />
+    <span>TechTok</span>
+  </a>
+  <nav class="site-nav" aria-label={copy.nav.features}>
+    <a href="#features">{copy.nav.features}</a>
+    <a href="#topics">{copy.nav.topics}</a>
+    <a href="#sources">{copy.nav.sources}</a>
+    <a href="#download">{copy.nav.download}</a>
+  </nav>
+  <nav class="lang-switch" aria-label="Language">
+    {
+      LANGUAGES.map((code) => (
+        <a
+          href={localeHref(code)}
+          class={`lang-link${code === lang ? ' active' : ''}`}
+          aria-current={code === lang ? 'page' : undefined}
+        >
+          {LANGUAGE_LABELS[code]}
+        </a>
+      ))
+    }
+  </nav>
+</header>

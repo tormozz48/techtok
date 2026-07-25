@@ -1,0 +1,38 @@
+---
+import { APK_DOWNLOAD_URL, RELEASES_URL } from '../lib/download';
+import { qrSvg } from '../lib/qr';
+import { APP_VERSION } from '../lib/version';
+import type { SiteStrings } from '../lib/copy';
+
+interface Props {
+  copy: SiteStrings;
+}
+
+const { copy } = Astro.props;
+const qr = await qrSvg(APK_DOWNLOAD_URL);
+---
+
+<section id="download">
+  <div class="container">
+    <div class="section-heading">
+      <h2>{copy.download.title}</h2>
+      <p>{copy.download.subtitle}</p>
+    </div>
+    <div class="download-panel">
+      <div class="qr-frame" set:html={qr} />
+      <div>
+        <span class="download-version">{copy.download.version(APP_VERSION)}</span>
+        <p>{copy.download.qrHint}</p>
+        <div class="download-actions">
+          <a class="button button-primary" href={APK_DOWNLOAD_URL}>
+            {copy.download.ctaDownload}
+          </a>
+          <a class="button button-secondary" href={RELEASES_URL} rel="noopener">
+            {copy.download.ctaReleases}
+          </a>
+        </div>
+        <p class="download-note">{copy.download.installNote}</p>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,25 @@
+---
+import { TOPICS, TOPIC_LABELS } from '@techtok/shared';
+import type { Language } from '@techtok/shared';
+import type { SiteStrings } from '../lib/copy';
+
+interface Props {
+  lang: Language;
+  copy: SiteStrings;
+}
+
+const { lang, copy } = Astro.props;
+const labels = TOPIC_LABELS[lang];
+---
+
+<section id="topics">
+  <div class="container">
+    <div class="section-heading">
+      <h2>{copy.topics.title}</h2>
+      <p>{copy.topics.subtitle}</p>
+    </div>
+    <div class="topics-grid">
+      {TOPICS.map((topic) => <span class="topic-chip">{labels[topic]}</span>)}
+    </div>
+  </div>
+</section>

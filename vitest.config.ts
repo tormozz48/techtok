@@ -7,6 +7,7 @@ export default defineConfig({
       'packages/*/src/**/*.test.ts',
       'packages/*/scripts/**/*.test.ts',
       'scripts/**/*.test.ts',
+      'apps/site/src/**/*.test.ts',
     ],
   },
 });

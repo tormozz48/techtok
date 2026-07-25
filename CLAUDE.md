@@ -11,7 +11,7 @@ Never re-decide something already in the decision log. If a decision must change
 
 ## Status
 
-Phases 0–16 are code complete (phase 6 doesn't exist yet). Full narrative history/verification detail lives in git history and the DESIGN.md decision log (D1–D38) — this table tracks only current state and what's still outstanding.
+Phases 0–17 are code complete (phase 6 doesn't exist yet). Full narrative history/verification detail lives in git history and the DESIGN.md decision log (D1–D39) — this table tracks only current state and what's still outstanding.
 
 | Phase | Topic | Status | What's left |
 |---|---|---|---|
@@ -31,8 +31,9 @@ Phases 0–16 are code complete (phase 6 doesn't exist yet). Full narrative hist
 | 14 | CI/CD hardening (D33–D35, D38) | Done, incl. one real E2E run | Maintainer: add `AWS_DEV_DEPLOY_ROLE_ARN` and `AWS_E2E_ROLE_ARN` GitHub secrets |
 | 15 | Eager compact-article generation (D36) | Done, verified live on `dev` | None — no maintainer step outstanding |
 | 16 | Visual identity redesign "Orbit" (D37) | Done, verified via decoded compiled resources | Maintainer: real APK build + on-device check (no Android tooling in this env). Also fixed a D30 sync bug where the committed `android/` project never got the D30 branding via `expo prebuild` |
+| 17 | Public project site on GitHub Pages (D39) | Done, verified via `astro build` + browser checks + a decoded QR round-trip | Maintainer: enable GitHub Pages if `actions/configure-pages`'s auto-`enablement` doesn't (Settings → Pages → Source: "GitHub Actions"), then confirm the live URL and a real phone QR scan |
 
-Notable cross-phase gotchas worth remembering: DynamoDB reserved keywords (`language`, `status`, `transform`) must be aliased in `UpdateExpression`s — `aws-sdk-client-mock` won't catch this, only a live call will (bit both phase 2 and phase 8). Schema narrowing needs a pre-flight row count against live stages (see Schema & Data Migrations below) — phase 12/D31 shipped without this and 500'd on 1,740 stale `dev` rows.
+Notable cross-phase gotchas worth remembering: DynamoDB reserved keywords (`language`, `status`, `transform`) must be aliased in `UpdateExpression`s — `aws-sdk-client-mock` won't catch this, only a live call will (bit both phase 2 and phase 8). Schema narrowing needs a pre-flight row count against live stages (see Schema & Data Migrations below) — phase 12/D31 shipped without this and 500'd on 1,740 stale `dev` rows. In `apps/site` (phase 17), Astro's `getStaticPaths()` runs in an isolated scope that can see imports but not a sibling top-level `const` in the same file (compute locale lists from an imported binding, not a local constant, or the build throws a `ReferenceError` at generate time); and `import.meta.env.BASE_URL` has no trailing slash (`/techtok`, not `/techtok/`) — use the `withBase()` helper in `src/lib/locale.ts` rather than a raw `${base}${path}` concatenation.
 
 **Update this table whenever a phase lands.**
 
@@ -55,6 +56,7 @@ Definition of done for any change: lint + typecheck + tests green, then exercise
 - `packages/core` — all business logic (RSS mapping, URL canonicalization, feed merge, DynamoDB repos, LLM client)
 - `packages/functions` — thin Lambda handlers only: parse input → call core → serialize
 - `apps/mobile` — Expo app (expo-router)
+- `apps/site` — public project site (Astro, static output), deployed to GitHub Pages
 - `infra/` — SST components imported by `sst.config.ts`
 
 ## Hard rules
@@ -97,7 +99,7 @@ For bulk deletes or cleanups against live AWS data (DynamoDB rows, S3 objects, e
 
 ## Quality Gates
 
-Before every commit: `pnpm lint`, then `pnpm typecheck`, then `pnpm test` — all must exit 0. For any `apps/mobile` change, also run a Metro bundle check (`pnpm --filter mobile exec expo export --platform android`) as a cheap proxy for a real device pass. Use `/check` to run this loop and fix failures until green; don't commit on a partial pass.
+Before every commit: `pnpm lint`, then `pnpm typecheck`, then `pnpm test` — all must exit 0. For any `apps/mobile` change, also run a Metro bundle check (`pnpm --filter mobile exec expo export --platform android`) as a cheap proxy for a real device pass. For any `apps/site` change, also run `pnpm --filter site run build` as the equivalent proxy for a real browser pass. Use `/check` to run this loop and fix failures until green; don't commit on a partial pass.
 
 ## Schema & Data Migrations
 

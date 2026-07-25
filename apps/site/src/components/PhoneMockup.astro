@@ -1,0 +1,23 @@
+---
+import type { SiteStrings } from '../lib/copy';
+
+interface Props {
+  copy: SiteStrings;
+}
+
+const { copy } = Astro.props;
+---
+
+<div class="phone" role="img" aria-label={copy.mockup.headline}>
+  <div class="phone-screen">
+    <span class="phone-chip">{copy.mockup.topic}</span>
+    <p class="phone-headline">{copy.mockup.headline}</p>
+    <p class="phone-snippet">{copy.mockup.snippet}</p>
+    <span class="phone-badge">{copy.mockup.translatedBadge}</span>
+    <div class="phone-dots">
+      <span class="active"></span>
+      <span></span>
+      <span></span>
+    </div>
+  </div>
+</div>

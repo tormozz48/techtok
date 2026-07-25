@@ -88,6 +88,11 @@ Definition of done for any change: lint + typecheck + tests green, then exercise
 - Render architecture/pipeline diagrams as native artifacts or images, not fenced ```mermaid code blocks.
 - When gathering design decisions (ADRs, decision-log entries, phase intake), ask questions ONE at a time and wait for the answer — never dump a bulk question list.
 
+## Schema & Data Migrations
+
+- Never narrow or otherwise change a `packages/shared` zod schema (or a DynamoDB item shape) without first counting existing rows in every live stage that would violate the new shape, and writing an explicit migration or cleanup plan for them. (D31's `TransformKind` narrowing shipped without this check and 500'd `GET /v1/feed` on 1,740 pre-existing `dev` rows.)
+- Watch for DynamoDB reserved keywords (e.g. `language`, `status`, `name`) in any `UpdateExpression`/`ProjectionExpression` — always alias them via `ExpressionAttributeNames`. `aws-sdk-client-mock` does not catch this; it only surfaces live.
+
 ## Claude config in this repo
 
 - `.claude/settings.json` — permission allowlist for the common loop + a PostToolUse hook that auto-formats edited files with Biome (no-ops until Biome is installed in Phase 0).

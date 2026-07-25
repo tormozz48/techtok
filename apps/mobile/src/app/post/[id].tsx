@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
-import { Linking, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { ActivityIndicator, Button, IconButton, TouchableRipple } from 'react-native-paper';
 import { fetchPostContent } from '@/api/client';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
@@ -41,7 +41,14 @@ export default function PostScreen() {
   }, [content, url]);
 
   const openOriginal = () => WebBrowser.openBrowserAsync(url);
-  const share = () => Share.share({ url, title });
+  // Android ignores `url` (iOS-only field), so the link must ride in `message`
+  // or the share intent goes out empty (see BottomActionBar).
+  const share = () =>
+    Share.share({
+      title,
+      url,
+      message: Platform.OS === 'android' ? (title ? `${title}\n${url}` : url) : title,
+    });
 
   if (contentQuery.isPending || content?.available === false) {
     return (

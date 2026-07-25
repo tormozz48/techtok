@@ -436,7 +436,7 @@ Code (tasks 1–5) is complete and verified via the unit test suite and a full `
 
 ## Phase 17 — Public project site on GitHub Pages
 
-**Goal:** a public landing page for the mobile app — what it is, its topics and sources, Orbit branding, and an always-current APK download (link + QR) — published automatically as the last stage of the existing release pipeline.
+**Goal:** a public landing page for the mobile app — what it is, its topics and sources, Orbit branding, and an always-current APK download (link + QR) — published automatically as a final stage of the existing release pipeline.
 
 **Tasks**
 

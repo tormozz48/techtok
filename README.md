@@ -2,7 +2,7 @@
 
 TechTok turns tech & science news into a TikTok-style swipeable feed. Articles are pulled in automatically, condensed into short cards with an LLM, and translated into your language — swipe through headlines, tap into a full compact article when one grabs you, and bookmark the rest for later. No account needed; your read history, bookmarks, and preferences just follow your device.
 
-This README covers running, developing, and deploying the project day to day. For the full architecture and decision history, see [CLAUDE.md](CLAUDE.md), [docs/DESIGN.md](docs/DESIGN.md), and [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
+This README covers running, developing, and deploying the project day to day. For the full architecture and decision history, see [CLAUDE.md](CLAUDE.md), [docs/DESIGN.md](docs/DESIGN.md), and [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md). The public project site — topics, sources, and the latest Android APK download — lives at [tormozz48.github.io/techtok](https://tormozz48.github.io/techtok/) (`apps/site`).
 
 **Status:** the core product is code-complete and running on the `dev` stage; production hardening is still in progress. See CLAUDE.md for the detailed phase-by-phase history.
 

@@ -1,0 +1,21 @@
+---
+import { GITHUB_REPO_URL } from '../lib/download';
+import type { SiteStrings } from '../lib/copy';
+
+interface Props {
+  copy: SiteStrings;
+}
+
+const { copy } = Astro.props;
+const year = new Date().getFullYear();
+---
+
+<footer class="site-footer">
+  <div class="container footer-row">
+    <span>{copy.footer.tagline}</span>
+    <nav class="footer-links">
+      <a href={GITHUB_REPO_URL} rel="noopener">{copy.footer.sourceCode}</a>
+      <span>© {year} · {copy.footer.license}</span>
+    </nav>
+  </div>
+</footer>

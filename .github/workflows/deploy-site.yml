@@ -1,0 +1,56 @@
+name: Deploy site
+
+# Called by ci.yml as the final step of the main-branch release pipeline
+# (D38), after mobile-build has published this run's APK to a (now
+# non-prerelease, D39) GitHub Release — so the site's stable
+# releases/latest/download link and QR code resolve correctly the moment it
+# goes live. workflow_dispatch is kept for an ad hoc manual redeploy (e.g.
+# after editing copy with no code change to otherwise trigger the pipeline).
+on:
+  workflow_dispatch:
+  workflow_call:
+
+concurrency:
+  group: deploy-site
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+      contents: read
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # enablement: true turns Pages on for the repo if it's ever off, so this
+      # workflow is self-sufficient on a repo where Pages hasn't been enabled
+      # via Settings yet.
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Build site
+        run: pnpm --filter site run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/site/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

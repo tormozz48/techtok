@@ -1,0 +1,59 @@
+---
+import { LANGUAGES } from '@techtok/shared';
+import type { Language } from '@techtok/shared';
+import { SITE_COPY } from '../lib/copy';
+import { localeHref, withBase } from '../lib/locale';
+import Header from '../components/Header.astro';
+import Hero from '../components/Hero.astro';
+import Features from '../components/Features.astro';
+import Topics from '../components/Topics.astro';
+import Sources from '../components/Sources.astro';
+import Download from '../components/Download.astro';
+import Footer from '../components/Footer.astro';
+import '../styles/global.css';
+
+interface Props {
+  lang: Language;
+}
+
+const { lang } = Astro.props;
+const copy = SITE_COPY[lang];
+const siteOrigin = Astro.site ?? new URL(withBase(''), Astro.url).origin;
+const canonicalUrl = new URL(localeHref(lang), siteOrigin).href;
+const ogImageUrl = new URL(withBase('og-image.png'), siteOrigin).href;
+---
+
+<html lang={lang}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{copy.meta.title}</title>
+    <meta name="description" content={copy.meta.description} />
+    <link rel="canonical" href={canonicalUrl} />
+    {
+      LANGUAGES.map((code) => (
+        <link rel="alternate" hreflang={code} href={new URL(localeHref(code), siteOrigin).href} />
+      ))
+    }
+    <link rel="alternate" hreflang="x-default" href={new URL(localeHref('en'), siteOrigin).href} />
+    <link rel="icon" href={withBase('favicon.svg')} type="image/svg+xml" />
+    <link rel="icon" href={withBase('favicon.png')} type="image/png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={copy.meta.title} />
+    <meta property="og:description" content={copy.meta.description} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:image" content={ogImageUrl} />
+    <meta name="twitter:card" content="summary" />
+  </head>
+  <body>
+    <Header lang={lang} copy={copy} />
+    <main>
+      <Hero copy={copy} />
+      <Features copy={copy} />
+      <Topics lang={lang} copy={copy} />
+      <Sources lang={lang} copy={copy} />
+      <Download copy={copy} />
+    </main>
+    <Footer copy={copy} />
+  </body>
+</html>

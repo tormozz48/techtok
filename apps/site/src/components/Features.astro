@@ -1,0 +1,27 @@
+---
+import type { SiteStrings } from '../lib/copy';
+
+interface Props {
+  copy: SiteStrings;
+}
+
+const { copy } = Astro.props;
+---
+
+<section id="features">
+  <div class="container">
+    <div class="section-heading">
+      <h2>{copy.features.title}</h2>
+    </div>
+    <div class="features-grid">
+      {
+        copy.features.items.map((item) => (
+          <div class="feature-card">
+            <h3>{item.title}</h3>
+            <p>{item.description}</p>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>

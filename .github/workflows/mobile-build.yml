@@ -82,15 +82,20 @@ jobs:
           EXPO_PUBLIC_API_URL: ${{ inputs.api_url }}
         run: eas build --platform android --profile preview --local --non-interactive --output "${{ github.workspace }}/techtok.apk"
 
+      # prerelease: false (D39, amends this decision) — GitHub's
+      # releases/latest alias only ever resolves to the newest *non*-prerelease
+      # release, and the project site's download button + QR code both point
+      # at that stable releases/latest/download/techtok.apk URL.
       - name: Publish APK to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: android-build-${{ github.run_number }}
           name: TechTok Android build ${{ github.run_number }}
-          prerelease: true
+          prerelease: false
           files: ${{ github.workspace }}/techtok.apk
           body: |
             Automated internal APK — built with `eas build --local` (unmetered; does not use an EAS cloud-build credit).
 
             - Commit: ${{ github.sha }}
             - Install: download `techtok.apk` on an Android phone, then allow "install from unknown sources" for this file.
+            - Always-current link: https://github.com/tormozz48/techtok/releases/latest/download/techtok.apk (also on the [project site](https://tormozz48.github.io/techtok/)).

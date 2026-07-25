@@ -1,0 +1,29 @@
+---
+// Reproduces the Orbit mark from DESIGN.md D37 as inline SVG — no source file
+// is committed anywhere in the repo, so this geometry is redrawn from the
+// decision log's own description: a 1024 canvas, a stroke-only ring
+// (radius 216, stroke-width 52) centered at (512, 512), plus a detached
+// filled dot (radius 50) with a 34px clear gap from the ring's outer edge,
+// at -40 degrees. Flat colors, no gradients.
+interface Props {
+  size?: number;
+  withBackground?: boolean;
+  class?: string;
+}
+
+const { size = 40, withBackground = false, class: className } = Astro.props;
+---
+
+<svg
+  class={className}
+  width={size}
+  height={size}
+  viewBox="0 0 1024 1024"
+  xmlns="http://www.w3.org/2000/svg"
+  role="img"
+  aria-label="TechTok"
+>
+  {withBackground && <rect width="1024" height="1024" fill="#111A33" />}
+  <circle cx="512" cy="512" r="216" fill="none" stroke="#FF9F1C" stroke-width="52" />
+  <circle cx="761.73" cy="302.45" r="50" fill="#FF9F1C" />
+</svg>

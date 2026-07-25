@@ -1,0 +1,28 @@
+---
+import type { SiteStrings } from '../lib/copy';
+import { GITHUB_REPO_URL } from '../lib/download';
+import PhoneMockup from './PhoneMockup.astro';
+
+interface Props {
+  copy: SiteStrings;
+}
+
+const { copy } = Astro.props;
+---
+
+<section class="hero">
+  <div class="container hero-grid">
+    <div class="hero-copy">
+      <p class="hero-eyebrow">{copy.hero.eyebrow}</p>
+      <h1>TechTok</h1>
+      <p class="hero-tagline">{copy.hero.tagline}</p>
+      <div class="hero-actions">
+        <a class="button button-primary" href="#download">{copy.hero.ctaDownload}</a>
+        <a class="button button-secondary" href={GITHUB_REPO_URL} rel="noopener">{copy.hero.ctaGithub}</a>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <PhoneMockup copy={copy} />
+    </div>
+  </div>
+</section>

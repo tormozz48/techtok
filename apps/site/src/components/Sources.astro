@@ -1,0 +1,33 @@
+---
+import { FULL_SOURCE_PRESETS } from '@techtok/core/ingest/sourcePresets';
+import { TOPIC_LABELS } from '@techtok/shared';
+import type { Language } from '@techtok/shared';
+import type { SiteStrings } from '../lib/copy';
+
+interface Props {
+  lang: Language;
+  copy: SiteStrings;
+}
+
+const { lang, copy } = Astro.props;
+const labels = TOPIC_LABELS[lang];
+---
+
+<section id="sources">
+  <div class="container">
+    <div class="section-heading">
+      <h2>{copy.sources.title}</h2>
+      <p>{copy.sources.subtitle}</p>
+    </div>
+    <div class="sources-grid">
+      {
+        FULL_SOURCE_PRESETS.map((source) => (
+          <a class="source-card" href={source.siteUrl} rel="noopener">
+            <span class="source-name">{source.name}</span>
+            <span class="source-topic">{labels[source.defaultTopic]}</span>
+          </a>
+        ))
+      }
+    </div>
+  </div>
+</section>

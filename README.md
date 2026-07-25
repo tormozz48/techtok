@@ -1,10 +1,10 @@
 # TechTok
 
-A TikTok-style, full-screen swipeable card feed for tech & science news. The backend ingests ~11 RSS feeds, condenses each article into a card (headline, 2–3 sentence summary, "why it matters") via an LLM, translates it into the reader's language, and generates an in-app compact article on request. Read state, bookmarks, and topic/language preferences follow the user across sessions via an anonymous device ID.
+TechTok turns tech & science news into a TikTok-style swipeable feed. Articles are pulled in automatically, condensed into short cards with an LLM, and translated into your language — swipe through headlines, tap into a full compact article when one grabs you, and bookmark the rest for later. No account needed; your read history, bookmarks, and preferences just follow your device.
 
-See [CLAUDE.md](CLAUDE.md) for the full working contract, [docs/DESIGN.md](docs/DESIGN.md) for the complete architecture + decision log (D1–D37), and [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) for the phased build-out and acceptance criteria. This README covers what's needed to run, develop, and deploy the project day to day.
+This README covers running, developing, and deploying the project day to day. For the full architecture and decision history, see [CLAUDE.md](CLAUDE.md), [docs/DESIGN.md](docs/DESIGN.md), and [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
 
-**Status:** phases 0–16 are code-complete and deployed to the `dev` stage (phase 13's OpenRouter swap is code-complete but not yet deployed — see [Backend](#backend-aws-via-sst) below). Phase 6 (hardening) is not yet built — the architecture below reflects what's actually running today. See CLAUDE.md's "Status" section for the full phase-by-phase history.
+**Status:** the core product is code-complete and running on the `dev` stage; production hardening is still in progress. See CLAUDE.md for the detailed phase-by-phase history.
 
 ---
 
@@ -12,54 +12,52 @@ See [CLAUDE.md](CLAUDE.md) for the full working contract, [docs/DESIGN.md](docs/
 
 ```mermaid
 flowchart LR
-  subgraph Mobile["Android app (Expo / React Native)"]
-    APP[Feed pager · Reader · Topics · History · Saved]
+  classDef client fill:#6366f1,stroke:#4338ca,color:#fff,stroke-width:2px
+  classDef compute fill:#0ea5e9,stroke:#0369a1,color:#fff,stroke-width:2px
+  classDef queue fill:#f59e0b,stroke:#b45309,color:#1f2937,stroke-width:2px
+  classDef data fill:#10b981,stroke:#047857,color:#fff,stroke-width:2px
+  classDef external fill:#ec4899,stroke:#be185d,color:#fff,stroke-width:2px
+  classDef trigger fill:#8b5cf6,stroke:#6d28d9,color:#fff,stroke-width:2px
+
+  MOBILE(["Mobile App<br/>feed · reader · settings"]):::client
+
+  subgraph AWS["AWS eu-central-1 (SST v4)"]
+    direction LR
+    CRON((30-min<br/>schedule)):::trigger
+    PIPE[["Ingest Pipeline<br/>Step Functions"]]:::compute
+    API["API Lambdas<br/>/v1"]:::compute
+    QUEUES{{"Transform → Translate → Content<br/>queues + DLQs"}}:::queue
+    WORKERS["Pipeline Lambdas<br/>fetch · card · translate · compact"]:::compute
+    DB[("DynamoDB<br/>Sources · Posts · Users")]:::data
+    STORE[("S3 + CloudFront<br/>images · articles")]:::data
+    ALARM(("CloudWatch<br/>+ SNS")):::trigger
   end
 
-  subgraph AWS["AWS eu-central-1 (SST v4 / Ion)"]
-    APIGW[API Gateway HTTP API /v1]
-    FN_API[API Lambdas<br/>feed · reads · prefs · history ·<br/>bookmarks · topics · content]
-    DDB[(DynamoDB<br/>Sources · Posts · Users ·<br/>UserActivity)]
-    EB[EventBridge Scheduler<br/>rate 30 min]
-    SFN[Step Functions<br/>IngestPipeline]
-    FETCH[FetchSource Lambda<br/>Map, concurrency 4]
-    TQ[SQS TransformQueue + DLQ]
-    TRQ[SQS TranslateQueue + DLQ]
-    CQ[SQS ContentQueue + DLQ]
-    TRANSFORM[Transform Lambda<br/>article fetch · og:image · card LLM]
-    TRANSLATE[Translate Lambda<br/>self-critique in-call]
-    CONTENT[Content Lambda<br/>eager compact article, all 4 langs]
-    S3RAW[(S3 raw article HTML<br/>90-day lifecycle)]
-    CDN[(CloudFront + S3<br/>mirrored images · compact JSON)]
-    LLM[OpenRouter · Claude Haiku 4.5<br/>Bedrock: dormant fallback, D32]
-    CW[CloudWatch alarms + SNS<br/>DLQ depth · SFN failures · 5xx]
-    BUDGET[AWS Budget $10/mo<br/>monitoring only]
-  end
+  RSS[/RSS Feeds/]:::external
+  LLM[/OpenRouter LLM/]:::external
 
-  SOURCES[RSS feeds] --> FETCH
-  APP -- "X-Device-Id" --> APIGW --> FN_API --> DDB
-  APP -- mirrored images / cached compact reads --> CDN
-  EB --> SFN --> FETCH
-  FETCH -- new postIds --> TQ --> TRANSFORM
-  FETCH -- skeleton posts --> DDB
-  TRANSFORM -- eager, 3 langs, D27 --> TRQ --> TRANSLATE
-  TRANSLATE -- i18n map --> DDB
-  TRANSLATE --> LLM
-  TRANSFORM --> S3RAW
-  TRANSFORM -- mirrored images --> CDN
-  TRANSFORM --> LLM
-  TRANSFORM -- card fields --> DDB
-  TRANSFORM -- eager, 4 langs, D36 --> CQ --> CONTENT
-  CONTENT --> LLM
-  CONTENT -- figures + compact JSON --> CDN
-  CONTENT -- compactLangs / mirroredFigures --> DDB
-  FN_API -- "GET content?lang=: plain cache read" --> CDN
-  TQ -.-> CW
-  TRQ -.-> CW
-  CQ -.-> CW
-  SFN -.-> CW
-  APIGW -.-> CW
-  AWS -.-> BUDGET
+  CRON --> PIPE
+  PIPE -- fetch --> RSS
+  PIPE -- "new posts" --> QUEUES
+  QUEUES --> WORKERS
+  WORKERS -- "LLM calls" --> LLM
+  WORKERS --> DB
+  WORKERS --> STORE
+  MOBILE -- "/v1 API" --> API
+  API --> DB
+  MOBILE -. "images / content" .-> STORE
+  QUEUES -.-> ALARM
+  API -.-> ALARM
+
+  subgraph LEGEND["Legend"]
+    direction TB
+    L1(["Client"]):::client
+    L2["Compute (Lambda)"]:::compute
+    L3{{"Queue"}}:::queue
+    L4[("Data store")]:::data
+    L5[/"External service"/]:::external
+    L6(("Trigger / Alert")):::trigger
+  end
 ```
 
 **Data flow, start to finish:**

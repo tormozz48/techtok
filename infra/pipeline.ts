@@ -29,6 +29,23 @@ export const OPENROUTER_MODEL_ID =
 //   npx sst secret set OpenRouterApiKey <value> --stage <dev|production>
 export const openRouterApiKey = new sst.Secret('OpenRouterApiKey');
 
+// Shared by every LLM-calling Lambda (transform/translate/content) below —
+// same env vars, same IAM grant, since all three select their provider
+// through the one `createConfiguredLlmProvider` factory.
+const llmEnvironment = {
+  BEDROCK_MODEL_ID,
+  LLM_PROVIDER,
+  OPENROUTER_MODEL_ID,
+  OPENROUTER_API_KEY: openRouterApiKey.value,
+};
+
+// Bedrock isn't an SST-linkable resource, so its invoke permission is
+// granted directly. Scoped to InvokeModel only, not full bedrock:*.
+const bedrockInvokePermission = {
+  actions: ['bedrock:InvokeModel'],
+  resources: ['arn:aws:bedrock:*::foundation-model/*', 'arn:aws:bedrock:*:*:inference-profile/*'],
+};
+
 // One-off seed for the Sources table (DESIGN §2 preset list). Not on any
 // schedule/route — invoke manually once per stage:
 //   aws lambda invoke --function-name <this fn's name> out.json
@@ -87,24 +104,11 @@ transformQueue.subscribe(
       IMAGES_BUCKET_NAME: imagesBucket.name,
       IMAGES_CDN_BASE_URL: imagesRouter.url,
       SOURCES_TABLE_NAME: sourcesTable.name,
-      BEDROCK_MODEL_ID,
-      LLM_PROVIDER,
-      OPENROUTER_MODEL_ID,
-      OPENROUTER_API_KEY: openRouterApiKey.value,
+      ...llmEnvironment,
       TRANSLATE_QUEUE_URL: translateQueue.url,
       CONTENT_QUEUE_URL: contentQueue.url,
     },
-    permissions: [
-      {
-        // Bedrock isn't an SST-linkable resource, so its invoke permission is
-        // granted directly. Scoped to InvokeModel only, not full bedrock:*.
-        actions: ['bedrock:InvokeModel'],
-        resources: [
-          'arn:aws:bedrock:*::foundation-model/*',
-          'arn:aws:bedrock:*:*:inference-profile/*',
-        ],
-      },
-    ],
+    permissions: [bedrockInvokePermission],
     runtime: 'nodejs22.x',
     // Bumped from 30s (phase 2) to allow for the Bedrock round trip,
     // including one repair-retry, on top of the article fetch.
@@ -125,20 +129,9 @@ translateQueue.subscribe(
     link: [postsTable, openRouterApiKey],
     environment: {
       POSTS_TABLE_NAME: postsTable.name,
-      BEDROCK_MODEL_ID,
-      LLM_PROVIDER,
-      OPENROUTER_MODEL_ID,
-      OPENROUTER_API_KEY: openRouterApiKey.value,
+      ...llmEnvironment,
     },
-    permissions: [
-      {
-        actions: ['bedrock:InvokeModel'],
-        resources: [
-          'arn:aws:bedrock:*::foundation-model/*',
-          'arn:aws:bedrock:*:*:inference-profile/*',
-        ],
-      },
-    ],
+    permissions: [bedrockInvokePermission],
     runtime: 'nodejs22.x',
     timeout: '30 seconds',
   },
@@ -179,20 +172,9 @@ contentQueue.subscribe(
       IMAGES_BUCKET_NAME: imagesBucket.name,
       IMAGES_CDN_BASE_URL: imagesRouter.url,
       CONTENT_BUCKET_NAME: contentBucket.name,
-      BEDROCK_MODEL_ID,
-      LLM_PROVIDER,
-      OPENROUTER_MODEL_ID,
-      OPENROUTER_API_KEY: openRouterApiKey.value,
+      ...llmEnvironment,
     },
-    permissions: [
-      {
-        actions: ['bedrock:InvokeModel'],
-        resources: [
-          'arn:aws:bedrock:*::foundation-model/*',
-          'arn:aws:bedrock:*:*:inference-profile/*',
-        ],
-      },
-    ],
+    permissions: [bedrockInvokePermission],
     runtime: 'nodejs22.x',
     // Same ~11s typical generation window as the old synchronous endpoint
     // (D23) — this consumer does the identical work, just eagerly at ingest

@@ -1,4 +1,3 @@
-import { Platform } from 'react-native';
 import { buildMD3Colors } from '@/constants/materialTheme';
 
 const light = buildMD3Colors('light');
@@ -35,21 +34,6 @@ export const Colors = {
     debugText: '#000000',
   },
 } as const;
-
-export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
-
-export const Fonts = Platform.select({
-  ios: {
-    sans: 'system-ui',
-    rounded: 'ui-rounded',
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'normal',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-});
 
 export const Spacing = {
   half: 2,

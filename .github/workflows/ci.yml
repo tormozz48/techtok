@@ -171,3 +171,14 @@ jobs:
     with:
       api_url: ${{ needs.deploy-production.outputs.api_url }}
     secrets: inherit
+
+  # Prunes the APK-carrying prereleases mobile-build just added to, keeping the
+  # 3 most recent. Runs last so a fresh build is always among those kept; if
+  # mobile-build failed there's no new release, so skipping cleanup is correct.
+  release-cleanup:
+    needs: mobile-build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    uses: ./.github/workflows/release-cleanup.yml
+    permissions:
+      contents: write
+    secrets: inherit

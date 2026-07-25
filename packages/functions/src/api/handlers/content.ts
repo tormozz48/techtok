@@ -1,4 +1,4 @@
-import { ContentStore, createS3Client } from '@techtok/core';
+import { ContentStore, createS3Client, isCompactEnabled } from '@techtok/core';
 import { type ContentResponse, contentQuerySchema } from '@techtok/shared';
 import { requireEnv } from '../../env';
 import { lazy } from '../../lazy';
@@ -44,6 +44,6 @@ export const handler = withDeviceId(async (event, _deviceId) => {
   }
 
   const source = await getSourcesRepo().getById(post.sourceId);
-  const reason = source?.compactEnabled === false ? 'compactEnabled is false' : 'not ready yet';
+  const reason = isCompactEnabled(source) ? 'not ready yet' : 'compactEnabled is false';
   return jsonResponse(200, { available: false, reason } satisfies ContentResponse);
 });

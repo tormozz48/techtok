@@ -4,11 +4,13 @@ import {
   createConfiguredLlmProvider,
   createS3Client,
   errorMessage,
+  fetchBytesWithCap,
+  fetchTextWithCap,
   generateCard as generateCardViaLlm,
   ImageStore,
+  isCompactEnabled,
   type MirrorImageResult,
   RawArticleStore,
-  TECHTOK_BOT_USER_AGENT,
   transformArticle,
 } from '@techtok/core';
 import { LANGUAGES } from '@techtok/shared';
@@ -37,47 +39,12 @@ const getLlmProvider = lazy(() => createConfiguredLlmProvider(process.env));
 // size (<=5 messages), avoids a repeat robots.txt fetch per host in a batch.
 const robotsCache = new Map<string, string | undefined>();
 
-interface FetchedBytes {
-  readonly body: Buffer;
-  readonly contentType: string | undefined;
+function fetchBytes(url: string, maxBytes: number) {
+  return fetchBytesWithCap(url, { maxBytes, timeoutMs: FETCH_TIMEOUT_MS });
 }
 
-async function fetchBytes(url: string, maxBytes: number): Promise<FetchedBytes> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const response = await fetch(url, {
-      headers: { 'User-Agent': TECHTOK_BOT_USER_AGENT },
-      signal: controller.signal,
-    });
-    if (!response.ok) {
-      throw new Error(`fetch ${url} failed with status ${response.status}`);
-    }
-    const contentType = response.headers.get('content-type') ?? undefined;
-    if (!response.body) return { body: Buffer.from(await response.arrayBuffer()), contentType };
-
-    const reader = response.body.getReader();
-    const chunks: Uint8Array[] = [];
-    let total = 0;
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.byteLength;
-      if (total > maxBytes) {
-        controller.abort();
-        throw new Error(`response for ${url} exceeded ${maxBytes} bytes`);
-      }
-      chunks.push(value);
-    }
-    return { body: Buffer.concat(chunks), contentType };
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-async function fetchText(url: string, maxBytes = MAX_BYTES): Promise<string> {
-  const { body } = await fetchBytes(url, maxBytes);
-  return body.toString('utf8');
+function fetchText(url: string, maxBytes = MAX_BYTES) {
+  return fetchTextWithCap(url, { maxBytes, timeoutMs: FETCH_TIMEOUT_MS });
 }
 
 async function fetchRobotsTxt(robotsUrl: string): Promise<string | undefined> {
@@ -169,7 +136,7 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
             // content consumer still checks it again per language (D23),
             // in case the flag flips after this post was already enqueued.
             const source = await getSourcesRepo().getById(post.sourceId);
-            if (source?.compactEnabled === false) return;
+            if (!isCompactEnabled(source)) return;
             await getContentQueue().enqueuePending(LANGUAGES.map((lang) => ({ postId: id, lang })));
           },
         },

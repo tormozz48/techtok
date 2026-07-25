@@ -8,7 +8,6 @@ function source(sourceId: string, weight: number): SourceRecord {
     name: sourceId,
     rssUrl: `https://example.com/${sourceId}.xml`,
     defaultTopic: 'dev',
-    topics: ['dev'],
     weight,
     enabled: true,
     failCount: 0,

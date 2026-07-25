@@ -23,7 +23,6 @@ const sampleSource: SourceRecord = {
   name: 'Hacker News',
   rssUrl: 'https://hnrss.org/frontpage',
   defaultTopic: 'dev',
-  topics: ['dev'],
   weight: 1,
   enabled: true,
   failCount: 0,

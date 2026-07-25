@@ -7,11 +7,13 @@ import {
   createS3Client,
   type ExtractedFigure,
   errorMessage,
+  fetchBytesWithCap,
+  fetchTextWithCap,
   generateContentArticle,
   ImageStore,
   isAllowedByRobots,
+  isCompactEnabled,
   RawArticleStore,
-  TECHTOK_BOT_USER_AGENT,
 } from '@techtok/core';
 import { type CompactFigure, isLanguage, type Language } from '@techtok/shared';
 import type { SQSBatchResponse, SQSEvent, SQSHandler } from 'aws-lambda';
@@ -35,73 +37,37 @@ const getContentStore = lazy(
 );
 const getLlmProvider = lazy(() => createConfiguredLlmProvider(process.env));
 
-interface FetchedBytes {
-  readonly body: Buffer;
-  readonly contentType: string | undefined;
+function fetchBytes(url: string, maxBytes: number) {
+  return fetchBytesWithCap(url, { maxBytes, timeoutMs: FETCH_TIMEOUT_MS });
 }
 
-async function fetchBytes(url: string, maxBytes: number): Promise<FetchedBytes> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const response = await fetch(url, {
-      headers: { 'User-Agent': TECHTOK_BOT_USER_AGENT },
-      signal: controller.signal,
-    });
-    if (!response.ok) {
-      throw new Error(`fetch ${url} failed with status ${response.status}`);
-    }
-    const contentType = response.headers.get('content-type') ?? undefined;
-    if (!response.body) return { body: Buffer.from(await response.arrayBuffer()), contentType };
-
-    const reader = response.body.getReader();
-    const chunks: Uint8Array[] = [];
-    let total = 0;
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.byteLength;
-      if (total > maxBytes) {
-        controller.abort();
-        throw new Error(`response for ${url} exceeded ${maxBytes} bytes`);
-      }
-      chunks.push(value);
-    }
-    return { body: Buffer.concat(chunks), contentType };
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-async function fetchText(url: string, maxBytes = MAX_BYTES): Promise<string> {
-  const { body } = await fetchBytes(url, maxBytes);
-  return body.toString('utf8');
+function fetchText(url: string, maxBytes = MAX_BYTES) {
+  return fetchTextWithCap(url, { maxBytes, timeoutMs: FETCH_TIMEOUT_MS });
 }
 
 async function mirrorFigures(postId: string, figures: ExtractedFigure[]): Promise<CompactFigure[]> {
-  const mirrored: CompactFigure[] = [];
-  for (const [index, figure] of figures.entries()) {
-    try {
-      const { body, contentType } = await fetchBytes(figure.url, MAX_IMAGE_BYTES);
-      const key = await getImageStore().putImage(
-        postId,
-        body,
-        contentType ?? 'image/jpeg',
-        `-fig${index}`,
-      );
-      mirrored.push({
-        url: `${requireEnv('IMAGES_CDN_BASE_URL')}/${key}`,
-        caption: figure.caption,
-      });
-    } catch (err) {
-      logger.warn('figure mirror failed, dropping figure', {
-        postId,
-        url: figure.url,
-        error: errorMessage(err),
-      });
-    }
-  }
-  return mirrored;
+  const mirrored = await Promise.all(
+    figures.map(async (figure, index): Promise<CompactFigure | undefined> => {
+      try {
+        const { body, contentType } = await fetchBytes(figure.url, MAX_IMAGE_BYTES);
+        const key = await getImageStore().putImage(
+          postId,
+          body,
+          contentType ?? 'image/jpeg',
+          `-fig${index}`,
+        );
+        return { url: `${requireEnv('IMAGES_CDN_BASE_URL')}/${key}`, caption: figure.caption };
+      } catch (err) {
+        logger.warn('figure mirror failed, dropping figure', {
+          postId,
+          url: figure.url,
+          error: errorMessage(err),
+        });
+        return undefined;
+      }
+    }),
+  );
+  return mirrored.filter((figure): figure is CompactFigure => figure !== undefined);
 }
 
 /** Archive-first (D23): the archived raw HTML this post's transform already
@@ -166,7 +132,7 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
       const deps: ContentDeps = {
         compactEnabled: async () => {
           const source = await getSourcesRepo().getById(post.sourceId);
-          return source?.compactEnabled !== false;
+          return isCompactEnabled(source);
         },
         loadArticleHtml: () => loadArticleHtml(post),
         mirrorFigures: (figures) => mirrorFigures(postId, figures),

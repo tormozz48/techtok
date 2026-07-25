@@ -40,3 +40,4 @@ export * from './sources.types';
 export * from './url/canonicalize';
 export * from './users.types';
 export * from './util/errors';
+export * from './util/fetchWithCap';

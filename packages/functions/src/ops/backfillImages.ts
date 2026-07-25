@@ -2,10 +2,10 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import {
   createS3Client,
   errorMessage,
+  fetchBytesWithCap,
   ImageStore,
   RawArticleStore,
   backfillImages as runBackfillImages,
-  TECHTOK_BOT_USER_AGENT,
 } from '@techtok/core';
 import { requireEnv } from '../env';
 import { lazy } from '../lazy';
@@ -23,45 +23,11 @@ const getRawArticleStore = lazy(
 );
 const getImageStore = lazy(() => new ImageStore(getS3Client(), requireEnv('IMAGES_BUCKET_NAME')));
 
-interface FetchedBytes {
-  readonly body: Buffer;
-  readonly contentType: string | undefined;
-}
-
-// Same shape as pipeline/transform.ts's own fetchBytes — this Lambda still
-// needs one live fetch per backfilled post (the og:image itself was never
-// archived, only the article page was), just not a live refetch of the page.
-async function fetchImageBytes(url: string): Promise<FetchedBytes> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const response = await fetch(url, {
-      headers: { 'User-Agent': TECHTOK_BOT_USER_AGENT },
-      signal: controller.signal,
-    });
-    if (!response.ok) {
-      throw new Error(`fetch ${url} failed with status ${response.status}`);
-    }
-    const contentType = response.headers.get('content-type') ?? undefined;
-    if (!response.body) return { body: Buffer.from(await response.arrayBuffer()), contentType };
-
-    const reader = response.body.getReader();
-    const chunks: Uint8Array[] = [];
-    let total = 0;
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.byteLength;
-      if (total > MAX_IMAGE_BYTES) {
-        controller.abort();
-        throw new Error(`response for ${url} exceeded ${MAX_IMAGE_BYTES} bytes`);
-      }
-      chunks.push(value);
-    }
-    return { body: Buffer.concat(chunks), contentType };
-  } finally {
-    clearTimeout(timeout);
-  }
+// This Lambda still needs one live fetch per backfilled post (the og:image
+// itself was never archived, only the article page was), just not a live
+// refetch of the page.
+function fetchImageBytes(url: string) {
+  return fetchBytesWithCap(url, { maxBytes: MAX_IMAGE_BYTES, timeoutMs: FETCH_TIMEOUT_MS });
 }
 
 async function mirrorImage(postId: string, imageUrl: string): Promise<string | undefined> {

@@ -83,6 +83,10 @@ Definition of done for any change: lint + typecheck + tests green, then exercise
 - Never run `sst remove` (denied in settings.json); it destroys deployed stacks.
 - Budget ceiling is **$10/mo** (D11). Anything cost-bearing — schedule rates, LLM volume/caps, log retention, new always-on resources — gets checked against DESIGN §10 first.
 
+## Destructive Operations
+
+For bulk deletes or cleanups against live AWS data (DynamoDB rows, S3 objects, etc.): take a backup first (e.g. export the affected items to a scratchpad file), print the exact count of affected rows, and ask for a single explicit confirmation before executing. Prefer one idempotent script over interactive per-row prompts.
+
 ## Claude config in this repo
 
 - `.claude/settings.json` — permission allowlist for the common loop + a PostToolUse hook that auto-formats edited files with Biome (no-ops until Biome is installed in Phase 0).

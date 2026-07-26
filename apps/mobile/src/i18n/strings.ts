@@ -21,6 +21,8 @@ export interface ChromeStrings {
     hintAll: string;
     hintSome: (selected: number, total: number) => string;
     languageSectionTitle: string;
+    sourcesSectionTitle: string;
+    sourcesHint: string;
   };
   onboarding: {
     title: string;
@@ -94,6 +96,8 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       hintAll: 'Showing all topics. Select any to narrow your feed.',
       hintSome: (selected, total) => `Showing ${selected} of ${total} topics.`,
       languageSectionTitle: 'Language',
+      sourcesSectionTitle: 'Sources',
+      sourcesHint: 'Tap a source to mute it — muted sources are hidden from your feed.',
     },
     onboarding: {
       title: 'Welcome to TechTok',
@@ -161,6 +165,8 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       hintAll: 'Показаны все темы. Выберите нужные, чтобы сузить ленту.',
       hintSome: (selected, total) => `Показано ${selected} из ${total} тем.`,
       languageSectionTitle: 'Язык',
+      sourcesSectionTitle: 'Источники',
+      sourcesHint: 'Нажмите на источник, чтобы скрыть его из ленты.',
     },
     onboarding: {
       title: 'Добро пожаловать в TechTok',
@@ -228,6 +234,8 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       hintAll: 'Показано всі теми. Оберіть потрібні, щоб звузити стрічку.',
       hintSome: (selected, total) => `Показано ${selected} з ${total} тем.`,
       languageSectionTitle: 'Мова',
+      sourcesSectionTitle: 'Джерела',
+      sourcesHint: 'Торкніться джерела, щоб приховати його зі стрічки.',
     },
     onboarding: {
       title: 'Ласкаво просимо до TechTok',
@@ -295,6 +303,8 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       hintAll: 'Wyświetlane są wszystkie tematy. Wybierz, aby zawęzić kanał.',
       hintSome: (selected, total) => `Wyświetlono ${selected} z ${total} tematów.`,
       languageSectionTitle: 'Język',
+      sourcesSectionTitle: 'Źródła',
+      sourcesHint: 'Dotknij źródła, aby ukryć je z kanału.',
     },
     onboarding: {
       title: 'Witaj w TechTok',

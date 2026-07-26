@@ -1,10 +1,11 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import * as WebBrowser from 'expo-web-browser';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { List, Searchbar } from 'react-native-paper';
 import { fetchHistoryPage } from '@/api/client';
-import { Colors, Spacing } from '@/constants/theme';
+import { Spacing, type ThemeColors } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { timeAgo } from '@/utils/timeAgo';
 
@@ -19,6 +20,8 @@ export default function HistoryScreen() {
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
   const strings = useStrings();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const items = data?.pages.flatMap((page) => page.items) ?? [];
   const isSearching = submittedQuery.length > 0;
@@ -35,7 +38,7 @@ export default function HistoryScreen() {
       />
       {isLoading ? (
         <View style={styles.center}>
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.textSecondary} />
         </View>
       ) : isError ? (
         <View style={styles.center}>
@@ -73,46 +76,48 @@ export default function HistoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.dark.background,
-  },
-  searchbar: {
-    margin: Spacing.three,
-    backgroundColor: Colors.dark.backgroundElement,
-  },
-  list: {
-    flex: 1,
-    backgroundColor: Colors.dark.background,
-  },
-  center: {
-    flex: 1,
-    backgroundColor: Colors.dark.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.four,
-  },
-  emptyText: {
-    color: Colors.dark.textSecondary,
-    textAlign: 'center',
-    fontSize: 16,
-  },
-  row: {
-    borderBottomColor: Colors.dark.backgroundElement,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
-  },
-  title: {
-    color: Colors.dark.text,
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: Spacing.one,
-  },
-  metaText: {
-    color: Colors.dark.textSecondary,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    searchbar: {
+      margin: Spacing.three,
+      backgroundColor: colors.backgroundElement,
+    },
+    list: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    center: {
+      flex: 1,
+      backgroundColor: colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: Spacing.four,
+    },
+    emptyText: {
+      color: colors.textSecondary,
+      textAlign: 'center',
+      fontSize: 16,
+    },
+    row: {
+      borderBottomColor: colors.backgroundElement,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      paddingHorizontal: Spacing.four,
+      paddingVertical: Spacing.three,
+    },
+    title: {
+      color: colors.text,
+      fontSize: 16,
+      fontWeight: '600',
+      marginBottom: Spacing.one,
+    },
+    metaText: {
+      color: colors.textSecondary,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+  });
+}

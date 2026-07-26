@@ -8,12 +8,13 @@ import {
   type Topic,
 } from '@techtok/shared';
 import { router } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from 'react-native-paper';
 import { LanguageFlagRow } from '@/components/LanguageFlagRow';
 import { SelectableList } from '@/components/SelectableList';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Radius, Spacing, type ThemeColors, Typography } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
 import { markOnboardingSeen } from '@/state/onboardingStore';
@@ -23,6 +24,8 @@ export default function OnboardingScreen() {
   const { topics, isLoading, load, setTopics } = useTopicsStore();
   const { language, load: loadLanguage, setLanguage } = useLanguageStore();
   const strings = useStrings();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   useEffect(() => {
     load();
@@ -73,6 +76,7 @@ export default function OnboardingScreen() {
           rowStyle={styles.row}
           rowSelectedStyle={styles.rowSelected}
           rowTextStyle={styles.rowText}
+          checkIconColor={colors.text}
         />
       </ScrollView>
       <Button mode="contained" onPress={getStarted} style={styles.cta}>
@@ -82,57 +86,59 @@ export default function OnboardingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.dark.background,
-  },
-  content: {
-    padding: Spacing.four,
-  },
-  title: {
-    color: Colors.dark.text,
-    ...Typography.xl,
-    fontWeight: '700',
-    marginBottom: Spacing.three,
-  },
-  stepTitle: {
-    color: Colors.dark.textSecondary,
-    ...Typography.base,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: Spacing.two,
-  },
-  hint: {
-    color: Colors.dark.textSecondary,
-    ...Typography.base,
-    marginTop: Spacing.three,
-    marginBottom: Spacing.three,
-  },
-  row: {
-    backgroundColor: Colors.dark.backgroundElement,
-    borderRadius: Radius.md,
-    marginBottom: Spacing.two,
-  },
-  rowSelected: {
-    backgroundColor: Colors.dark.backgroundSelected,
-  },
-  rowText: {
-    color: Colors.dark.text,
-    ...Typography.md,
-    fontWeight: '600',
-  },
-  flagButton: {
-    backgroundColor: Colors.dark.backgroundElement,
-    borderRadius: Radius.md,
-    paddingVertical: Spacing.three,
-  },
-  flagButtonSelected: {
-    backgroundColor: Colors.dark.backgroundSelected,
-  },
-  cta: {
-    margin: Spacing.four,
-    marginTop: 0,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      padding: Spacing.four,
+    },
+    title: {
+      color: colors.text,
+      ...Typography.xl,
+      fontWeight: '700',
+      marginBottom: Spacing.three,
+    },
+    stepTitle: {
+      color: colors.textSecondary,
+      ...Typography.base,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: Spacing.two,
+    },
+    hint: {
+      color: colors.textSecondary,
+      ...Typography.base,
+      marginTop: Spacing.three,
+      marginBottom: Spacing.three,
+    },
+    row: {
+      backgroundColor: colors.backgroundElement,
+      borderRadius: Radius.md,
+      marginBottom: Spacing.two,
+    },
+    rowSelected: {
+      backgroundColor: colors.backgroundSelected,
+    },
+    rowText: {
+      color: colors.text,
+      ...Typography.md,
+      fontWeight: '600',
+    },
+    flagButton: {
+      backgroundColor: colors.backgroundElement,
+      borderRadius: Radius.md,
+      paddingVertical: Spacing.three,
+    },
+    flagButtonSelected: {
+      backgroundColor: colors.backgroundSelected,
+    },
+    cta: {
+      margin: Spacing.four,
+      marginTop: 0,
+    },
+  });
+}

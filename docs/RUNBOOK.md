@@ -27,7 +27,12 @@ a bug or an outage, not routine content noise.
 |---|---|---|
 | `TransformQueue` | `TransformDLQ` | `DlqDepthAlarm` (name predates the other two, [infra/monitoring.ts](../infra/monitoring.ts)) |
 | `TranslateQueue` | `TranslateDLQ` | `TranslateDlqDepthAlarm` |
-| `ContentQueue` | `ContentDLQ` | **none** — see the gap noted below |
+| `ContentQueue` | `ContentDLQ` | `ContentDlqDepthAlarm` |
+
+Each live queue additionally has a `<Name>QueueBacklogAlarm` on
+`ApproximateAgeOfOldestMessage` (> 30 min held for 10 min) — an earlier
+signal than DLQ depth, since it fires while a wedged consumer is still
+burning through its 3 receives rather than after.
 
 **Diagnosis**
 
@@ -57,15 +62,9 @@ a bug or an outage, not routine content noise.
 - Redrive: `aws sqs start-message-move-task --source-arn <DLQ ARN>` (or the
   console's "Start DLQ redrive" action on the queue).
 
-**Verify:** the queue's depth alarm transitions `ALARM → OK`, or (for
-`ContentDLQ`, which has no alarm) re-check
-`ApproximateNumberOfMessagesVisible` is 0 via `get-queue-attributes`.
-
-**Known gap:** `ContentDLQ` has no CloudWatch alarm — `infra/monitoring.ts`
-only wires depth alarms for `TransformDLQ`/`TranslateDLQ`. A stuck compact
-job never pages anyone; check it manually
-(`aws sqs get-queue-attributes --queue-url <ContentDLQ URL> --attribute-names ApproximateNumberOfMessagesVisible`)
-until phase 6 adds the missing alarm.
+**Verify:** the queue's depth alarm transitions `ALARM → OK`. The
+`techtok-<stage>` CloudWatch dashboard's alarm strip and "DLQ depth" widget
+show all three queues at once.
 
 ## 2. Compact-article generation failures
 
@@ -169,4 +168,14 @@ entirely) or rolling back a bad deploy.
 - A cost-spike triage flow beyond §4 above — more load-bearing now than
   when this runbook was first written, since D31 removed the cap-based
   backstop entirely.
-- A `ContentDLQ` depth alarm (§1's known gap).
+- A stage-scoped feed-staleness alarm. `IngestStalledAlarm` catches the
+  pipeline not *running*, but "runs fine, produces nothing" would need the
+  `NewPostCount` EMF metric, and that metric carries only Powertools'
+  default `service` dimension — `dev` and `production` publish to one
+  series, so a production alarm would be silenced by dev activity. Needs a
+  `stage` dimension in [summarize.ts](../packages/functions/src/pipeline/summarize.ts)
+  first; the dashboard's ingest-volume widget is labelled all-stages for the
+  same reason.
+- Degrade-rate visibility (§2's blind spot): the excerpt-fallback,
+  translation-skip, and compact-degrade paths still emit no metrics, so a
+  feed rotting to 100% excerpt cards keeps every alarm green.

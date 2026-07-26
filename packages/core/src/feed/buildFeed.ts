@@ -19,6 +19,10 @@ export interface BuildFeedParams {
   readonly userTopics: Topic[];
   readonly before?: string;
   readonly limit: number;
+  /** Source ids the user muted (Users.mutedSources) — a hard filter, not a
+   * downweight (per-user source downweighting isn't possible via the global
+   * sourceWeightsCache). */
+  readonly mutedSourceIds?: ReadonlySet<string>;
 }
 
 export interface FeedPage {
@@ -36,10 +40,11 @@ export interface FeedPage {
  * `items`. Ranking/interleaving reorders what's *displayed* but must never
  * change the GSI watermark cursor, or pagination would skip or repeat posts.
  *
- * Posts flagged `duplicateOf` (phase-4 cross-source dedup experiment) are
- * filtered out here rather than at the DynamoDB layer — an accepted
- * over-fetch tradeoff (a page with many duplicates may return fewer than
- * `limit` items) rather than adding a GSI just for this experiment.
+ * Posts flagged `duplicateOf` (phase-4 cross-source dedup experiment) and
+ * posts from a muted source are filtered out here rather than at the
+ * DynamoDB layer — an accepted over-fetch tradeoff (a page with many
+ * duplicates or muted-source posts may return fewer than `limit` items)
+ * rather than adding a GSI just for this.
  */
 export async function buildFeed(deps: BuildFeedDeps, params: BuildFeedParams): Promise<FeedPage> {
   const { before, limit } = params;
@@ -54,7 +59,7 @@ export async function buildFeed(deps: BuildFeedDeps, params: BuildFeedParams): P
     for (const post of posts) merged.set(post.postId, post);
   }
   const candidatesByTime = [...merged.values()]
-    .filter((post) => !post.duplicateOf)
+    .filter((post) => !post.duplicateOf && !params.mutedSourceIds?.has(post.sourceId))
     .sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : a.publishedAt > b.publishedAt ? -1 : 0))
     .slice(0, MAX_CANDIDATES);
 

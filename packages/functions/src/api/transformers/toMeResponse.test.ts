@@ -16,6 +16,7 @@ describe('toMeResponse', () => {
       topics: ['ai', 'dev'],
       createdAt: '2026-07-18T00:00:00.000Z',
       language: 'en',
+      mutedSources: [],
     });
   });
 
@@ -29,5 +30,28 @@ describe('toMeResponse', () => {
     };
 
     expect(toMeResponse(user)).toMatchObject({ language: 'uk' });
+  });
+
+  it('defaults mutedSources to an empty array when absent', () => {
+    const user: UserRecord = {
+      userId: 'device-1',
+      topics: [],
+      createdAt: '2026-07-18T00:00:00.000Z',
+      lastSeenAt: '2026-07-19T00:00:00.000Z',
+    };
+
+    expect(toMeResponse(user).mutedSources).toEqual([]);
+  });
+
+  it('carries through a set mutedSources list', () => {
+    const user: UserRecord = {
+      userId: 'device-1',
+      topics: [],
+      createdAt: '2026-07-18T00:00:00.000Z',
+      lastSeenAt: '2026-07-19T00:00:00.000Z',
+      mutedSources: ['hn', 'verge'],
+    };
+
+    expect(toMeResponse(user).mutedSources).toEqual(['hn', 'verge']);
   });
 });

@@ -43,6 +43,15 @@ api.route('GET /v1/topics', {
   runtime: 'nodejs22.x',
 });
 
+// Public catalog, like GET /v1/topics — lets the app render a mute picker
+// without hardcoding the source list.
+api.route('GET /v1/sources', {
+  handler: 'packages/functions/src/api/handlers/sources.handler',
+  link: [sourcesTable],
+  environment: { SOURCES_TABLE_NAME: sourcesTable.name },
+  runtime: 'nodejs22.x',
+});
+
 api.route('POST /v1/reads', {
   handler: 'packages/functions/src/api/handlers/reads.handler',
   link: [postsTable, userActivityTable],
@@ -69,6 +78,13 @@ api.route('PUT /v1/me/topics', {
 
 api.route('PUT /v1/me/language', {
   handler: 'packages/functions/src/api/handlers/languagePrefs.handler',
+  link: [usersTable],
+  environment: { USERS_TABLE_NAME: usersTable.name },
+  runtime: 'nodejs22.x',
+});
+
+api.route('PUT /v1/me/muted-sources', {
+  handler: 'packages/functions/src/api/handlers/mutedSourcesPrefs.handler',
   link: [usersTable],
   environment: { USERS_TABLE_NAME: usersTable.name },
   runtime: 'nodejs22.x',

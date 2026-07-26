@@ -64,4 +64,19 @@ export class UsersRepo {
     );
     return result.Attributes as UserRecord;
   }
+
+  async updateMutedSources(userId: string, mutedSources: string[]): Promise<UserRecord> {
+    const now = new Date().toISOString();
+    const result = await this.client.send(
+      new UpdateCommand({
+        TableName: this.tableName,
+        Key: { userId },
+        UpdateExpression:
+          'SET mutedSources = :mutedSources, lastSeenAt = :now, createdAt = if_not_exists(createdAt, :now)',
+        ExpressionAttributeValues: { ':mutedSources': mutedSources, ':now': now },
+        ReturnValues: 'ALL_NEW',
+      }),
+    );
+    return result.Attributes as UserRecord;
+  }
 }

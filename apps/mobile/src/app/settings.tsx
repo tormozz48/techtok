@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getTopicLabel,
   LANGUAGE_FLAGS,
@@ -10,22 +10,32 @@ import {
 } from '@techtok/shared';
 import { useEffect } from 'react';
 import { ScrollView, StyleSheet, Text } from 'react-native';
+import { fetchSources } from '@/api/client';
 import { LanguageFlagRow } from '@/components/LanguageFlagRow';
 import { SelectableList } from '@/components/SelectableList';
 import { Colors, Spacing } from '@/constants/theme';
 import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
+import { useMutedSourcesStore } from '@/state/mutedSourcesStore';
 import { useTopicsStore } from '@/state/topicsStore';
 
 export default function SettingsScreen() {
   const queryClient = useQueryClient();
   const { topics, isLoading, load, setTopics } = useTopicsStore();
   const { language, setLanguage } = useLanguageStore();
+  const {
+    mutedSources,
+    isLoading: isMutedSourcesLoading,
+    load: loadMutedSources,
+    setMutedSources,
+  } = useMutedSourcesStore();
+  const sourcesQuery = useQuery({ queryKey: ['sources'], queryFn: fetchSources });
   const strings = useStrings();
 
   useEffect(() => {
     load();
-  }, [load]);
+    loadMutedSources();
+  }, [load, loadMutedSources]);
 
   const toggleTopic = async (topic: Topic) => {
     const next = topics.includes(topic) ? topics.filter((t) => t !== topic) : [...topics, topic];
@@ -35,6 +45,14 @@ export default function SettingsScreen() {
 
   const chooseLanguage = async (next: Language) => {
     await setLanguage(next);
+    queryClient.invalidateQueries({ queryKey: ['feed'] });
+  };
+
+  const toggleMutedSource = async (sourceId: string) => {
+    const next = mutedSources.includes(sourceId)
+      ? mutedSources.filter((id) => id !== sourceId)
+      : [...mutedSources, sourceId];
+    await setMutedSources(next);
     queryClient.invalidateQueries({ queryKey: ['feed'] });
   };
 
@@ -65,6 +83,25 @@ export default function SettingsScreen() {
         rowSelectedStyle={styles.rowSelected}
         rowTextStyle={styles.rowText}
       />
+      {sourcesQuery.data ? (
+        <>
+          <Text style={styles.sectionTitle}>{strings.settings.sourcesSectionTitle}</Text>
+          <Text style={styles.hint}>{strings.settings.sourcesHint}</Text>
+          <SelectableList
+            items={sourcesQuery.data.sources.map((source) => source.sourceId)}
+            isSelected={(sourceId) => mutedSources.includes(sourceId)}
+            label={(sourceId) =>
+              sourcesQuery.data.sources.find((source) => source.sourceId === sourceId)?.name ??
+              sourceId
+            }
+            onSelect={toggleMutedSource}
+            disabled={isMutedSourcesLoading}
+            rowStyle={styles.row}
+            rowSelectedStyle={styles.rowSelected}
+            rowTextStyle={styles.rowText}
+          />
+        </>
+      ) : null}
     </ScrollView>
   );
 }

@@ -208,4 +208,48 @@ describe('buildFeed', () => {
 
     expect(page.items.map((p) => p.postId)).toEqual(['a']);
   });
+
+  it('excludes posts from a muted source', async () => {
+    const kept = post('a', 'ai', '2026-07-19T02:00:00.000Z', 'verge');
+    const muted = post('b', 'ai', '2026-07-19T01:00:00.000Z', 'hn');
+    const queryByTopic = vi.fn().mockResolvedValue([kept, muted]);
+    const getReadSet = vi.fn().mockResolvedValue(new Set());
+
+    const page = await buildFeed(
+      { queryByTopic, getReadSet, getSourceWeights: noWeights() },
+      { userTopics: ['ai'], limit: 20, mutedSourceIds: new Set(['hn']) },
+    );
+
+    expect(page.items.map((p) => p.postId)).toEqual(['a']);
+  });
+
+  it('still advances nextBefore past a muted-source post (same accepted skip class as duplicateOf)', async () => {
+    const posts = Array.from({ length: 24 }, (_, i) =>
+      post(`p${i}`, 'ai', `2026-07-18T00:01:${String(i).padStart(2, '0')}.000Z`, 'verge'),
+    );
+    const mutedInRange = post('muted', 'ai', '2026-07-18T00:01:11.500Z', 'hn');
+    const queryByTopic = vi.fn().mockResolvedValue([...posts, mutedInRange]);
+    const getReadSet = vi.fn().mockResolvedValue(new Set());
+
+    const page = await buildFeed(
+      { queryByTopic, getReadSet, getSourceWeights: noWeights() },
+      { userTopics: ['ai'], limit: 20, mutedSourceIds: new Set(['hn']) },
+    );
+
+    expect(page.items.map((p) => p.postId)).not.toContain('muted');
+    expect(page.nextBefore).toBe(posts[0]?.publishedAt);
+  });
+
+  it('does not filter anything when mutedSourceIds is omitted', async () => {
+    const a = post('a', 'ai', '2026-07-19T02:00:00.000Z', 'hn');
+    const queryByTopic = vi.fn().mockResolvedValue([a]);
+    const getReadSet = vi.fn().mockResolvedValue(new Set());
+
+    const page = await buildFeed(
+      { queryByTopic, getReadSet, getSourceWeights: noWeights() },
+      { userTopics: ['ai'], limit: 20 },
+    );
+
+    expect(page.items.map((p) => p.postId)).toEqual(['a']);
+  });
 });

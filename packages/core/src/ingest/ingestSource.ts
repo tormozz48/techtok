@@ -25,6 +25,10 @@ export interface IngestDeps {
    * experiment). Content-level: a lookup failure is caught by the caller and
    * never blocks ingestion of an otherwise-good post. */
   readonly findDuplicate: (post: NewPost) => Promise<string | undefined>;
+  /** Increments the original post's "covered by N sources" counter when a
+   * new duplicate is created. Content-level, like `findDuplicate` — a
+   * failure here never blocks ingestion of the (already-created) duplicate. */
+  readonly recordDuplicate: (originalPostId: string) => Promise<void>;
 }
 
 export interface IngestResult {
@@ -93,6 +97,17 @@ export async function ingestSource(source: SourceRecord, deps: IngestDeps): Prom
         if (await deps.putIfNew(post)) {
           created += 1;
           newPosts.push(post);
+
+          // Only a genuinely new duplicate should bump the count — a
+          // re-seen RSS entry on a later poll is caught by putIfNew
+          // returning false above, before this ever runs.
+          if (post.duplicateOf) {
+            try {
+              await deps.recordDuplicate(post.duplicateOf);
+            } catch (err) {
+              errors.push(`recordDuplicate failed for ${post.duplicateOf}: ${errorMessage(err)}`);
+            }
+          }
         }
       } catch (err) {
         errors.push(`putIfNew failed for ${post.postId}: ${errorMessage(err)}`);

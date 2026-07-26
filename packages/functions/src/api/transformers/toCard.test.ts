@@ -126,4 +126,13 @@ describe('toCard', () => {
   it('defaults compactLangs to an empty array for pre-phase-9 posts lacking the field', () => {
     expect(toCard(post).compactLangs).toEqual([]);
   });
+
+  it('omits sourceCount for a post with no recorded duplicates', () => {
+    expect(toCard(post).sourceCount).toBeUndefined();
+  });
+
+  it('reports sourceCount as dupCount + 1 (the original plus each duplicate)', () => {
+    const covered: PostRecord = { ...post, dupCount: 2 };
+    expect(toCard(covered).sourceCount).toBe(3);
+  });
 });

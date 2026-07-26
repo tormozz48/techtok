@@ -75,3 +75,53 @@ describe('usersRepo.updateLanguage', () => {
     expect(input?.ExpressionAttributeValues).toMatchObject({ ':language': 'pl' });
   });
 });
+
+describe('usersRepo.addTopicReads', () => {
+  it('does nothing when given an empty counts object', async () => {
+    ddbMock.on(UpdateCommand).resolves({});
+    const repo = new UsersRepo(client, 'Users');
+
+    await repo.addTopicReads('device-1', {});
+
+    expect(ddbMock.commandCalls(UpdateCommand)).toHaveLength(0);
+  });
+
+  it('sends an init-the-map update followed by an aliased per-topic increment', async () => {
+    ddbMock.on(UpdateCommand).resolves({});
+    const repo = new UsersRepo(client, 'Users');
+
+    await repo.addTopicReads('device-1', { ai: 2, dev: 1 });
+
+    const calls = ddbMock.commandCalls(UpdateCommand);
+    expect(calls).toHaveLength(2);
+
+    const initInput = calls[0]?.args[0]?.input;
+    expect(initInput?.Key).toEqual({ userId: 'device-1' });
+    expect(initInput?.UpdateExpression).toBe(
+      'SET #topicReads = if_not_exists(#topicReads, :empty)',
+    );
+    expect(initInput?.ExpressionAttributeNames).toEqual({ '#topicReads': 'topicReads' });
+    expect(initInput?.ExpressionAttributeValues).toEqual({ ':empty': {} });
+
+    const incrementInput = calls[1]?.args[0]?.input;
+    expect(incrementInput?.Key).toEqual({ userId: 'device-1' });
+    // Reserved-word-alias convention: every topic name is aliased, not
+    // interpolated raw, even though topic names like "ai"/"dev" aren't
+    // themselves reserved words.
+    expect(incrementInput?.ExpressionAttributeNames).toEqual({
+      '#topicReads': 'topicReads',
+      '#t0': 'ai',
+      '#t1': 'dev',
+    });
+    expect(incrementInput?.UpdateExpression).toBe(
+      'SET #topicReads.#t0 = if_not_exists(#topicReads.#t0, :zero0) + :n0, ' +
+        '#topicReads.#t1 = if_not_exists(#topicReads.#t1, :zero1) + :n1',
+    );
+    expect(incrementInput?.ExpressionAttributeValues).toEqual({
+      ':zero0': 0,
+      ':n0': 2,
+      ':zero1': 0,
+      ':n1': 1,
+    });
+  });
+});

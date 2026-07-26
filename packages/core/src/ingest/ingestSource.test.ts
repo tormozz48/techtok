@@ -23,7 +23,8 @@ function fakeDeps(xml: string) {
     async (): Promise<FetchFeedResult> => ({ status: 'ok', body: xml, etag: '"v1"' }),
   );
   const findDuplicate = vi.fn(async (): Promise<string | undefined> => undefined);
-  return { putIfNew, enqueueNew, recordFetchResult, fetchFeed, findDuplicate };
+  const recordDuplicate = vi.fn(async (_originalPostId: string) => {});
+  return { putIfNew, enqueueNew, recordFetchResult, fetchFeed, findDuplicate, recordDuplicate };
 }
 
 const source: SourceRecord = {
@@ -132,6 +133,9 @@ describe('ingestSource', () => {
     expect(deps.enqueueNew.mock.calls[0]?.[0][0]).toMatchObject({
       duplicateOf: 'existing-post-id',
     });
+    // Only the one entry findDuplicate flagged should bump the original's count.
+    expect(deps.recordDuplicate).toHaveBeenCalledTimes(1);
+    expect(deps.recordDuplicate).toHaveBeenCalledWith('existing-post-id');
   });
 
   it('records a soft error but still creates the post when the dedup lookup fails', async () => {
@@ -148,5 +152,36 @@ describe('ingestSource', () => {
     for (const [post] of deps.putIfNew.mock.calls) {
       expect(post.duplicateOf).toBeUndefined();
     }
+    expect(deps.recordDuplicate).not.toHaveBeenCalled();
+  });
+
+  it('does not call recordDuplicate for a post never actually created (putIfNew false)', async () => {
+    const xml = await readFile(HN_FIXTURE, 'utf8');
+    const deps = fakeDeps(xml);
+    deps.findDuplicate.mockResolvedValueOnce('existing-post-id');
+    deps.putIfNew.mockResolvedValueOnce(false); // pretend this entry was already seen
+
+    const result = await ingestSource(source, deps);
+
+    expect(result.created).toBe(2);
+    expect(deps.recordDuplicate).not.toHaveBeenCalled();
+  });
+
+  it('records a soft error but keeps the run clean when recordDuplicate fails', async () => {
+    const xml = await readFile(HN_FIXTURE, 'utf8');
+    const deps = fakeDeps(xml);
+    deps.findDuplicate.mockResolvedValueOnce('existing-post-id');
+    deps.recordDuplicate.mockRejectedValueOnce(new Error('conditional check failed'));
+
+    const result = await ingestSource(source, deps);
+
+    // The duplicate post itself was still created and enqueued — only the
+    // counter bump on the original failed.
+    expect(result.created).toBe(3);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toContain('recordDuplicate failed for existing-post-id');
+    expect(deps.enqueueNew.mock.calls[0]?.[0][0]).toMatchObject({
+      duplicateOf: 'existing-post-id',
+    });
   });
 });

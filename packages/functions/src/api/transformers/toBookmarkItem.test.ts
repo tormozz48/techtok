@@ -23,6 +23,16 @@ describe('toBookmarkItem', () => {
       cardTitle: 'A great story',
       sourceName: 'Hacker News',
       url: 'https://example.com/a',
+      primaryTopic: undefined,
     });
+  });
+
+  it('maps primaryTopic through when present on the snapshot', () => {
+    const withTopic: BookmarkRecord = {
+      ...record,
+      snapshot: { ...record.snapshot, primaryTopic: 'dev' },
+    };
+
+    expect(toBookmarkItem(withTopic).primaryTopic).toBe('dev');
   });
 });

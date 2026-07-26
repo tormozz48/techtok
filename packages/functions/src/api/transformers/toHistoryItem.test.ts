@@ -23,6 +23,16 @@ describe('toHistoryItem', () => {
       cardTitle: 'A great story',
       sourceName: 'Hacker News',
       url: 'https://example.com/a',
+      primaryTopic: undefined,
     });
+  });
+
+  it('maps primaryTopic through when present on the snapshot', () => {
+    const withTopic: ActivityRecord = {
+      ...record,
+      snapshot: { ...record.snapshot, primaryTopic: 'ai' },
+    };
+
+    expect(toHistoryItem(withTopic).primaryTopic).toBe('ai');
   });
 });

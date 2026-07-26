@@ -41,12 +41,17 @@ export class UserActivityRepo {
     private readonly tableName: string,
   ) {}
 
+  /** `wasNew` is true only when no read-marker existed for this postId
+   * before this call — POST /v1/reads is documented idempotent (a retried
+   * or re-sent postId just overwrites readAt/snapshot), but the topic-read
+   * affinity counter it drives (usersRepo.addTopicReads) is not, so the
+   * handler uses this to count each post's first read exactly once. */
   async markRead(
     userId: string,
     postId: string,
     snapshot: ReadSnapshot,
     readAt: string = new Date().toISOString(),
-  ): Promise<void> {
+  ): Promise<{ wasNew: boolean }> {
     const record: ActivityRecord = {
       userId,
       sk: readSortKey(postId),
@@ -55,7 +60,10 @@ export class UserActivityRepo {
       snapshot,
       gsi1sk: `${readAt}#${postId}`,
     };
-    await this.client.send(new PutCommand({ TableName: this.tableName, Item: record }));
+    const result = await this.client.send(
+      new PutCommand({ TableName: this.tableName, Item: record, ReturnValues: 'ALL_OLD' }),
+    );
+    return { wasNew: result.Attributes === undefined };
   }
 
   async getReadSet(userId: string, postIds: string[]): Promise<Set<string>> {

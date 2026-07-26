@@ -1,7 +1,11 @@
+import type { Topic } from '@techtok/shared';
+
 export interface ReadSnapshot {
   readonly cardTitle: string;
   readonly sourceName: string;
   readonly url: string;
+  /** Absent on snapshots written before this field existed. */
+  readonly primaryTopic?: Topic;
 }
 
 export interface ActivityRecord {

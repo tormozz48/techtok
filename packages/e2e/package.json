@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "backend-pipeline": "tsx src/backendPipeline.ts",
-    "api-contract": "tsx src/apiContract.ts"
+    "backend-pipeline": "vitest run src/backendPipeline.test.ts",
+    "api-contract": "vitest run src/apiContract.test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-apigatewayv2": "3.1090.0",

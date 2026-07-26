@@ -1,6 +1,6 @@
 import { TOPICS, type Topic } from '@techtok/shared';
 import type { PostRecord } from '../posts.types';
-import { rankCandidates } from './scoring';
+import { rankCandidates, topicAffinityBoosts } from './scoring';
 
 const PER_TOPIC_PAGE_SIZE = 25;
 const MAX_CANDIDATES = 60;
@@ -19,6 +19,9 @@ export interface BuildFeedParams {
   readonly userTopics: Topic[];
   readonly before?: string;
   readonly limit: number;
+  /** Implicit per-topic read-affinity counters (Users.topicReads) — feeds a
+   * bounded ranking boost, see scoring.ts's topicAffinityBoosts. */
+  readonly topicReads?: Partial<Record<Topic, number>>;
 }
 
 export interface FeedPage {
@@ -29,7 +32,8 @@ export interface FeedPage {
 /**
  * Implements DESIGN §5.2: per-topic GSI query, merge newest-first, dedup,
  * drop already-read posts, then rank the remainder (recency decay x source
- * weight, topic-interleaved — a phase-4 experiment, see scoring.ts).
+ * weight x a bounded read-affinity boost, topic-interleaved — a phase-4
+ * experiment, see scoring.ts).
  *
  * `nextBefore` is deliberately derived from `candidatesByTime` — the
  * publishedAt-sorted, pre-ranking candidate list — never from the ranked
@@ -71,7 +75,8 @@ export async function buildFeed(deps: BuildFeedDeps, params: BuildFeedParams): P
   const unread = candidatesByTime.filter((post) => !readIds.has(post.postId));
 
   const sourceWeights = await deps.getSourceWeights();
-  const ranked = rankCandidates(unread, sourceWeights);
+  const affinityBoosts = topicAffinityBoosts(params.topicReads);
+  const ranked = rankCandidates(unread, sourceWeights, undefined, affinityBoosts);
   const items = ranked.slice(0, limit);
 
   const moreUpstream = perTopicResults.some((posts) => posts.length >= PER_TOPIC_PAGE_SIZE);

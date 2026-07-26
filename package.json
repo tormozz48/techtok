@@ -9,11 +9,10 @@
   "scripts": {
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "typecheck": "./scripts/typecheck-infra.sh && tsc --noEmit -p tsconfig.scripts.json && pnpm -r --if-present run typecheck",
+    "typecheck": "./scripts/typecheck-infra.sh && pnpm -r --if-present run typecheck",
     "test": "vitest run && pnpm --filter mobile run test",
     "dev": "sst dev --stage dev",
-    "deploy:dev": "sst deploy --stage dev",
-    "mobile:bump-version": "tsx scripts/bumpMobileVersion.ts"
+    "deploy:dev": "sst deploy --stage dev"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.4",

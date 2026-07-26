@@ -106,6 +106,8 @@ export const historyItemSchema = z.object({
   cardTitle: z.string(),
   sourceName: z.string(),
   url: z.url(),
+  // Absent on rows read before this field existed.
+  primaryTopic: topicSchema.optional(),
 });
 export type HistoryItem = z.infer<typeof historyItemSchema>;
 
@@ -132,6 +134,8 @@ export const bookmarkItemSchema = z.object({
   cardTitle: z.string(),
   sourceName: z.string(),
   url: z.url(),
+  // Absent on rows bookmarked before this field existed.
+  primaryTopic: topicSchema.optional(),
 });
 export type BookmarkItem = z.infer<typeof bookmarkItemSchema>;
 

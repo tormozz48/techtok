@@ -33,6 +33,19 @@
       "url": {
         "type": "string",
         "format": "uri"
+      },
+      "primaryTopic": {
+        "type": "string",
+        "enum": [
+          "ai",
+          "dev",
+          "gadgets",
+          "startups",
+          "security",
+          "science",
+          "space",
+          "bio"
+        ]
       }
     },
     "required": [
@@ -89,6 +102,19 @@
             "url": {
               "type": "string",
               "format": "uri"
+            },
+            "primaryTopic": {
+              "type": "string",
+              "enum": [
+                "ai",
+                "dev",
+                "gadgets",
+                "startups",
+                "security",
+                "science",
+                "space",
+                "bio"
+              ]
             }
           },
           "required": [
@@ -802,6 +828,19 @@
       "url": {
         "type": "string",
         "format": "uri"
+      },
+      "primaryTopic": {
+        "type": "string",
+        "enum": [
+          "ai",
+          "dev",
+          "gadgets",
+          "startups",
+          "security",
+          "science",
+          "space",
+          "bio"
+        ]
       }
     },
     "required": [
@@ -858,6 +897,19 @@
             "url": {
               "type": "string",
               "format": "uri"
+            },
+            "primaryTopic": {
+              "type": "string",
+              "enum": [
+                "ai",
+                "dev",
+                "gadgets",
+                "startups",
+                "security",
+                "science",
+                "space",
+                "bio"
+              ]
             }
           },
           "required": [

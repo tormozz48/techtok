@@ -94,15 +94,20 @@ export async function postReads(postIds: string[]): Promise<void> {
 export interface FetchHistoryPageParams {
   cursor?: string;
   limit?: number;
+  /** When set, searches cardTitle/sourceName instead of paginating — the
+   * response's nextCursor always comes back null. */
+  q?: string;
 }
 
 export async function fetchHistoryPage({
   cursor,
   limit = 50,
+  q,
 }: FetchHistoryPageParams = {}): Promise<HistoryResponse> {
   const url = apiUrl('/v1/history');
   url.searchParams.set('limit', String(limit));
   if (cursor) url.searchParams.set('cursor', cursor);
+  if (q) url.searchParams.set('q', q);
 
   const response = await apiFetch(url);
   return historyResponseSchema.parse(await response.json());
@@ -111,15 +116,19 @@ export async function fetchHistoryPage({
 export interface FetchBookmarksPageParams {
   cursor?: string;
   limit?: number;
+  /** Same search contract as fetchHistoryPage's q. */
+  q?: string;
 }
 
 export async function fetchBookmarksPage({
   cursor,
   limit = 50,
+  q,
 }: FetchBookmarksPageParams = {}): Promise<BookmarksResponse> {
   const url = apiUrl('/v1/bookmarks');
   url.searchParams.set('limit', String(limit));
   if (cursor) url.searchParams.set('cursor', cursor);
+  if (q) url.searchParams.set('q', q);
 
   const response = await apiFetch(url);
   return bookmarksResponseSchema.parse(await response.json());

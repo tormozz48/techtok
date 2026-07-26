@@ -8,10 +8,14 @@ export interface ChromeStrings {
   history: {
     error: string;
     empty: string;
+    searchPlaceholder: string;
+    noResults: string;
   };
   saved: {
     error: string;
     empty: string;
+    searchPlaceholder: string;
+    noResults: string;
   };
   settings: {
     hintAll: string;
@@ -50,10 +54,14 @@ export const STRINGS: Record<Language, ChromeStrings> = {
     history: {
       error: 'Failed to load history.',
       empty: 'Nothing read yet — swipe through the feed first.',
+      searchPlaceholder: 'Search history',
+      noResults: 'No matches in your history.',
     },
     saved: {
       error: 'Failed to load saved posts.',
       empty: 'Nothing saved yet — bookmark a card from the feed.',
+      searchPlaceholder: 'Search saved',
+      noResults: 'No matches in your saved posts.',
     },
     settings: {
       hintAll: 'Showing all topics. Select any to narrow your feed.',
@@ -86,10 +94,14 @@ export const STRINGS: Record<Language, ChromeStrings> = {
     history: {
       error: 'Не удалось загрузить историю.',
       empty: 'Пока ничего не прочитано — сначала полистайте ленту.',
+      searchPlaceholder: 'Поиск по истории',
+      noResults: 'Совпадений в истории не найдено.',
     },
     saved: {
       error: 'Не удалось загрузить сохранённое.',
       empty: 'Пока ничего не сохранено — добавьте карточку из ленты.',
+      searchPlaceholder: 'Поиск по сохранённому',
+      noResults: 'Совпадений в сохранённом не найдено.',
     },
     settings: {
       hintAll: 'Показаны все темы. Выберите нужные, чтобы сузить ленту.',
@@ -122,10 +134,14 @@ export const STRINGS: Record<Language, ChromeStrings> = {
     history: {
       error: 'Не вдалося завантажити історію.',
       empty: 'Поки що нічого не прочитано — спершу погортайте стрічку.',
+      searchPlaceholder: 'Пошук в історії',
+      noResults: 'Збігів в історії не знайдено.',
     },
     saved: {
       error: 'Не вдалося завантажити збережене.',
       empty: 'Поки що нічого не збережено — додайте картку зі стрічки.',
+      searchPlaceholder: 'Пошук у збереженому',
+      noResults: 'Збігів у збереженому не знайдено.',
     },
     settings: {
       hintAll: 'Показано всі теми. Оберіть потрібні, щоб звузити стрічку.',
@@ -158,10 +174,14 @@ export const STRINGS: Record<Language, ChromeStrings> = {
     history: {
       error: 'Nie udało się wczytać historii.',
       empty: 'Nic jeszcze nie przeczytano — najpierw przewiń kanał.',
+      searchPlaceholder: 'Szukaj w historii',
+      noResults: 'Brak wyników w historii.',
     },
     saved: {
       error: 'Nie udało się wczytać zapisanych wpisów.',
       empty: 'Nic jeszcze nie zapisano — dodaj kartę z kanału.',
+      searchPlaceholder: 'Szukaj w zapisanych',
+      noResults: 'Brak wyników w zapisanych.',
     },
     settings: {
       hintAll: 'Wyświetlane są wszystkie tematy. Wybierz, aby zawęzić kanał.',

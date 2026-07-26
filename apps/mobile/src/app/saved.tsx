@@ -1,7 +1,8 @@
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import * as WebBrowser from 'expo-web-browser';
+import { useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
-import { IconButton, List } from 'react-native-paper';
+import { IconButton, List, Searchbar } from 'react-native-paper';
 import { deleteBookmark, fetchBookmarksPage } from '@/api/client';
 import { Colors, Spacing } from '@/constants/theme';
 import { useStrings } from '@/i18n/useStrings';
@@ -9,18 +10,22 @@ import { timeAgo } from '@/utils/timeAgo';
 
 export default function SavedScreen() {
   const queryClient = useQueryClient();
+  const [searchText, setSearchText] = useState('');
+  const [submittedQuery, setSubmittedQuery] = useState('');
   const { data, isLoading, isError, fetchNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: ['bookmarks'],
-    queryFn: ({ pageParam }) => fetchBookmarksPage({ cursor: pageParam }),
+    queryKey: ['bookmarks', submittedQuery],
+    queryFn: ({ pageParam }) =>
+      fetchBookmarksPage({ cursor: pageParam, q: submittedQuery || undefined }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
   const strings = useStrings();
 
   const items = data?.pages.flatMap((page) => page.items) ?? [];
+  const isSearching = submittedQuery.length > 0;
 
   const removeBookmark = async (postId: string) => {
-    queryClient.setQueryData(['bookmarks'], (current: typeof data) => {
+    queryClient.setQueryData(['bookmarks', submittedQuery], (current: typeof data) => {
       if (!current) return current;
       return {
         ...current,
@@ -37,63 +42,73 @@ export default function SavedScreen() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color="#fff" />
-      </View>
-    );
-  }
-
-  if (isError) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.emptyText}>{strings.saved.error}</Text>
-      </View>
-    );
-  }
-
-  if (items.length === 0) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.emptyText}>{strings.saved.empty}</Text>
-      </View>
-    );
-  }
-
   return (
-    <FlatList
-      style={styles.list}
-      data={items}
-      keyExtractor={(item) => item.postId}
-      onEndReached={() => {
-        if (!isFetchingNextPage) fetchNextPage();
-      }}
-      onEndReachedThreshold={0.5}
-      renderItem={({ item }) => (
-        <View style={styles.row}>
-          <List.Item
-            title={item.cardTitle}
-            titleStyle={styles.title}
-            titleNumberOfLines={2}
-            description={`${item.sourceName} · ${timeAgo(item.bookmarkedAt)}`}
-            descriptionStyle={styles.metaText}
-            onPress={() => WebBrowser.openBrowserAsync(item.url)}
-            style={styles.rowContent}
-          />
-          <IconButton
-            icon="close"
-            size={16}
-            iconColor={Colors.dark.textSecondary}
-            onPress={() => removeBookmark(item.postId)}
-          />
+    <View style={styles.container}>
+      <Searchbar
+        placeholder={strings.saved.searchPlaceholder}
+        value={searchText}
+        onChangeText={setSearchText}
+        onSubmitEditing={() => setSubmittedQuery(searchText.trim())}
+        onClearIconPress={() => setSubmittedQuery('')}
+        style={styles.searchbar}
+      />
+      {isLoading ? (
+        <View style={styles.center}>
+          <ActivityIndicator color="#fff" />
         </View>
+      ) : isError ? (
+        <View style={styles.center}>
+          <Text style={styles.emptyText}>{strings.saved.error}</Text>
+        </View>
+      ) : items.length === 0 ? (
+        <View style={styles.center}>
+          <Text style={styles.emptyText}>
+            {isSearching ? strings.saved.noResults : strings.saved.empty}
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          style={styles.list}
+          data={items}
+          keyExtractor={(item) => item.postId}
+          onEndReached={() => {
+            if (!isSearching && !isFetchingNextPage) fetchNextPage();
+          }}
+          onEndReachedThreshold={0.5}
+          renderItem={({ item }) => (
+            <View style={styles.row}>
+              <List.Item
+                title={item.cardTitle}
+                titleStyle={styles.title}
+                titleNumberOfLines={2}
+                description={`${item.sourceName} · ${timeAgo(item.bookmarkedAt)}`}
+                descriptionStyle={styles.metaText}
+                onPress={() => WebBrowser.openBrowserAsync(item.url)}
+                style={styles.rowContent}
+              />
+              <IconButton
+                icon="close"
+                size={16}
+                iconColor={Colors.dark.textSecondary}
+                onPress={() => removeBookmark(item.postId)}
+              />
+            </View>
+          )}
+        />
       )}
-    />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.dark.background,
+  },
+  searchbar: {
+    margin: Spacing.three,
+    backgroundColor: Colors.dark.backgroundElement,
+  },
   list: {
     flex: 1,
     backgroundColor: Colors.dark.background,

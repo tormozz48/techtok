@@ -21,6 +21,10 @@ export interface ChromeStrings {
     hintAll: string;
     hintSome: (selected: number, total: number) => string;
     languageSectionTitle: string;
+    themeSectionTitle: string;
+    themeSystem: string;
+    themeLight: string;
+    themeDark: string;
   };
   onboarding: {
     title: string;
@@ -94,6 +98,10 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       hintAll: 'Showing all topics. Select any to narrow your feed.',
       hintSome: (selected, total) => `Showing ${selected} of ${total} topics.`,
       languageSectionTitle: 'Language',
+      themeSectionTitle: 'Appearance',
+      themeSystem: 'System',
+      themeLight: 'Light',
+      themeDark: 'Dark',
     },
     onboarding: {
       title: 'Welcome to TechTok',
@@ -161,6 +169,10 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       hintAll: 'Показаны все темы. Выберите нужные, чтобы сузить ленту.',
       hintSome: (selected, total) => `Показано ${selected} из ${total} тем.`,
       languageSectionTitle: 'Язык',
+      themeSectionTitle: 'Оформление',
+      themeSystem: 'Как в системе',
+      themeLight: 'Светлая',
+      themeDark: 'Тёмная',
     },
     onboarding: {
       title: 'Добро пожаловать в TechTok',
@@ -228,6 +240,10 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       hintAll: 'Показано всі теми. Оберіть потрібні, щоб звузити стрічку.',
       hintSome: (selected, total) => `Показано ${selected} з ${total} тем.`,
       languageSectionTitle: 'Мова',
+      themeSectionTitle: 'Оформлення',
+      themeSystem: 'Як у системі',
+      themeLight: 'Світла',
+      themeDark: 'Темна',
     },
     onboarding: {
       title: 'Ласкаво просимо до TechTok',
@@ -295,6 +311,10 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       hintAll: 'Wyświetlane są wszystkie tematy. Wybierz, aby zawęzić kanał.',
       hintSome: (selected, total) => `Wyświetlono ${selected} z ${total} tematów.`,
       languageSectionTitle: 'Język',
+      themeSectionTitle: 'Wygląd',
+      themeSystem: 'Systemowy',
+      themeLight: 'Jasny',
+      themeDark: 'Ciemny',
     },
     onboarding: {
       title: 'Witaj w TechTok',

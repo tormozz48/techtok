@@ -18,12 +18,16 @@ import { Spacing, type ThemeColors } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
+import { type ThemeMode, useThemeStore } from '@/state/themeStore';
 import { useTopicsStore } from '@/state/topicsStore';
+
+const THEME_MODES: readonly ThemeMode[] = ['system', 'light', 'dark'];
 
 export default function SettingsScreen() {
   const queryClient = useQueryClient();
   const { topics, isLoading, load, setTopics } = useTopicsStore();
   const { language, setLanguage } = useLanguageStore();
+  const { mode, setMode } = useThemeStore();
   const strings = useStrings();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -43,9 +47,29 @@ export default function SettingsScreen() {
     queryClient.invalidateQueries({ queryKey: ['feed'] });
   };
 
+  const themeLabel = (themeMode: ThemeMode) =>
+    ({
+      system: strings.settings.themeSystem,
+      light: strings.settings.themeLight,
+      dark: strings.settings.themeDark,
+    })[themeMode];
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.sectionTitle}>{strings.settings.languageSectionTitle}</Text>
+      <Text style={styles.sectionTitle}>{strings.settings.themeSectionTitle}</Text>
+      <SelectableList
+        items={THEME_MODES}
+        isSelected={(themeMode) => mode === themeMode}
+        label={themeLabel}
+        onSelect={setMode}
+        rowStyle={styles.row}
+        rowSelectedStyle={styles.rowSelected}
+        rowTextStyle={styles.rowText}
+        checkIconColor={colors.text}
+      />
+      <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>
+        {strings.settings.languageSectionTitle}
+      </Text>
       <LanguageFlagRow
         items={LANGUAGES}
         isSelected={(lang) => language === lang}
@@ -99,6 +123,9 @@ function createStyles(colors: ThemeColors) {
       textTransform: 'uppercase',
       letterSpacing: 0.5,
       marginBottom: Spacing.two,
+    },
+    sectionTitleSpaced: {
+      marginTop: Spacing.four,
     },
     hint: {
       color: colors.textSecondary,

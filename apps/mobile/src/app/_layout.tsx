@@ -1,11 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import { QueryClient } from '@tanstack/react-query';
+import { focusManager, QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { useColorScheme } from 'react-native';
+import { AppState, Platform, useColorScheme } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import {
@@ -49,6 +49,17 @@ export default function RootLayout() {
       setShowOnboarding(!hasSeenOnboarding());
       setIsHydrated(true);
     });
+  }, []);
+
+  // Foregrounding the app counts as a TanStack Query "focus" event, so a feed
+  // left stale (see FEED_STALE_TIME_MS) refetches on return instead of only
+  // on relaunch or a settings change.
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    const subscription = AppState.addEventListener('change', (status) => {
+      focusManager.setFocused(status === 'active');
+    });
+    return () => subscription.remove();
   }, []);
 
   // Same branded LoadingScreen as the feed's own first-fetch gate (D25) —

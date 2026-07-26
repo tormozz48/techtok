@@ -14,6 +14,9 @@ export interface BottomActionBarProps {
    * bookmark/share actions. Undefined only before the very first card has
    * loaded (see FeedScreen). */
   activeCard: CardData | undefined;
+  /** Resets the feed back to the newest page (A1) — PagerView has no
+   * RefreshControl, so this is the only manual-refresh affordance. */
+  onRefresh: () => void;
 }
 
 /**
@@ -22,7 +25,7 @@ export interface BottomActionBarProps {
  * whichever card is currently in view, plus global nav (saved, history,
  * settings) — all in one row.
  */
-export function BottomActionBar({ activeCard }: BottomActionBarProps) {
+export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -55,6 +58,13 @@ export function BottomActionBar({ activeCard }: BottomActionBarProps) {
         ) : null}
       </View>
       <View style={styles.side}>
+        <IconButton
+          icon="refresh"
+          iconColor={Colors.overlay.text}
+          size={20}
+          onPress={onRefresh}
+          accessibilityLabel="Refresh feed"
+        />
         <Link href="/saved" asChild>
           <IconButton icon="bookmark-multiple-outline" iconColor={Colors.overlay.text} size={20} />
         </Link>

@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import type { Card as CardData } from '@techtok/shared';
 import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -12,6 +13,7 @@ export default function FeedScreen() {
   const { data, isLoading, isError, error, fetchNextPage, isFetchingNextPage } = useFeedQuery();
   const [activeCard, setActiveCard] = useState<CardData | undefined>(undefined);
   const strings = useStrings();
+  const queryClient = useQueryClient();
 
   const cards = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data]);
 
@@ -46,7 +48,10 @@ export default function FeedScreen() {
           if (!isFetchingNextPage) fetchNextPage();
         }}
       />
-      <BottomActionBar activeCard={activeCard ?? cards[0]} />
+      <BottomActionBar
+        activeCard={activeCard ?? cards[0]}
+        onRefresh={() => queryClient.resetQueries({ queryKey: ['feed'], exact: true })}
+      />
     </View>
   );
 }

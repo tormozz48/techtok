@@ -83,6 +83,9 @@ importers:
       expo-router:
         specifier: ~57.0.7
         version: 57.0.7(4490470cd4caadea83e50082c4be18de)
+      expo-speech:
+        specifier: ~57.0.1
+        version: 57.0.1(expo@57.0.7)
       expo-splash-screen:
         specifier: ~57.0.4
         version: 57.0.4(expo@57.0.7)(typescript@5.9.3)
@@ -3719,6 +3722,11 @@ packages:
   expo-server@57.0.1:
     resolution: {integrity: sha512-sBfVDH6dmKVHZxqUxbfkzS00PZELMZt1IpnHKxcOTMZtR/t7CtRAFrbXcisG+EyzeqHSVDacZT+1tbYfZt5D8w==}
     engines: {node: '>=20.16.0'}
+
+  expo-speech@57.0.1:
+    resolution: {integrity: sha512-xRI5FyAju4rK10xcVE+3SjdrF1ni24+Sj8ujSrylBsbrwFrrLO19H5DkG6EzXXVQ6lWdn+dC0JCr8OLaM7HI+Q==}
+    peerDependencies:
+      expo: '*'
 
   expo-splash-screen@57.0.4:
     resolution: {integrity: sha512-AspaOA5VZUl8yXb/BQORrRdOs0f7F/IgmvKNdCFaUDuz4X+j/4bPkkyssARFKwC5A5IQ3g7QS/Ve1XxDiDZ38Q==}
@@ -10566,6 +10574,10 @@ snapshots:
       - supports-color
 
   expo-server@57.0.1: {}
+
+  expo-speech@57.0.1(expo@57.0.7):
+    dependencies:
+      expo: 57.0.7(@babel/core@7.29.7)(@expo/dom-webview@57.0.1)(@expo/metro-runtime@57.0.6)(expo-router@57.0.7)(react-native-worklets@0.10.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)(typescript@5.9.3)
 
   expo-splash-screen@57.0.4(expo@57.0.7)(typescript@5.9.3):
     dependencies:

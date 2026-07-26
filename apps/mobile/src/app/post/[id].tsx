@@ -11,6 +11,8 @@ import { Radius, Spacing, type ThemeColors, Typography } from '@/constants/theme
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
+import { useSpeechStore } from '@/state/speechStore';
+import { blocksToUtterances } from '@/utils/blocksToUtterances';
 import { translationFeedbackMailto } from '@/utils/feedback';
 
 export default function PostScreen() {
@@ -31,6 +33,24 @@ export default function PostScreen() {
     queryFn: () => fetchPostContent(id, viewLang),
   });
   const content = contentQuery.data;
+
+  const isSpeakingThisArticle = useSpeechStore((state) => state.isSpeaking(id));
+  const isSpeechLanguageAvailable = useSpeechStore((state) =>
+    content?.available === true ? state.isLanguageAvailable(content.lang) : false,
+  );
+
+  useEffect(() => {
+    useSpeechStore.getState().checkVoiceAvailability();
+  }, []);
+
+  // The displayed text just changed out from under any in-flight speech —
+  // stop rather than keep reading the language the user just switched away
+  // from. viewLang is a deliberate trigger-only dependency: the effect
+  // re-runs on every toggle even though its body doesn't read the value.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: see above.
+  useEffect(() => {
+    useSpeechStore.getState().stop();
+  }, [viewLang]);
 
   // Kill switch / content-level generation failures (D23), and the rare case
   // a just-ingested post's eager compact job hasn't finished yet (D36), all
@@ -112,6 +132,23 @@ export default function PostScreen() {
           {strings.reader.readOriginal}
         </Button>
         <IconButton icon="share-variant" iconColor={colors.text} onPress={share} />
+        {isSpeechLanguageAvailable ? (
+          <IconButton
+            icon={isSpeakingThisArticle ? 'volume-off' : 'volume-high'}
+            iconColor={colors.text}
+            accessibilityLabel={
+              isSpeakingThisArticle ? strings.speech.stopListening : strings.speech.listen
+            }
+            onPress={() => {
+              const speech = useSpeechStore.getState();
+              if (isSpeakingThisArticle) {
+                speech.stop();
+              } else {
+                speech.speak(id, blocksToUtterances(content.blocks, content.figures), content.lang);
+              }
+            }}
+          />
+        ) : null}
       </View>
     </ScrollView>
   );

@@ -35,6 +35,10 @@ export interface ChromeStrings {
     showTranslated: string;
     loading: string;
   };
+  speech: {
+    listen: string;
+    stopListening: string;
+  };
 }
 
 // Hand-written chrome copy (D20) — no i18n framework dependency. Keep every
@@ -77,6 +81,10 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       showTranslated: 'Show translation',
       loading: 'Preparing article…',
     },
+    speech: {
+      listen: 'Listen',
+      stopListening: 'Stop listening',
+    },
   },
   ru: {
     feed: {
@@ -112,6 +120,10 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       showOriginal: 'Показать оригинал',
       showTranslated: 'Показать перевод',
       loading: 'Готовим статью…',
+    },
+    speech: {
+      listen: 'Слушать',
+      stopListening: 'Остановить',
     },
   },
   uk: {
@@ -149,6 +161,10 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       showTranslated: 'Показати переклад',
       loading: 'Готуємо статтю…',
     },
+    speech: {
+      listen: 'Слухати',
+      stopListening: 'Зупинити',
+    },
   },
   pl: {
     feed: {
@@ -184,6 +200,10 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       showOriginal: 'Pokaż oryginał',
       showTranslated: 'Pokaż tłumaczenie',
       loading: 'Przygotowujemy artykuł…',
+    },
+    speech: {
+      listen: 'Odsłuchaj',
+      stopListening: 'Zatrzymaj',
     },
   },
 };

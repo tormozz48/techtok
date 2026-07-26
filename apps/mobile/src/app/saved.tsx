@@ -80,7 +80,7 @@ export default function SavedScreen() {
             title={item.cardTitle}
             titleStyle={styles.title}
             titleNumberOfLines={2}
-            description={`${item.sourceName} · ${timeAgo(item.bookmarkedAt)}`}
+            description={`${item.sourceName} · ${timeAgo(item.bookmarkedAt, strings.time)}`}
             descriptionStyle={styles.metaText}
             onPress={() =>
               router.push({
@@ -100,6 +100,7 @@ export default function SavedScreen() {
             size={16}
             iconColor={colors.textSecondary}
             onPress={() => removeBookmark(item.postId)}
+            accessibilityLabel={strings.a11y.removeSaved}
           />
         </View>
       )}

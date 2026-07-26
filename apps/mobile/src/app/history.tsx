@@ -60,7 +60,7 @@ export default function HistoryScreen() {
           title={item.cardTitle}
           titleStyle={styles.title}
           titleNumberOfLines={2}
-          description={`${item.sourceName} · ${timeAgo(item.readAt)}`}
+          description={`${item.sourceName} · ${timeAgo(item.readAt, strings.time)}`}
           descriptionStyle={styles.metaText}
           onPress={() =>
             router.push({

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyBump, classifyCommit, highestBump } from './bumpMobilePrVersion';
+import { applyBump, classifyCommit, highestBump } from './bumpMobileVersion';
 
 describe('classifyCommit', () => {
   it('classifies feat as minor', () => {

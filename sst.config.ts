@@ -21,6 +21,13 @@ export default $config({
     };
   },
   async run() {
+    // DESIGN §10 budgets for 14-day log retention; SST's own default is 1
+    // month, and nothing overrode it — so every function was holding logs for
+    // twice the budgeted window. Set once here rather than per function.
+    $transform(sst.aws.Function, (args) => {
+      args.logging = { retention: '2 weeks' };
+    });
+
     const { imagesRouter, postsTable, sourcesTable, userActivityTable, usersTable } = await import(
       './infra/storage'
     );

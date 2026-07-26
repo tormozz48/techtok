@@ -1,5 +1,6 @@
 import {
   getTopicLabel,
+  LANGUAGE_FLAGS,
   LANGUAGE_LABELS,
   LANGUAGES,
   type Language,
@@ -10,6 +11,7 @@ import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from 'react-native-paper';
+import { LanguageFlagRow } from '@/components/LanguageFlagRow';
 import { SelectableList } from '@/components/SelectableList';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { useStrings } from '@/i18n/useStrings';
@@ -47,14 +49,14 @@ export default function OnboardingScreen() {
         <Text style={styles.title}>{strings.onboarding.title}</Text>
 
         <Text style={styles.stepTitle}>{strings.onboarding.languageStepTitle}</Text>
-        <SelectableList
+        <LanguageFlagRow
           items={LANGUAGES}
           isSelected={(lang) => language === lang}
-          label={(lang) => LANGUAGE_LABELS[lang]}
+          flag={(lang) => LANGUAGE_FLAGS[lang]}
+          accessibilityLabel={(lang) => LANGUAGE_LABELS[lang]}
           onSelect={chooseLanguage}
-          rowStyle={styles.row}
-          rowSelectedStyle={styles.rowSelected}
-          rowTextStyle={styles.rowText}
+          buttonStyle={styles.flagButton}
+          buttonSelectedStyle={styles.flagButtonSelected}
         />
 
         <Text style={styles.hint}>
@@ -120,6 +122,14 @@ const styles = StyleSheet.create({
     color: Colors.dark.text,
     ...Typography.md,
     fontWeight: '600',
+  },
+  flagButton: {
+    backgroundColor: Colors.dark.backgroundElement,
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.three,
+  },
+  flagButtonSelected: {
+    backgroundColor: Colors.dark.backgroundSelected,
   },
   cta: {
     margin: Spacing.four,

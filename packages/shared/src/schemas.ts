@@ -60,6 +60,16 @@ export const topicsQuerySchema = z.object({
 });
 export type TopicsQuery = z.infer<typeof topicsQuerySchema>;
 
+export const sourcesResponseSchema = z.object({
+  sources: z.array(
+    z.object({
+      sourceId: z.string(),
+      name: z.string(),
+    }),
+  ),
+});
+export type SourcesResponse = z.infer<typeof sourcesResponseSchema>;
+
 export const feedQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),
   before: z.iso.datetime().optional(),
@@ -82,6 +92,7 @@ export const meResponseSchema = z.object({
   topics: z.array(topicSchema),
   createdAt: z.iso.datetime(),
   language: languageSchema,
+  mutedSources: z.array(z.string()),
 });
 export type MeResponse = z.infer<typeof meResponseSchema>;
 
@@ -94,6 +105,11 @@ export const languagePrefsRequestSchema = z.object({
   language: languageSchema,
 });
 export type LanguagePrefsRequest = z.infer<typeof languagePrefsRequestSchema>;
+
+export const mutedSourcesRequestSchema = z.object({
+  sourceIds: z.array(z.string().min(1).max(64)).max(100),
+});
+export type MutedSourcesRequest = z.infer<typeof mutedSourcesRequestSchema>;
 
 export const readsRequestSchema = z.object({
   postIds: z.array(z.string()).min(1).max(100),

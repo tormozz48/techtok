@@ -6,6 +6,7 @@ import {
   feedResponseSchema,
   historyResponseSchema,
   meResponseSchema,
+  sourcesResponseSchema,
   topicsResponseSchema,
 } from '@techtok/shared';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -34,6 +35,13 @@ describe('API contract E2E', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(() => topicsResponseSchema.parse(body)).not.toThrow();
+  });
+
+  it('GET /v1/sources returns a body matching sourcesResponseSchema', async () => {
+    const res = await fetch(`${apiEndpoint}/v1/sources`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(() => sourcesResponseSchema.parse(body)).not.toThrow();
   });
 
   it('GET /v1/me returns a body matching meResponseSchema', async () => {

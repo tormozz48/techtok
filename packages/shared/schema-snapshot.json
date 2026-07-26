@@ -1014,13 +1014,20 @@
           "uk",
           "pl"
         ]
+      },
+      "mutedSources": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
       }
     },
     "required": [
       "userId",
       "topics",
       "createdAt",
-      "language"
+      "language",
+      "mutedSources"
     ],
     "additionalProperties": false
   },
@@ -1043,6 +1050,25 @@
     ],
     "additionalProperties": false
   },
+  "mutedSourcesRequestSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "sourceIds": {
+        "maxItems": 100,
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        }
+      }
+    },
+    "required": [
+      "sourceIds"
+    ],
+    "additionalProperties": false
+  },
   "readsRequestSchema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -1058,6 +1084,35 @@
     },
     "required": [
       "postIds"
+    ],
+    "additionalProperties": false
+  },
+  "sourcesResponseSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "sources": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "sourceId": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "sourceId",
+            "name"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": [
+      "sources"
     ],
     "additionalProperties": false
   },

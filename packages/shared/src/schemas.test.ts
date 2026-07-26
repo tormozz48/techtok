@@ -92,6 +92,7 @@ describe('meResponseSchema', () => {
       topics: ['ai'],
       createdAt: '2026-07-18T00:00:00.000Z',
       language: 'uk',
+      mutedSources: [],
     };
     expect(meResponseSchema.parse(valid)).toEqual(valid);
   });
@@ -102,6 +103,18 @@ describe('meResponseSchema', () => {
         userId: 'device-1',
         topics: [],
         createdAt: '2026-07-18T00:00:00.000Z',
+        mutedSources: [],
+      }),
+    ).toThrow();
+  });
+
+  it('rejects a missing mutedSources', () => {
+    expect(() =>
+      meResponseSchema.parse({
+        userId: 'device-1',
+        topics: [],
+        createdAt: '2026-07-18T00:00:00.000Z',
+        language: 'en',
       }),
     ).toThrow();
   });

@@ -2,6 +2,7 @@ const REPO_URL = 'https://github.com/tormozz48/techtok';
 
 export const GITHUB_REPO_URL = REPO_URL;
 export const RELEASES_URL = `${REPO_URL}/releases`;
+export const AUTHOR_LINKEDIN_URL = 'https://www.linkedin.com/in/andrii-kuznietsov-877a824b/';
 
 /**
  * GitHub's `releases/latest` alias only ever resolves to the newest

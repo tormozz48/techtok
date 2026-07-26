@@ -14,6 +14,7 @@ import {
   techtokNavigationDarkTheme,
   techtokNavigationLightTheme,
 } from '@/constants/paperTheme';
+import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
 import { startNetworkMonitoring } from '@/state/network';
 import { hasSeenOnboarding } from '@/state/onboardingStore';
@@ -37,6 +38,7 @@ const persister = createAsyncStoragePersister({
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const strings = useStrings();
   const [isHydrated, setIsHydrated] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -94,10 +96,16 @@ export default function RootLayout() {
             <Stack.Screen name="onboarding" />
             <Stack.Screen
               name="settings"
-              options={{ presentation: 'modal', headerShown: true, title: 'Settings' }}
+              options={{ presentation: 'modal', headerShown: true, title: strings.settings.title }}
             />
-            <Stack.Screen name="history" options={{ headerShown: true, title: 'History' }} />
-            <Stack.Screen name="saved" options={{ headerShown: true, title: 'Saved' }} />
+            <Stack.Screen
+              name="history"
+              options={{ headerShown: true, title: strings.history.title }}
+            />
+            <Stack.Screen
+              name="saved"
+              options={{ headerShown: true, title: strings.saved.title }}
+            />
             <Stack.Screen name="post/[id]" options={{ headerShown: true, title: '' }} />
           </Stack>
         </ThemeProvider>

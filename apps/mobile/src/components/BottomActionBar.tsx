@@ -4,6 +4,7 @@ import { Platform, Share, StyleSheet, View } from 'react-native';
 import { IconButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Spacing } from '@/constants/theme';
+import { useStrings } from '@/i18n/useStrings';
 import { BookmarkButton } from './BookmarkButton';
 
 /** Base bar height, excluding the bottom safe-area inset (D25). */
@@ -27,6 +28,7 @@ export interface BottomActionBarProps {
  */
 export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps) {
   const insets = useSafeAreaInsets();
+  const strings = useStrings();
 
   return (
     <View
@@ -53,6 +55,7 @@ export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps)
                       : activeCard.title,
                 })
               }
+              accessibilityLabel={strings.a11y.share}
             />
           </>
         ) : null}
@@ -66,13 +69,28 @@ export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps)
           accessibilityLabel="Refresh feed"
         />
         <Link href="/saved" asChild>
-          <IconButton icon="bookmark-multiple-outline" iconColor={Colors.overlay.text} size={20} />
+          <IconButton
+            icon="bookmark-multiple-outline"
+            iconColor={Colors.overlay.text}
+            size={20}
+            accessibilityLabel={strings.a11y.openSaved}
+          />
         </Link>
         <Link href="/history" asChild>
-          <IconButton icon="history" iconColor={Colors.overlay.text} size={20} />
+          <IconButton
+            icon="history"
+            iconColor={Colors.overlay.text}
+            size={20}
+            accessibilityLabel={strings.a11y.openHistory}
+          />
         </Link>
         <Link href="/settings" asChild>
-          <IconButton icon="cog-outline" iconColor={Colors.overlay.text} size={20} />
+          <IconButton
+            icon="cog-outline"
+            iconColor={Colors.overlay.text}
+            size={20}
+            accessibilityLabel={strings.a11y.openSettings}
+          />
         </Link>
       </View>
     </View>

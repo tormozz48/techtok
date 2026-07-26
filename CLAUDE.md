@@ -28,7 +28,7 @@ Phases 0–17 are code complete (phase 6 doesn't exist yet). Full narrative hist
 | 11 | UI library adoption (Paper, D26) | Done | Maintainer: on-device Expo Go pass |
 | 12 | Eager translation + job-polling reader (D27/D31) | Done, verified live on `dev` | Maintainer: on-device pass + week-later Cost Explorer read |
 | 13 | LLM provider swap to OpenRouter (D32) | Code complete | Maintainer: set `OpenRouterApiKey` secret (dev + production), deploy, verify OpenRouter call succeeds, test Bedrock fallback. (D38: default model changed to `google/gemini-3.1-flash-lite`) |
-| 14 | CI/CD hardening (D33–D35, D38) | Done, incl. one real E2E run | Maintainer: add `AWS_DEV_DEPLOY_ROLE_ARN` and `AWS_E2E_ROLE_ARN` GitHub secrets |
+| 14 | CI/CD hardening (D33–D35, D38, D40) | Done, incl. one real E2E run | Maintainer: add `AWS_DEV_DEPLOY_ROLE_ARN` and `AWS_E2E_ROLE_ARN` GitHub secrets; first post-merge `mobile-build` run needs to be watched to confirm the D40 version-bump step and its `mobile-v0.4.0` self-heal tag land cleanly |
 | 15 | Eager compact-article generation (D36) | Done, verified live on `dev` | None — no maintainer step outstanding |
 | 16 | Visual identity redesign "Orbit" (D37) | Done, verified via decoded compiled resources | Maintainer: real APK build + on-device check (no Android tooling in this env). Also fixed a D30 sync bug where the committed `android/` project never got the D30 branding via `expo prebuild` |
 | 17 | Public project site on GitHub Pages (D39) | Done, verified via `astro build` + browser checks + a decoded QR round-trip | Maintainer: enable GitHub Pages if `actions/configure-pages`'s auto-`enablement` doesn't (Settings → Pages → Source: "GitHub Actions"), then confirm the live URL and a real phone QR scan |

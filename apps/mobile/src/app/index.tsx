@@ -1,4 +1,5 @@
 import type { Card as CardData } from '@techtok/shared';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Button } from 'react-native-paper';
@@ -6,13 +7,16 @@ import { useFeedQuery } from '@/api/useFeedQuery';
 import { BottomActionBar } from '@/components/BottomActionBar';
 import { FeedPager } from '@/components/FeedPager';
 import { LoadingScreen } from '@/components/LoadingScreen';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Spacing, type ThemeColors } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 
 export default function FeedScreen() {
   const { data, isLoading, isError, refetch, fetchNextPage, isFetchingNextPage } = useFeedQuery();
   const [activeCard, setActiveCard] = useState<CardData | undefined>(undefined);
   const strings = useStrings();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const cards = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data]);
 
@@ -56,6 +60,11 @@ export default function FeedScreen() {
 
   return (
     <View style={styles.root}>
+      {/* The feed itself is always a full-bleed dark photo overlay (Card.tsx,
+       * scheme-independent) with light text, so it needs light status-bar
+       * icons regardless of the device's theme — unlike the plain chrome
+       * states above, which inherit _layout.tsx's theme-following default. */}
+      <StatusBar style="light" />
       <FeedPager
         cards={cards}
         onPageChange={setActiveCard}
@@ -73,33 +82,35 @@ export default function FeedScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    backgroundColor: Colors.dark.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  errorText: {
-    color: '#ff6b6b',
-    textAlign: 'center',
-    fontSize: 16,
-  },
-  retryButton: {
-    marginTop: Spacing.four,
-  },
-  emptyText: {
-    color: Colors.dark.textSecondary,
-    textAlign: 'center',
-    fontSize: 16,
-  },
-  root: {
-    flex: 1,
-  },
-  fetchingIndicator: {
-    position: 'absolute',
-    top: Spacing.six,
-    alignSelf: 'center',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      backgroundColor: colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 24,
+    },
+    errorText: {
+      color: colors.error,
+      textAlign: 'center',
+      fontSize: 16,
+    },
+    retryButton: {
+      marginTop: Spacing.four,
+    },
+    emptyText: {
+      color: colors.textSecondary,
+      textAlign: 'center',
+      fontSize: 16,
+    },
+    root: {
+      flex: 1,
+    },
+    fetchingIndicator: {
+      position: 'absolute',
+      top: Spacing.six,
+      alignSelf: 'center',
+    },
+  });
+}

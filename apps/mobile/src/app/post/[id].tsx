@@ -3,11 +3,12 @@ import type { CompactBlock, CompactFigure, Language } from '@techtok/shared';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Linking, Platform, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { ActivityIndicator, Button, IconButton, TouchableRipple } from 'react-native-paper';
 import { fetchPostContent } from '@/api/client';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Radius, Spacing, type ThemeColors, Typography } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
 import { translationFeedbackMailto } from '@/utils/feedback';
@@ -20,6 +21,8 @@ export default function PostScreen() {
     url: string;
   }>();
   const strings = useStrings();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const language = useLanguageStore((state) => state.language);
   const [viewLang, setViewLang] = useState<Language>(language);
 
@@ -53,7 +56,7 @@ export default function PostScreen() {
   if (contentQuery.isPending || content?.available === false) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={Colors.overlay.accent} />
+        <ActivityIndicator color={colors.primary} />
         <Text style={styles.stageText}>{strings.reader.loading}</Text>
       </View>
     );
@@ -101,20 +104,26 @@ export default function PostScreen() {
 
       {content.blocks.map((block, index) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: blocks are a static list returned whole per request, never reordered/filtered client-side.
-        <ReaderBlock key={index} block={block} figures={content.figures} />
+        <ReaderBlock key={index} block={block} figures={content.figures} styles={styles} />
       ))}
 
       <View style={styles.actions}>
         <Button mode="contained" onPress={openOriginal}>
           {strings.reader.readOriginal}
         </Button>
-        <IconButton icon="share-variant" iconColor={Colors.dark.text} onPress={share} />
+        <IconButton icon="share-variant" iconColor={colors.text} onPress={share} />
       </View>
     </ScrollView>
   );
 }
 
-function ReaderBlock({ block, figures }: { block: CompactBlock; figures: CompactFigure[] }) {
+interface ReaderBlockProps {
+  block: CompactBlock;
+  figures: CompactFigure[];
+  styles: ReturnType<typeof createStyles>;
+}
+
+function ReaderBlock({ block, figures, styles }: ReaderBlockProps) {
   switch (block.type) {
     case 'heading':
       return <Text style={styles.heading}>{block.text}</Text>;
@@ -148,97 +157,99 @@ function ReaderBlock({ block, figures }: { block: CompactBlock; figures: Compact
   }
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.dark.background,
-  },
-  content: {
-    padding: Spacing.four,
-    paddingBottom: Spacing.six,
-  },
-  center: {
-    flex: 1,
-    backgroundColor: Colors.dark.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.four,
-  },
-  errorText: {
-    color: Colors.dark.textSecondary,
-    ...Typography.md,
-    textAlign: 'center',
-    marginBottom: Spacing.four,
-  },
-  stageText: {
-    color: Colors.dark.textSecondary,
-    ...Typography.sm,
-    marginTop: Spacing.three,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.four,
-  },
-  sourceName: {
-    color: Colors.dark.textSecondary,
-    ...Typography.sm,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  toggleText: {
-    color: Colors.overlay.accent,
-    ...Typography.sm,
-    fontWeight: '600',
-  },
-  heading: {
-    color: Colors.dark.text,
-    ...Typography.lg,
-    fontWeight: '700',
-    marginTop: Spacing.three,
-    marginBottom: Spacing.two,
-  },
-  paragraph: {
-    color: Colors.dark.text,
-    ...Typography.md,
-    marginBottom: Spacing.three,
-  },
-  quote: {
-    color: Colors.dark.textSecondary,
-    ...Typography.md,
-    fontStyle: 'italic',
-    borderLeftColor: Colors.overlay.accent,
-    borderLeftWidth: 2,
-    paddingLeft: Spacing.three,
-    marginBottom: Spacing.three,
-  },
-  list: {
-    marginBottom: Spacing.three,
-  },
-  listItem: {
-    color: Colors.dark.text,
-    ...Typography.md,
-    marginBottom: Spacing.one,
-  },
-  figure: {
-    marginBottom: Spacing.three,
-  },
-  figureImage: {
-    width: '100%',
-    aspectRatio: 16 / 9,
-    borderRadius: Radius.md,
-  },
-  figureCaption: {
-    color: Colors.dark.textSecondary,
-    ...Typography.sm,
-    marginTop: Spacing.one,
-  },
-  actions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    marginTop: Spacing.four,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      padding: Spacing.four,
+      paddingBottom: Spacing.six,
+    },
+    center: {
+      flex: 1,
+      backgroundColor: colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: Spacing.four,
+    },
+    errorText: {
+      color: colors.textSecondary,
+      ...Typography.md,
+      textAlign: 'center',
+      marginBottom: Spacing.four,
+    },
+    stageText: {
+      color: colors.textSecondary,
+      ...Typography.sm,
+      marginTop: Spacing.three,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: Spacing.four,
+    },
+    sourceName: {
+      color: colors.textSecondary,
+      ...Typography.sm,
+      fontWeight: '600',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    toggleText: {
+      color: colors.primary,
+      ...Typography.sm,
+      fontWeight: '600',
+    },
+    heading: {
+      color: colors.text,
+      ...Typography.lg,
+      fontWeight: '700',
+      marginTop: Spacing.three,
+      marginBottom: Spacing.two,
+    },
+    paragraph: {
+      color: colors.text,
+      ...Typography.md,
+      marginBottom: Spacing.three,
+    },
+    quote: {
+      color: colors.textSecondary,
+      ...Typography.md,
+      fontStyle: 'italic',
+      borderLeftColor: colors.primary,
+      borderLeftWidth: 2,
+      paddingLeft: Spacing.three,
+      marginBottom: Spacing.three,
+    },
+    list: {
+      marginBottom: Spacing.three,
+    },
+    listItem: {
+      color: colors.text,
+      ...Typography.md,
+      marginBottom: Spacing.one,
+    },
+    figure: {
+      marginBottom: Spacing.three,
+    },
+    figureImage: {
+      width: '100%',
+      aspectRatio: 16 / 9,
+      borderRadius: Radius.md,
+    },
+    figureCaption: {
+      color: colors.textSecondary,
+      ...Typography.sm,
+      marginTop: Spacing.one,
+    },
+    actions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.three,
+      marginTop: Spacing.four,
+    },
+  });
+}

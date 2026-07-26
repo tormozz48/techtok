@@ -29,6 +29,8 @@ jobs:
       contents: write # create the GitHub Release that hosts the APK
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history + tags: needed for `git log <tag>..HEAD` and `git describe` (mobile version bump)
 
       - uses: pnpm/action-setup@v4
 
@@ -55,6 +57,29 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # Conventional-commit-driven semver bump (DESIGN §2 D35, reinstated by
+      # D40 now that mobile-build is the pipeline's one guaranteed
+      # pre-APK-build checkpoint). Mutates app.json/package.json/build.gradle
+      # in this checkout so the build below picks up the new version, then
+      # commits+tags+pushes to main so deploy-site's separate checkout (D39)
+      # sees it too.
+      - name: Bump mobile version
+        run: npx tsx scripts/bumpMobileVersion.ts
+
+      - name: Commit and tag if the version changed
+        run: |
+          if git diff --quiet -- apps/mobile/app.json apps/mobile/package.json apps/mobile/android/app/build.gradle; then
+            echo "No version bump needed."
+            exit 0
+          fi
+          VERSION=$(node -e "console.log(require('./apps/mobile/app.json').expo.version)")
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add apps/mobile/app.json apps/mobile/package.json apps/mobile/android/app/build.gradle
+          git commit -m "chore(mobile): bump version to $VERSION"
+          git tag "mobile-v$VERSION"
+          git push origin HEAD:main --follow-tags
 
       # Reuse the Gradle distribution + Maven deps + build-cache across runs.
       # `eas build --local` runs Gradle from the home GRADLE_USER_HOME (~/.gradle),

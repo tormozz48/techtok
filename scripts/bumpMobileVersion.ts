@@ -112,16 +112,20 @@ function commitMessagesSince(tag: string | undefined): string[] {
 function main(): void {
   const currentVersion = readAppVersion();
   const lastTag = findLastMobileTag();
+  const lastTagVersion = lastTag?.replace(/^mobile-v/, '');
 
   let nextVersion: string;
-  if (!lastTag) {
-    // First run, no mobile-v* tag yet: app.json's existing version becomes
-    // the canonical baseline going forward — reconcile package.json and
-    // build.gradle to it instead of computing a bump across the entire
-    // pre-automation commit history.
+  if (!lastTag || lastTagVersion !== currentVersion) {
+    // Bootstrap, or the tag has drifted from app.json (e.g. a manual version
+    // bump landed while this automation was disabled): app.json's existing
+    // version becomes the canonical baseline going forward — reconcile
+    // package.json/build.gradle to it instead of computing a bump across
+    // commits that predate a baseline the tag no longer reflects.
     nextVersion = currentVersion;
     console.log(
-      `No prior mobile-v* tag found — reconciling package.json/build.gradle to app.json's ${currentVersion}.`,
+      lastTag
+        ? `Last tag ${lastTag} doesn't match app.json's ${currentVersion} — reconciling to app.json.`
+        : `No prior mobile-v* tag found — reconciling package.json/build.gradle to app.json's ${currentVersion}.`,
     );
   } else {
     const messages = commitMessagesSince(lastTag);

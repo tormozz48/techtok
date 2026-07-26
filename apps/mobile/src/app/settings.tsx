@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getTopicLabel,
+  LANGUAGE_FLAGS,
   LANGUAGE_LABELS,
   LANGUAGES,
   type Language,
@@ -9,6 +10,7 @@ import {
 } from '@techtok/shared';
 import { useEffect } from 'react';
 import { ScrollView, StyleSheet, Text } from 'react-native';
+import { LanguageFlagRow } from '@/components/LanguageFlagRow';
 import { SelectableList } from '@/components/SelectableList';
 import { Colors, Spacing } from '@/constants/theme';
 import { useStrings } from '@/i18n/useStrings';
@@ -39,14 +41,14 @@ export default function SettingsScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.sectionTitle}>{strings.settings.languageSectionTitle}</Text>
-      <SelectableList
+      <LanguageFlagRow
         items={LANGUAGES}
         isSelected={(lang) => language === lang}
-        label={(lang) => LANGUAGE_LABELS[lang]}
+        flag={(lang) => LANGUAGE_FLAGS[lang]}
+        accessibilityLabel={(lang) => LANGUAGE_LABELS[lang]}
         onSelect={chooseLanguage}
-        rowStyle={styles.row}
-        rowSelectedStyle={styles.rowSelected}
-        rowTextStyle={styles.rowText}
+        buttonStyle={styles.flagButton}
+        buttonSelectedStyle={styles.flagButtonSelected}
       />
       <Text style={styles.hint}>
         {topics.length === 0
@@ -101,5 +103,13 @@ const styles = StyleSheet.create({
     color: Colors.dark.text,
     fontSize: 16,
     fontWeight: '600',
+  },
+  flagButton: {
+    backgroundColor: Colors.dark.backgroundElement,
+    borderRadius: 12,
+    paddingVertical: Spacing.three,
+  },
+  flagButtonSelected: {
+    backgroundColor: Colors.dark.backgroundSelected,
   },
 });

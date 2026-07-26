@@ -102,6 +102,9 @@ export function Card({ card }: CardProps) {
             <Text style={styles.metaText}>{card.sourceName}</Text>
             <Text style={styles.metaText}> · {timeAgo(card.publishedAt)}</Text>
           </View>
+          {card.sourceCount ? (
+            <Text style={styles.sourceCountText}>{strings.card.sourceCount(card.sourceCount)}</Text>
+          ) : null}
         </>
       </TouchableRipple>
     </View>
@@ -172,6 +175,11 @@ const styles = StyleSheet.create({
     color: Colors.overlay.textSecondary,
     ...Typography.sm,
     fontWeight: '600',
+  },
+  sourceCountText: {
+    color: Colors.overlay.textSecondary,
+    ...Typography.xs,
+    marginTop: Spacing.half,
   },
   debugBadge: {
     alignSelf: 'flex-start',

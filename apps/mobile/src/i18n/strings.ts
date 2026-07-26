@@ -27,6 +27,7 @@ export interface ChromeStrings {
   };
   card: {
     translatedBadge: string;
+    sourceCount: (count: number) => string;
   };
   reader: {
     error: string;
@@ -69,6 +70,7 @@ export const STRINGS: Record<Language, ChromeStrings> = {
     },
     card: {
       translatedBadge: 'Translated',
+      sourceCount: (count) => `Covered by ${count} sources`,
     },
     reader: {
       error: "Couldn't prepare this article.",
@@ -105,6 +107,7 @@ export const STRINGS: Record<Language, ChromeStrings> = {
     },
     card: {
       translatedBadge: 'Перевод',
+      sourceCount: (count) => `Освещается в ${count} источниках`,
     },
     reader: {
       error: 'Не удалось подготовить статью.',
@@ -141,6 +144,7 @@ export const STRINGS: Record<Language, ChromeStrings> = {
     },
     card: {
       translatedBadge: 'Переклад',
+      sourceCount: (count) => `Висвітлюється у ${count} джерелах`,
     },
     reader: {
       error: 'Не вдалося підготувати статтю.',
@@ -177,6 +181,7 @@ export const STRINGS: Record<Language, ChromeStrings> = {
     },
     card: {
       translatedBadge: 'Tłumaczenie',
+      sourceCount: (count) => `Relacjonowane przez ${count} źródeł`,
     },
     reader: {
       error: 'Nie udało się przygotować artykułu.',

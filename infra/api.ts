@@ -1,11 +1,14 @@
 import { contentBucket, postsTable, sourcesTable, userActivityTable, usersTable } from './storage';
 
 export const api = new sst.aws.ApiGatewayV2('Api', {
-  cors: {
-    allowMethods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowHeaders: ['content-type', 'x-device-id'],
-    allowOrigins: ['*'],
-  },
+  // This is a mobile-only API with no browser client, so CORS is pointless
+  // attack surface: native apps send no `Origin` and are not subject to CORS,
+  // while permissive CORS would let any website's JS call the API from a
+  // browser. `cors: false` disables it entirely — note that omitting the
+  // property (or `cors: true`) defaults to allow-all `*`, so this must be an
+  // explicit `false`. CORS only constrains browsers, not scripts/curl; it's a
+  // free reduction of casual web-based abuse, not an auth boundary (DESIGN §5).
+  cors: false,
   transform: {
     // Phase 5 rate-limit sanity check (IMPLEMENTATION_PLAN.md phase 5 task
     // 2): the account default (5000 req/s steady-state, 10000 burst) is far

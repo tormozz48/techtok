@@ -233,7 +233,7 @@ Multi-topic indexing note: a GSI can't index a list, so the feed indexes `primar
 ### `Users`
 | | |
 |---|---|
-| PK | `userId` (= device UUID v1) |
+| PK | `userId` (= device UUID v4, `Crypto.randomUUID()`) |
 | Attrs | `topics[]`, `language` (en\|ru\|uk\|pl, D20), `createdAt`, `lastSeenAt`, `settings{}` |
 
 ### `UserActivity`

@@ -108,31 +108,50 @@ function writeBuildGradle(version: string, versionCode: number): void {
   writeFileSync(BUILD_GRADLE_PATH, gradle);
 }
 
-/** PR-branch bump (D43): compares the PR head against its base branch rather
- * than the last `mobile-v*` tag (D35/D40's now-retired approach). A manual
- * bump already present on the PR head always wins over automation. Writes
- * the three files only — committing/pushing is left to the caller
- * (`stefanzweifel/git-auto-commit-action` in CI), so this stays a pure,
- * testable, no-git-write operation beyond the version files themselves. */
-export function main(baseRef: string): void {
-  const baseVersion = appJsonVersionAtRef(baseRef);
+/** Most recent `mobile-v*` tag reachable from HEAD (D42 creates one on every
+ * mobile-build run), or null if none exists yet. Sorted by semver descending
+ * so this picks the true latest even if tags weren't created in commit order. */
+function latestVersionTag(): string | null {
+  const output = execFileSync('git', ['tag', '--list', 'mobile-v*', '--sort=-v:refname'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+  }).trim();
+  if (!output) return null;
+  return output.split('\n')[0] ?? null;
+}
+
+/** Post-merge bump on `main` (D44, amends D41/D42/D43): baselines against the
+ * last `mobile-v*` tag rather than a PR's base branch, since this now runs
+ * after merge, not on a PR branch. A manual bump already landed since that
+ * tag always wins over automation. Writes the three files only — the
+ * commit/push (with retry against a concurrent merge) is the caller's job in
+ * CI, so this stays a pure, testable, no-git-write operation beyond the
+ * version files themselves. */
+export function main(): void {
+  const tag = latestVersionTag();
+  if (!tag) {
+    console.log('No mobile-v* tag found yet — skipping automated bump.');
+    return;
+  }
+
+  const baseVersion = appJsonVersionAtRef(tag);
   const currentVersion = currentAppJsonVersion();
 
   if (currentVersion !== baseVersion) {
     console.log(
-      `app.json version (${currentVersion}) already differs from base (${baseVersion}) — manual bump present, skipping.`,
+      `app.json version (${currentVersion}) already differs from ${tag} (${baseVersion}) — manual bump present, skipping.`,
     );
     return;
   }
 
-  const bump = highestBump(commitMessagesSince(baseRef));
+  const bump = highestBump(commitMessagesSince(tag));
   if (bump === 'none') {
-    console.log('No feat/fix commits since base — no bump needed.');
+    console.log(`No feat/fix commits since ${tag} — no bump needed.`);
     return;
   }
 
   const nextVersion = applyBump(baseVersion, bump);
-  const nextVersionCode = versionCodeAtRef(baseRef) + 1;
+  const nextVersionCode = versionCodeAtRef(tag) + 1;
 
   writeAppVersion(nextVersion);
   writePackageVersion(nextVersion);
@@ -144,7 +163,5 @@ export function main(baseRef: string): void {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const baseRef = process.env.BASE_REF;
-  if (!baseRef) throw new Error('BASE_REF env var required (e.g. origin/main)');
-  main(baseRef);
+  main();
 }

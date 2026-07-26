@@ -34,6 +34,27 @@ describe('userActivityRepo.markRead', () => {
       snapshot,
       gsi1sk: '2026-07-18T00:00:00.000Z#abc123',
     });
+    expect(input?.ReturnValues).toBe('ALL_OLD');
+  });
+
+  it('reports wasNew: true when no prior read-marker existed', async () => {
+    ddbMock.on(PutCommand).resolves({});
+    const repo = new UserActivityRepo(client, 'UserActivity');
+
+    const result = await repo.markRead('device-1', 'abc123', snapshot);
+
+    expect(result).toEqual({ wasNew: true });
+  });
+
+  it('reports wasNew: false when a read-marker already existed (retry/re-read)', async () => {
+    ddbMock.on(PutCommand).resolves({
+      Attributes: { userId: 'device-1', sk: 'read#abc123', postId: 'abc123', ...snapshot },
+    });
+    const repo = new UserActivityRepo(client, 'UserActivity');
+
+    const result = await repo.markRead('device-1', 'abc123', snapshot);
+
+    expect(result).toEqual({ wasNew: false });
   });
 });
 

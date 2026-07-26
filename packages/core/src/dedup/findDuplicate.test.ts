@@ -86,6 +86,24 @@ describe('findDuplicateOf', () => {
     expect(result).toBeUndefined();
   });
 
+  it('resolves to the chain root when the matched post is itself already a duplicate', async () => {
+    // 'existing1' matched the new candidate's title, but it's already marked
+    // as a duplicate of 'root' — the new candidate should point at 'root'
+    // directly, not extend the chain to 'existing1'.
+    const alreadyADuplicate = candidate({
+      postId: 'existing1',
+      sourceId: 'arstechnica',
+      origTitle: 'FBI stops investigating ICE agents, report says',
+      publishedAt: '2026-07-19T10:00:00.000Z',
+      duplicateOf: 'root',
+    });
+    const queryRecentByTopic = vi.fn().mockResolvedValue([alreadyADuplicate]);
+
+    const result = await findDuplicateOf(candidate(), { queryRecentByTopic });
+
+    expect(result).toBe('root');
+  });
+
   it('honors a custom window and threshold', async () => {
     const borderline = candidate({
       postId: 'existing1',

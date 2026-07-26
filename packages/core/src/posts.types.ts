@@ -60,4 +60,11 @@ export interface PostRecord extends NewPost {
    * `compactLangs`) since absence itself is the "not yet mirrored" signal —
    * an empty array means mirroring ran and found nothing. */
   readonly mirroredFigures?: CompactFigure[];
+  /** Count of *other* posts marked `duplicateOf` this one (cross-source
+   * dedup, phase 4 experiment) — only ever set on the original/root post,
+   * never on a duplicate. Absent means zero; the card's "covered by N
+   * sources" badge (toCard.ts) renders as `dupCount + 1`. No backfill for
+   * posts marked duplicate before this field existed, same precedent as
+   * `i18n`/`compactLangs`. */
+  readonly dupCount?: number;
 }

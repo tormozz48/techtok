@@ -28,7 +28,11 @@ jobs:
     permissions:
       contents: write # create the GitHub Release that hosts the APK
     steps:
+      # fetch-depth: 0 is needed for the version-bump step's `git tag --list`/
+      # `git log <tag>..HEAD` walk.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
 
@@ -55,6 +59,49 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # D44 (amends D41/D42/D43): computes a conventional-commit-driven
+      # semver bump (baselined against the last `mobile-v*` tag) and pushes it
+      # directly to `main` — reinstating D40's original post-merge mechanism
+      # now that the `ProtectMainBrach` ruleset's `pull_request` requirement
+      # has been removed, so a direct push is no longer categorically blocked.
+      # Two mitigations D40 lacked: (1) the commit message carries
+      # `[skip ci]`, so the push doesn't retrigger `ci.yml` and cancel this
+      # very run via its own `cancel-in-progress` concurrency group; (2) a
+      # bounded rebase-and-retry loop against a genuinely concurrent push to
+      # `main`, instead of failing outright on the first non-fast-forward
+      # rejection (D41's original failure mode). D43's PR-branch auto-bump
+      # workflow is retired — this is the only automated bump path now.
+      - name: Compute and push mobile version bump
+        env:
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
+        run: |
+          set -e
+          for attempt in 1 2 3 4 5; do
+            npx tsx scripts/bumpMobileVersion.ts
+            if git diff --quiet; then
+              echo "No version bump needed."
+              break
+            fi
+            VERSION=$(node -e "console.log(require('./apps/mobile/app.json').expo.version)")
+            git add apps/mobile/app.json apps/mobile/package.json apps/mobile/android/app/build.gradle
+            git commit -m "chore(mobile): bump version to $VERSION [skip ci]"
+            if git push origin HEAD:main; then
+              echo "Pushed version bump to $VERSION."
+              break
+            fi
+            if [ "$attempt" = "5" ]; then
+              echo "::error::Failed to push mobile version bump to main after 5 attempts"
+              exit 1
+            fi
+            echo "Push rejected (attempt $attempt) — main moved concurrently, rebasing and retrying..."
+            git reset --hard HEAD~1
+            git fetch origin main
+            git reset --hard origin/main
+          done
 
       # Reuse the Gradle distribution + Maven deps + build-cache across runs.
       # `eas build --local` runs Gradle from the home GRADLE_USER_HOME (~/.gradle),
@@ -100,11 +147,9 @@ jobs:
             - Install: download `techtok.apk` on an Android phone, then allow "install from unknown sources" for this file.
             - Always-current link: https://github.com/tormozz48/techtok/releases/latest/download/techtok.apk (also on the [project site](https://tormozz48.github.io/techtok/)).
 
-      # Tag-only reinstatement of release marking (D42, amends D41). D41 retired
-      # CI-driven version bumping after a commit pushed back to `main` raced a
-      # concurrent merge (non-fast-forward rejection). A tag push never touches
-      # the `main` ref and has no fast-forward requirement, so it can't hit that
-      # race — version bumping itself stays manual, unchanged from D41.
+      # Tag-only reinstatement of release marking (D42, amends D41). Reads the
+      # version off `app.json` as left on disk by the bump step above (D44),
+      # which already committed and pushed it to `main` if it changed.
       - name: Tag release version
         run: |
           VERSION=$(node -e "console.log(require('./apps/mobile/app.json').expo.version)")

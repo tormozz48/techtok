@@ -13,6 +13,10 @@ export interface DuplicateCandidate {
   readonly origTitle: string;
   readonly primaryTopic: Topic;
   readonly publishedAt: string;
+  /** Set when this candidate is itself already marked as a duplicate of
+   * something else — lets findDuplicateOf resolve straight to the chain's
+   * root instead of marking a new post as a duplicate of a duplicate. */
+  readonly duplicateOf?: string;
 }
 
 export interface FindDuplicateDeps {
@@ -49,7 +53,10 @@ export async function findDuplicateOf(
     if (post.sourceId === candidate.sourceId) continue;
     if (Math.abs(new Date(post.publishedAt).getTime() - candidateTime) > windowMs) continue;
     if (isLikelyDuplicateTitle(candidate.origTitle, post.origTitle, threshold)) {
-      return post.postId;
+      // `post` may itself already be a duplicate of an earlier post in the
+      // same story cluster — resolve straight to that root so every
+      // duplicate in a chain points at the one post that's actually shown.
+      return post.duplicateOf ?? post.postId;
     }
   }
   return undefined;

@@ -1,3 +1,4 @@
+export * from './activity/countTopicReads';
 export * from './activity/searchActivity';
 export * from './clients/dynamoClient';
 export * from './clients/s3Client';

@@ -8,5 +8,6 @@ export function toHistoryItem(record: ActivityRecord): HistoryItem {
     cardTitle: record.snapshot.cardTitle,
     sourceName: record.snapshot.sourceName,
     url: record.snapshot.url,
+    primaryTopic: record.snapshot.primaryTopic,
   };
 }

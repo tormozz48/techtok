@@ -1,0 +1,76 @@
+import type { HistoryItem, Topic } from '@techtok/shared';
+
+export interface ReadingStats {
+  readonly readsThisWeek: number;
+  readonly readsThisMonth: number;
+  readonly streakDays: number;
+  readonly topTopics: ReadonlyArray<{ topic: Topic; count: number }>;
+  readonly topSources: ReadonlyArray<{ sourceName: string; count: number }>;
+}
+
+const TOP_N = 3;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+function dayKey(iso: string): string {
+  return iso.slice(0, 10);
+}
+
+function topN<K>(counts: Map<K, number>, n: number): [K, number][] {
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, n);
+}
+
+/** Longest current run of consecutive read-days, anchored to the most
+ * recent day with any read — not to "today". A user who read every day
+ * through yesterday but hasn't opened the app yet today still sees their
+ * full streak, rather than it silently reading 0 until their next read. */
+function computeStreak(readDays: ReadonlySet<string>): number {
+  if (readDays.size === 0) return 0;
+
+  const newestFirst = [...readDays].sort().reverse();
+  let streak = 1;
+  const cursor = new Date(`${newestFirst[0]}T00:00:00.000Z`);
+
+  for (let i = 1; i < newestFirst.length; i++) {
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
+    if (dayKey(cursor.toISOString()) !== newestFirst[i]) break;
+    streak += 1;
+  }
+
+  return streak;
+}
+
+/** Client-computed from already-fetched history pages — no dedicated
+ * backend endpoint (§12/plan: this is a pure derivation of data the app
+ * already has). `primaryTopic` is absent on rows read before that field
+ * existed (D-whatever affinity work); such rows simply don't contribute to
+ * `topTopics`, degrading gracefully rather than erroring. */
+export function computeReadingStats(items: HistoryItem[], now: Date = new Date()): ReadingStats {
+  const weekAgoMs = now.getTime() - 7 * MS_PER_DAY;
+  const monthAgoMs = now.getTime() - 30 * MS_PER_DAY;
+
+  let readsThisWeek = 0;
+  let readsThisMonth = 0;
+  const topicCounts = new Map<Topic, number>();
+  const sourceCounts = new Map<string, number>();
+  const readDays = new Set<string>();
+
+  for (const item of items) {
+    const readAtMs = new Date(item.readAt).getTime();
+    if (readAtMs >= weekAgoMs) readsThisWeek += 1;
+    if (readAtMs >= monthAgoMs) readsThisMonth += 1;
+
+    if (item.primaryTopic) {
+      topicCounts.set(item.primaryTopic, (topicCounts.get(item.primaryTopic) ?? 0) + 1);
+    }
+    sourceCounts.set(item.sourceName, (sourceCounts.get(item.sourceName) ?? 0) + 1);
+    readDays.add(dayKey(item.readAt));
+  }
+
+  return {
+    readsThisWeek,
+    readsThisMonth,
+    streakDays: computeStreak(readDays),
+    topTopics: topN(topicCounts, TOP_N).map(([topic, count]) => ({ topic, count })),
+    topSources: topN(sourceCounts, TOP_N).map(([sourceName, count]) => ({ sourceName, count })),
+  };
+}

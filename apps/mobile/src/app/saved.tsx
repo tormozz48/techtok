@@ -1,9 +1,11 @@
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
+import { useMemo } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { IconButton, List } from 'react-native-paper';
 import { deleteBookmark, fetchBookmarksPage } from '@/api/client';
-import { Colors, Spacing } from '@/constants/theme';
+import { Spacing, type ThemeColors } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { timeAgo } from '@/utils/timeAgo';
 
@@ -16,6 +18,8 @@ export default function SavedScreen() {
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
   const strings = useStrings();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const items = data?.pages.flatMap((page) => page.items) ?? [];
 
@@ -40,7 +44,7 @@ export default function SavedScreen() {
   if (isLoading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#fff" />
+        <ActivityIndicator color={colors.textSecondary} />
       </View>
     );
   }
@@ -94,7 +98,7 @@ export default function SavedScreen() {
           <IconButton
             icon="close"
             size={16}
-            iconColor={Colors.dark.textSecondary}
+            iconColor={colors.textSecondary}
             onPress={() => removeBookmark(item.postId)}
           />
         </View>
@@ -103,43 +107,45 @@ export default function SavedScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  list: {
-    flex: 1,
-    backgroundColor: Colors.dark.background,
-  },
-  center: {
-    flex: 1,
-    backgroundColor: Colors.dark.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.four,
-  },
-  emptyText: {
-    color: Colors.dark.textSecondary,
-    textAlign: 'center',
-    fontSize: 16,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomColor: Colors.dark.backgroundElement,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: Spacing.four,
-  },
-  rowContent: {
-    flex: 1,
-    paddingVertical: Spacing.three,
-  },
-  title: {
-    color: Colors.dark.text,
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: Spacing.one,
-  },
-  metaText: {
-    color: Colors.dark.textSecondary,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    list: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    center: {
+      flex: 1,
+      backgroundColor: colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: Spacing.four,
+    },
+    emptyText: {
+      color: colors.textSecondary,
+      textAlign: 'center',
+      fontSize: 16,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderBottomColor: colors.backgroundElement,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      paddingHorizontal: Spacing.four,
+    },
+    rowContent: {
+      flex: 1,
+      paddingVertical: Spacing.three,
+    },
+    title: {
+      color: colors.text,
+      fontSize: 16,
+      fontWeight: '600',
+      marginBottom: Spacing.one,
+    },
+    metaText: {
+      color: colors.textSecondary,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+  });
+}

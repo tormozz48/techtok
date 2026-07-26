@@ -78,8 +78,25 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add apps/mobile/app.json apps/mobile/package.json apps/mobile/android/app/build.gradle
           git commit -m "chore(mobile): bump version to $VERSION"
-          git tag "mobile-v$VERSION"
-          git push origin HEAD:main --follow-tags
+
+          # main can advance underneath this job (e.g. an unrelated PR merges
+          # while the build is running), which rejects a plain push as
+          # non-fast-forward. Rebase onto the latest main and retry a few
+          # times before giving up.
+          for attempt in 1 2 3; do
+            git tag "mobile-v$VERSION"
+            if git push origin HEAD:main --follow-tags; then
+              break
+            fi
+            if [ "$attempt" = 3 ]; then
+              echo "::error::Failed to push version bump after $attempt attempts"
+              exit 1
+            fi
+            echo "Push rejected (attempt $attempt) — main moved concurrently, rebasing and retrying."
+            git tag -d "mobile-v$VERSION"
+            git fetch origin main
+            git rebase origin/main
+          done
 
       # Reuse the Gradle distribution + Maven deps + build-cache across runs.
       # `eas build --local` runs Gradle from the home GRADLE_USER_HOME (~/.gradle),

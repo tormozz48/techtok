@@ -8,8 +8,10 @@ import {
   TOPICS,
   type Topic,
 } from '@techtok/shared';
+import { Link } from 'expo-router';
 import { useEffect } from 'react';
 import { ScrollView, StyleSheet, Text } from 'react-native';
+import { List } from 'react-native-paper';
 import { LanguageFlagRow } from '@/components/LanguageFlagRow';
 import { SelectableList } from '@/components/SelectableList';
 import { Colors, Spacing } from '@/constants/theme';
@@ -65,6 +67,14 @@ export default function SettingsScreen() {
         rowSelectedStyle={styles.rowSelected}
         rowTextStyle={styles.rowText}
       />
+      <Link href="/stats" asChild>
+        <List.Item
+          title={strings.stats.title}
+          titleStyle={styles.rowText}
+          style={styles.row}
+          right={(props) => <List.Icon {...props} icon="chevron-right" color={Colors.dark.text} />}
+        />
+      </Link>
     </ScrollView>
   );
 }

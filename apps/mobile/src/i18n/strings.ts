@@ -3,17 +3,21 @@ import type { Language } from '@techtok/shared';
 export interface ChromeStrings {
   feed: {
     error: string;
+    retry: string;
     empty: string;
   };
   history: {
+    title: string;
     error: string;
     empty: string;
   };
   saved: {
+    title: string;
     error: string;
     empty: string;
   };
   settings: {
+    title: string;
     hintAll: string;
     hintSome: (selected: number, total: number) => string;
     languageSectionTitle: string;
@@ -36,6 +40,22 @@ export interface ChromeStrings {
     showTranslated: string;
     loading: string;
   };
+  time: {
+    justNow: string;
+    minutesAgo: (n: number) => string;
+    hoursAgo: (n: number) => string;
+    daysAgo: (n: number) => string;
+    weeksAgo: (n: number) => string;
+  };
+  a11y: {
+    bookmarkAdd: string;
+    bookmarkRemove: string;
+    share: string;
+    openSaved: string;
+    openHistory: string;
+    openSettings: string;
+    removeSaved: string;
+  };
 }
 
 // Hand-written chrome copy (D20) — no i18n framework dependency. Keep every
@@ -46,17 +66,21 @@ export const STRINGS: Record<Language, ChromeStrings> = {
   en: {
     feed: {
       error: 'Failed to load the feed.',
+      retry: 'Try again',
       empty: 'No stories yet — check back after the next ingest run.',
     },
     history: {
+      title: 'History',
       error: 'Failed to load history.',
       empty: 'Nothing read yet — swipe through the feed first.',
     },
     saved: {
+      title: 'Saved',
       error: 'Failed to load saved posts.',
       empty: 'Nothing saved yet — bookmark a card from the feed.',
     },
     settings: {
+      title: 'Settings',
       hintAll: 'Showing all topics. Select any to narrow your feed.',
       hintSome: (selected, total) => `Showing ${selected} of ${total} topics.`,
       languageSectionTitle: 'Language',
@@ -79,21 +103,41 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       showTranslated: 'Show translation',
       loading: 'Preparing article…',
     },
+    time: {
+      justNow: 'just now',
+      minutesAgo: (n) => `${n}m ago`,
+      hoursAgo: (n) => `${n}h ago`,
+      daysAgo: (n) => `${n}d ago`,
+      weeksAgo: (n) => `${n}w ago`,
+    },
+    a11y: {
+      bookmarkAdd: 'Save',
+      bookmarkRemove: 'Remove from saved',
+      share: 'Share',
+      openSaved: 'Open saved',
+      openHistory: 'Open history',
+      openSettings: 'Open settings',
+      removeSaved: 'Remove from saved',
+    },
   },
   ru: {
     feed: {
       error: 'Не удалось загрузить ленту.',
+      retry: 'Повторить',
       empty: 'Пока нет новостей — загляните после следующего обновления.',
     },
     history: {
+      title: 'История',
       error: 'Не удалось загрузить историю.',
       empty: 'Пока ничего не прочитано — сначала полистайте ленту.',
     },
     saved: {
+      title: 'Сохранённое',
       error: 'Не удалось загрузить сохранённое.',
       empty: 'Пока ничего не сохранено — добавьте карточку из ленты.',
     },
     settings: {
+      title: 'Настройки',
       hintAll: 'Показаны все темы. Выберите нужные, чтобы сузить ленту.',
       hintSome: (selected, total) => `Показано ${selected} из ${total} тем.`,
       languageSectionTitle: 'Язык',
@@ -116,21 +160,41 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       showTranslated: 'Показать перевод',
       loading: 'Готовим статью…',
     },
+    time: {
+      justNow: 'только что',
+      minutesAgo: (n) => `${n} мин. назад`,
+      hoursAgo: (n) => `${n} ч. назад`,
+      daysAgo: (n) => `${n} дн. назад`,
+      weeksAgo: (n) => `${n} нед. назад`,
+    },
+    a11y: {
+      bookmarkAdd: 'Сохранить',
+      bookmarkRemove: 'Убрать из сохранённого',
+      share: 'Поделиться',
+      openSaved: 'Открыть сохранённое',
+      openHistory: 'Открыть историю',
+      openSettings: 'Открыть настройки',
+      removeSaved: 'Убрать из сохранённого',
+    },
   },
   uk: {
     feed: {
       error: 'Не вдалося завантажити стрічку.',
+      retry: 'Повторити',
       empty: 'Поки що немає новин — зазирніть після наступного оновлення.',
     },
     history: {
+      title: 'Історія',
       error: 'Не вдалося завантажити історію.',
       empty: 'Поки що нічого не прочитано — спершу погортайте стрічку.',
     },
     saved: {
+      title: 'Збережене',
       error: 'Не вдалося завантажити збережене.',
       empty: 'Поки що нічого не збережено — додайте картку зі стрічки.',
     },
     settings: {
+      title: 'Налаштування',
       hintAll: 'Показано всі теми. Оберіть потрібні, щоб звузити стрічку.',
       hintSome: (selected, total) => `Показано ${selected} з ${total} тем.`,
       languageSectionTitle: 'Мова',
@@ -153,21 +217,41 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       showTranslated: 'Показати переклад',
       loading: 'Готуємо статтю…',
     },
+    time: {
+      justNow: 'щойно',
+      minutesAgo: (n) => `${n} хв тому`,
+      hoursAgo: (n) => `${n} год тому`,
+      daysAgo: (n) => `${n} дн тому`,
+      weeksAgo: (n) => `${n} тиж тому`,
+    },
+    a11y: {
+      bookmarkAdd: 'Зберегти',
+      bookmarkRemove: 'Прибрати зі збереженого',
+      share: 'Поділитися',
+      openSaved: 'Відкрити збережене',
+      openHistory: 'Відкрити історію',
+      openSettings: 'Відкрити налаштування',
+      removeSaved: 'Прибрати зі збереженого',
+    },
   },
   pl: {
     feed: {
       error: 'Nie udało się wczytać kanału.',
+      retry: 'Spróbuj ponownie',
       empty: 'Brak historii — zajrzyj ponownie po kolejnej aktualizacji.',
     },
     history: {
+      title: 'Historia',
       error: 'Nie udało się wczytać historii.',
       empty: 'Nic jeszcze nie przeczytano — najpierw przewiń kanał.',
     },
     saved: {
+      title: 'Zapisane',
       error: 'Nie udało się wczytać zapisanych wpisów.',
       empty: 'Nic jeszcze nie zapisano — dodaj kartę z kanału.',
     },
     settings: {
+      title: 'Ustawienia',
       hintAll: 'Wyświetlane są wszystkie tematy. Wybierz, aby zawęzić kanał.',
       hintSome: (selected, total) => `Wyświetlono ${selected} z ${total} tematów.`,
       languageSectionTitle: 'Język',
@@ -189,6 +273,22 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       showOriginal: 'Pokaż oryginał',
       showTranslated: 'Pokaż tłumaczenie',
       loading: 'Przygotowujemy artykuł…',
+    },
+    time: {
+      justNow: 'przed chwilą',
+      minutesAgo: (n) => `${n} min temu`,
+      hoursAgo: (n) => `${n} godz. temu`,
+      daysAgo: (n) => `${n} dni temu`,
+      weeksAgo: (n) => `${n} tyg. temu`,
+    },
+    a11y: {
+      bookmarkAdd: 'Zapisz',
+      bookmarkRemove: 'Usuń z zapisanych',
+      share: 'Udostępnij',
+      openSaved: 'Otwórz zapisane',
+      openHistory: 'Otwórz historię',
+      openSettings: 'Otwórz ustawienia',
+      removeSaved: 'Usuń z zapisanych',
     },
   },
 };

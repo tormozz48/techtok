@@ -1,4 +1,5 @@
 import type { Card as CardData } from '@techtok/shared';
+import { getTopicLabel } from '@techtok/shared';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -7,6 +8,7 @@ import { Linking, StyleSheet, Text, View } from 'react-native';
 import { Chip, TouchableRipple } from 'react-native-paper';
 import { Colors, Spacing, Typography } from '@/constants/theme';
 import { useStrings } from '@/i18n/useStrings';
+import { useLanguageStore } from '@/state/languageStore';
 import { enqueueRead } from '@/state/readQueue';
 import { translationFeedbackMailto } from '@/utils/feedback';
 import { timeAgo } from '@/utils/timeAgo';
@@ -20,6 +22,7 @@ export interface CardProps {
 export function Card({ card }: CardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const strings = useStrings();
+  const language = useLanguageStore((state) => state.language);
   const longPressedRef = useRef(false);
 
   return (
@@ -77,7 +80,7 @@ export function Card({ card }: CardProps) {
             </Chip>
           ) : null}
           <Chip compact style={styles.topicChip} textStyle={styles.topicChipText}>
-            {card.primaryTopic}
+            {getTopicLabel(card.primaryTopic, language)}
           </Chip>
           {card.isTranslated ? (
             <Chip
@@ -100,7 +103,7 @@ export function Card({ card }: CardProps) {
           ) : null}
           <View style={styles.meta}>
             <Text style={styles.metaText}>{card.sourceName}</Text>
-            <Text style={styles.metaText}> · {timeAgo(card.publishedAt)}</Text>
+            <Text style={styles.metaText}> · {timeAgo(card.publishedAt, strings.time)}</Text>
           </View>
           {card.sourceCount ? (
             <Text style={styles.sourceCountText}>{strings.card.sourceCount(card.sourceCount)}</Text>

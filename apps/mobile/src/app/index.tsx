@@ -1,19 +1,39 @@
 import type { Card as CardData } from '@techtok/shared';
-import { useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { Button } from 'react-native-paper';
 import { useFeedQuery } from '@/api/useFeedQuery';
 import { BottomActionBar } from '@/components/BottomActionBar';
 import { FeedPager } from '@/components/FeedPager';
 import { LoadingScreen } from '@/components/LoadingScreen';
-import { Colors } from '@/constants/theme';
+import { Colors, Spacing, type ThemeColors } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 
 export default function FeedScreen() {
-  const { data, isLoading, isError, error, fetchNextPage, isFetchingNextPage } = useFeedQuery();
+  const { data, isLoading, isError, refetch, fetchNextPage, isFetchingNextPage } = useFeedQuery();
   const [activeCard, setActiveCard] = useState<CardData | undefined>(undefined);
   const strings = useStrings();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const cards = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data]);
+
+  // Keeps the action bar's per-card actions in sync with the visible card
+  // without waiting for a swipe: seeds activeCard on first load, and
+  // re-seeds it if the feed is fully replaced (e.g. a topic/language change)
+  // while the old activeCard no longer exists in the new set. A plain
+  // `activeCard ?? cards[0]` fallback only covered the very first render.
+  useEffect(() => {
+    setActiveCard((current) => {
+      if (cards.length === 0) return undefined;
+      if (!current || !cards.some((card) => card.id === current.id)) {
+        return cards[0];
+      }
+      return current;
+    });
+  }, [cards]);
 
   if (isLoading) {
     return <LoadingScreen />;
@@ -22,9 +42,10 @@ export default function FeedScreen() {
   if (isError) {
     return (
       <View style={styles.center}>
-        <Text style={styles.errorText}>
-          {error instanceof Error ? error.message : strings.feed.error}
-        </Text>
+        <Text style={styles.errorText}>{strings.feed.error}</Text>
+        <Button mode="contained" onPress={() => refetch()} style={styles.retryButton}>
+          {strings.feed.retry}
+        </Button>
       </View>
     );
   }
@@ -39,6 +60,11 @@ export default function FeedScreen() {
 
   return (
     <View style={styles.root}>
+      {/* The feed itself is always a full-bleed dark photo overlay (Card.tsx,
+       * scheme-independent) with light text, so it needs light status-bar
+       * icons regardless of the device's theme — unlike the plain chrome
+       * states above, which inherit _layout.tsx's theme-following default. */}
+      <StatusBar style="light" />
       <FeedPager
         cards={cards}
         onPageChange={setActiveCard}
@@ -46,30 +72,45 @@ export default function FeedScreen() {
           if (!isFetchingNextPage) fetchNextPage();
         }}
       />
+      {isFetchingNextPage ? (
+        <View style={styles.fetchingIndicator} pointerEvents="none">
+          <ActivityIndicator color={Colors.overlay.text} size="small" />
+        </View>
+      ) : null}
       <BottomActionBar activeCard={activeCard ?? cards[0]} />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    backgroundColor: Colors.dark.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  errorText: {
-    color: '#ff6b6b',
-    textAlign: 'center',
-    fontSize: 16,
-  },
-  emptyText: {
-    color: Colors.dark.textSecondary,
-    textAlign: 'center',
-    fontSize: 16,
-  },
-  root: {
-    flex: 1,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      backgroundColor: colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 24,
+    },
+    errorText: {
+      color: colors.error,
+      textAlign: 'center',
+      fontSize: 16,
+    },
+    retryButton: {
+      marginTop: Spacing.four,
+    },
+    emptyText: {
+      color: colors.textSecondary,
+      textAlign: 'center',
+      fontSize: 16,
+    },
+    root: {
+      flex: 1,
+    },
+    fetchingIndicator: {
+      position: 'absolute',
+      top: Spacing.six,
+      alignSelf: 'center',
+    },
+  });
+}

@@ -1,6 +1,5 @@
 import type { StyleProp, TextStyle, ViewStyle } from 'react-native';
 import { List } from 'react-native-paper';
-import { Colors } from '@/constants/theme';
 
 export interface SelectableListProps<T extends string> {
   readonly items: readonly T[];
@@ -11,6 +10,7 @@ export interface SelectableListProps<T extends string> {
   readonly rowStyle: StyleProp<ViewStyle>;
   readonly rowSelectedStyle: StyleProp<ViewStyle>;
   readonly rowTextStyle: StyleProp<TextStyle>;
+  readonly checkIconColor: string;
 }
 
 /** A list of toggleable rows with a checkmark on the selected one(s) — shared
@@ -24,6 +24,7 @@ export function SelectableList<T extends string>({
   rowStyle,
   rowSelectedStyle,
   rowTextStyle,
+  checkIconColor,
 }: SelectableListProps<T>) {
   return (
     <>
@@ -39,7 +40,7 @@ export function SelectableList<T extends string>({
             titleStyle={rowTextStyle}
             right={
               selected
-                ? (props) => <List.Icon {...props} icon="check" color={Colors.dark.text} />
+                ? (props) => <List.Icon {...props} icon="check" color={checkIconColor} />
                 : undefined
             }
           />

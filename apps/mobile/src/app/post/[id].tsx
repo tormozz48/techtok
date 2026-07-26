@@ -108,7 +108,12 @@ export default function PostScreen() {
         <Button mode="contained" onPress={openOriginal}>
           {strings.reader.readOriginal}
         </Button>
-        <IconButton icon="share-variant" iconColor={Colors.dark.text} onPress={share} />
+        <IconButton
+          icon="share-variant"
+          iconColor={Colors.dark.text}
+          onPress={share}
+          accessibilityLabel={strings.a11y.share}
+        />
       </View>
     </ScrollView>
   );

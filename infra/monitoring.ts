@@ -278,6 +278,7 @@ const dashboardBody = $resolve({
         height: 6,
         properties: {
           title: 'Ingest runs',
+          region: 'eu-central-1',
           view: 'timeSeries',
           period: 3600,
           stat: 'Sum',
@@ -302,6 +303,7 @@ const dashboardBody = $resolve({
           // handler change, not an infra change; until then read this widget
           // as all-stages-combined.
           title: 'Ingest volume (all stages — EMF has no stage dimension)',
+          region: 'eu-central-1',
           view: 'timeSeries',
           period: 3600,
           stat: 'Sum',
@@ -320,6 +322,7 @@ const dashboardBody = $resolve({
         height: 6,
         properties: {
           title: 'Ingest run duration',
+          region: 'eu-central-1',
           view: 'timeSeries',
           period: 3600,
           metrics: [sfn('ExecutionTime', 'avg', 'Average'), sfn('ExecutionTime', 'max', 'Maximum')],
@@ -336,6 +339,7 @@ const dashboardBody = $resolve({
         height: 6,
         properties: {
           title: 'Queue depth',
+          region: 'eu-central-1',
           view: 'timeSeries',
           period: 300,
           stat: 'Maximum',
@@ -350,6 +354,7 @@ const dashboardBody = $resolve({
         height: 6,
         properties: {
           title: 'Oldest message age (s)',
+          region: 'eu-central-1',
           view: 'timeSeries',
           period: 300,
           stat: 'Maximum',
@@ -367,6 +372,7 @@ const dashboardBody = $resolve({
         height: 6,
         properties: {
           title: 'DLQ depth (any message = a bug or an outage)',
+          region: 'eu-central-1',
           view: 'timeSeries',
           period: 300,
           stat: 'Maximum',
@@ -384,6 +390,7 @@ const dashboardBody = $resolve({
         height: 6,
         properties: {
           title: 'Lambda invocations & errors (account-wide)',
+          region: 'eu-central-1',
           view: 'timeSeries',
           period: 300,
           stat: 'Sum',
@@ -401,6 +408,7 @@ const dashboardBody = $resolve({
         height: 6,
         properties: {
           title: 'Lambda throttles & concurrency (account-wide)',
+          region: 'eu-central-1',
           view: 'timeSeries',
           period: 300,
           metrics: [
@@ -420,6 +428,7 @@ const dashboardBody = $resolve({
         height: 6,
         properties: {
           title: 'Lambda duration p95 (account-wide)',
+          region: 'eu-central-1',
           view: 'timeSeries',
           period: 300,
           metrics: [['AWS/Lambda', 'Duration', { label: 'p95', stat: 'p95' }]],
@@ -435,6 +444,7 @@ const dashboardBody = $resolve({
         height: 6,
         properties: {
           title: 'API requests & errors',
+          region: 'eu-central-1',
           view: 'timeSeries',
           period: 300,
           stat: 'Sum',
@@ -449,6 +459,7 @@ const dashboardBody = $resolve({
         height: 6,
         properties: {
           title: 'API latency (ms)',
+          region: 'eu-central-1',
           view: 'timeSeries',
           period: 300,
           metrics: [
@@ -469,6 +480,7 @@ const dashboardBody = $resolve({
         height: 6,
         properties: {
           title: 'DynamoDB consumed capacity',
+          region: 'eu-central-1',
           view: 'timeSeries',
           period: 300,
           stat: 'Sum',
@@ -486,6 +498,7 @@ const dashboardBody = $resolve({
         height: 6,
         properties: {
           title: 'DynamoDB throttled requests',
+          region: 'eu-central-1',
           view: 'timeSeries',
           period: 300,
           stat: 'Sum',

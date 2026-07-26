@@ -3,6 +3,7 @@ import type { Language } from '@techtok/shared';
 export interface ChromeStrings {
   feed: {
     error: string;
+    retry: string;
     empty: string;
   };
   history: {
@@ -45,6 +46,7 @@ export const STRINGS: Record<Language, ChromeStrings> = {
   en: {
     feed: {
       error: 'Failed to load the feed.',
+      retry: 'Try again',
       empty: 'No stories yet — check back after the next ingest run.',
     },
     history: {
@@ -81,6 +83,7 @@ export const STRINGS: Record<Language, ChromeStrings> = {
   ru: {
     feed: {
       error: 'Не удалось загрузить ленту.',
+      retry: 'Повторить',
       empty: 'Пока нет новостей — загляните после следующего обновления.',
     },
     history: {
@@ -117,6 +120,7 @@ export const STRINGS: Record<Language, ChromeStrings> = {
   uk: {
     feed: {
       error: 'Не вдалося завантажити стрічку.',
+      retry: 'Повторити',
       empty: 'Поки що немає новин — зазирніть після наступного оновлення.',
     },
     history: {
@@ -153,6 +157,7 @@ export const STRINGS: Record<Language, ChromeStrings> = {
   pl: {
     feed: {
       error: 'Nie udało się wczytać kanału.',
+      retry: 'Spróbuj ponownie',
       empty: 'Brak historii — zajrzyj ponownie po kolejnej aktualizacji.',
     },
     history: {

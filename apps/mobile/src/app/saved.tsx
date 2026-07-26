@@ -1,12 +1,15 @@
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import * as WebBrowser from 'expo-web-browser';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { IconButton, List } from 'react-native-paper';
 import { deleteBookmark, fetchBookmarksPage } from '@/api/client';
+import { prefetchPostContent } from '@/api/prefetchContent';
 import { Spacing, type ThemeColors } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
+import { useLanguageStore } from '@/state/languageStore';
+import { getIsWifi } from '@/state/network';
 import { timeAgo } from '@/utils/timeAgo';
 
 export default function SavedScreen() {
@@ -22,6 +25,22 @@ export default function SavedScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const items = data?.pages.flatMap((page) => page.items) ?? [];
+
+  // Best-effort offline prep for whatever's currently loaded on this screen
+  // (including further pages as the user scrolls). Reads straight from
+  // `data` rather than the derived `items` array so the effect's own
+  // dependency (`data`) matches what it actually reads — `items` is a fresh
+  // array reference on every render even when the underlying pages haven't
+  // changed, which would otherwise re-run this on every render too.
+  useEffect(() => {
+    if (!getIsWifi() || !data) return;
+    const language = useLanguageStore.getState().language;
+    for (const page of data.pages) {
+      for (const item of page.items) {
+        prefetchPostContent(queryClient, item.postId, language);
+      }
+    }
+  }, [data, queryClient]);
 
   const removeBookmark = async (postId: string) => {
     queryClient.setQueryData(['bookmarks'], (current: typeof data) => {

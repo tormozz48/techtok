@@ -67,9 +67,17 @@ export default function RootLayout() {
       persistOptions={{
         persister,
         maxAge: ONE_DAY_MS,
-        // Only the feed is worth restoring offline — history/bookmarks/me
-        // are cheap to refetch and shouldn't bloat the persisted cache.
-        dehydrateOptions: { shouldDehydrateQuery: (query) => query.queryKey[0] === 'feed' },
+        // Feed, bookmarks, and compact-article content persist offline;
+        // history/me stay cheap-refetch-only. Content is the one worth
+        // restoring without a network hit at all — it's what
+        // BookmarkButton/saved.tsx's wifi-gated prefetch is populating in
+        // the first place (offline saved articles).
+        dehydrateOptions: {
+          shouldDehydrateQuery: (query) =>
+            query.queryKey[0] === 'feed' ||
+            query.queryKey[0] === 'bookmarks' ||
+            query.queryKey[0] === 'content',
+        },
       }}
     >
       <PaperProvider theme={colorScheme === 'dark' ? techtokDarkTheme : techtokLightTheme}>

@@ -1,9 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { IconButton } from 'react-native-paper';
 import { createBookmark, deleteBookmark } from '@/api/client';
+import { prefetchPostContent } from '@/api/prefetchContent';
 import { Colors } from '@/constants/theme';
 import { useStrings } from '@/i18n/useStrings';
 import { useBookmarksOverlay } from '@/state/bookmarksOverlay';
+import { useLanguageStore } from '@/state/languageStore';
+import { getIsWifi } from '@/state/network';
 
 export interface BookmarkButtonProps {
   postId: string;
@@ -25,6 +28,12 @@ export function BookmarkButton({ postId, isBookmarked }: BookmarkButtonProps) {
     try {
       if (next) {
         await createBookmark(postId);
+        // Wifi-gated best-effort offline prep — a failure here shouldn't
+        // affect the bookmark toggle itself, so no try/catch is needed:
+        // prefetchQuery already swallows its own queryFn errors internally.
+        if (getIsWifi()) {
+          prefetchPostContent(queryClient, postId, useLanguageStore.getState().language);
+        }
       } else {
         await deleteBookmark(postId);
       }

@@ -69,6 +69,11 @@
       },
       "cursor": {
         "type": "string"
+      },
+      "q": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
       }
     },
     "required": [
@@ -864,6 +869,11 @@
       },
       "cursor": {
         "type": "string"
+      },
+      "q": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
       }
     },
     "required": [

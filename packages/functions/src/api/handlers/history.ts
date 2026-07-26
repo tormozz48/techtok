@@ -1,13 +1,22 @@
+import { searchActivity } from '@techtok/core';
 import { historyQuerySchema, historyResponseSchema } from '@techtok/shared';
 import { getUserActivityRepo } from '../../repos';
 import { jsonResponse, parseQuery, withDeviceId } from '../lib/http';
 import { toHistoryItem } from '../transformers/toHistoryItem';
 
+const SEARCH_PAGE_SIZE = 100;
+
 export const handler = withDeviceId(async (event, deviceId) => {
   const query = parseQuery(event, historyQuerySchema);
   if (!query.ok) return query.response;
 
-  const page = await getUserActivityRepo().queryHistory(deviceId, query.data);
+  const activity = getUserActivityRepo();
+  const page = query.data.q
+    ? await searchActivity(
+        (cursor) => activity.queryHistory(deviceId, { limit: SEARCH_PAGE_SIZE, cursor }),
+        { q: query.data.q, limit: query.data.limit },
+      )
+    : await activity.queryHistory(deviceId, query.data);
 
   const body = historyResponseSchema.parse({
     items: page.items.map(toHistoryItem),

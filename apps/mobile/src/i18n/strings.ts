@@ -10,17 +10,25 @@ export interface ChromeStrings {
     title: string;
     error: string;
     empty: string;
+    searchPlaceholder: string;
+    noResults: string;
   };
   saved: {
     title: string;
     error: string;
     empty: string;
+    searchPlaceholder: string;
+    noResults: string;
   };
   settings: {
     title: string;
     hintAll: string;
     hintSome: (selected: number, total: number) => string;
     languageSectionTitle: string;
+    themeSectionTitle: string;
+    themeSystem: string;
+    themeLight: string;
+    themeDark: string;
     sourcesSectionTitle: string;
     sourcesHint: string;
   };
@@ -85,17 +93,25 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       title: 'History',
       error: 'Failed to load history.',
       empty: 'Nothing read yet — swipe through the feed first.',
+      searchPlaceholder: 'Search history',
+      noResults: 'No matches in your history.',
     },
     saved: {
       title: 'Saved',
       error: 'Failed to load saved posts.',
       empty: 'Nothing saved yet — bookmark a card from the feed.',
+      searchPlaceholder: 'Search saved',
+      noResults: 'No matches in your saved posts.',
     },
     settings: {
       title: 'Settings',
       hintAll: 'Showing all topics. Select any to narrow your feed.',
       hintSome: (selected, total) => `Showing ${selected} of ${total} topics.`,
       languageSectionTitle: 'Language',
+      themeSectionTitle: 'Appearance',
+      themeSystem: 'System',
+      themeLight: 'Light',
+      themeDark: 'Dark',
       sourcesSectionTitle: 'Sources',
       sourcesHint: 'Tap a source to mute it — muted sources are hidden from your feed.',
     },
@@ -154,17 +170,25 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       title: 'История',
       error: 'Не удалось загрузить историю.',
       empty: 'Пока ничего не прочитано — сначала полистайте ленту.',
+      searchPlaceholder: 'Поиск по истории',
+      noResults: 'Совпадений в истории не найдено.',
     },
     saved: {
       title: 'Сохранённое',
       error: 'Не удалось загрузить сохранённое.',
       empty: 'Пока ничего не сохранено — добавьте карточку из ленты.',
+      searchPlaceholder: 'Поиск по сохранённому',
+      noResults: 'Совпадений в сохранённом не найдено.',
     },
     settings: {
       title: 'Настройки',
       hintAll: 'Показаны все темы. Выберите нужные, чтобы сузить ленту.',
       hintSome: (selected, total) => `Показано ${selected} из ${total} тем.`,
       languageSectionTitle: 'Язык',
+      themeSectionTitle: 'Оформление',
+      themeSystem: 'Как в системе',
+      themeLight: 'Светлая',
+      themeDark: 'Тёмная',
       sourcesSectionTitle: 'Источники',
       sourcesHint: 'Нажмите на источник, чтобы скрыть его из ленты.',
     },
@@ -223,17 +247,25 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       title: 'Історія',
       error: 'Не вдалося завантажити історію.',
       empty: 'Поки що нічого не прочитано — спершу погортайте стрічку.',
+      searchPlaceholder: 'Пошук в історії',
+      noResults: 'Збігів в історії не знайдено.',
     },
     saved: {
       title: 'Збережене',
       error: 'Не вдалося завантажити збережене.',
       empty: 'Поки що нічого не збережено — додайте картку зі стрічки.',
+      searchPlaceholder: 'Пошук у збереженому',
+      noResults: 'Збігів у збереженому не знайдено.',
     },
     settings: {
       title: 'Налаштування',
       hintAll: 'Показано всі теми. Оберіть потрібні, щоб звузити стрічку.',
       hintSome: (selected, total) => `Показано ${selected} з ${total} тем.`,
       languageSectionTitle: 'Мова',
+      themeSectionTitle: 'Оформлення',
+      themeSystem: 'Як у системі',
+      themeLight: 'Світла',
+      themeDark: 'Темна',
       sourcesSectionTitle: 'Джерела',
       sourcesHint: 'Торкніться джерела, щоб приховати його зі стрічки.',
     },
@@ -292,17 +324,25 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       title: 'Historia',
       error: 'Nie udało się wczytać historii.',
       empty: 'Nic jeszcze nie przeczytano — najpierw przewiń kanał.',
+      searchPlaceholder: 'Szukaj w historii',
+      noResults: 'Brak wyników w historii.',
     },
     saved: {
       title: 'Zapisane',
       error: 'Nie udało się wczytać zapisanych wpisów.',
       empty: 'Nic jeszcze nie zapisano — dodaj kartę z kanału.',
+      searchPlaceholder: 'Szukaj w zapisanych',
+      noResults: 'Brak wyników w zapisanych.',
     },
     settings: {
       title: 'Ustawienia',
       hintAll: 'Wyświetlane są wszystkie tematy. Wybierz, aby zawęzić kanał.',
       hintSome: (selected, total) => `Wyświetlono ${selected} z ${total} tematów.`,
       languageSectionTitle: 'Język',
+      themeSectionTitle: 'Wygląd',
+      themeSystem: 'Systemowy',
+      themeLight: 'Jasny',
+      themeDark: 'Ciemny',
       sourcesSectionTitle: 'Źródła',
       sourcesHint: 'Dotknij źródła, aby ukryć je z kanału.',
     },

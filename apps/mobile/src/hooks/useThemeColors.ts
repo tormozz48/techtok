@@ -1,14 +1,18 @@
 import { useColorScheme } from 'react-native';
 import { Colors, type ThemeColors } from '@/constants/theme';
+import { useThemeStore } from '@/state/themeStore';
 
-/** Resolves the scheme-dependent half of the palette (Colors.light/dark) to
- * the device's current color scheme, matching the same fallback _layout.tsx
- * uses for the Paper/navigation themes (anything but exactly 'dark' -> light)
- * so chrome screens never disagree with the Paper components around them.
+/** Resolves the scheme-dependent half of the palette (Colors.light/dark).
+ * Defaults to following the device's color scheme, but a user's explicit
+ * light/dark choice in Settings (themeStore) overrides it — matching the
+ * same resolution _layout.tsx uses for the Paper/navigation themes so
+ * chrome screens never disagree with the Paper components around them.
  * Screens compose this with the always-fixed Colors.overlay palette where
  * needed (Card's full-bleed photo overlay, BottomActionBar, LoadingScreen's
  * splash continuation — none of which switch with system theme). */
 export function useThemeColors(): ThemeColors {
-  const scheme = useColorScheme();
-  return scheme === 'dark' ? Colors.dark : Colors.light;
+  const systemScheme = useColorScheme();
+  const mode = useThemeStore((state) => state.mode);
+  const resolved = mode === 'system' ? systemScheme : mode;
+  return resolved === 'dark' ? Colors.dark : Colors.light;
 }

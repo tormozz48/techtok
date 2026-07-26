@@ -1,11 +1,13 @@
 import { DescribeExecutionCommand, SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn';
 import { GetQueueAttributesCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { createDynamoClient, SourcesRepo } from '@techtok/core';
+import { describe, expect, it } from 'vitest';
 import { discoverDevResources, REGION } from './awsDiscovery';
 
 const EXECUTION_TIMEOUT_MS = 5 * 60_000;
 const QUEUE_DRAIN_TIMEOUT_MS = 3 * 60_000;
 const POLL_INTERVAL_MS = 10_000;
+const TEST_TIMEOUT_MS = EXECUTION_TIMEOUT_MS + 2 * QUEUE_DRAIN_TIMEOUT_MS + 60_000;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -57,56 +59,41 @@ async function waitForQueueDrain(
  * fresh `lastFetchAt`, and the queues the run feeds (Transform → Translate)
  * fully drain afterward. Never run against `production` (DESIGN §2 D34).
  */
-async function main(): Promise<void> {
-  const resources = await discoverDevResources();
-  const sfn = new SFNClient({ region: REGION });
-  const sqs = new SQSClient({ region: REGION });
-  const dynamo = createDynamoClient();
-  const sourcesRepo = new SourcesRepo(dynamo, resources.sourcesTableName);
+describe('backend pipeline E2E', () => {
+  it(
+    'runs a real IngestPipeline execution and drains the Transform/Translate queues',
+    async () => {
+      const resources = await discoverDevResources();
+      const sfn = new SFNClient({ region: REGION });
+      const sqs = new SQSClient({ region: REGION });
+      const dynamo = createDynamoClient();
+      const sourcesRepo = new SourcesRepo(dynamo, resources.sourcesTableName);
 
-  const beforeSources = await sourcesRepo.listEnabled();
-  const startedAt = Date.now();
+      const beforeSources = await sourcesRepo.listEnabled();
+      const startedAt = Date.now();
 
-  console.log(`Starting a real IngestPipeline execution: ${resources.ingestPipelineArn}`);
-  const { executionArn } = await sfn.send(
-    new StartExecutionCommand({ stateMachineArn: resources.ingestPipelineArn }),
+      const { executionArn } = await sfn.send(
+        new StartExecutionCommand({ stateMachineArn: resources.ingestPipelineArn }),
+      );
+      expect(executionArn).toBeTruthy();
+      if (!executionArn) throw new Error('StartExecution did not return an executionArn');
+
+      const status = await waitForExecution(sfn, executionArn);
+      expect(status).toBe('SUCCEEDED');
+
+      const afterSources = await sourcesRepo.listEnabled();
+      const staleSources = afterSources.filter((source) => {
+        const before = beforeSources.find((b) => b.sourceId === source.sourceId);
+        const lastFetchAt = source.lastFetchAt ? Date.parse(source.lastFetchAt) : undefined;
+        return (
+          !lastFetchAt || lastFetchAt < startedAt || before?.lastFetchAt === source.lastFetchAt
+        );
+      });
+      expect(staleSources).toEqual([]);
+
+      await waitForQueueDrain(sqs, resources.transformQueueUrl, 'TransformQueue');
+      await waitForQueueDrain(sqs, resources.translateQueueUrl, 'TranslateQueue');
+    },
+    TEST_TIMEOUT_MS,
   );
-  if (!executionArn) throw new Error('StartExecution did not return an executionArn');
-
-  const status = await waitForExecution(sfn, executionArn);
-  if (status !== 'SUCCEEDED') {
-    throw new Error(
-      `IngestPipeline execution ${executionArn} finished with status ${status}, expected SUCCEEDED`,
-    );
-  }
-  console.log('IngestPipeline execution succeeded.');
-
-  const afterSources = await sourcesRepo.listEnabled();
-  const staleSources = afterSources.filter((source) => {
-    const before = beforeSources.find((b) => b.sourceId === source.sourceId);
-    const lastFetchAt = source.lastFetchAt ? Date.parse(source.lastFetchAt) : undefined;
-    return !lastFetchAt || lastFetchAt < startedAt || before?.lastFetchAt === source.lastFetchAt;
-  });
-  if (staleSources.length > 0) {
-    throw new Error(
-      `${staleSources.length} enabled source(s) did not pick up a fresh lastFetchAt from this run: ${staleSources
-        .map((s) => s.sourceId)
-        .join(', ')}`,
-    );
-  }
-  console.log(
-    `All ${afterSources.length} enabled sources recorded a fresh lastFetchAt in DynamoDB.`,
-  );
-
-  console.log('Waiting for TransformQueue and TranslateQueue to drain...');
-  await waitForQueueDrain(sqs, resources.transformQueueUrl, 'TransformQueue');
-  await waitForQueueDrain(sqs, resources.translateQueueUrl, 'TranslateQueue');
-  console.log(
-    'Backend pipeline E2E passed: execution succeeded, Sources rows updated, queues drained.',
-  );
-}
-
-main().catch((err) => {
-  console.error('Backend pipeline E2E failed:', err);
-  process.exitCode = 1;
 });

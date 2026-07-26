@@ -12,6 +12,8 @@ import {
   type Language,
   type MeResponse,
   meResponseSchema,
+  type SourcesResponse,
+  sourcesResponseSchema,
   type Topic,
 } from '@techtok/shared';
 import { getOrCreateDeviceId } from '@/state/deviceId';
@@ -82,6 +84,21 @@ export async function putLanguage(language: Language): Promise<MeResponse> {
     body: JSON.stringify({ language }),
   });
   return meResponseSchema.parse(await response.json());
+}
+
+export async function putMutedSources(sourceIds: string[]): Promise<MeResponse> {
+  const response = await apiFetch(apiUrl('/v1/me/muted-sources'), {
+    method: 'PUT',
+    body: JSON.stringify({ sourceIds }),
+  });
+  return meResponseSchema.parse(await response.json());
+}
+
+/** Public source catalog (no device id needed) — lets the app render a mute
+ * picker without hardcoding the source list. */
+export async function fetchSources(): Promise<SourcesResponse> {
+  const response = await apiFetch(apiUrl('/v1/sources'));
+  return sourcesResponseSchema.parse(await response.json());
 }
 
 export async function postReads(postIds: string[]): Promise<void> {

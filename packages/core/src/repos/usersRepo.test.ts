@@ -76,6 +76,35 @@ describe('usersRepo.updateLanguage', () => {
   });
 });
 
+describe('usersRepo.updateMutedSources', () => {
+  it('sets the mutedSources list (full replace) and bumps lastSeenAt', async () => {
+    ddbMock.on(UpdateCommand).resolves({
+      Attributes: { userId: 'device-1', mutedSources: ['hn'], createdAt: 'x', lastSeenAt: 'y' },
+    });
+    const repo = new UsersRepo(client, 'Users');
+
+    const user = await repo.updateMutedSources('device-1', ['hn']);
+
+    expect(user.mutedSources).toEqual(['hn']);
+    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
+    expect(input?.Key).toEqual({ userId: 'device-1' });
+    expect(input?.ExpressionAttributeValues).toMatchObject({ ':mutedSources': ['hn'] });
+  });
+
+  it('accepts an empty array to unmute everything', async () => {
+    ddbMock.on(UpdateCommand).resolves({
+      Attributes: { userId: 'device-1', mutedSources: [], createdAt: 'x', lastSeenAt: 'y' },
+    });
+    const repo = new UsersRepo(client, 'Users');
+
+    const user = await repo.updateMutedSources('device-1', []);
+
+    expect(user.mutedSources).toEqual([]);
+    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
+    expect(input?.ExpressionAttributeValues).toMatchObject({ ':mutedSources': [] });
+  });
+});
+
 describe('usersRepo.addTopicReads', () => {
   it('does nothing when given an empty counts object', async () => {
     ddbMock.on(UpdateCommand).resolves({});

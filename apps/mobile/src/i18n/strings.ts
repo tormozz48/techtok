@@ -25,6 +25,8 @@ export interface ChromeStrings {
     themeSystem: string;
     themeLight: string;
     themeDark: string;
+    sourcesSectionTitle: string;
+    sourcesHint: string;
   };
   onboarding: {
     title: string;
@@ -102,6 +104,8 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       themeSystem: 'System',
       themeLight: 'Light',
       themeDark: 'Dark',
+      sourcesSectionTitle: 'Sources',
+      sourcesHint: 'Tap a source to mute it — muted sources are hidden from your feed.',
     },
     onboarding: {
       title: 'Welcome to TechTok',
@@ -173,6 +177,8 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       themeSystem: 'Как в системе',
       themeLight: 'Светлая',
       themeDark: 'Тёмная',
+      sourcesSectionTitle: 'Источники',
+      sourcesHint: 'Нажмите на источник, чтобы скрыть его из ленты.',
     },
     onboarding: {
       title: 'Добро пожаловать в TechTok',
@@ -244,6 +250,8 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       themeSystem: 'Як у системі',
       themeLight: 'Світла',
       themeDark: 'Темна',
+      sourcesSectionTitle: 'Джерела',
+      sourcesHint: 'Торкніться джерела, щоб приховати його зі стрічки.',
     },
     onboarding: {
       title: 'Ласкаво просимо до TechTok',
@@ -315,6 +323,8 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       themeSystem: 'Systemowy',
       themeLight: 'Jasny',
       themeDark: 'Ciemny',
+      sourcesSectionTitle: 'Źródła',
+      sourcesHint: 'Dotknij źródła, aby ukryć je z kanału.',
     },
     onboarding: {
       title: 'Witaj w TechTok',

@@ -20,6 +20,7 @@ import { startNetworkMonitoring } from '@/state/network';
 import { hasSeenOnboarding } from '@/state/onboardingStore';
 import { startReadQueueFlushing } from '@/state/readQueue';
 import { ready } from '@/state/storage';
+import { useThemeStore } from '@/state/themeStore';
 import { useTopicsStore } from '@/state/topicsStore';
 
 const ONE_DAY_MS = 1000 * 60 * 60 * 24;
@@ -37,7 +38,9 @@ const persister = createAsyncStoragePersister({
 });
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  const systemScheme = useColorScheme();
+  const themeMode = useThemeStore((state) => state.mode);
+  const colorScheme = themeMode === 'system' ? systemScheme : themeMode;
   const strings = useStrings();
   const [isHydrated, setIsHydrated] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -48,6 +51,7 @@ export default function RootLayout() {
       startNetworkMonitoring();
       useTopicsStore.getState().load();
       useLanguageStore.getState().load();
+      useThemeStore.getState().load();
       setShowOnboarding(!hasSeenOnboarding());
       setIsHydrated(true);
     });

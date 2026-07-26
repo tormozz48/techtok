@@ -25,6 +25,10 @@ export interface ChromeStrings {
     hintAll: string;
     hintSome: (selected: number, total: number) => string;
     languageSectionTitle: string;
+    themeSectionTitle: string;
+    themeSystem: string;
+    themeLight: string;
+    themeDark: string;
     sourcesSectionTitle: string;
     sourcesHint: string;
   };
@@ -104,6 +108,10 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       hintAll: 'Showing all topics. Select any to narrow your feed.',
       hintSome: (selected, total) => `Showing ${selected} of ${total} topics.`,
       languageSectionTitle: 'Language',
+      themeSectionTitle: 'Appearance',
+      themeSystem: 'System',
+      themeLight: 'Light',
+      themeDark: 'Dark',
       sourcesSectionTitle: 'Sources',
       sourcesHint: 'Tap a source to mute it — muted sources are hidden from your feed.',
     },
@@ -177,6 +185,10 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       hintAll: 'Показаны все темы. Выберите нужные, чтобы сузить ленту.',
       hintSome: (selected, total) => `Показано ${selected} из ${total} тем.`,
       languageSectionTitle: 'Язык',
+      themeSectionTitle: 'Оформление',
+      themeSystem: 'Как в системе',
+      themeLight: 'Светлая',
+      themeDark: 'Тёмная',
       sourcesSectionTitle: 'Источники',
       sourcesHint: 'Нажмите на источник, чтобы скрыть его из ленты.',
     },
@@ -250,6 +262,10 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       hintAll: 'Показано всі теми. Оберіть потрібні, щоб звузити стрічку.',
       hintSome: (selected, total) => `Показано ${selected} з ${total} тем.`,
       languageSectionTitle: 'Мова',
+      themeSectionTitle: 'Оформлення',
+      themeSystem: 'Як у системі',
+      themeLight: 'Світла',
+      themeDark: 'Темна',
       sourcesSectionTitle: 'Джерела',
       sourcesHint: 'Торкніться джерела, щоб приховати його зі стрічки.',
     },
@@ -323,6 +339,10 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       hintAll: 'Wyświetlane są wszystkie tematy. Wybierz, aby zawęzić kanał.',
       hintSome: (selected, total) => `Wyświetlono ${selected} z ${total} tematów.`,
       languageSectionTitle: 'Język',
+      themeSectionTitle: 'Wygląd',
+      themeSystem: 'Systemowy',
+      themeLight: 'Jasny',
+      themeDark: 'Ciemny',
       sourcesSectionTitle: 'Źródła',
       sourcesHint: 'Dotknij źródła, aby ukryć je z kanału.',
     },

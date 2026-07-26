@@ -17,6 +17,9 @@ export interface BottomActionBarProps {
    * bookmark/share actions. Undefined only before the very first card has
    * loaded (see FeedScreen). */
   activeCard: CardData | undefined;
+  /** Resets the feed back to the newest page (A1) — PagerView has no
+   * RefreshControl, so this is the only manual-refresh affordance. */
+  onRefresh: () => void;
 }
 
 /**
@@ -25,7 +28,7 @@ export interface BottomActionBarProps {
  * whichever card is currently in view, plus global nav (saved, history,
  * settings) — all in one row.
  */
-export function BottomActionBar({ activeCard }: BottomActionBarProps) {
+export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps) {
   const insets = useSafeAreaInsets();
   const strings = useStrings();
   const isSpeakingThisCard = useSpeechStore((state) =>
@@ -64,6 +67,7 @@ export function BottomActionBar({ activeCard }: BottomActionBarProps) {
                       : activeCard.title,
                 })
               }
+              accessibilityLabel={strings.a11y.share}
             />
             {isLanguageAvailable ? (
               <IconButton
@@ -91,14 +95,36 @@ export function BottomActionBar({ activeCard }: BottomActionBarProps) {
         ) : null}
       </View>
       <View style={styles.side}>
+        <IconButton
+          icon="refresh"
+          iconColor={Colors.overlay.text}
+          size={20}
+          onPress={onRefresh}
+          accessibilityLabel="Refresh feed"
+        />
         <Link href="/saved" asChild>
-          <IconButton icon="bookmark-multiple-outline" iconColor={Colors.overlay.text} size={20} />
+          <IconButton
+            icon="bookmark-multiple-outline"
+            iconColor={Colors.overlay.text}
+            size={20}
+            accessibilityLabel={strings.a11y.openSaved}
+          />
         </Link>
         <Link href="/history" asChild>
-          <IconButton icon="history" iconColor={Colors.overlay.text} size={20} />
+          <IconButton
+            icon="history"
+            iconColor={Colors.overlay.text}
+            size={20}
+            accessibilityLabel={strings.a11y.openHistory}
+          />
         </Link>
         <Link href="/settings" asChild>
-          <IconButton icon="cog-outline" iconColor={Colors.overlay.text} size={20} />
+          <IconButton
+            icon="cog-outline"
+            iconColor={Colors.overlay.text}
+            size={20}
+            accessibilityLabel={strings.a11y.openSettings}
+          />
         </Link>
       </View>
     </View>

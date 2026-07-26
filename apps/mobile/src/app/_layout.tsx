@@ -1,11 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import { QueryClient } from '@tanstack/react-query';
+import { focusManager, QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { useColorScheme } from 'react-native';
+import { AppState, Platform, useColorScheme } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import {
@@ -14,6 +14,7 @@ import {
   techtokNavigationDarkTheme,
   techtokNavigationLightTheme,
 } from '@/constants/paperTheme';
+import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
 import { startNetworkMonitoring } from '@/state/network';
 import { hasSeenOnboarding } from '@/state/onboardingStore';
@@ -37,6 +38,7 @@ const persister = createAsyncStoragePersister({
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const strings = useStrings();
   const [isHydrated, setIsHydrated] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -49,6 +51,17 @@ export default function RootLayout() {
       setShowOnboarding(!hasSeenOnboarding());
       setIsHydrated(true);
     });
+  }, []);
+
+  // Foregrounding the app counts as a TanStack Query "focus" event, so a feed
+  // left stale (see FEED_STALE_TIME_MS) refetches on return instead of only
+  // on relaunch or a settings change.
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    const subscription = AppState.addEventListener('change', (status) => {
+      focusManager.setFocused(status === 'active');
+    });
+    return () => subscription.remove();
   }, []);
 
   // Same branded LoadingScreen as the feed's own first-fetch gate (D25) —
@@ -83,10 +96,20 @@ export default function RootLayout() {
             <Stack.Screen name="onboarding" />
             <Stack.Screen
               name="settings"
-              options={{ presentation: 'modal', headerShown: true, title: 'Settings' }}
+              options={{ presentation: 'modal', headerShown: true, title: strings.settings.title }}
             />
-            <Stack.Screen name="history" options={{ headerShown: true, title: 'History' }} />
-            <Stack.Screen name="saved" options={{ headerShown: true, title: 'Saved' }} />
+            <Stack.Screen
+              name="history"
+              options={{ headerShown: true, title: strings.history.title }}
+            />
+            <Stack.Screen
+              name="saved"
+              options={{ headerShown: true, title: strings.saved.title }}
+            />
+            <Stack.Screen
+              name="stats"
+              options={{ headerShown: true, title: strings.stats.title }}
+            />
             <Stack.Screen name="post/[id]" options={{ headerShown: true, title: '' }} />
           </Stack>
         </ThemeProvider>

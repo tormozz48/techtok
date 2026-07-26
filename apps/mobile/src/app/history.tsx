@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import * as WebBrowser from 'expo-web-browser';
+import { router } from 'expo-router';
 import { useMemo } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { List } from 'react-native-paper';
@@ -60,9 +60,19 @@ export default function HistoryScreen() {
           title={item.cardTitle}
           titleStyle={styles.title}
           titleNumberOfLines={2}
-          description={`${item.sourceName} · ${timeAgo(item.readAt)}`}
+          description={`${item.sourceName} · ${timeAgo(item.readAt, strings.time)}`}
           descriptionStyle={styles.metaText}
-          onPress={() => WebBrowser.openBrowserAsync(item.url)}
+          onPress={() =>
+            router.push({
+              pathname: '/post/[id]',
+              params: {
+                id: item.postId,
+                title: item.cardTitle,
+                sourceName: item.sourceName,
+                url: item.url,
+              },
+            })
+          }
           style={styles.row}
         />
       )}

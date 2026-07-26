@@ -15,6 +15,7 @@ export const handler = withDeviceId(async (event, deviceId) => {
     cardTitle: post.cardTitle,
     sourceName: post.sourceName,
     url: post.url,
+    primaryTopic: post.primaryTopic,
   });
 
   return noContent();

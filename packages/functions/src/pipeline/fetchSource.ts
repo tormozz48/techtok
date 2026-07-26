@@ -49,6 +49,7 @@ export async function handler(source: SourceRecord): Promise<IngestResult> {
       findDuplicateOf(post, {
         queryRecentByTopic: (topic) => getPostsRepo().queryByTopic(topic, { limit: 50 }),
       }),
+    recordDuplicate: (originalPostId) => getPostsRepo().incrementDupCount(originalPostId),
   });
 
   if (result.errors.length > 0) {

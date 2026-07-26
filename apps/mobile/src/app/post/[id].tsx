@@ -131,7 +131,12 @@ export default function PostScreen() {
         <Button mode="contained" onPress={openOriginal}>
           {strings.reader.readOriginal}
         </Button>
-        <IconButton icon="share-variant" iconColor={colors.text} onPress={share} />
+        <IconButton
+          icon="share-variant"
+          iconColor={colors.text}
+          onPress={share}
+          accessibilityLabel={strings.a11y.share}
+        />
         {isSpeechLanguageAvailable ? (
           <IconButton
             icon={isSpeakingThisArticle ? 'volume-off' : 'volume-high'}

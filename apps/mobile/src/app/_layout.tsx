@@ -106,6 +106,10 @@ export default function RootLayout() {
               name="saved"
               options={{ headerShown: true, title: strings.saved.title }}
             />
+            <Stack.Screen
+              name="stats"
+              options={{ headerShown: true, title: strings.stats.title }}
+            />
             <Stack.Screen name="post/[id]" options={{ headerShown: true, title: '' }} />
           </Stack>
         </ThemeProvider>

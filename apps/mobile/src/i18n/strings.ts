@@ -39,6 +39,16 @@ export interface ChromeStrings {
     showTranslated: string;
     loading: string;
   };
+  stats: {
+    title: string;
+    error: string;
+    empty: string;
+    thisWeek: string;
+    thisMonth: string;
+    streak: string;
+    topTopics: string;
+    topSources: string;
+  };
   time: {
     justNow: string;
     minutesAgo: (n: number) => string;
@@ -101,6 +111,16 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       showTranslated: 'Show translation',
       loading: 'Preparing article…',
     },
+    stats: {
+      title: 'Stats',
+      error: 'Failed to load your reading stats.',
+      empty: 'Nothing read yet — your stats will show up here.',
+      thisWeek: 'This week',
+      thisMonth: 'This month',
+      streak: 'Day streak',
+      topTopics: 'Top topics',
+      topSources: 'Top sources',
+    },
     time: {
       justNow: 'just now',
       minutesAgo: (n) => `${n}m ago`,
@@ -156,6 +176,16 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       showOriginal: 'Показать оригинал',
       showTranslated: 'Показать перевод',
       loading: 'Готовим статью…',
+    },
+    stats: {
+      title: 'Статистика',
+      error: 'Не удалось загрузить статистику чтения.',
+      empty: 'Пока ничего не прочитано — статистика появится здесь.',
+      thisWeek: 'За неделю',
+      thisMonth: 'За месяц',
+      streak: 'Дней подряд',
+      topTopics: 'Популярные темы',
+      topSources: 'Популярные источники',
     },
     time: {
       justNow: 'только что',
@@ -213,6 +243,16 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       showTranslated: 'Показати переклад',
       loading: 'Готуємо статтю…',
     },
+    stats: {
+      title: 'Статистика',
+      error: 'Не вдалося завантажити статистику читання.',
+      empty: 'Поки що нічого не прочитано — статистика зʼявиться тут.',
+      thisWeek: 'За тиждень',
+      thisMonth: 'За місяць',
+      streak: 'Днів поспіль',
+      topTopics: 'Популярні теми',
+      topSources: 'Популярні джерела',
+    },
     time: {
       justNow: 'щойно',
       minutesAgo: (n) => `${n} хв тому`,
@@ -268,6 +308,16 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       showOriginal: 'Pokaż oryginał',
       showTranslated: 'Pokaż tłumaczenie',
       loading: 'Przygotowujemy artykuł…',
+    },
+    stats: {
+      title: 'Statystyki',
+      error: 'Nie udało się wczytać statystyk czytania.',
+      empty: 'Nic jeszcze nie przeczytano — statystyki pojawią się tutaj.',
+      thisWeek: 'W tym tygodniu',
+      thisMonth: 'W tym miesiącu',
+      streak: 'Dni z rzędu',
+      topTopics: 'Popularne tematy',
+      topSources: 'Popularne źródła',
     },
     time: {
       justNow: 'przed chwilą',

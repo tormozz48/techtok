@@ -76,7 +76,7 @@ export default function RootLayout() {
         <ThemeProvider
           value={colorScheme === 'dark' ? techtokNavigationDarkTheme : techtokNavigationLightTheme}
         >
-          <StatusBar style="light" />
+          <StatusBar style="auto" />
           <Stack
             screenOptions={{ headerShown: false }}
             initialRouteName={showOnboarding ? 'onboarding' : 'index'}

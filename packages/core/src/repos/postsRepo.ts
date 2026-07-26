@@ -193,6 +193,22 @@ export class PostsRepo {
     );
   }
 
+  /** Increments the "covered by N sources" counter on an original post when
+   * ingest marks a newer entry as its duplicate — top-level numeric `ADD` is
+   * atomic and race-safe under concurrent ingests. Called only on the root
+   * post, never on the duplicate itself. */
+  async incrementDupCount(postId: string): Promise<void> {
+    await this.client.send(
+      new UpdateCommand({
+        TableName: this.tableName,
+        Key: { postId },
+        UpdateExpression: 'ADD #dupCount :one',
+        ExpressionAttributeNames: { '#dupCount': 'dupCount' },
+        ExpressionAttributeValues: { ':one': 1 },
+      }),
+    );
+  }
+
   private async queryNewestFirst(
     indexName: string,
     partitionKey: string,

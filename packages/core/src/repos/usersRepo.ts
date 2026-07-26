@@ -79,4 +79,46 @@ export class UsersRepo {
     );
     return result.Attributes as UserRecord;
   }
+
+  /** Increments per-topic read counters (feed affinity signal, scoring.ts).
+   * `counts` maps topic -> number of newly-read posts in that topic from a
+   * single reads batch. Two sequential updates because DynamoDB's `ADD`
+   * cannot target a nested map path (`topicReads.ai`) — the first ensures
+   * the map exists, the second increments each topic's counter within it. */
+  async addTopicReads(userId: string, counts: Partial<Record<Topic, number>>): Promise<void> {
+    const entries = Object.entries(counts) as [Topic, number][];
+    if (entries.length === 0) return;
+
+    await this.client.send(
+      new UpdateCommand({
+        TableName: this.tableName,
+        Key: { userId },
+        UpdateExpression: 'SET #topicReads = if_not_exists(#topicReads, :empty)',
+        ExpressionAttributeNames: { '#topicReads': 'topicReads' },
+        ExpressionAttributeValues: { ':empty': {} },
+      }),
+    );
+
+    const names: Record<string, string> = { '#topicReads': 'topicReads' };
+    const values: Record<string, number> = {};
+    const setClauses = entries.map(([topic, count], i) => {
+      const topicAlias = `#t${i}`;
+      const zeroValue = `:zero${i}`;
+      const countValue = `:n${i}`;
+      names[topicAlias] = topic;
+      values[zeroValue] = 0;
+      values[countValue] = count;
+      return `#topicReads.${topicAlias} = if_not_exists(#topicReads.${topicAlias}, ${zeroValue}) + ${countValue}`;
+    });
+
+    await this.client.send(
+      new UpdateCommand({
+        TableName: this.tableName,
+        Key: { userId },
+        UpdateExpression: `SET ${setClauses.join(', ')}`,
+        ExpressionAttributeNames: names,
+        ExpressionAttributeValues: values,
+      }),
+    );
+  }
 }

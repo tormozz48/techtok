@@ -33,6 +33,9 @@ export const cardSchema = z.object({
   servedLang: languageSchema,
   isTranslated: z.boolean(),
   compactLangs: z.array(languageSchema).default([]),
+  // "Covered by N sources" badge (cross-source dedup, phase 4 experiment) --
+  // present only when at least one other source ran the same story.
+  sourceCount: z.number().int().min(2).optional(),
 });
 export type Card = z.infer<typeof cardSchema>;
 
@@ -119,6 +122,8 @@ export const historyItemSchema = z.object({
   cardTitle: z.string(),
   sourceName: z.string(),
   url: z.url(),
+  // Absent on rows read before this field existed.
+  primaryTopic: topicSchema.optional(),
 });
 export type HistoryItem = z.infer<typeof historyItemSchema>;
 
@@ -145,6 +150,8 @@ export const bookmarkItemSchema = z.object({
   cardTitle: z.string(),
   sourceName: z.string(),
   url: z.url(),
+  // Absent on rows bookmarked before this field existed.
+  primaryTopic: topicSchema.optional(),
 });
 export type BookmarkItem = z.infer<typeof bookmarkItemSchema>;
 

@@ -26,7 +26,13 @@ export const handler = withDeviceId(async (event, deviceId) => {
       getReadSet: (postIds) => activity.getReadSet(deviceId, postIds),
       getSourceWeights: () => getSourceWeightsCache().getSourceWeights(),
     },
-    { userTopics: user.topics, before, limit, mutedSourceIds: new Set(user.mutedSources ?? []) },
+    {
+      userTopics: user.topics,
+      before,
+      limit,
+      topicReads: user.topicReads,
+      mutedSourceIds: new Set(user.mutedSources ?? []),
+    },
   );
 
   const bookmarkedIds = await activity.getBookmarkSet(

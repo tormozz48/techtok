@@ -54,10 +54,11 @@ api.route('GET /v1/sources', {
 
 api.route('POST /v1/reads', {
   handler: 'packages/functions/src/api/handlers/reads.handler',
-  link: [postsTable, userActivityTable],
+  link: [postsTable, userActivityTable, usersTable],
   environment: {
     POSTS_TABLE_NAME: postsTable.name,
     USER_ACTIVITY_TABLE_NAME: userActivityTable.name,
+    USERS_TABLE_NAME: usersTable.name,
   },
   runtime: 'nodejs22.x',
 });

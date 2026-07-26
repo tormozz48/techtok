@@ -405,3 +405,18 @@ describe('postsRepo.setMirroredFigures', () => {
     expect(input?.ExpressionAttributeValues).toEqual({ ':figures': figures });
   });
 });
+
+describe('postsRepo.incrementDupCount', () => {
+  it('atomically ADDs 1 to the aliased dupCount attribute', async () => {
+    ddbMock.on(UpdateCommand).resolves({});
+    const repo = new PostsRepo(client, 'Posts');
+
+    await repo.incrementDupCount('root-post-id');
+
+    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
+    expect(input?.Key).toEqual({ postId: 'root-post-id' });
+    expect(input?.UpdateExpression).toBe('ADD #dupCount :one');
+    expect(input?.ExpressionAttributeNames).toEqual({ '#dupCount': 'dupCount' });
+    expect(input?.ExpressionAttributeValues).toEqual({ ':one': 1 });
+  });
+});

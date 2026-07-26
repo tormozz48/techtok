@@ -195,6 +195,27 @@ describe('buildFeed', () => {
     expect(page.nextBefore).toBe(oldestHighWeight.publishedAt);
   });
 
+  it('applies a topicReads affinity boost to outrank an equally-fresh, equally-weighted post in an unread topic', async () => {
+    // Same publishedAt, same (default) sourceId -- without affinity these
+    // would score identically. A strong 'ai' read history (well above the
+    // cold-start threshold) should be the only thing breaking the tie.
+    const aiPost = post('ai-post', 'ai', '2026-07-19T00:00:00.000Z');
+    const devPost = post('dev-post', 'dev', '2026-07-19T00:00:00.000Z');
+    const queryByTopic = vi.fn(async (topic: Topic) => {
+      if (topic === 'ai') return [aiPost];
+      if (topic === 'dev') return [devPost];
+      return [];
+    });
+    const getReadSet = vi.fn().mockResolvedValue(new Set());
+
+    const page = await buildFeed(
+      { queryByTopic, getReadSet, getSourceWeights: noWeights() },
+      { userTopics: ['ai', 'dev'], limit: 20, topicReads: { ai: 40 } },
+    );
+
+    expect(page.items.map((p) => p.postId)).toEqual(['ai-post', 'dev-post']);
+  });
+
   it('excludes posts flagged duplicateOf from the returned items', async () => {
     const original = post('a', 'ai', '2026-07-19T02:00:00.000Z');
     const duplicate = { ...post('b', 'ai', '2026-07-19T01:00:00.000Z'), duplicateOf: 'a' };

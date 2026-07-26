@@ -19,5 +19,6 @@ export function toCard(post: PostRecord, isBookmarked = false, lang: Language = 
     servedLang: variant.servedLang,
     isTranslated: variant.isTranslated,
     compactLangs: post.compactLangs ?? [],
+    sourceCount: post.dupCount ? post.dupCount + 1 : undefined,
   };
 }

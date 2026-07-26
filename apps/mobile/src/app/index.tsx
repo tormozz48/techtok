@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import type { Card as CardData } from '@techtok/shared';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
@@ -15,6 +16,7 @@ export default function FeedScreen() {
   const { data, isLoading, isError, refetch, fetchNextPage, isFetchingNextPage } = useFeedQuery();
   const [activeCard, setActiveCard] = useState<CardData | undefined>(undefined);
   const strings = useStrings();
+  const queryClient = useQueryClient();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -77,7 +79,10 @@ export default function FeedScreen() {
           <ActivityIndicator color={Colors.overlay.text} size="small" />
         </View>
       ) : null}
-      <BottomActionBar activeCard={activeCard ?? cards[0]} />
+      <BottomActionBar
+        activeCard={activeCard ?? cards[0]}
+        onRefresh={() => queryClient.resetQueries({ queryKey: ['feed'], exact: true })}
+      />
     </View>
   );
 }

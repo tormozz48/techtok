@@ -1,5 +1,6 @@
+import { countTopicReads } from '@techtok/core';
 import { readsRequestSchema } from '@techtok/shared';
-import { getPostsRepo, getUserActivityRepo } from '../../repos';
+import { getPostsRepo, getUserActivityRepo, getUsersRepo } from '../../repos';
 import { noContent, parseJsonBody, withDeviceId } from '../lib/http';
 
 export const handler = withDeviceId(async (event, deviceId) => {
@@ -12,16 +13,31 @@ export const handler = withDeviceId(async (event, deviceId) => {
   // an infra failure, so it's skipped rather than thrown.
   const foundPosts = await getPostsRepo().getByIds(body.data.postIds);
   const activity = getUserActivityRepo();
-  await Promise.all(
-    foundPosts.map((post) =>
-      activity.markRead(
+  const results = await Promise.all(
+    foundPosts.map(async (post) => {
+      const { wasNew } = await activity.markRead(
         deviceId,
         post.postId,
-        { cardTitle: post.cardTitle, sourceName: post.sourceName, url: post.url },
+        {
+          cardTitle: post.cardTitle,
+          sourceName: post.sourceName,
+          url: post.url,
+          primaryTopic: post.primaryTopic,
+        },
         readAt,
-      ),
-    ),
+      );
+      return { post, wasNew };
+    }),
   );
+
+  // This endpoint is documented idempotent (a retried postId just overwrites
+  // readAt/snapshot), but the affinity counter it drives is not — only a
+  // post's first-ever read should count toward it.
+  const firstReadTopics = results.filter((r) => r.wasNew).map((r) => r.post.primaryTopic);
+  const topicCounts = countTopicReads(firstReadTopics);
+  if (Object.keys(topicCounts).length > 0) {
+    await getUsersRepo().addTopicReads(deviceId, topicCounts);
+  }
 
   return noContent();
 });

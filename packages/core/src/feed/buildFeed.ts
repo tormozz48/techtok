@@ -19,6 +19,10 @@ export interface BuildFeedParams {
   readonly userTopics: Topic[];
   readonly before?: string;
   readonly limit: number;
+  /** Source ids the user muted (Users.mutedSources) — a hard filter, not a
+   * downweight (per-user source downweighting isn't possible via the global
+   * sourceWeightsCache). */
+  readonly mutedSourceIds?: ReadonlySet<string>;
   /** Implicit per-topic read-affinity counters (Users.topicReads) — feeds a
    * bounded ranking boost, see scoring.ts's topicAffinityBoosts. */
   readonly topicReads?: Partial<Record<Topic, number>>;
@@ -40,11 +44,12 @@ export interface FeedPage {
  * `items`. Ranking/interleaving reorders what's *displayed* but must never
  * change the GSI watermark cursor, or pagination would skip or repeat posts.
  *
- * Posts flagged `duplicateOf` (phase-4 cross-source dedup experiment) and
- * posts not yet `status: 'ready'` (pre-transform `discovered`, or `failed`)
- * are filtered out here rather than at the DynamoDB layer — an accepted
- * over-fetch tradeoff (a page with many duplicates or non-ready posts may
- * return fewer than `limit` items) rather than adding a GSI just for this.
+ * Posts flagged `duplicateOf` (phase-4 cross-source dedup experiment),
+ * posts from a muted source, and posts not yet `status: 'ready'` (pre-transform
+ * `discovered`, or `failed`) are filtered out here rather than at the
+ * DynamoDB layer — an accepted over-fetch tradeoff (a page with many
+ * duplicates, muted-source, or non-ready posts may return fewer than `limit`
+ * items) rather than adding a GSI just for this.
  *
  * The `status` filter has the same watermark-cursor tradeoff as
  * `duplicateOf`: within one continuous pagination session, a post that is
@@ -67,7 +72,10 @@ export async function buildFeed(deps: BuildFeedDeps, params: BuildFeedParams): P
     for (const post of posts) merged.set(post.postId, post);
   }
   const candidatesByTime = [...merged.values()]
-    .filter((post) => !post.duplicateOf && post.status === 'ready')
+    .filter(
+      (post) =>
+        !post.duplicateOf && post.status === 'ready' && !params.mutedSourceIds?.has(post.sourceId),
+    )
     .sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : a.publishedAt > b.publishedAt ? -1 : 0))
     .slice(0, MAX_CANDIDATES);
 

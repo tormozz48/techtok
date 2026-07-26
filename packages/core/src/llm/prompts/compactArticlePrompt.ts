@@ -50,7 +50,7 @@ ${
   input.lang !== 'en'
     ? `First draft the compact version in ${languageName}, then critique your own draft for naturalness and accuracy, and correct it. `
     : ''
-}Respond with a single JSON object only — no prose, no markdown code fences — matching exactly this shape:
+}Respond with a single JSON object only — no prose, no markdown code fences, no draft or critique text, and no block that comments on the translation or compression process itself — containing only the corrected final content, matching exactly this shape:
 {
   "blocks": an array of 400-600 words total across all blocks, each one of:
     { "type": "paragraph", "text": string } |

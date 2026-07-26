@@ -70,9 +70,7 @@ export async function buildFeed(deps: BuildFeedDeps, params: BuildFeedParams): P
   const candidatesByTime = [...merged.values()]
     .filter(
       (post) =>
-        !post.duplicateOf &&
-        post.status === 'ready' &&
-        !params.mutedSourceIds?.has(post.sourceId),
+        !post.duplicateOf && post.status === 'ready' && !params.mutedSourceIds?.has(post.sourceId),
     )
     .sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : a.publishedAt > b.publishedAt ? -1 : 0))
     .slice(0, MAX_CANDIDATES);

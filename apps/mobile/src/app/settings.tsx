@@ -103,6 +103,7 @@ export default function SettingsScreen() {
             rowStyle={styles.row}
             rowSelectedStyle={styles.rowSelected}
             rowTextStyle={styles.rowText}
+            checkIconColor={colors.text}
           />
         </>
       ) : null}

@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { IconButton } from 'react-native-paper';
 import { createBookmark, deleteBookmark } from '@/api/client';
 import { Colors } from '@/constants/theme';
+import { useStrings } from '@/i18n/useStrings';
 import { useBookmarksOverlay } from '@/state/bookmarksOverlay';
 
 export interface BookmarkButtonProps {
@@ -11,6 +12,7 @@ export interface BookmarkButtonProps {
 
 export function BookmarkButton({ postId, isBookmarked }: BookmarkButtonProps) {
   const queryClient = useQueryClient();
+  const strings = useStrings();
   const overlayValue = useBookmarksOverlay((state) => state.overlay[postId]);
   const setOptimistic = useBookmarksOverlay((state) => state.setOptimistic);
   const clearOptimistic = useBookmarksOverlay((state) => state.clear);
@@ -39,6 +41,7 @@ export function BookmarkButton({ postId, isBookmarked }: BookmarkButtonProps) {
       iconColor={Colors.overlay.text}
       size={20}
       onPress={toggle}
+      accessibilityLabel={bookmarked ? strings.a11y.bookmarkRemove : strings.a11y.bookmarkAdd}
     />
   );
 }

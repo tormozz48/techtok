@@ -263,6 +263,11 @@
             "pl"
           ]
         }
+      },
+      "sourceCount": {
+        "type": "integer",
+        "minimum": 2,
+        "maximum": 9007199254740991
       }
     },
     "required": [
@@ -762,6 +767,11 @@
                   "pl"
                 ]
               }
+            },
+            "sourceCount": {
+              "type": "integer",
+              "minimum": 2,
+              "maximum": 9007199254740991
             }
           },
           "required": [

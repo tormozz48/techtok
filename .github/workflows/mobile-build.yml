@@ -99,3 +99,19 @@ jobs:
             - Commit: ${{ github.sha }}
             - Install: download `techtok.apk` on an Android phone, then allow "install from unknown sources" for this file.
             - Always-current link: https://github.com/tormozz48/techtok/releases/latest/download/techtok.apk (also on the [project site](https://tormozz48.github.io/techtok/)).
+
+      # Tag-only reinstatement of release marking (D42, amends D41). D41 retired
+      # CI-driven version bumping after a commit pushed back to `main` raced a
+      # concurrent merge (non-fast-forward rejection). A tag push never touches
+      # the `main` ref and has no fast-forward requirement, so it can't hit that
+      # race — version bumping itself stays manual, unchanged from D41.
+      - name: Tag release version
+        run: |
+          VERSION=$(node -e "console.log(require('./apps/mobile/app.json').expo.version)")
+          TAG="mobile-v$VERSION"
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "$TAG already exists on origin (version wasn't bumped since the last release) — skipping."
+            exit 0
+          fi
+          git tag "$TAG"
+          git push origin "refs/tags/$TAG"

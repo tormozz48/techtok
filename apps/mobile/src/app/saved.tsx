@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
-import * as WebBrowser from 'expo-web-browser';
+import { router } from 'expo-router';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { IconButton, List } from 'react-native-paper';
 import { deleteBookmark, fetchBookmarksPage } from '@/api/client';
@@ -78,7 +78,17 @@ export default function SavedScreen() {
             titleNumberOfLines={2}
             description={`${item.sourceName} · ${timeAgo(item.bookmarkedAt)}`}
             descriptionStyle={styles.metaText}
-            onPress={() => WebBrowser.openBrowserAsync(item.url)}
+            onPress={() =>
+              router.push({
+                pathname: '/post/[id]',
+                params: {
+                  id: item.postId,
+                  title: item.cardTitle,
+                  sourceName: item.sourceName,
+                  url: item.url,
+                },
+              })
+            }
             style={styles.rowContent}
           />
           <IconButton

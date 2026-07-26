@@ -10,6 +10,8 @@ export const Colors = {
     backgroundElement: light.surfaceVariant,
     backgroundSelected: light.primaryContainer,
     textSecondary: light.onSurfaceVariant,
+    primary: light.primary,
+    error: light.error,
   },
   dark: {
     text: dark.onSurface,
@@ -17,6 +19,8 @@ export const Colors = {
     backgroundElement: dark.surfaceVariant,
     backgroundSelected: dark.primaryContainer,
     textSecondary: dark.onSurfaceVariant,
+    primary: dark.primary,
+    error: dark.error,
   },
   // Scheme-independent palette for the full-bleed photo-card overlay (Card.tsx),
   // which always renders dark scrim + light text regardless of system theme.
@@ -34,6 +38,10 @@ export const Colors = {
     debugText: '#000000',
   },
 } as const;
+
+/** The scheme-dependent half of the palette — Colors.light and Colors.dark
+ * share this exact shape (see useThemeColors). */
+export type ThemeColors = typeof Colors.dark;
 
 export const Spacing = {
   half: 2,

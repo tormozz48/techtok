@@ -8,12 +8,13 @@ import {
   TOPICS,
   type Topic,
 } from '@techtok/shared';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { ScrollView, StyleSheet, Text } from 'react-native';
 import { fetchSources } from '@/api/client';
 import { LanguageFlagRow } from '@/components/LanguageFlagRow';
 import { SelectableList } from '@/components/SelectableList';
-import { Colors, Spacing } from '@/constants/theme';
+import { Spacing, type ThemeColors } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
 import { useMutedSourcesStore } from '@/state/mutedSourcesStore';
@@ -31,6 +32,8 @@ export default function SettingsScreen() {
   } = useMutedSourcesStore();
   const sourcesQuery = useQuery({ queryKey: ['sources'], queryFn: fetchSources });
   const strings = useStrings();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   useEffect(() => {
     load();
@@ -82,6 +85,7 @@ export default function SettingsScreen() {
         rowStyle={styles.row}
         rowSelectedStyle={styles.rowSelected}
         rowTextStyle={styles.rowText}
+        checkIconColor={colors.text}
       />
       {sourcesQuery.data ? (
         <>
@@ -106,47 +110,49 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.dark.background,
-  },
-  content: {
-    padding: Spacing.four,
-  },
-  sectionTitle: {
-    color: Colors.dark.textSecondary,
-    fontSize: 13,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: Spacing.two,
-  },
-  hint: {
-    color: Colors.dark.textSecondary,
-    fontSize: 14,
-    marginTop: Spacing.three,
-    marginBottom: Spacing.three,
-  },
-  row: {
-    backgroundColor: Colors.dark.backgroundElement,
-    borderRadius: 12,
-    marginBottom: Spacing.two,
-  },
-  rowSelected: {
-    backgroundColor: Colors.dark.backgroundSelected,
-  },
-  rowText: {
-    color: Colors.dark.text,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  flagButton: {
-    backgroundColor: Colors.dark.backgroundElement,
-    borderRadius: 12,
-    paddingVertical: Spacing.three,
-  },
-  flagButtonSelected: {
-    backgroundColor: Colors.dark.backgroundSelected,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      padding: Spacing.four,
+    },
+    sectionTitle: {
+      color: colors.textSecondary,
+      fontSize: 13,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: Spacing.two,
+    },
+    hint: {
+      color: colors.textSecondary,
+      fontSize: 14,
+      marginTop: Spacing.three,
+      marginBottom: Spacing.three,
+    },
+    row: {
+      backgroundColor: colors.backgroundElement,
+      borderRadius: 12,
+      marginBottom: Spacing.two,
+    },
+    rowSelected: {
+      backgroundColor: colors.backgroundSelected,
+    },
+    rowText: {
+      color: colors.text,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    flagButton: {
+      backgroundColor: colors.backgroundElement,
+      borderRadius: 12,
+      paddingVertical: Spacing.three,
+    },
+    flagButtonSelected: {
+      backgroundColor: colors.backgroundSelected,
+    },
+  });
+}

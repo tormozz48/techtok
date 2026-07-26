@@ -40,11 +40,20 @@ export interface FeedPage {
  * `items`. Ranking/interleaving reorders what's *displayed* but must never
  * change the GSI watermark cursor, or pagination would skip or repeat posts.
  *
- * Posts flagged `duplicateOf` (phase-4 cross-source dedup experiment) and
- * posts from a muted source are filtered out here rather than at the
+ * Posts flagged `duplicateOf` (phase-4 cross-source dedup experiment),
+ * posts from a muted source, and posts not yet `status: 'ready'` (pre-transform
+ * `discovered`, or `failed`) are filtered out here rather than at the
  * DynamoDB layer — an accepted over-fetch tradeoff (a page with many
- * duplicates or muted-source posts may return fewer than `limit` items)
- * rather than adding a GSI just for this.
+ * duplicates, muted-source, or non-ready posts may return fewer than `limit`
+ * items) rather than adding a GSI just for this.
+ *
+ * The `status` filter has the same watermark-cursor tradeoff as
+ * `duplicateOf`: within one continuous pagination session, a post that is
+ * still `discovered` when its page is fetched stays invisible even after it
+ * flips to `ready` moments later (transform typically finishes in under two
+ * minutes, well inside the 30-minute ingest cadence). This is accepted, not
+ * worked around — the post reappears on any fresh feed load (no `before`),
+ * since no read marker was ever written for it.
  */
 export async function buildFeed(deps: BuildFeedDeps, params: BuildFeedParams): Promise<FeedPage> {
   const { before, limit } = params;
@@ -59,7 +68,12 @@ export async function buildFeed(deps: BuildFeedDeps, params: BuildFeedParams): P
     for (const post of posts) merged.set(post.postId, post);
   }
   const candidatesByTime = [...merged.values()]
-    .filter((post) => !post.duplicateOf && !params.mutedSourceIds?.has(post.sourceId))
+    .filter(
+      (post) =>
+        !post.duplicateOf &&
+        post.status === 'ready' &&
+        !params.mutedSourceIds?.has(post.sourceId),
+    )
     .sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : a.publishedAt > b.publishedAt ? -1 : 0))
     .slice(0, MAX_CANDIDATES);
 

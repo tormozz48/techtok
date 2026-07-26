@@ -10,11 +10,15 @@ export interface ChromeStrings {
     title: string;
     error: string;
     empty: string;
+    searchPlaceholder: string;
+    noResults: string;
   };
   saved: {
     title: string;
     error: string;
     empty: string;
+    searchPlaceholder: string;
+    noResults: string;
   };
   settings: {
     title: string;
@@ -85,11 +89,15 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       title: 'History',
       error: 'Failed to load history.',
       empty: 'Nothing read yet — swipe through the feed first.',
+      searchPlaceholder: 'Search history',
+      noResults: 'No matches in your history.',
     },
     saved: {
       title: 'Saved',
       error: 'Failed to load saved posts.',
       empty: 'Nothing saved yet — bookmark a card from the feed.',
+      searchPlaceholder: 'Search saved',
+      noResults: 'No matches in your saved posts.',
     },
     settings: {
       title: 'Settings',
@@ -154,11 +162,15 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       title: 'История',
       error: 'Не удалось загрузить историю.',
       empty: 'Пока ничего не прочитано — сначала полистайте ленту.',
+      searchPlaceholder: 'Поиск по истории',
+      noResults: 'Совпадений в истории не найдено.',
     },
     saved: {
       title: 'Сохранённое',
       error: 'Не удалось загрузить сохранённое.',
       empty: 'Пока ничего не сохранено — добавьте карточку из ленты.',
+      searchPlaceholder: 'Поиск по сохранённому',
+      noResults: 'Совпадений в сохранённом не найдено.',
     },
     settings: {
       title: 'Настройки',
@@ -223,11 +235,15 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       title: 'Історія',
       error: 'Не вдалося завантажити історію.',
       empty: 'Поки що нічого не прочитано — спершу погортайте стрічку.',
+      searchPlaceholder: 'Пошук в історії',
+      noResults: 'Збігів в історії не знайдено.',
     },
     saved: {
       title: 'Збережене',
       error: 'Не вдалося завантажити збережене.',
       empty: 'Поки що нічого не збережено — додайте картку зі стрічки.',
+      searchPlaceholder: 'Пошук у збереженому',
+      noResults: 'Збігів у збереженому не знайдено.',
     },
     settings: {
       title: 'Налаштування',
@@ -292,11 +308,15 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       title: 'Historia',
       error: 'Nie udało się wczytać historii.',
       empty: 'Nic jeszcze nie przeczytano — najpierw przewiń kanał.',
+      searchPlaceholder: 'Szukaj w historii',
+      noResults: 'Brak wyników w historii.',
     },
     saved: {
       title: 'Zapisane',
       error: 'Nie udało się wczytać zapisanych wpisów.',
       empty: 'Nic jeszcze nie zapisano — dodaj kartę z kanału.',
+      searchPlaceholder: 'Szukaj w zapisanych',
+      noResults: 'Brak wyników w zapisanych.',
     },
     settings: {
       title: 'Ustawienia',

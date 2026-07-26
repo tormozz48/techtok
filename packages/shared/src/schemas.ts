@@ -136,6 +136,9 @@ export type HistoryResponse = z.infer<typeof historyResponseSchema>;
 export const historyQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   cursor: z.string().optional(),
+  // When present, searches cardTitle/sourceName instead of paginating —
+  // cursor is ignored and the response's nextCursor is always null.
+  q: z.string().trim().min(1).max(100).optional(),
 });
 export type HistoryQuery = z.infer<typeof historyQuerySchema>;
 
@@ -164,6 +167,9 @@ export type BookmarksResponse = z.infer<typeof bookmarksResponseSchema>;
 export const bookmarksQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   cursor: z.string().optional(),
+  // Same q contract as historyQuerySchema: present -> search, cursor
+  // ignored, nextCursor always null.
+  q: z.string().trim().min(1).max(100).optional(),
 });
 export type BookmarksQuery = z.infer<typeof bookmarksQuerySchema>;
 

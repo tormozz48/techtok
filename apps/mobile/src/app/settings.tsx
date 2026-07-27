@@ -97,6 +97,14 @@ export default function SettingsScreen() {
         buttonStyle={styles.flagButton}
         buttonSelectedStyle={styles.flagButtonSelected}
       />
+      <Link href="/stats" asChild>
+        <List.Item
+          title={strings.stats.title}
+          titleStyle={styles.rowText}
+          style={[styles.row, styles.sectionTitleSpaced]}
+          right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.text} />}
+        />
+      </Link>
       <Text style={styles.hint}>
         {topics.length === 0
           ? strings.settings.hintAll
@@ -135,14 +143,6 @@ export default function SettingsScreen() {
           />
         </>
       ) : null}
-      <Link href="/stats" asChild>
-        <List.Item
-          title={strings.stats.title}
-          titleStyle={styles.rowText}
-          style={styles.row}
-          right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.text} />}
-        />
-      </Link>
     </ScrollView>
   );
 }
@@ -155,6 +155,7 @@ function createStyles(colors: ThemeColors) {
     },
     content: {
       padding: Spacing.four,
+      paddingBottom: Spacing.six,
     },
     sectionTitle: {
       color: colors.textSecondary,

@@ -1,10 +1,12 @@
 import type { Card as CardData } from '@techtok/shared';
 import { Link } from 'expo-router';
+import { useEffect } from 'react';
 import { Platform, Share, StyleSheet, View } from 'react-native';
 import { IconButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Spacing } from '@/constants/theme';
 import { useStrings } from '@/i18n/useStrings';
+import { useSpeechStore } from '@/state/speechStore';
 import { BookmarkButton } from './BookmarkButton';
 
 /** Base bar height, excluding the bottom safe-area inset (D25). */
@@ -29,6 +31,16 @@ export interface BottomActionBarProps {
 export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps) {
   const insets = useSafeAreaInsets();
   const strings = useStrings();
+  const isSpeakingThisCard = useSpeechStore((state) =>
+    activeCard ? state.isSpeaking(activeCard.id) : false,
+  );
+  const isLanguageAvailable = useSpeechStore((state) =>
+    activeCard ? state.isLanguageAvailable(activeCard.servedLang) : false,
+  );
+
+  useEffect(() => {
+    useSpeechStore.getState().checkVoiceAvailability();
+  }, []);
 
   return (
     <View
@@ -57,6 +69,28 @@ export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps)
               }
               accessibilityLabel={strings.a11y.share}
             />
+            {isLanguageAvailable ? (
+              <IconButton
+                icon={isSpeakingThisCard ? 'volume-off' : 'volume-high'}
+                iconColor={Colors.overlay.text}
+                size={20}
+                accessibilityLabel={
+                  isSpeakingThisCard ? strings.speech.stopListening : strings.speech.listen
+                }
+                onPress={() => {
+                  const speech = useSpeechStore.getState();
+                  if (isSpeakingThisCard) {
+                    speech.stop();
+                  } else {
+                    speech.speak(
+                      activeCard.id,
+                      [activeCard.title, activeCard.summary],
+                      activeCard.servedLang,
+                    );
+                  }
+                }}
+              />
+            ) : null}
           </>
         ) : null}
       </View>

@@ -38,6 +38,7 @@ export function BookmarkButton({ postId, isBookmarked }: BookmarkButtonProps) {
         await deleteBookmark(postId);
       }
       queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
       clearOptimistic(postId);
     } catch {
       setOptimistic(postId, bookmarked);

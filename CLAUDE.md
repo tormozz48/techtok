@@ -4,14 +4,14 @@ TikTok-style swipe feed for tech & science news: Expo/React Native Android app +
 
 The two documents that govern this repo:
 
-- [docs/DESIGN.md](docs/DESIGN.md) — architecture, API, data model. §2 is the **decision log** (D1–D51), §12 the deferred defaults.
+- [docs/DESIGN.md](docs/DESIGN.md) — architecture, API, data model. §2 is the **decision log** (D1–D55), §12 the deferred defaults.
 - [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) — 7 phases, each gated by acceptance criteria.
 
 Never re-decide something already in the decision log. If a decision must change, update the log entry with the reason (`/log-decision`), then implement.
 
 ## Status
 
-Phases 0–17 are code complete (phase 6 doesn't exist yet). Full narrative history/verification detail lives in git history and the DESIGN.md decision log (D1–D51) — this table tracks only current state and what's still outstanding.
+Phases 0–17 are code complete (phase 6 doesn't exist yet). Full narrative history/verification detail lives in git history and the DESIGN.md decision log (D1–D55) — this table tracks only current state and what's still outstanding.
 
 | Phase | Topic | Status | What's left |
 |---|---|---|---|

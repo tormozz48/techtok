@@ -1,22 +1,19 @@
 import { Image } from 'expo-image';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { Spacing } from '@/constants/theme';
-
-// Matches app.json's expo-splash-screen config exactly (background color,
-// same logo asset) so this reads as a continuation of the native splash
-// rather than a jump to a different screen.
-const SPLASH_BACKGROUND_COLOR = '#111A33';
-const LOGO_ASPECT_RATIO = 228 / 228;
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { Spacing, Typography } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
 
 /**
- * In-app loading screen (DESIGN §2 D25): shown between the native splash
- * screen and the first rendered feed page while that very first fetch is in
- * flight. Cold-start only — a warm start restores the persisted feed cache
- * before `isLoading` ever turns true, so this never flashes on a relaunch.
+ * In-app loading screen (DESIGN §2 D25, theme-aware per D56): shown between
+ * the native splash screen and the first rendered feed page while that very
+ * first fetch is in flight. Cold-start only — a warm start restores the
+ * persisted feed cache before `isLoading` ever turns true, so this never
+ * flashes on a relaunch.
  */
 export function LoadingScreen() {
+  const colors = useThemeColors();
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Image
         // Relative path, not the `@/assets/*` tsconfig alias: that alias
         // isn't wired into Jest's moduleNameMapper (only `@/*` -> src/ is),
@@ -26,7 +23,8 @@ export function LoadingScreen() {
         style={styles.logo}
         contentFit="contain"
       />
-      <ActivityIndicator color="#ffffff" size="large" style={styles.spinner} />
+      <Text style={[styles.title, { color: colors.text }]}>TechTok</Text>
+      <ActivityIndicator color={colors.primary} size="large" style={styles.spinner} />
     </View>
   );
 }
@@ -34,13 +32,20 @@ export function LoadingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: SPLASH_BACKGROUND_COLOR,
     alignItems: 'center',
     justifyContent: 'center',
   },
   logo: {
+    // Explicit height rather than an `aspectRatio` derived from the source
+    // asset's own dimensions — the source is a fixed 228x228 square, and a
+    // fixed box avoids relying on layout-time aspect-ratio resolution.
     width: 76,
-    aspectRatio: LOGO_ASPECT_RATIO,
+    height: 76,
+    marginBottom: Spacing.four,
+  },
+  title: {
+    ...Typography.xl,
+    fontWeight: '700',
     marginBottom: Spacing.four,
   },
   spinner: {

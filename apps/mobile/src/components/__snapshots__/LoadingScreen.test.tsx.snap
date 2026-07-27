@@ -3,16 +3,19 @@
 exports[`LoadingScreen renders the branded logo + spinner without crashing (snapshot) 1`] = `
 <View
   style={
-    {
-      "alignItems": "center",
-      "backgroundColor": "#111A33",
-      "flex": 1,
-      "justifyContent": "center",
-    }
+    [
+      {
+        "alignItems": "center",
+        "flex": 1,
+        "justifyContent": "center",
+      },
+      {
+        "backgroundColor": "#fefbff",
+      },
+    ]
   }
 >
   <ViewManagerAdapter_ExpoImage
-    aspectRatio={1}
     containerViewRef={"[React.ref]"}
     contentFit="contain"
     contentPosition={
@@ -21,6 +24,7 @@ exports[`LoadingScreen renders the branded logo + spinner without crashing (snap
         "top": "50%",
       }
     }
+    height={76}
     marginBottom={24}
     nativeViewRef={"[React.ref]"}
     onError={[Function]}
@@ -38,7 +42,7 @@ exports[`LoadingScreen renders the branded logo + spinner without crashing (snap
     }
     style={
       {
-        "aspectRatio": 1,
+        "height": 76,
         "marginBottom": 24,
         "width": 76,
       }
@@ -48,8 +52,25 @@ exports[`LoadingScreen renders the branded logo + spinner without crashing (snap
     transition={null}
     width={76}
   />
+  <Text
+    style={
+      [
+        {
+          "fontSize": 24,
+          "fontWeight": "700",
+          "lineHeight": 30,
+          "marginBottom": 24,
+        },
+        {
+          "color": "#1b1b1f",
+        },
+      ]
+    }
+  >
+    TechTok
+  </Text>
   <ActivityIndicator
-    color="#ffffff"
+    color="#895100"
     size="large"
     style={
       {

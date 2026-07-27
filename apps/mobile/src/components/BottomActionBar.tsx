@@ -52,11 +52,16 @@ export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps)
       <View style={styles.side}>
         {activeCard ? (
           <>
-            <BookmarkButton postId={activeCard.id} isBookmarked={activeCard.isBookmarked} />
+            <BookmarkButton
+              postId={activeCard.id}
+              isBookmarked={activeCard.isBookmarked}
+              style={styles.icon}
+            />
             <IconButton
               icon="share-variant"
               iconColor={Colors.overlay.text}
               size={20}
+              style={styles.icon}
               onPress={() =>
                 Share.share({
                   title: activeCard.title,
@@ -74,6 +79,7 @@ export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps)
                 icon={isSpeakingThisCard ? 'volume-off' : 'volume-high'}
                 iconColor={Colors.overlay.text}
                 size={20}
+                style={styles.icon}
                 accessibilityLabel={
                   isSpeakingThisCard ? strings.speech.stopListening : strings.speech.listen
                 }
@@ -99,6 +105,7 @@ export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps)
           icon="refresh"
           iconColor={Colors.overlay.text}
           size={20}
+          style={styles.icon}
           onPress={onRefresh}
           accessibilityLabel="Refresh feed"
         />
@@ -107,6 +114,7 @@ export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps)
             icon="bookmark-multiple-outline"
             iconColor={Colors.overlay.text}
             size={20}
+            style={styles.icon}
             accessibilityLabel={strings.a11y.openSaved}
           />
         </Link>
@@ -115,6 +123,7 @@ export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps)
             icon="history"
             iconColor={Colors.overlay.text}
             size={20}
+            style={styles.icon}
             accessibilityLabel={strings.a11y.openHistory}
           />
         </Link>
@@ -123,6 +132,7 @@ export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps)
             icon="cog-outline"
             iconColor={Colors.overlay.text}
             size={20}
+            style={styles.icon}
             accessibilityLabel={strings.a11y.openSettings}
           />
         </Link>
@@ -143,6 +153,9 @@ const styles = StyleSheet.create({
   side: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
+    gap: Spacing.half,
+  },
+  icon: {
+    margin: 0,
   },
 });

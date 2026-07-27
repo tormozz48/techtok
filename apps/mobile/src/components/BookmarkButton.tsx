@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
+import type { StyleProp, ViewStyle } from 'react-native';
 import { IconButton } from 'react-native-paper';
 import { createBookmark, deleteBookmark } from '@/api/client';
 import { prefetchPostContent } from '@/api/prefetchContent';
@@ -12,12 +13,14 @@ export interface BookmarkButtonProps {
   postId: string;
   isBookmarked?: boolean;
   iconColor?: string;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function BookmarkButton({
   postId,
   isBookmarked,
   iconColor = Colors.overlay.text,
+  style,
 }: BookmarkButtonProps) {
   const queryClient = useQueryClient();
   const strings = useStrings();
@@ -61,6 +64,7 @@ export function BookmarkButton({
       icon={bookmarked ? 'bookmark' : 'bookmark-outline'}
       iconColor={iconColor}
       size={20}
+      style={style}
       onPress={toggle}
       accessibilityLabel={bookmarked ? strings.a11y.bookmarkRemove : strings.a11y.bookmarkAdd}
     />

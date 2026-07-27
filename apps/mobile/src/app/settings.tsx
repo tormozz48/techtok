@@ -101,7 +101,7 @@ export default function SettingsScreen() {
         <List.Item
           title={strings.stats.title}
           titleStyle={styles.rowText}
-          style={[styles.row, styles.sectionTitleSpaced]}
+          style={StyleSheet.flatten([styles.row, styles.sectionTitleSpaced])}
           right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.text} />}
         />
       </Link>

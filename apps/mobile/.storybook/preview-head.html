@@ -1,0 +1,18 @@
+<style>
+  /* React Native's `flex: 1` (used pervasively for full-bleed screens, e.g.
+   * FeedScreen/FeedPager) only resolves against a `display: flex` ancestor
+   * with a definite height. Storybook's preview iframe otherwise gives
+   * html/body/its root mount point neither: they're plain `display: block`
+   * with an auto height, which left that chain unconstrained and made
+   * onLayout measurements blow up to the browser's percentage-height
+   * fallback instead of the real viewport size. */
+  html,
+  body {
+    height: 100%;
+  }
+  #storybook-root {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+</style>

@@ -39,5 +39,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Clears any stale SST state lock left by an interrupted prior run
+      # before every deploy, so a hung lock can't block this pipeline.
+      - name: Unlock SST state
+        run: npx sst unlock --stage dev
+
       - name: Deploy dev
         run: npx sst deploy --stage dev

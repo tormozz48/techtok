@@ -42,6 +42,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Clears any stale SST state lock left by an interrupted prior run
+      # before every deploy, so a hung lock can't block this pipeline.
+      - name: Unlock SST state
+        run: npx sst unlock --stage production
+
       # `sst deploy` writes the stack's stage outputs (defined in
       # sst.config.ts's `run()` return value, including the real API Gateway
       # URL as `api`) to .sst/outputs.json. Reading it here is how the

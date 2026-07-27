@@ -1,4 +1,8 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { StorybookConfig } from '@storybook/react-native-web-vite';
+
+const dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const config: StorybookConfig = {
   stories: ['../src/**/*.stories.@(ts|tsx)'],
@@ -23,6 +27,16 @@ const config: StorybookConfig = {
       ...viteConfig.optimizeDeps.rolldownOptions,
       shimMissingExports: true,
     };
+
+    // Stories render outside expo-router's navigation tree, so the real
+    // package — and the Metro-only expo dev-client bootstrap it drags in —
+    // never needs to load. See .storybook/mocks/expo-router.tsx.
+    viteConfig.resolve ??= {};
+    const expoRouterMock = path.resolve(dirname, 'mocks/expo-router.tsx');
+    viteConfig.resolve.alias = Array.isArray(viteConfig.resolve.alias)
+      ? [...viteConfig.resolve.alias, { find: 'expo-router', replacement: expoRouterMock }]
+      : { ...viteConfig.resolve.alias, 'expo-router': expoRouterMock };
+
     return viteConfig;
   },
 };

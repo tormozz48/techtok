@@ -49,13 +49,9 @@ jobs:
 
       # ubuntu-latest ships an Android SDK/NDK; this pins cmdline-tools and
       # accepts licenses so Gradle can fetch any missing package for the build.
+      # Load-bearing since D54 removed EAS from this job — nothing else here
+      # would accept a license for a package Gradle decides it needs.
       - uses: android-actions/setup-android@v3
-
-      # Installs eas-cli and authenticates via EXPO_TOKEN (a free Expo account).
-      - uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -104,8 +100,8 @@ jobs:
           done
 
       # Reuse the Gradle distribution + Maven deps + build-cache across runs.
-      # `eas build --local` runs Gradle from the home GRADLE_USER_HOME (~/.gradle),
-      # so caching that here skips the big first-time downloads and recompiles.
+      # Gradle runs from the home GRADLE_USER_HOME (~/.gradle), so caching that
+      # here skips the big first-time downloads and recompiles.
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
@@ -116,18 +112,76 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}-
 
-      # `--local` runs the build on this runner, so it does NOT consume an EAS
-      # cloud-build credit (free tier = 15/mo) — effectively unlimited. Signing
-      # credentials are pulled from EAS (credentialsSource defaults to "remote")
-      # using EXPO_TOKEN, so no keystore is stored in GitHub. EXPO_PUBLIC_API_URL
-      # comes from this workflow's own `api_url` input (the caller passes the
-      # production deploy's real URL) — it never lives in eas.json or anywhere
-      # else in source control.
-      - name: Build Android APK (eas build --local)
-        working-directory: apps/mobile
+      # D54: signing moved off EAS-managed remote credentials onto four GitHub
+      # secrets, because dropping `eas build --local` (below) also drops the
+      # EXPO_TOKEN-authenticated credential fetch that used to sign the APK.
+      #
+      # This step MUST fail rather than continue when the secrets are missing.
+      # app/build.gradle (D18) silently falls back to the debug key when
+      # android/keystore.properties is absent, and that fallback is a trap
+      # here: a debug-signed APK installs fine on a clean device but Android
+      # refuses to update an installed app whose signature changed, so every
+      # existing user would hit "App not installed" and have to uninstall
+      # first, losing their local state. Publishing one to releases/latest
+      # would be worse than not building at all.
+      - name: Materialize release signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=""
+          [ -n "${KEYSTORE_BASE64:-}" ]  || missing="$missing ANDROID_KEYSTORE_BASE64"
+          [ -n "${KEYSTORE_PASSWORD:-}" ] || missing="$missing ANDROID_KEYSTORE_PASSWORD"
+          [ -n "${KEY_ALIAS:-}" ]         || missing="$missing ANDROID_KEY_ALIAS"
+          [ -n "${KEY_PASSWORD:-}" ]      || missing="$missing ANDROID_KEY_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing release-signing secret(s):$missing — refusing to build."
+            echo "Without them build.gradle would fall back to the debug key and produce"
+            echo "an APK that cannot upgrade any existing install. Export the upload key"
+            echo "from EAS (npx eas credentials --platform android) and add the four"
+            echo "secrets; see docs/DISTRIBUTION.md."
+            exit 1
+          fi
+          # storeFile is resolved by file() inside the :app module, so it is
+          # relative to apps/mobile/android/app/. Both this and
+          # keystore.properties are already covered by android/.gitignore.
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > apps/mobile/android/app/release.keystore
+          {
+            echo "storeFile=release.keystore"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > apps/mobile/android/keystore.properties
+          echo "Release keystore materialized ($(wc -c < apps/mobile/android/app/release.keystore) bytes)."
+
+      # D54: plain Gradle instead of `eas build --local`. The android/ project
+      # is committed (D18) and EAS was already skipping prebuild for it, so
+      # everything EAS still did here was overhead — archiving the workspace
+      # into its own sandbox, running a second full `pnpm install` there, and
+      # `expo doctor` — about 2.5 min before Gradle even started. Both are
+      # equally unmetered; neither consumes an EAS cloud-build credit.
+      # EXPO_PUBLIC_API_URL comes from this workflow's own `api_url` input (the
+      # caller passes the production deploy's real URL) and is read by Metro
+      # during :app:bundleReleaseJsAndAssets — it never lives in source control.
+      - name: Build Android APK (gradlew)
+        working-directory: apps/mobile/android
         env:
           EXPO_PUBLIC_API_URL: ${{ inputs.api_url }}
-        run: eas build --platform android --profile preview --local --non-interactive --output "${{ github.workspace }}/techtok.apk"
+        run: ./gradlew :app:assembleRelease
+
+      - name: Collect APK
+        run: |
+          set -euo pipefail
+          APK=apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+          if [ ! -f "$APK" ]; then
+            echo "::error::Expected APK at $APK but it does not exist."
+            find apps/mobile/android/app/build/outputs -name '*.apk' -print || true
+            exit 1
+          fi
+          cp "$APK" "${{ github.workspace }}/techtok.apk"
 
       # prerelease: false (D39, amends this decision) — GitHub's
       # releases/latest alias only ever resolves to the newest *non*-prerelease
@@ -141,7 +195,7 @@ jobs:
           prerelease: false
           files: ${{ github.workspace }}/techtok.apk
           body: |
-            Automated internal APK — built with `eas build --local` (unmetered; does not use an EAS cloud-build credit).
+            Automated internal APK — built with `./gradlew :app:assembleRelease` on the GitHub runner (unmetered).
 
             - Commit: ${{ github.sha }}
             - Install: download `techtok.apk` on an Android phone, then allow "install from unknown sources" for this file.

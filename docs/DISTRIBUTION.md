@@ -8,7 +8,7 @@ Three paths are supported, all on the Expo **free** tier:
 
 - **Automated CI builds → GitHub Releases** (recommended, unmetered) — every push
   to `main` (and manual runs) builds an APK in GitHub Actions with
-  `eas build --local` and attaches it to a GitHub Release. See
+  `./gradlew :app:assembleRelease` and attaches it to a GitHub Release. See
   [Automated CI builds](#automated-ci-builds-recommended) just below.
 - **Manual EAS internal distribution** — `eas build` on Expo's cloud, quickest
   for a one-off link (spends your 15/mo free cloud-build credits). See
@@ -27,28 +27,48 @@ from the release page — no Play Store, no per-build link to generate by hand.
 ### Why this dodges the free-tier build cap
 
 The EAS free tier includes **15 Android + 15 iOS cloud builds/month**. The
-workflow runs `eas build --local`, which compiles on the GitHub Actions runner
-instead of Expo's cloud, so it **does not consume a cloud-build credit** —
-effectively unlimited builds while staying on the free plan. (A plain `./gradlew`
-build is unmetered the same way; we use the EAS recipe here so `eas.json`
-profiles, env vars, and EAS-managed signing all apply.)
+workflow runs `./gradlew :app:assembleRelease` directly on the GitHub Actions
+runner instead of Expo's cloud, so it **does not consume a cloud-build credit** —
+effectively unlimited builds while staying on the free plan. (D54 replaced
+`eas build --local`, which was equally unmetered but spent ~2.5 min per run
+archiving the workspace into an EAS sandbox and re-installing dependencies there
+before Gradle even started. The `android/` project is committed, so EAS was
+already skipping prebuild and adding nothing the Gradle build doesn't do.)
 
 ### One-time setup
 
-1. **Expo account + access token.** Create a free account, then generate a
-   personal access token at <https://expo.dev/settings/access-tokens>.
-2. **GitHub secret.** Add it as the `EXPO_TOKEN` repository secret
-   (Settings → Secrets and variables → Actions).
-3. **Establish the Android keystore on EAS** (once), so CI can sign without a
-   keystore in GitHub. From `apps/mobile/`:
+CI signs with the **upload key supplied as GitHub secrets**. There is no debug-key
+fallback in CI: if any of the four secrets below is missing the job fails on
+purpose, because a debug-signed APK cannot upgrade an existing install (Android
+refuses an update whose signature changed — friends would hit "App not installed"
+and have to uninstall, losing local state).
+
+1. **Get the keystore.** If EAS already holds the app's upload key from the
+   previous `eas build --local` setup, export it — from `apps/mobile/`:
 
    ```
    npx eas credentials --platform android
    ```
 
-   Pick the `preview` profile and let EAS generate/store a keystore. The build
-   profile's `credentialsSource` defaults to `remote`, so `eas build --local`
-   downloads it at build time using `EXPO_TOKEN`.
+   Pick the `preview` profile → **Download credentials**. Reuse this key rather
+   than generating a new one; a new key breaks in-place upgrades for anyone who
+   already installed the app.
+
+2. **Add four repository secrets** (Settings → Secrets and variables → Actions):
+
+   | Secret | Value |
+   |---|---|
+   | `ANDROID_KEYSTORE_BASE64` | `base64 -w0 <your.keystore>` (on macOS: `base64 -i <your.keystore>`) |
+   | `ANDROID_KEYSTORE_PASSWORD` | keystore password |
+   | `ANDROID_KEY_ALIAS` | key alias |
+   | `ANDROID_KEY_PASSWORD` | key password |
+
+   CI writes these into `android/keystore.properties` + `android/app/release.keystore`
+   at build time; both are gitignored and never committed. Note the passwords land
+   in a Java `.properties` file, where a literal backslash is an escape character —
+   avoid `\` in them.
+
+`EXPO_TOKEN` is no longer used by this workflow.
 
 ### Getting a build
 
@@ -61,15 +81,19 @@ pre-release). Send that release URL to a friend.
 
 ### Notes & fallbacks
 
-- **Toolchain:** the job uses JDK 17 + the runner's Android SDK. Local EAS builds
-  don't manage the SDK/NDK for you, so if a first run fails on a missing NDK, add
-  an `sdkmanager "ndk;<version>"` step (the version is whatever the Expo SDK 57 /
+- **Toolchain:** the job uses JDK 17 + the runner's Android SDK, with
+  `android-actions/setup-android` accepting licenses so Gradle can fetch any
+  missing package. If a first run fails on a missing NDK, add an
+  `sdkmanager "ndk;<version>"` step (the version is whatever the Expo SDK 57 /
   RN 0.86 Gradle config requests).
-- **Local credentials instead of remote:** to avoid EAS-managed signing entirely,
-  set `"credentialsSource": "local"` on the `preview` profile, commit a
-  `credentials.json`, and have CI materialize the keystore from a base64 secret.
-  That puts the keystore in GitHub secrets — the thing remote credentials avoid —
-  so prefer the remote path above unless you have a reason.
+- **Keystore in GitHub secrets** is a deliberate trade (D54): it's the thing
+  EAS-managed remote credentials used to avoid. Accepted because this is an
+  internal sideload key, the secrets are never written to a tracked path, and
+  the ~2.5 min/build EAS overhead bought nothing else once `android/` was
+  committed. To go back, restore `expo/expo-github-action` + `EXPO_TOKEN` and
+  the `eas build --local` invocation — see D54's row in DESIGN.md.
+- **`eas.json` is still used** for local/manual EAS builds; only CI stopped
+  going through it.
 - **iOS:** local iOS builds need a macOS runner (`macos-latest`) plus Apple
   signing assets; not wired up (project is Android-only, D12).
 

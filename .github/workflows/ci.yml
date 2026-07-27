@@ -137,8 +137,14 @@ jobs:
   # calling job itself was granted (permissions narrow down the call chain,
   # never widen) — so each caller job below must re-declare whatever its
   # nested workflow's jobs request, or GitHub silently caps it to none.
+  #
+  # D52: deploy-dev deliberately has NO `needs` — it races the quality jobs
+  # instead of queueing behind them, taking itself and e2e off the far side of
+  # the check fan-out. `dev` is a throwaway stage, so deploying a commit that
+  # turns out to fail lint costs nothing that the next merge doesn't fix.
+  # deploy-production is what re-imposes the gate: it needs e2e AND all four
+  # checks, so nothing reaches production that hasn't passed everything.
   deploy-dev:
-    needs: [lint, typecheck, test, schema-check]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     uses: ./.github/workflows/deploy-dev.yml
     permissions:
@@ -156,7 +162,7 @@ jobs:
     secrets: inherit
 
   deploy-production:
-    needs: e2e
+    needs: [e2e, lint, typecheck, test, schema-check]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     uses: ./.github/workflows/deploy-production.yml
     permissions:

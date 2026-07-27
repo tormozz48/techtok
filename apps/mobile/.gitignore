@@ -36,6 +36,9 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# Storybook
+storybook-static/
+
 example
 
 # generated native folders (android/ is committed — bare workflow, DESIGN §2 D18)

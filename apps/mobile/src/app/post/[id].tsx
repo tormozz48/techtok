@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Linking, Platform, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { ActivityIndicator, Button, IconButton, TouchableRipple } from 'react-native-paper';
 import { fetchPostContent } from '@/api/client';
+import { BookmarkButton } from '@/components/BookmarkButton';
 import { Radius, Spacing, type ThemeColors, Typography } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
@@ -14,11 +15,12 @@ import { useLanguageStore } from '@/state/languageStore';
 import { translationFeedbackMailto } from '@/utils/feedback';
 
 export default function PostScreen() {
-  const { id, title, sourceName, url } = useLocalSearchParams<{
+  const { id, title, sourceName, url, isBookmarked } = useLocalSearchParams<{
     id: string;
     title?: string;
     sourceName?: string;
     url: string;
+    isBookmarked?: string;
   }>();
   const strings = useStrings();
   const colors = useThemeColors();
@@ -111,6 +113,11 @@ export default function PostScreen() {
         <Button mode="contained" onPress={openOriginal}>
           {strings.reader.readOriginal}
         </Button>
+        <BookmarkButton
+          postId={id}
+          isBookmarked={isBookmarked === 'true'}
+          iconColor={colors.text}
+        />
         <IconButton
           icon="share-variant"
           iconColor={colors.text}

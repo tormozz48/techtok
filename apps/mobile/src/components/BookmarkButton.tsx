@@ -8,9 +8,14 @@ import { useBookmarksOverlay } from '@/state/bookmarksOverlay';
 export interface BookmarkButtonProps {
   postId: string;
   isBookmarked?: boolean;
+  iconColor?: string;
 }
 
-export function BookmarkButton({ postId, isBookmarked }: BookmarkButtonProps) {
+export function BookmarkButton({
+  postId,
+  isBookmarked,
+  iconColor = Colors.overlay.text,
+}: BookmarkButtonProps) {
   const queryClient = useQueryClient();
   const strings = useStrings();
   const overlayValue = useBookmarksOverlay((state) => state.overlay[postId]);
@@ -39,7 +44,7 @@ export function BookmarkButton({ postId, isBookmarked }: BookmarkButtonProps) {
   return (
     <IconButton
       icon={bookmarked ? 'bookmark' : 'bookmark-outline'}
-      iconColor={Colors.overlay.text}
+      iconColor={iconColor}
       size={20}
       onPress={toggle}
       accessibilityLabel={bookmarked ? strings.a11y.bookmarkRemove : strings.a11y.bookmarkAdd}

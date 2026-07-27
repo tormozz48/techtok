@@ -60,7 +60,13 @@ export function Card({ card }: CardProps) {
           enqueueRead(card.id);
           router.push({
             pathname: '/post/[id]',
-            params: { id: card.id, title: card.title, sourceName: card.sourceName, url: card.url },
+            params: {
+              id: card.id,
+              title: card.title,
+              sourceName: card.sourceName,
+              url: card.url,
+              isBookmarked: String(card.isBookmarked ?? false),
+            },
           });
         }}
         onLongPress={

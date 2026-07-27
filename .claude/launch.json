@@ -6,6 +6,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "site", "run", "preview"],
       "port": 4321
+    },
+    {
+      "name": "mobile-storybook",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "mobile", "run", "storybook"],
+      "port": 6006
     }
   ]
 }

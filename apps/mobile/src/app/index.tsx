@@ -25,15 +25,17 @@ export default function FeedScreen() {
   // Keeps the action bar's per-card actions in sync with the visible card
   // without waiting for a swipe: seeds activeCard on first load, and
   // re-seeds it if the feed is fully replaced (e.g. a topic/language change)
-  // while the old activeCard no longer exists in the new set. A plain
-  // `activeCard ?? cards[0]` fallback only covered the very first render.
+  // while the old activeCard no longer exists in the new set. Also re-points
+  // to the refreshed object for the same id on every `cards` update (not just
+  // when the id disappears) — otherwise a refetch triggered by a bookmark
+  // toggle never reaches the action bar, since the id itself doesn't change,
+  // and the bookmark icon reverts to its pre-toggle state once the optimistic
+  // overlay clears.
   useEffect(() => {
     setActiveCard((current) => {
       if (cards.length === 0) return undefined;
-      if (!current || !cards.some((card) => card.id === current.id)) {
-        return cards[0];
-      }
-      return current;
+      if (!current) return cards[0];
+      return cards.find((card) => card.id === current.id) ?? cards[0];
     });
   }, [cards]);
 

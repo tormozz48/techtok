@@ -45,19 +45,31 @@ export default function FeedScreen() {
 
   if (isError) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>{strings.feed.error}</Text>
-        <Button mode="contained" onPress={() => refetch()} style={styles.retryButton}>
-          {strings.feed.retry}
-        </Button>
+      <View style={styles.root}>
+        <View style={styles.center}>
+          <Text style={styles.errorText}>{strings.feed.error}</Text>
+          <Button mode="contained" onPress={() => refetch()} style={styles.retryButton}>
+            {strings.feed.retry}
+          </Button>
+        </View>
+        <BottomActionBar
+          activeCard={undefined}
+          onRefresh={() => queryClient.resetQueries({ queryKey: ['feed'], exact: true })}
+        />
       </View>
     );
   }
 
   if (cards.length === 0) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.emptyText}>{strings.feed.empty}</Text>
+      <View style={styles.root}>
+        <View style={styles.center}>
+          <Text style={styles.emptyText}>{strings.feed.empty}</Text>
+        </View>
+        <BottomActionBar
+          activeCard={undefined}
+          onRefresh={() => queryClient.resetQueries({ queryKey: ['feed'], exact: true })}
+        />
       </View>
     );
   }

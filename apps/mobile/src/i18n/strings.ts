@@ -50,6 +50,10 @@ export interface ChromeStrings {
     showTranslated: string;
     loading: string;
   };
+  speech: {
+    listen: string;
+    stopListening: string;
+  };
   stats: {
     title: string;
     error: string;
@@ -133,6 +137,10 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       showTranslated: 'Show translation',
       loading: 'Preparing article…',
     },
+    speech: {
+      listen: 'Listen',
+      stopListening: 'Stop listening',
+    },
     stats: {
       title: 'Stats',
       error: 'Failed to load your reading stats.',
@@ -209,6 +217,10 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       showOriginal: 'Показать оригинал',
       showTranslated: 'Показать перевод',
       loading: 'Готовим статью…',
+    },
+    speech: {
+      listen: 'Слушать',
+      stopListening: 'Остановить',
     },
     stats: {
       title: 'Статистика',
@@ -287,6 +299,10 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       showTranslated: 'Показати переклад',
       loading: 'Готуємо статтю…',
     },
+    speech: {
+      listen: 'Слухати',
+      stopListening: 'Зупинити',
+    },
     stats: {
       title: 'Статистика',
       error: 'Не вдалося завантажити статистику читання.',
@@ -363,6 +379,10 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       showOriginal: 'Pokaż oryginał',
       showTranslated: 'Pokaż tłumaczenie',
       loading: 'Przygotowujemy artykuł…',
+    },
+    speech: {
+      listen: 'Odsłuchaj',
+      stopListening: 'Zatrzymaj',
     },
     stats: {
       title: 'Statystyki',

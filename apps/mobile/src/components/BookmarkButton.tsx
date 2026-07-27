@@ -42,8 +42,14 @@ export function BookmarkButton({
       } else {
         await deleteBookmark(postId);
       }
-      queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      // Awaited so the overlay isn't cleared until the refetched data has
+      // landed — otherwise this card's `isBookmarked` prop (still the
+      // pre-toggle value until the refetch resolves) briefly/permanently
+      // shows through, making the toggle look like it didn't stick.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['bookmarks'] }),
+        queryClient.invalidateQueries({ queryKey: ['feed'] }),
+      ]);
       clearOptimistic(postId);
     } catch {
       setOptimistic(postId, bookmarked);

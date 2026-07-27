@@ -137,12 +137,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     backgroundColor: Colors.overlay.surfaceBlack,
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: Spacing.two,
     paddingTop: Spacing.two,
   },
   side: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.three,
+    gap: Spacing.two,
   },
 });

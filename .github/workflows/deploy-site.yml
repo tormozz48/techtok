@@ -25,7 +25,14 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      # ref: main (not the default trigger SHA) — this job runs after
+      # mobile-build, which may have just pushed a version-bump commit
+      # straight to main (D44). Without this, the site's version badge
+      # (apps/site/src/lib/version.ts, reading apps/mobile/app.json) would
+      # permanently build one release behind the tag mobile-build just cut.
       - uses: actions/checkout@v4
+        with:
+          ref: main
 
       - uses: pnpm/action-setup@v4
 

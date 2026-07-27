@@ -100,9 +100,10 @@ api.route('GET /v1/history', {
 
 api.route('POST /v1/bookmarks', {
   handler: 'packages/functions/src/api/handlers/bookmarkCreate.handler',
-  link: [postsTable, userActivityTable],
+  link: [postsTable, usersTable, userActivityTable],
   environment: {
     POSTS_TABLE_NAME: postsTable.name,
+    USERS_TABLE_NAME: usersTable.name,
     USER_ACTIVITY_TABLE_NAME: userActivityTable.name,
   },
   runtime: 'nodejs22.x',

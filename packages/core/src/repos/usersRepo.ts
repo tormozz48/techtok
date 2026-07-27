@@ -49,6 +49,12 @@ export class UsersRepo {
     return result.Attributes as UserRecord;
   }
 
+  /** Seeds `topics` on first touch (`if_not_exists`), same as `touch()` —
+   * without it, a device that calls this before ever hitting `touch()`
+   * (`GET /v1/me`, `GET /v1/feed`, ...) gets a row with no `topics` at all,
+   * and `UserRecord.topics`/`meResponseSchema` both treat it as required, so
+   * the response fails schema validation and 500s (confirmed live via the
+   * e2e mutation suite hitting this route from a brand-new device). */
   async updateLanguage(userId: string, language: Language): Promise<UserRecord> {
     const now = new Date().toISOString();
     const result = await this.client.send(
@@ -56,15 +62,16 @@ export class UsersRepo {
         TableName: this.tableName,
         Key: { userId },
         UpdateExpression:
-          'SET #language = :language, lastSeenAt = :now, createdAt = if_not_exists(createdAt, :now)',
+          'SET #language = :language, lastSeenAt = :now, createdAt = if_not_exists(createdAt, :now), topics = if_not_exists(topics, :emptyTopics)',
         ExpressionAttributeNames: { '#language': 'language' },
-        ExpressionAttributeValues: { ':language': language, ':now': now },
+        ExpressionAttributeValues: { ':language': language, ':now': now, ':emptyTopics': [] },
         ReturnValues: 'ALL_NEW',
       }),
     );
     return result.Attributes as UserRecord;
   }
 
+  /** Seeds `topics` on first touch — see `updateLanguage`'s comment. */
   async updateMutedSources(userId: string, mutedSources: string[]): Promise<UserRecord> {
     const now = new Date().toISOString();
     const result = await this.client.send(
@@ -72,8 +79,12 @@ export class UsersRepo {
         TableName: this.tableName,
         Key: { userId },
         UpdateExpression:
-          'SET mutedSources = :mutedSources, lastSeenAt = :now, createdAt = if_not_exists(createdAt, :now)',
-        ExpressionAttributeValues: { ':mutedSources': mutedSources, ':now': now },
+          'SET mutedSources = :mutedSources, lastSeenAt = :now, createdAt = if_not_exists(createdAt, :now), topics = if_not_exists(topics, :emptyTopics)',
+        ExpressionAttributeValues: {
+          ':mutedSources': mutedSources,
+          ':now': now,
+          ':emptyTopics': [],
+        },
         ReturnValues: 'ALL_NEW',
       }),
     );

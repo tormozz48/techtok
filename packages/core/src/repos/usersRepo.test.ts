@@ -74,6 +74,21 @@ describe('usersRepo.updateLanguage', () => {
     expect(input?.ExpressionAttributeNames).toEqual({ '#language': 'language' });
     expect(input?.ExpressionAttributeValues).toMatchObject({ ':language': 'pl' });
   });
+
+  // A device that never hit touch() first (GET /v1/me, GET /v1/feed, ...)
+  // otherwise gets a row with no `topics` at all — UserRecord.topics and
+  // meResponseSchema both treat it as required, so the response 500s. This
+  // was caught live by the e2e mutation suite against a brand-new device.
+  it('seeds topics to an empty array if_not_exists, same as touch()', async () => {
+    ddbMock.on(UpdateCommand).resolves({ Attributes: { userId: 'device-1', language: 'pl' } });
+    const repo = new UsersRepo(client, 'Users');
+
+    await repo.updateLanguage('device-1', 'pl');
+
+    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
+    expect(input?.UpdateExpression).toContain('topics = if_not_exists(topics, :emptyTopics)');
+    expect(input?.ExpressionAttributeValues).toMatchObject({ ':emptyTopics': [] });
+  });
 });
 
 describe('usersRepo.updateMutedSources', () => {
@@ -102,6 +117,20 @@ describe('usersRepo.updateMutedSources', () => {
     expect(user.mutedSources).toEqual([]);
     const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
     expect(input?.ExpressionAttributeValues).toMatchObject({ ':mutedSources': [] });
+  });
+
+  // Same rationale as updateLanguage's — see that test's comment.
+  it('seeds topics to an empty array if_not_exists, same as touch()', async () => {
+    ddbMock.on(UpdateCommand).resolves({
+      Attributes: { userId: 'device-1', mutedSources: ['hn'], createdAt: 'x', lastSeenAt: 'y' },
+    });
+    const repo = new UsersRepo(client, 'Users');
+
+    await repo.updateMutedSources('device-1', ['hn']);
+
+    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
+    expect(input?.UpdateExpression).toContain('topics = if_not_exists(topics, :emptyTopics)');
+    expect(input?.ExpressionAttributeValues).toMatchObject({ ':emptyTopics': [] });
   });
 });
 

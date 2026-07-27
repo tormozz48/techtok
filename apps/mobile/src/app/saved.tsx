@@ -94,6 +94,7 @@ export default function SavedScreen() {
                       title: item.cardTitle,
                       sourceName: item.sourceName,
                       url: item.url,
+                      isBookmarked: 'true',
                     },
                   })
                 }

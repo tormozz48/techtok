@@ -14,56 +14,27 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# D51 retired the `setup` job that used to install once and hand every check
+# job a tarred `node_modules` artifact. `actions/setup-node`'s pnpm store cache
+# makes `pnpm install --frozen-lockfile` a ~10s step in each job, which is
+# cheaper than the ~12s the artifact download+extract cost — so the shared
+# install bought nothing and its own job sat on the critical path for ~70s.
 jobs:
-  setup:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      # Every workspace's node_modules (root + each package/app) is archived as
-      # one artifact so lint/typecheck/test/schema-check can restore the exact
-      # same install instead of each re-running `pnpm install`. Symlinks pnpm
-      # creates inside each package's node_modules are relative, so they stay
-      # valid once re-extracted at the same repo path in a downstream job.
-      - name: Archive node_modules
-        run: tar -czf node_modules.tar.gz $(find . -maxdepth 3 -type d -name node_modules)
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: node-modules
-          path: node_modules.tar.gz
-          retention-days: 1
-
-  lint:
-    needs: setup
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - uses: actions/download-artifact@v4
-        with:
-          name: node-modules
-      - name: Restore node_modules
-        run: tar -xzf node_modules.tar.gz
       - name: Lint
         run: pnpm lint
 
   typecheck:
-    needs: setup
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -72,11 +43,8 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - uses: actions/download-artifact@v4
-        with:
-          name: node-modules
-      - name: Restore node_modules
-        run: tar -xzf node_modules.tar.gz
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
       # No AWS credentials are configured in this job — sst.config.ts/infra
       # typecheck against generated .sst/platform types, which only exist
       # after a local `sst dev`/`deploy`, so that step skips cleanly here.
@@ -84,7 +52,6 @@ jobs:
         run: pnpm typecheck
 
   test:
-    needs: setup
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -93,16 +60,12 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - uses: actions/download-artifact@v4
-        with:
-          name: node-modules
-      - name: Restore node_modules
-        run: tar -xzf node_modules.tar.gz
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
       - name: Test
         run: pnpm test
 
   schema-check:
-    needs: setup
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -111,11 +74,8 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - uses: actions/download-artifact@v4
-        with:
-          name: node-modules
-      - name: Restore node_modules
-        run: tar -xzf node_modules.tar.gz
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
       # Fails the PR on a removed field/narrowed type/removed enum value in
       # packages/shared's zod contracts (DESIGN §2 D34) — additive changes
       # (new optional field, new enum value) pass silently.
@@ -164,9 +124,59 @@ jobs:
       contents: read
     secrets: inherit
 
-  mobile-build:
-    needs: deploy-production
+  # D53: decides whether this merge needs a new APK at all. The Android build
+  # is ~60% of this pipeline's wall-clock and most merges to main are
+  # backend-only, so rebuilding an identical APK every time is the single
+  # biggest waste here. The baseline is the newest `mobile-v*` tag — the marker
+  # D42's tagging step pushes after every successful APK release — so the
+  # question asked is "has anything mobile-relevant landed since the APK that
+  # releases/latest currently serves", not "did this one merge touch mobile".
+  # That accumulates correctly across skipped runs: three backend merges then
+  # one mobile merge still produces exactly one build, containing all four.
+  mobile-changes:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+    steps:
+      # fetch-depth: 0 for the tags and the commit range below.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: check
+        run: |
+          set -euo pipefail
+          # Same ordering scripts/bumpMobileVersion.ts uses to pick its own
+          # baseline. for-each-ref --count=1 rather than `git tag | head -1`:
+          # under `pipefail` the latter can fail the step outright when head
+          # exits first and git takes SIGPIPE.
+          BASE=$(git for-each-ref --count=1 --sort=-v:refname --format='%(refname:short)' 'refs/tags/mobile-v*')
+          if [ -z "$BASE" ]; then
+            echo "No mobile-v* tag exists yet — building (fail open)."
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # packages/shared ships inside the app; pnpm-lock.yaml covers a
+          # dependency bump that changes the bundle without touching app code.
+          CHANGED=$(git diff --name-only "$BASE"..HEAD -- \
+            apps/mobile \
+            packages/shared \
+            pnpm-lock.yaml \
+            .github/workflows/mobile-build.yml)
+          if [ -n "$CHANGED" ]; then
+            echo "Mobile-relevant changes since $BASE:"
+            echo "$CHANGED" | sed 's/^/  /'
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Nothing mobile-relevant since $BASE — skipping the APK build."
+            echo "releases/latest keeps serving the APK built for $BASE."
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  mobile-build:
+    needs: [deploy-production, mobile-changes]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.mobile-changes.outputs.should_build == 'true'
     uses: ./.github/workflows/mobile-build.yml
     permissions:
       contents: write
@@ -174,9 +184,18 @@ jobs:
       api_url: ${{ needs.deploy-production.outputs.api_url }}
     secrets: inherit
 
+  # Must still publish when mobile-build was skipped, so it can't just `needs`
+  # it — a skipped dependency skips the dependent job unless a status-check
+  # function (here `!cancelled()`) overrides that default. deploy-production is
+  # added to `needs` so its success can be asserted explicitly, since
+  # `!cancelled()` would otherwise let this run after an upstream failure.
   deploy-site:
-    needs: mobile-build
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: [deploy-production, mobile-build]
+    if: >-
+      !cancelled()
+      && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+      && needs.deploy-production.result == 'success'
+      && (needs.mobile-build.result == 'success' || needs.mobile-build.result == 'skipped')
     uses: ./.github/workflows/deploy-site.yml
     permissions:
       pages: write
@@ -187,6 +206,9 @@ jobs:
   # Prunes the APK-carrying prereleases mobile-build just added to, keeping the
   # 3 most recent. Runs last so a fresh build is always among those kept; if
   # mobile-build failed there's no new release, so skipping cleanup is correct.
+  # Deliberately keeps a plain `needs:` (no `!cancelled()` escape like
+  # deploy-site's): when mobile-build is skipped by D53's gate there's likewise
+  # no new release, so cascading the skip to here is the behaviour we want.
   release-cleanup:
     needs: mobile-build
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'

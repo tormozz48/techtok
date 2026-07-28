@@ -82,6 +82,51 @@ jobs:
       - name: Check schema snapshot
         run: pnpm --filter @techtok/shared run schema:check
 
+  mobile-icon-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      # Catches the D30/phase-16 class of bug: a source icon/splash image
+      # under assets/images/ changes but the committed android/ native
+      # project (bare workflow, D18) is never regenerated to match, so the
+      # built APK keeps shipping the old asset. Regenerates android/ via a
+      # clean prebuild, then diffs ONLY the output files fully derived from
+      # source images/config (launcher icon mipmaps, the adaptive-icon XML,
+      # splash drawables, and strings.xml's app_name line) against HEAD —
+      # deliberately not the rest of the regenerated tree, which also
+      # contains deliberate hand-edits (release signing, Gradle lint/memory/
+      # architecture tuning) that a full-tree diff would falsely flag as
+      # drift on every run (DESIGN §2 D59).
+      - name: Check Android icon/splash assets are in sync
+        env:
+          CI: "1"
+        run: |
+          set -euo pipefail
+          (cd apps/mobile && npx expo prebuild --platform android --clean)
+
+          if ! git diff --exit-code -- \
+            'apps/mobile/android/app/src/main/res/mipmap-*/ic_launcher*.webp' \
+            'apps/mobile/android/app/src/main/res/mipmap-anydpi-v26/*.xml' \
+            'apps/mobile/android/app/src/main/res/drawable-*/splashscreen_logo.png'
+          then
+            echo "::error::apps/mobile/android's launcher icon/splash files are out of sync with the source images in apps/mobile/assets/images/. Run 'pnpm --filter mobile prebuild:android -- --clean' and commit the regenerated files."
+            exit 1
+          fi
+
+          BEFORE=$(git show HEAD:apps/mobile/android/app/src/main/res/values/strings.xml | grep 'name="app_name"')
+          AFTER=$(grep 'name="app_name"' apps/mobile/android/app/src/main/res/values/strings.xml)
+          if [ "$BEFORE" != "$AFTER" ]; then
+            echo "::error::apps/mobile/android/app/src/main/res/values/strings.xml's app_name is out of sync with app.json's expo.name. Run 'pnpm --filter mobile prebuild:android -- --clean' and commit the change."
+            exit 1
+          fi
+
   # From here down (D38, extended by D39): this is the release pipeline for a
   # merge to main — dev deploy -> e2e against dev -> production deploy ->
   # mobile build -> {site deploy, release cleanup} (the last two run in
@@ -102,8 +147,9 @@ jobs:
   # instead of queueing behind them, taking itself and e2e off the far side of
   # the check fan-out. `dev` is a throwaway stage, so deploying a commit that
   # turns out to fail lint costs nothing that the next merge doesn't fix.
-  # deploy-production is what re-imposes the gate: it needs e2e AND all four
-  # checks, so nothing reaches production that hasn't passed everything.
+  # deploy-production is what re-imposes the gate: it needs e2e AND all five
+  # checks (D59 added mobile-icon-check), so nothing reaches production that
+  # hasn't passed everything.
   deploy-dev:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     uses: ./.github/workflows/deploy-dev.yml
@@ -122,7 +168,7 @@ jobs:
     secrets: inherit
 
   deploy-production:
-    needs: [e2e, lint, typecheck, test, schema-check]
+    needs: [e2e, lint, typecheck, test, schema-check, mobile-icon-check]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     uses: ./.github/workflows/deploy-production.yml
     permissions:

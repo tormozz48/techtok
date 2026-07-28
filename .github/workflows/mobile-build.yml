@@ -103,6 +103,58 @@ jobs:
             git reset --hard origin/main
           done
 
+      # D57: generates feature/fix release notes from conventional commits
+      # since the last mobile-v* tag (the same commit range and feat:/fix:
+      # classification bumpMobileVersion.ts uses to pick the version bump),
+      # so the GitHub Release body and the release tag's annotation describe
+      # what actually shipped instead of static boilerplate. Runs after the
+      # version-bump step (whose commit, if any, is itself a chore: and so
+      # never appears in the changelog) and before the tag is created, so
+      # "last mobile-v* tag" here still means the previous release.
+      - name: Generate release notes
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          set -e
+          PREV_TAG=$(git tag --list 'mobile-v*' --sort=-v:refname | head -n1)
+          RANGE="HEAD"
+          if [ -n "$PREV_TAG" ]; then
+            RANGE="$PREV_TAG..HEAD"
+          fi
+
+          FEATURES=$(git log "$RANGE" --format='%s' | grep -E '^feat(\([^)]*\))?!?:' | sed -E 's/^feat(\([^)]*\))?!?:[[:space:]]*/- /' || true)
+          FIXES=$(git log "$RANGE" --format='%s' | grep -E '^fix(\([^)]*\))?!?:' | sed -E 's/^fix(\([^)]*\))?!?:[[:space:]]*/- /' || true)
+
+          {
+            echo "## What's changed"
+            if [ -n "$FEATURES" ]; then
+              echo ""
+              echo "### Features"
+              echo "$FEATURES"
+            fi
+            if [ -n "$FIXES" ]; then
+              echo ""
+              echo "### Fixes"
+              echo "$FIXES"
+            fi
+            if [ -z "$FEATURES" ] && [ -z "$FIXES" ]; then
+              echo ""
+              echo "_No user-facing feat/fix commits since the last release._"
+            fi
+          } > changelog.md
+
+          {
+            cat changelog.md
+            echo ""
+            echo "---"
+            echo ""
+            echo 'Automated internal APK — built with `eas build --local` (unmetered; does not use an EAS cloud-build credit).'
+            echo ""
+            echo "- Commit: $COMMIT_SHA"
+            echo '- Install: download `techtok.apk` on an Android phone, then allow "install from unknown sources" for this file.'
+            echo "- Always-current link: https://github.com/tormozz48/techtok/releases/latest/download/techtok.apk (also on the [project site](https://tormozz48.github.io/techtok/))."
+          } > release-body.md
+
       # Reuse the Gradle distribution + Maven deps + build-cache across runs.
       # `eas build --local` runs Gradle from the home GRADLE_USER_HOME (~/.gradle),
       # so caching that here skips the big first-time downloads and recompiles.
@@ -140,17 +192,19 @@ jobs:
           name: TechTok Android build ${{ github.run_number }}
           prerelease: false
           files: ${{ github.workspace }}/techtok.apk
-          body: |
-            Automated internal APK — built with `eas build --local` (unmetered; does not use an EAS cloud-build credit).
-
-            - Commit: ${{ github.sha }}
-            - Install: download `techtok.apk` on an Android phone, then allow "install from unknown sources" for this file.
-            - Always-current link: https://github.com/tormozz48/techtok/releases/latest/download/techtok.apk (also on the [project site](https://tormozz48.github.io/techtok/)).
+          body_path: ${{ github.workspace }}/release-body.md
 
       # Tag-only reinstatement of release marking (D42, amends D41). Reads the
       # version off `app.json` as left on disk by the bump step above (D44),
-      # which already committed and pushed it to `main` if it changed.
+      # which already committed and pushed it to `main` if it changed. Now an
+      # annotated tag (D57) carrying the feat/fix changelog from the release
+      # notes step above as its message, instead of a bare lightweight tag.
       - name: Tag release version
+        env:
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
         run: |
           VERSION=$(node -e "console.log(require('./apps/mobile/app.json').expo.version)")
           TAG="mobile-v$VERSION"
@@ -158,5 +212,5 @@ jobs:
             echo "$TAG already exists on origin (version wasn't bumped since the last release) — skipping."
             exit 0
           fi
-          git tag "$TAG"
+          git tag -a "$TAG" -F changelog.md
           git push origin "refs/tags/$TAG"

@@ -51,12 +51,12 @@ describe('gradientForPostId', () => {
 });
 
 describe('ImageStub', () => {
-  it('renders a deterministic gradient + topic glyph (snapshot)', () => {
+  it('renders a deterministic gradient + topic mascot (snapshot)', () => {
     const tree = renderStub({ postId: 'abc123deadbeef', topic: 'ai' });
     expect(tree).toMatchSnapshot();
   });
 
-  it('renders a different topic with a different glyph (snapshot)', () => {
+  it('renders a different topic with a different mascot (snapshot)', () => {
     const tree = renderStub({ postId: 'abc123deadbeef', topic: 'space' });
     expect(tree).toMatchSnapshot();
   });

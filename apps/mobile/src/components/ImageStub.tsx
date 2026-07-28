@@ -1,13 +1,14 @@
 import type { Topic } from '@techtok/shared';
 import { LinearGradient } from 'expo-linear-gradient';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { TopicMascot } from './TopicMascot';
 
 export interface ImageStubProps {
   postId: string;
   topic: Topic;
 }
 
-/** Fixed, hand-picked palette — deliberately muted/cool tones so the glyph
+/** Fixed, hand-picked palette — deliberately muted/cool tones so the mascot
  * and the card's text overlay both stay legible on top of any of them. */
 const GRADIENT_PAIRS: ReadonlyArray<readonly [string, string]> = [
   ['#3A1C71', '#6C3483'],
@@ -19,17 +20,6 @@ const GRADIENT_PAIRS: ReadonlyArray<readonly [string, string]> = [
   ['#42275A', '#734B6D'],
   ['#16222A', '#3A6073'],
 ];
-
-const TOPIC_GLYPHS: Record<Topic, string> = {
-  ai: '🤖',
-  dev: '💻',
-  gadgets: '📱',
-  startups: '🚀',
-  security: '🔒',
-  science: '🔬',
-  space: '🪐',
-  bio: '🧬',
-};
 
 /** Cheap deterministic string hash (not cryptographic) — only needs to
  * spread postIds evenly across a small fixed palette, the same way every
@@ -50,7 +40,7 @@ export function gradientForPostId(postId: string): readonly [string, string] {
  * Client-side stand-in for posts with no image at all (DESIGN §2 D24):
  * zero assets, zero backend calls, works offline. The gradient is seeded by
  * postId so the same post always looks the same across renders/devices; the
- * glyph identifies its topic.
+ * mascot identifies its topic.
  */
 export function ImageStub({ postId, topic }: ImageStubProps) {
   const [start, end] = gradientForPostId(postId);
@@ -58,21 +48,21 @@ export function ImageStub({ postId, topic }: ImageStubProps) {
   return (
     <View style={StyleSheet.absoluteFill}>
       <LinearGradient colors={[start, end]} style={StyleSheet.absoluteFill} />
-      <View style={styles.glyphWrapper}>
-        <Text style={styles.glyph}>{TOPIC_GLYPHS[topic]}</Text>
+      <View style={styles.mascotWrapper}>
+        <TopicMascot topic={topic} size={140} opacity={0.85} />
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  glyphWrapper: {
-    ...StyleSheet.absoluteFill,
+  mascotWrapper: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  glyph: {
-    fontSize: 64,
-    opacity: 0.35,
   },
 });

@@ -100,8 +100,8 @@ android {
         applicationId 'com.tormozz48dev.techtok'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 18
-        versionName "0.12.0"
+        versionCode 19
+        versionName "0.13.0"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }

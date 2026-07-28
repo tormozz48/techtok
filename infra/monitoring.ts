@@ -77,7 +77,7 @@ const contentDlqAlarm = new aws.cloudwatch.MetricAlarm('ContentDlqDepthAlarm', {
 // wedged consumer shows up here immediately, whereas the DLQ only fills
 // after all 3 receives are exhausted.
 //
-// Threshold is deliberately one full ingest cycle (30 min, the
+// Threshold is deliberately one full ingest cycle (60 min, the
 // `IngestSchedule` rate) held for 10 minutes, not a tight SLA. A normal
 // ingest burst legitimately queues a few hundred messages against a
 // concurrency ceiling of 10 (D16) — ContentQueue in particular fans out 4
@@ -92,14 +92,14 @@ const queueBacklogAlarms = (
 ).map(
   ([label, arn]) =>
     new aws.cloudwatch.MetricAlarm(`${label}QueueBacklogAlarm`, {
-      alarmDescription: `${label}Queue has a message older than 30 minutes — the consumer is not keeping up or is wedged.`,
+      alarmDescription: `${label}Queue has a message older than 60 minutes — the consumer is not keeping up or is wedged.`,
       comparisonOperator: 'GreaterThanThreshold',
       evaluationPeriods: 2,
       metricName: 'ApproximateAgeOfOldestMessage',
       namespace: 'AWS/SQS',
       period: 300,
       statistic: 'Maximum',
-      threshold: 1800,
+      threshold: 3600,
       dimensions: { QueueName: queueName(arn) },
       alarmActions: [alertTopic.arn],
       treatMissingData: 'notBreaching',
@@ -142,12 +142,12 @@ const api5xxAlarm = new aws.cloudwatch.MetricAlarm('Api5xxAlarm', {
 const ingestStalledAlarm = isProduction
   ? new aws.cloudwatch.MetricAlarm('IngestStalledAlarm', {
       alarmDescription:
-        'No IngestPipeline execution started in 2 hours (schedule is every 30 min) — ingestion has stopped.',
+        'No IngestPipeline execution started in 4 hours (schedule is every 60 min) — ingestion has stopped.',
       comparisonOperator: 'LessThanThreshold',
       evaluationPeriods: 1,
       metricName: 'ExecutionsStarted',
       namespace: 'AWS/States',
-      period: 7200,
+      period: 14400,
       statistic: 'Sum',
       threshold: 1,
       dimensions: { StateMachineArn: ingestPipeline.arn },
@@ -360,7 +360,7 @@ const dashboardBody = $resolve({
           stat: 'Maximum',
           metrics: liveQueues.map((q) => sqs('ApproximateAgeOfOldestMessage', q)),
           annotations: {
-            horizontal: [{ label: 'backlog alarm (30 min)', value: 1800 }],
+            horizontal: [{ label: 'backlog alarm (60 min)', value: 3600 }],
           },
         },
       },

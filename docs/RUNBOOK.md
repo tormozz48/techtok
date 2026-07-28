@@ -30,7 +30,7 @@ a bug or an outage, not routine content noise.
 | `ContentQueue` | `ContentDLQ` | `ContentDlqDepthAlarm` |
 
 Each live queue additionally has a `<Name>QueueBacklogAlarm` on
-`ApproximateAgeOfOldestMessage` (> 30 min held for 10 min) — an earlier
+`ApproximateAgeOfOldestMessage` (> 60 min held for 10 min) — an earlier
 signal than DLQ depth, since it fires while a wedged consumer is still
 burning through its 3 receives rather than after.
 

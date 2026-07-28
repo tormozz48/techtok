@@ -322,7 +322,7 @@ new aws.iam.RolePolicy('IngestSchedulerPolicy', {
 });
 
 new aws.scheduler.Schedule('IngestSchedule', {
-  scheduleExpression: 'rate(30 minutes)',
+  scheduleExpression: 'rate(60 minutes)',
   flexibleTimeWindow: { mode: 'OFF' },
   target: {
     arn: ingestPipeline.arn,

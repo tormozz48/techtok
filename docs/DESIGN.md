@@ -125,7 +125,7 @@ flowchart LR
     APIGW[API Gateway HTTP API /v1]
     FN_API[API Lambdas<br/>feed · reads · prefs · history · topics · content cache-read]
     DDB[(DynamoDB<br/>Sources · Posts · Users · UserActivity)]
-    EB[EventBridge Schedule<br/>rate 30 min]
+    EB[EventBridge Schedule<br/>rate 60 min]
     SFN[Step Functions<br/>IngestPipeline]
     FETCH[FetchSource Lambda<br/>Map, concurrency 4]
     SQS[SQS TransformQueue + DLQ]
@@ -277,7 +277,7 @@ Multi-topic indexing note: a GSI can't index a list, so the feed indexes `primar
 
 ### 7.2 Target shape (phase 2+)
 
-**EventBridge** `rate(30 minutes)` → **Step Function `IngestPipeline`** (SST `StepFunctions` component; drop to raw provider resources if the component lacks a feature):
+**EventBridge** `rate(60 minutes)` → **Step Function `IngestPipeline`** (SST `StepFunctions` component; drop to raw provider resources if the component lacks a feature):
 
 1. **LoadSources** — Lambda: scan enabled sources.
 2. **Map over sources** (`maxConcurrency: 4`, per-item Catch so one bad feed never kills the run → increments `failCount`, records `lastStatus`):
@@ -403,7 +403,7 @@ Everything else I would otherwise have asked, with the default the plan assumes:
 
 | Question | Default (v1) |
 |---|---|
-| Ingestion cadence | 30 min (60 min in phase 0) |
+| Ingestion cadence | 60 min (30 min through phase 17) |
 | Post retention | 90-day TTL (DDB + S3 lifecycle); history snapshots keep forever |
 | Feed with no topic prefs | All topics |
 | Language | English-only **ingest**; serving localized to en/ru/uk/pl on demand (D20–D22, supersedes the original English-only default) |

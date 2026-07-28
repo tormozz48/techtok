@@ -85,47 +85,69 @@ jobs:
   mobile-icon-check:
     runs-on: ubuntu-latest
     steps:
+      # fetch-depth: 0 so the staleness check below can walk full path
+      # history, not just the single HEAD commit a shallow clone provides.
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: pnpm
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+          fetch-depth: 0
       # Catches the D30/phase-16 class of bug: a source icon/splash image
       # under assets/images/ changes but the committed android/ native
       # project (bare workflow, D18) is never regenerated to match, so the
-      # built APK keeps shipping the old asset. Regenerates android/ via a
-      # clean prebuild, then diffs ONLY the output files fully derived from
-      # source images/config (launcher icon mipmaps, the adaptive-icon XML,
-      # splash drawables, and strings.xml's app_name line) against HEAD —
-      # deliberately not the rest of the regenerated tree, which also
-      # contains deliberate hand-edits (release signing, Gradle lint/memory/
-      # architecture tuning) that a full-tree diff would falsely flag as
-      # drift on every run (DESIGN §2 D59).
+      # built APK keeps shipping the old asset — exactly what D59's original
+      # implementation found live on `main` (splash-icon.png's padding fix in
+      # 20aa98b was never propagated into android/'s committed drawables).
+      # This deliberately does NOT run `expo prebuild` and diff pixel output:
+      # a first attempt at that failed in real CI (D59 amendment) because
+      # libvips resizes this PNG with an architecture-specific SIMD kernel,
+      # so a splash image regenerated on GitHub's x86_64 runners is never
+      # byte-identical to the arm64-generated committed one even with zero
+      # actual drift — and because the meaningful content here (a small
+      # centered mark on an otherwise blank canvas) is diluted enough by the
+      # blank canvas that no pixel-diff tolerance threshold reliably told
+      # real drift apart from that noise either. Instead this compares git
+      # history: for each source pathspec, the output pathspec it feeds must
+      # have been committed at least as recently. No prebuild, no pnpm
+      # install, no pixel comparison — pure metadata, so it can't be fooled
+      # by toolchain/architecture-dependent regeneration noise.
       - name: Check Android icon/splash assets are in sync
-        env:
-          CI: "1"
         run: |
           set -euo pipefail
-          (cd apps/mobile && npx expo prebuild --platform android --clean)
 
-          if ! git diff --exit-code -- \
-            'apps/mobile/android/app/src/main/res/mipmap-*/ic_launcher*.webp' \
-            'apps/mobile/android/app/src/main/res/mipmap-anydpi-v26/*.xml' \
-            'apps/mobile/android/app/src/main/res/drawable-*/splashscreen_logo.png'
-          then
-            echo "::error::apps/mobile/android's launcher icon/splash files are out of sync with the source images in apps/mobile/assets/images/. Run 'pnpm --filter mobile prebuild:android -- --clean' and commit the regenerated files."
+          check_not_stale() {
+            local label="$1" source_pathspec="$2" output_pathspec="$3"
+            local source_ts output_ts
+            source_ts=$(git log -1 --format=%ct -- $source_pathspec)
+            output_ts=$(git log -1 --format=%ct -- $output_pathspec)
+            if [ -z "$output_ts" ]; then
+              echo "::error::No commit history found for $label's committed output ($output_pathspec) — has apps/mobile/android ever been prebuilt?"
+              exit 1
+            fi
+            if [ -n "$source_ts" ] && [ "$source_ts" -gt "$output_ts" ]; then
+              echo "::error::$label: the source image changed more recently than the committed android/ output. Run 'pnpm --filter mobile prebuild:android -- --clean' and commit the regenerated files."
+              exit 1
+            fi
+            echo "$label: OK"
+          }
+
+          check_not_stale "Splash image" \
+            "apps/mobile/assets/images/splash-icon.png" \
+            "apps/mobile/android/app/src/main/res/drawable-*/splashscreen_logo.png"
+
+          check_not_stale "Launcher icon" \
+            "apps/mobile/assets/images/android-icon-foreground.png apps/mobile/assets/images/android-icon-background.png apps/mobile/assets/images/android-icon-monochrome.png" \
+            "apps/mobile/android/app/src/main/res/mipmap-*/ic_launcher*.webp apps/mobile/android/app/src/main/res/mipmap-anydpi-v26/*.xml"
+
+          # app_name is compared by value, not by commit recency: app.json
+          # changes far more often than app_name itself (e.g. every mobile
+          # release's automated version bump touches it), so a
+          # commit-recency check here would be permanently, falsely stale.
+          APP_NAME=$(jq -r '.expo.name' apps/mobile/app.json)
+          STRINGS_APP_NAME=$(grep -o 'name="app_name">[^<]*' apps/mobile/android/app/src/main/res/values/strings.xml | sed 's/.*>//')
+          if [ "$APP_NAME" != "$STRINGS_APP_NAME" ]; then
+            echo "::error::apps/mobile/android/app/src/main/res/values/strings.xml's app_name ('$STRINGS_APP_NAME') doesn't match app.json's expo.name ('$APP_NAME'). Run 'pnpm --filter mobile prebuild:android -- --clean' and commit the change."
             exit 1
           fi
-
-          BEFORE=$(git show HEAD:apps/mobile/android/app/src/main/res/values/strings.xml | grep 'name="app_name"')
-          AFTER=$(grep 'name="app_name"' apps/mobile/android/app/src/main/res/values/strings.xml)
-          if [ "$BEFORE" != "$AFTER" ]; then
-            echo "::error::apps/mobile/android/app/src/main/res/values/strings.xml's app_name is out of sync with app.json's expo.name. Run 'pnpm --filter mobile prebuild:android -- --clean' and commit the change."
-            exit 1
-          fi
+          echo "app_name: OK"
 
   # From here down (D38, extended by D39): this is the release pipeline for a
   # merge to main — dev deploy -> e2e against dev -> production deploy ->

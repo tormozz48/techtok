@@ -92,6 +92,7 @@ Definition of done for any change: lint + typecheck + tests green, then exercise
 - LLM calls go only through the three defined pipeline paths — card transform, translate (eager as of D27), compact-article (eager for all 4 languages as of D36, phase 15). No ad-hoc LLM-provider calls anywhere else (OpenRouter primary / Bedrock dormant fallback per DESIGN §2 D32, phase 13). Daily caps/per-source quotas on these paths were removed for simplicity (DESIGN §2 D31, phase 12) — the $10/mo AWS Budget alarm (D11) is a monitoring-only signal now, not an enforced ceiling, and doesn't see OpenRouter spend at all (D32 — separate bill, no AWS-side visibility). (Reserved concurrency 2 on the transform Lambda remains deferred pending an AWS account quota fix — see DESIGN §2 D16.)
 - Feed access follows the key design in DESIGN §6 (primaryTopic GSI, read-markers via BatchGet). No table scans or filter-expression shortcuts on `Posts`.
 - Keep React Native code cross-platform (D12): no Android-only APIs without a `Platform` guard.
+- Keep `apps/mobile` Storybook in sync with real components/screens: every file in `apps/mobile/src/components/*.tsx` needs a matching `*.stories.tsx` in the same directory, and every route in `apps/mobile/src/app/` needs a page story in `apps/mobile/src/stories/pages/` that imports the real screen via `@/app/<route>` (not a re-implementation). When you add a component/screen, add its story in the same change; when you change a component's props/variants or a screen's states, update its story to match — a PostToolUse hook flags missing coverage on Edit/Write, but it can't catch stale prop shapes, only missing files.
 - Conventional commits: `feat:` / `fix:` / `docs:` / `chore:` / `test:` / `refactor:`. *(Mobile app versioning is manual, not commit-driven — DESIGN §2 D41 retired D35's automated semver bump.)*
 - Every request/response shape change to `packages/shared`'s zod schemas gets checked against the committed schema snapshot before merge (DESIGN §2 D34) — a removed field, narrowed/changed type, or removed enum value fails CI unless the snapshot is regenerated deliberately.
 
@@ -132,7 +133,7 @@ Before every commit: `pnpm lint`, then `pnpm typecheck`, then `pnpm test` — al
 
 ## Claude config in this repo
 
-- `.claude/settings.json` — permission allowlist for the common loop + two PostToolUse hooks on Edit/Write: one auto-formats with Biome (no-ops until Biome is installed in Phase 0), one runs a scoped `typecheck` for the edited file's workspace package and surfaces errors immediately instead of waiting for `/check`.
+- `.claude/settings.json` — permission allowlist for the common loop + three PostToolUse hooks on Edit/Write: one auto-formats with Biome (no-ops until Biome is installed in Phase 0), one runs a scoped `typecheck` for the edited file's workspace package and surfaces errors immediately instead of waiting for `/check`, and one (`storybook-sync-check.sh`) flags `apps/mobile` components/screens that lack Storybook coverage — informational only, and it only catches missing files, not stale ones (see Hard rules).
 - `/check` — run all quality gates and fix until green
 - `/phase` — report progress against the implementation plan, propose next increment
 - `/log-decision` — append a decision to the DESIGN.md decision log

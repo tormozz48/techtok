@@ -4,8 +4,11 @@ name: Release cleanup
 # after mobile-build.yml has published a fresh `android-build-<run_number>`
 # prerelease. Every merge to main adds one such release carrying a full APK, so
 # without this they accumulate forever. Keeps the 3 most recent and deletes the
-# rest (release + its git tag). workflow_dispatch is kept for an ad hoc sweep —
-# pass dry_run to see what would go without deleting anything.
+# rest (release + its git tag). Also prunes stale `mobile-v*` tags (D42) — plain
+# git tags, not GitHub releases, so they get pruned via the Git refs API instead
+# of `gh release` — down to the same 3 most recent (D57). workflow_dispatch is
+# kept for an ad hoc sweep — pass dry_run to see what would go without deleting
+# anything.
 on:
   workflow_dispatch:
     inputs:
@@ -69,4 +72,52 @@ jobs:
           echo "$stale" | while read -r tag; do
             echo "Deleting $tag"
             gh release delete "$tag" --yes --cleanup-tag
+          done
+
+      # mobile-v* tags (D42) are plain git tags with no release attached, so
+      # they aren't touched by the step above and would otherwise accumulate
+      # forever alongside it. ci.yml's mobile-changes job (D53) always diffs
+      # against only the single newest mobile-v* tag, so pruning older ones
+      # is safe regardless of how far back they go.
+      - name: Delete stale mobile-v tags
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          KEEP: "3"
+          DRY_RUN: ${{ inputs.dry_run || false }}
+        run: |
+          set -euo pipefail
+
+          # --paginate covers repos with >100 tags. The API's own ordering
+          # isn't guaranteed to be chronological, so sort explicitly; -V
+          # (version sort) is safe here since every entry shares the same
+          # `mobile-v` prefix ahead of the semver part.
+          all_tags=$(gh api "repos/$GH_REPO/tags" --paginate --jq '.[].name')
+          stale=$(echo "$all_tags" | { grep '^mobile-v' || true; } | sort -rV | tail -n "+$((KEEP + 1))")
+
+          if [ -z "$stale" ]; then
+            echo "Nothing to delete: at most ${KEEP} mobile-v* tags exist."
+            echo "Nothing to delete." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          count=$(echo "$stale" | wc -l | tr -d ' ')
+          echo "Keeping the ${KEEP} most recent mobile-v* tags; ${count} to delete:"
+          echo "$stale"
+
+          {
+            echo "### Tag cleanup"
+            echo "Kept the ${KEEP} most recent \`mobile-v*\` tags."
+            echo "Deleted ${count} (dry run: ${DRY_RUN}):"
+            echo "$stale" | sed 's/^/- /'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "DRY RUN — nothing deleted."
+            exit 0
+          fi
+
+          echo "$stale" | while read -r tag; do
+            echo "Deleting $tag"
+            gh api -X DELETE "repos/$GH_REPO/git/refs/tags/$tag"
           done

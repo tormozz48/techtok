@@ -1,4 +1,5 @@
-import { useQueryClient } from '@tanstack/react-query';
+import { type InfiniteData, type QueryClient, useQueryClient } from '@tanstack/react-query';
+import type { FeedResponse } from '@techtok/shared';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { IconButton } from 'react-native-paper';
 import { createBookmark, deleteBookmark } from '@/api/client';
@@ -14,6 +15,28 @@ export interface BookmarkButtonProps {
   isBookmarked?: boolean;
   iconColor?: string;
   style?: StyleProp<ViewStyle>;
+}
+
+// Patches the one affected card's isBookmarked flag directly in the cached
+// feed pages instead of invalidating ['feed'] and letting it refetch — a
+// refetch reflows the whole `cards` array (fresh pagination/ranking from the
+// server), and FeedPager's PagerView is index-based, so the user's current
+// position would end up pointing at a different card mid-toggle.
+function patchFeedBookmarkState(
+  queryClient: QueryClient,
+  postId: string,
+  isBookmarked: boolean,
+): void {
+  queryClient.setQueryData<InfiniteData<FeedResponse>>(['feed'], (current) => {
+    if (!current) return current;
+    return {
+      ...current,
+      pages: current.pages.map((page) => ({
+        ...page,
+        items: page.items.map((item) => (item.id === postId ? { ...item, isBookmarked } : item)),
+      })),
+    };
+  });
 }
 
 export function BookmarkButton({
@@ -45,14 +68,12 @@ export function BookmarkButton({
       } else {
         await deleteBookmark(postId);
       }
-      // Awaited so the overlay isn't cleared until the refetched data has
-      // landed — otherwise this card's `isBookmarked` prop (still the
-      // pre-toggle value until the refetch resolves) briefly/permanently
-      // shows through, making the toggle look like it didn't stick.
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['bookmarks'] }),
-        queryClient.invalidateQueries({ queryKey: ['feed'] }),
-      ]);
+      // Patch the feed cache synchronously (see patchFeedBookmarkState) so
+      // this card's `isBookmarked` prop is already correct once the overlay
+      // clears below — no need to wait on it. Saved/[bookmarks] isn't mid-
+      // interaction, so it can just invalidate and refetch normally.
+      patchFeedBookmarkState(queryClient, postId, next);
+      queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
       clearOptimistic(postId);
     } catch {
       setOptimistic(postId, bookmarked);

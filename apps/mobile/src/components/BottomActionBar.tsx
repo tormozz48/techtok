@@ -56,6 +56,12 @@ export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps)
               postId={activeCard.id}
               isBookmarked={activeCard.isBookmarked}
               style={styles.icon}
+              snapshot={{
+                cardTitle: activeCard.title,
+                sourceName: activeCard.sourceName,
+                url: activeCard.url,
+                primaryTopic: activeCard.primaryTopic,
+              }}
             />
             <IconButton
               icon="share-variant"

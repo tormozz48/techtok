@@ -137,6 +137,7 @@ export default function PostScreen() {
           postId={id}
           isBookmarked={isBookmarked === 'true'}
           iconColor={colors.text}
+          snapshot={title && sourceName ? { cardTitle: title, sourceName, url } : undefined}
         />
         <IconButton
           icon="share-variant"

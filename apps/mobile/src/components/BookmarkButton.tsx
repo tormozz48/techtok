@@ -1,5 +1,5 @@
 import { type InfiniteData, type QueryClient, useQueryClient } from '@tanstack/react-query';
-import type { FeedResponse } from '@techtok/shared';
+import type { BookmarksResponse, FeedResponse, Topic } from '@techtok/shared';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { IconButton } from 'react-native-paper';
 import { createBookmark, deleteBookmark } from '@/api/client';
@@ -15,6 +15,74 @@ export interface BookmarkButtonProps {
   isBookmarked?: boolean;
   iconColor?: string;
   style?: StyleProp<ViewStyle>;
+  /** Card data needed to show this bookmark in Saved immediately on create —
+   * see patchBookmarksListOnCreate. Omit only where unavailable (a stale
+   * Saved-list entry will still self-correct on the next invalidation). */
+  snapshot?: {
+    cardTitle: string;
+    sourceName: string;
+    url: string;
+    primaryTopic?: Topic;
+  };
+}
+
+const DEFAULT_BOOKMARKS_QUERY_KEY = ['bookmarks', ''];
+
+// GET /v1/bookmarks reads a DynamoDB GSI (byBookmarkedAt), which is only
+// eventually consistent — invalidateQueries's refetch can race the write and
+// come back without the item just created, leaving it missing from Saved
+// until something else happens to invalidate the list again. Patching the
+// cache directly (same approach as patchFeedBookmarkState below) makes the
+// new bookmark show up immediately regardless of that replication lag.
+function patchBookmarksListOnCreate(
+  queryClient: QueryClient,
+  postId: string,
+  snapshot: NonNullable<BookmarkButtonProps['snapshot']>,
+): void {
+  queryClient.setQueryData<InfiniteData<BookmarksResponse>>(
+    DEFAULT_BOOKMARKS_QUERY_KEY,
+    (current) => {
+      if (!current) return current;
+      const [firstPage, ...restPages] = current.pages;
+      if (!firstPage) return current;
+      return {
+        ...current,
+        pages: [
+          {
+            ...firstPage,
+            items: [
+              {
+                postId,
+                bookmarkedAt: new Date().toISOString(),
+                cardTitle: snapshot.cardTitle,
+                sourceName: snapshot.sourceName,
+                url: snapshot.url,
+                primaryTopic: snapshot.primaryTopic,
+              },
+              ...firstPage.items.filter((item) => item.postId !== postId),
+            ],
+          },
+          ...restPages,
+        ],
+      };
+    },
+  );
+}
+
+function patchBookmarksListOnRemove(queryClient: QueryClient, postId: string): void {
+  queryClient.setQueryData<InfiniteData<BookmarksResponse>>(
+    DEFAULT_BOOKMARKS_QUERY_KEY,
+    (current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        pages: current.pages.map((page) => ({
+          ...page,
+          items: page.items.filter((item) => item.postId !== postId),
+        })),
+      };
+    },
+  );
 }
 
 // Patches the one affected card's isBookmarked flag directly in the cached
@@ -44,6 +112,7 @@ export function BookmarkButton({
   isBookmarked,
   iconColor = Colors.overlay.text,
   style,
+  snapshot,
 }: BookmarkButtonProps) {
   const queryClient = useQueryClient();
   const strings = useStrings();
@@ -65,8 +134,10 @@ export function BookmarkButton({
         if (getIsWifi()) {
           prefetchPostContent(queryClient, postId, useLanguageStore.getState().language);
         }
+        if (snapshot) patchBookmarksListOnCreate(queryClient, postId, snapshot);
       } else {
         await deleteBookmark(postId);
+        patchBookmarksListOnRemove(queryClient, postId);
       }
       // Patch the feed cache synchronously (see patchFeedBookmarkState) so
       // this card's `isBookmarked` prop is already correct once the overlay

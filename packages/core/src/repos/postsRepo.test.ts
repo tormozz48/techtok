@@ -406,6 +406,21 @@ describe('postsRepo.setMirroredFigures', () => {
   });
 });
 
+describe('postsRepo.setDuplicateOf', () => {
+  it('sets duplicateOf under an aliased attribute name', async () => {
+    ddbMock.on(UpdateCommand).resolves({});
+    const repo = new PostsRepo(client, 'Posts');
+
+    await repo.setDuplicateOf('abc123', 'root-post-id');
+
+    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
+    expect(input?.Key).toEqual({ postId: 'abc123' });
+    expect(input?.UpdateExpression).toBe('SET #duplicateOf = :duplicateOf');
+    expect(input?.ExpressionAttributeNames).toEqual({ '#duplicateOf': 'duplicateOf' });
+    expect(input?.ExpressionAttributeValues).toEqual({ ':duplicateOf': 'root-post-id' });
+  });
+});
+
 describe('postsRepo.incrementDupCount', () => {
   it('atomically ADDs 1 to the aliased dupCount attribute', async () => {
     ddbMock.on(UpdateCommand).resolves({});

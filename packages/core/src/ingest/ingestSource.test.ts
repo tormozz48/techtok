@@ -23,8 +23,17 @@ function fakeDeps(xml: string) {
     async (): Promise<FetchFeedResult> => ({ status: 'ok', body: xml, etag: '"v1"' }),
   );
   const findDuplicate = vi.fn(async (): Promise<string | undefined> => undefined);
+  const markDuplicate = vi.fn(async (_postId: string, _duplicateOf: string) => {});
   const recordDuplicate = vi.fn(async (_originalPostId: string) => {});
-  return { putIfNew, enqueueNew, recordFetchResult, fetchFeed, findDuplicate, recordDuplicate };
+  return {
+    putIfNew,
+    enqueueNew,
+    recordFetchResult,
+    fetchFeed,
+    findDuplicate,
+    markDuplicate,
+    recordDuplicate,
+  };
 }
 
 const source: SourceRecord = {
@@ -127,12 +136,14 @@ describe('ingestSource', () => {
     const result = await ingestSource(source, deps);
 
     expect(result.created).toBe(3);
-    expect(deps.putIfNew).toHaveBeenCalledWith(
-      expect.objectContaining({ duplicateOf: 'existing-post-id' }),
-    );
-    expect(deps.enqueueNew.mock.calls[0]?.[0][0]).toMatchObject({
-      duplicateOf: 'existing-post-id',
-    });
+    // putIfNew writes before dedup resolves, so it never sees duplicateOf —
+    // markDuplicate patches it on afterward instead.
+    for (const [post] of deps.putIfNew.mock.calls) {
+      expect(post.duplicateOf).toBeUndefined();
+    }
+    const flaggedPost = deps.enqueueNew.mock.calls[0]?.[0][0];
+    expect(flaggedPost).toMatchObject({ duplicateOf: 'existing-post-id' });
+    expect(deps.markDuplicate).toHaveBeenCalledWith(flaggedPost?.postId, 'existing-post-id');
     // Only the one entry findDuplicate flagged should bump the original's count.
     expect(deps.recordDuplicate).toHaveBeenCalledTimes(1);
     expect(deps.recordDuplicate).toHaveBeenCalledWith('existing-post-id');
@@ -155,15 +166,18 @@ describe('ingestSource', () => {
     expect(deps.recordDuplicate).not.toHaveBeenCalled();
   });
 
-  it('does not call recordDuplicate for a post never actually created (putIfNew false)', async () => {
+  it('skips the dedup lookup entirely for a post putIfNew says is not new', async () => {
     const xml = await readFile(HN_FIXTURE, 'utf8');
     const deps = fakeDeps(xml);
-    deps.findDuplicate.mockResolvedValueOnce('existing-post-id');
     deps.putIfNew.mockResolvedValueOnce(false); // pretend this entry was already seen
 
     const result = await ingestSource(source, deps);
 
     expect(result.created).toBe(2);
+    // The core fix: findDuplicate must never run for an already-known entry —
+    // only for the 2 genuinely new ones, not all 3 seen.
+    expect(deps.findDuplicate).toHaveBeenCalledTimes(2);
+    expect(deps.markDuplicate).not.toHaveBeenCalled();
     expect(deps.recordDuplicate).not.toHaveBeenCalled();
   });
 
@@ -180,6 +194,26 @@ describe('ingestSource', () => {
     expect(result.created).toBe(3);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]).toContain('recordDuplicate failed for existing-post-id');
+    expect(deps.markDuplicate).toHaveBeenCalledWith(expect.any(String), 'existing-post-id');
+    expect(deps.enqueueNew.mock.calls[0]?.[0][0]).toMatchObject({
+      duplicateOf: 'existing-post-id',
+    });
+  });
+
+  it('records a soft error but keeps the run clean when markDuplicate fails', async () => {
+    const xml = await readFile(HN_FIXTURE, 'utf8');
+    const deps = fakeDeps(xml);
+    deps.findDuplicate.mockResolvedValueOnce('existing-post-id');
+    deps.markDuplicate.mockRejectedValueOnce(new Error('conditional check failed'));
+
+    const result = await ingestSource(source, deps);
+
+    // The post is still enqueued with duplicateOf, and recordDuplicate still
+    // runs — the counter bump doesn't depend on the patch write succeeding.
+    expect(result.created).toBe(3);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toContain('markDuplicate failed for');
+    expect(deps.recordDuplicate).toHaveBeenCalledWith('existing-post-id');
     expect(deps.enqueueNew.mock.calls[0]?.[0][0]).toMatchObject({
       duplicateOf: 'existing-post-id',
     });

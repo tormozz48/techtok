@@ -23,8 +23,16 @@ export interface IngestDeps {
   readonly recordFetchResult: (sourceId: string, outcome: FetchOutcome) => Promise<void>;
   /** Looks for a likely cross-source duplicate of this post (phase 4
    * experiment). Content-level: a lookup failure is caught by the caller and
-   * never blocks ingestion of an otherwise-good post. */
+   * never blocks ingestion of an otherwise-good post. Only called for posts
+   * `putIfNew` already confirmed are genuinely new — an RSS feed re-serves
+   * its same last N entries on every poll, and running this expensive
+   * cross-source GSI lookup against every one of them (rather than just the
+   * rare genuinely-new post) was a real, measured DynamoDB cost driver. */
   readonly findDuplicate: (post: NewPost) => Promise<string | undefined>;
+  /** Patches `duplicateOf` onto the post `putIfNew` already wrote, once the
+   * (necessarily later) dedup lookup resolves. Content-level, like
+   * `findDuplicate` — a failure here never blocks ingestion. */
+  readonly markDuplicate: (postId: string, duplicateOf: string) => Promise<void>;
   /** Increments the original post's "covered by N sources" counter when a
    * new duplicate is created. Content-level, like `findDuplicate` — a
    * failure here never blocks ingestion of the (already-created) duplicate. */
@@ -81,37 +89,46 @@ export async function ingestSource(source: SourceRecord, deps: IngestDeps): Prom
 
     for (const entry of feed.items) {
       seen += 1;
-      let post = mapEntryToPost(entry, source);
+      const post = mapEntryToPost(entry, source);
       if (!post) continue;
 
+      let isNew: boolean;
+      try {
+        isNew = await deps.putIfNew(post);
+      } catch (err) {
+        errors.push(`putIfNew failed for ${post.postId}: ${errorMessage(err)}`);
+        continue;
+      }
+      if (!isNew) continue;
+
+      created += 1;
+      let enqueuedPost = post;
+
+      // Dedup only ever runs here, on a post `putIfNew` just confirmed is
+      // genuinely new — never against the (much larger) set of already-seen
+      // entries a feed re-serves on every poll. See findDuplicate's own doc.
       if (DEDUP_ENABLED) {
         try {
           const duplicateOf = await deps.findDuplicate(post);
-          if (duplicateOf) post = { ...post, duplicateOf };
+          if (duplicateOf) {
+            enqueuedPost = { ...post, duplicateOf };
+            try {
+              await deps.markDuplicate(post.postId, duplicateOf);
+            } catch (err) {
+              errors.push(`markDuplicate failed for ${post.postId}: ${errorMessage(err)}`);
+            }
+            try {
+              await deps.recordDuplicate(duplicateOf);
+            } catch (err) {
+              errors.push(`recordDuplicate failed for ${duplicateOf}: ${errorMessage(err)}`);
+            }
+          }
         } catch (err) {
           errors.push(`dedup lookup failed for ${post.postId}: ${errorMessage(err)}`);
         }
       }
 
-      try {
-        if (await deps.putIfNew(post)) {
-          created += 1;
-          newPosts.push(post);
-
-          // Only a genuinely new duplicate should bump the count — a
-          // re-seen RSS entry on a later poll is caught by putIfNew
-          // returning false above, before this ever runs.
-          if (post.duplicateOf) {
-            try {
-              await deps.recordDuplicate(post.duplicateOf);
-            } catch (err) {
-              errors.push(`recordDuplicate failed for ${post.duplicateOf}: ${errorMessage(err)}`);
-            }
-          }
-        }
-      } catch (err) {
-        errors.push(`putIfNew failed for ${post.postId}: ${errorMessage(err)}`);
-      }
+      newPosts.push(enqueuedPost);
     }
   } catch (err) {
     errors.push(`parse failed for ${source.sourceId}: ${errorMessage(err)}`);

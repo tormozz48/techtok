@@ -193,6 +193,22 @@ export class PostsRepo {
     );
   }
 
+  /** Patches `duplicateOf` onto a post already written by `putIfNew` — the
+   * cross-source dedup lookup (findDuplicateOf) only runs after a post is
+   * confirmed genuinely new, so this always follows a prior `putIfNew`,
+   * never replaces it. */
+  async setDuplicateOf(postId: string, duplicateOf: string): Promise<void> {
+    await this.client.send(
+      new UpdateCommand({
+        TableName: this.tableName,
+        Key: { postId },
+        UpdateExpression: 'SET #duplicateOf = :duplicateOf',
+        ExpressionAttributeNames: { '#duplicateOf': 'duplicateOf' },
+        ExpressionAttributeValues: { ':duplicateOf': duplicateOf },
+      }),
+    );
+  }
+
   /** Increments the "covered by N sources" counter on an original post when
    * ingest marks a newer entry as its duplicate — top-level numeric `ADD` is
    * atomic and race-safe under concurrent ingests. Called only on the root

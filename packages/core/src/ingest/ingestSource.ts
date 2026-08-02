@@ -4,6 +4,7 @@ import type { FetchOutcome } from '../repos/sourcesRepo';
 import type { SourceRecord } from '../sources.types';
 import { errorMessage } from '../util/errors';
 import { type FeedEntry, mapEntryToPost } from './rssMapper';
+import { repairFeedXml } from './xmlRepair';
 
 export interface FetchFeedResult {
   readonly status: 'not-modified' | 'ok';
@@ -78,14 +79,7 @@ export async function ingestSource(source: SourceRecord, deps: IngestDeps): Prom
   }
 
   try {
-    const feed = await new Parser<unknown, FeedEntry>({
-      customFields: {
-        item: [
-          ['media:content', 'mediaContent', { keepArray: true }],
-          ['media:thumbnail', 'mediaThumbnail', { keepArray: true }],
-        ],
-      },
-    }).parseString(fetched.body ?? '');
+    const feed = await parseFeed(fetched.body ?? '');
 
     for (const entry of feed.items) {
       seen += 1;
@@ -145,4 +139,40 @@ export async function ingestSource(source: SourceRecord, deps: IngestDeps): Prom
   });
 
   return { sourceId: source.sourceId, seen, created, errors };
+}
+
+function createParser(): Parser<unknown, FeedEntry> {
+  return new Parser<unknown, FeedEntry>({
+    customFields: {
+      item: [
+        ['media:content', 'mediaContent', { keepArray: true }],
+        ['media:thumbnail', 'mediaThumbnail', { keepArray: true }],
+      ],
+    },
+  });
+}
+
+/**
+ * Parses a feed strictly, falling back once to a repaired copy of the body.
+ *
+ * `sax` aborts the entire document on a single malformed attribute, so an
+ * upstream glitch costs us every item in that poll rather than just the one
+ * bad element — Nature's feed does exactly this a few times a week (see
+ * `xmlRepair.ts`). The strict parse is always tried first, so a well-formed
+ * feed is never rewritten; only a feed that has *already* failed is repaired.
+ * If the repaired copy fails too, the original error is thrown, since it
+ * describes the real defect rather than an artifact of our rewriting.
+ */
+async function parseFeed(body: string): Promise<{ items: FeedEntry[] }> {
+  try {
+    return await createParser().parseString(body);
+  } catch (err) {
+    const repaired = repairFeedXml(body);
+    if (repaired === body) throw err;
+    try {
+      return await createParser().parseString(repaired);
+    } catch {
+      throw err;
+    }
+  }
 }

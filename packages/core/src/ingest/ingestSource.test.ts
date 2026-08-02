@@ -9,6 +9,7 @@ import { ingestSource } from './ingestSource';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const HN_FIXTURE = path.join(dirname, '__fixtures__/hn.xml');
+const NATURE_MALFORMED_FIXTURE = path.join(dirname, '__fixtures__/nature-malformed.xml');
 
 function fakeDeps(xml: string) {
   const seen = new Set<string>();
@@ -183,5 +184,36 @@ describe('ingestSource', () => {
     expect(deps.enqueueNew.mock.calls[0]?.[0][0]).toMatchObject({
       duplicateOf: 'existing-post-id',
     });
+  });
+
+  it('recovers every entry from a feed with a valueless attribute instead of dropping the poll', async () => {
+    // Nature intermittently emits `<prism:issn rdf:resource\n    />`, which
+    // sax rejects outright — before the repair fallback this cost us all 75
+    // items in the poll, with nothing but a log line to show for it.
+    const xml = await readFile(NATURE_MALFORMED_FIXTURE, 'utf8');
+    const deps = fakeDeps(xml);
+
+    const result = await ingestSource({ ...source, sourceId: 'nature' }, deps);
+
+    expect(result.errors).toEqual([]);
+    expect(result.seen).toBe(2);
+    expect(result.created).toBe(2);
+    expect(deps.enqueueNew.mock.calls[0]?.[0]).toHaveLength(2);
+    expect(deps.recordFetchResult).toHaveBeenCalledWith('nature', {
+      status: 'ok',
+      etag: '"v1"',
+      lastModified: undefined,
+    });
+  });
+
+  it('reports the original parse error when the body is too broken to repair', async () => {
+    const deps = fakeDeps('<rss><channel><item><title>unclosed');
+
+    const result = await ingestSource(source, deps);
+
+    expect(result.created).toBe(0);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toContain('parse failed for hn');
+    expect(deps.enqueueNew).not.toHaveBeenCalled();
   });
 });

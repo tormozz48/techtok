@@ -13,6 +13,7 @@ export * from './i18n/selectCardVariant';
 export * from './ingest/ingestSource';
 export * from './ingest/rssMapper';
 export * from './ingest/sourcePresets';
+export * from './ingest/xmlRepair';
 export * from './llm/bedrockClient';
 export * from './llm/compactArticle';
 export * from './llm/generateCard';

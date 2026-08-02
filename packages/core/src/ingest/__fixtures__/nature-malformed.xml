@@ -1,0 +1,47 @@
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:prism="http://prismstandard.org/namespaces/basic/2.0/" xmlns:dc="http://purl.org/dc/elements/1.1/"
+         xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns="http://purl.org/rss/1.0/" xmlns:admin="http://webns.net/mvcb/">
+    <channel rdf:about="http://feeds.nature.com/nature/rss/current">
+        <title>Nature</title>
+        <description>Nature is the foremost international weekly scientific journal.</description>
+        <link>http://feeds.nature.com/nature/rss/current</link>
+        <admin:generatorAgent rdf:resource="https://www.nature.com/"/>
+        <admin:errorReportsTo rdf:resource="mailto:feedback@nature.com"/>
+        <dc:publisher>Nature Publishing Group</dc:publisher>
+        <dc:language>en</dc:language>
+        <dc:rights>© 2026 Macmillan Publishers Limited. All rights reserved.</dc:rights>
+        <prism:publicationName>Nature</prism:publicationName>
+        <prism:issn rdf:resource
+    />
+        <prism:copyright>© 2026 Macmillan Publishers Limited. All rights reserved.</prism:copyright>
+        <prism:rightsAgent>permissions@nature.com</prism:rightsAgent>
+        <image rdf:resource="https://www.nature.com/uploads/product/nature/rss.png"/>
+        <items>
+            <rdf:Seq>
+                <rdf:li rdf:resource="https://www.nature.com/articles/s41586-026-10921-w"/>
+                <rdf:li rdf:resource="https://www.nature.com/articles/d41586-026-02419-2"/>
+            </rdf:Seq>
+        </items>
+    </channel>
+    <item rdf:about="https://www.nature.com/articles/s41586-026-10921-w">
+        <title><![CDATA[Cucurbituril-based anion-conducting membranes with supramolecular nanopores]]></title>
+        <link>https://www.nature.com/articles/s41586-026-10921-w</link>
+        <content:encoded>
+            <![CDATA[<p>Nature, Published online: 31 July 2026; <a href="https://www.nature.com/articles/s41586-026-10921-w">doi:10.1038/s41586-026-10921-w</a></p>Anion-conducting membranes built from supramolecular nanopores.]]></content:encoded>
+        <dc:creator>Ziang Xu</dc:creator>
+        <dc:identifier>doi:10.1038/s41586-026-10921-w</dc:identifier>
+        <dc:date>2026-07-31</dc:date>
+        <prism:publicationName>Nature</prism:publicationName>
+        <prism:url>https://www.nature.com/articles/s41586-026-10921-w</prism:url>
+    </item>
+    <item rdf:about="https://www.nature.com/articles/d41586-026-02419-2">
+        <title><![CDATA[Briefing Chat: Orcas smashed a sunfish to bits]]></title>
+        <link>https://www.nature.com/articles/d41586-026-02419-2</link>
+        <content:encoded>
+            <![CDATA[<p>Nature, Published online: 31 July 2026; <a href="https://www.nature.com/articles/d41586-026-02419-2">doi:10.1038/d41586-026-02419-2</a></p>Nature staff discuss unusual orca behaviour caught on video.]]></content:encoded>
+        <dc:creator>Benjamin Thompson</dc:creator>
+        <dc:identifier>doi:10.1038/d41586-026-02419-2</dc:identifier>
+        <dc:date>2026-07-31</dc:date>
+        <prism:publicationName>Nature</prism:publicationName>
+        <prism:url>https://www.nature.com/articles/d41586-026-02419-2</prism:url>
+    </item>
+</rdf:RDF>

@@ -1,9 +1,11 @@
 import type { Card as CardData } from '@techtok/shared';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, screen } from '@testing-library/react-native';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
+import { prefetchPostContent } from '@/api/prefetchContent';
 import { getIsWifi } from '@/state/network';
 import { enqueueRead } from '@/state/readQueue';
+import { renderWithQueryClient } from '@/testing/renderWithProviders';
 import { FeedPager } from './FeedPager';
 
 jest.mock('@/state/readQueue', () => ({
@@ -11,6 +13,12 @@ jest.mock('@/state/readQueue', () => ({
 }));
 jest.mock('@/state/network', () => ({
   getIsWifi: jest.fn(() => false),
+}));
+// The scroll-driven content read-ahead (D61) shares the wifi gate with the
+// image prefetch below -- mocked so the wifi=true case doesn't hit the real
+// API client, same as BookmarkButton.test.tsx's bookmark-trigger case.
+jest.mock('@/api/prefetchContent', () => ({
+  prefetchPostContent: jest.fn(),
 }));
 // expo-haptics isn't part of jest-expo's default auto-mock set (unlike
 // expo-speech) -- impactAsync needs an explicit mock; ImpactFeedbackStyle
@@ -23,6 +31,7 @@ jest.mock('expo-haptics', () => ({
 const enqueueReadMock = enqueueRead as jest.Mock;
 const getIsWifiMock = getIsWifi as jest.Mock;
 const impactAsyncMock = Haptics.impactAsync as jest.Mock;
+const prefetchPostContentMock = prefetchPostContent as jest.Mock;
 const prefetchSpy = jest.spyOn(Image, 'prefetch').mockResolvedValue(true);
 
 function card(id: string, overrides: Partial<CardData> = {}): CardData {
@@ -55,6 +64,7 @@ beforeEach(() => {
   enqueueReadMock.mockReset();
   getIsWifiMock.mockReset().mockReturnValue(false);
   impactAsyncMock.mockReset().mockResolvedValue(undefined);
+  prefetchPostContentMock.mockReset();
   prefetchSpy.mockClear();
 });
 
@@ -64,14 +74,14 @@ afterEach(() => {
 
 describe('FeedPager', () => {
   it('renders a Card per item', async () => {
-    await render(<FeedPager cards={[card('post-1', { title: 'First card' })]} />);
+    await renderWithQueryClient(<FeedPager cards={[card('post-1', { title: 'First card' })]} />);
     expect(screen.getByText('First card')).toBeTruthy();
   });
 
   it('reports the newly-active card on page settle', async () => {
     const onPageChange = jest.fn();
     const cards = [card('post-1'), card('post-2')];
-    await render(<FeedPager cards={cards} onPageChange={onPageChange} />);
+    await renderWithQueryClient(<FeedPager cards={cards} onPageChange={onPageChange} />);
 
     await selectPage(1);
 
@@ -80,7 +90,7 @@ describe('FeedPager', () => {
 
   it('enqueues a read and fires haptics after the settle delay', async () => {
     const cards = [card('post-1'), card('post-2')];
-    await render(<FeedPager cards={cards} />);
+    await renderWithQueryClient(<FeedPager cards={cards} />);
 
     await selectPage(1);
     expect(enqueueReadMock).not.toHaveBeenCalled();
@@ -93,7 +103,7 @@ describe('FeedPager', () => {
 
   it('cancels the pending settle when the page changes again before the delay elapses', async () => {
     const cards = [card('post-1'), card('post-2'), card('post-3')];
-    await render(<FeedPager cards={cards} />);
+    await renderWithQueryClient(<FeedPager cards={cards} />);
 
     await selectPage(1);
     await jest.advanceTimersByTimeAsync(500);
@@ -107,7 +117,7 @@ describe('FeedPager', () => {
   it('calls onNearEnd once within the near-end threshold of the last card', async () => {
     const onNearEnd = jest.fn();
     const cards = Array.from({ length: 6 }, (_, i) => card(`post-${i}`));
-    await render(<FeedPager cards={cards} onNearEnd={onNearEnd} />);
+    await renderWithQueryClient(<FeedPager cards={cards} onNearEnd={onNearEnd} />);
 
     await selectPage(0);
     expect(onNearEnd).not.toHaveBeenCalled();
@@ -120,7 +130,7 @@ describe('FeedPager', () => {
     const cards = [card('post-1'), card('post-2', { imageUrl: 'https://example.com/2.jpg' })];
 
     getIsWifiMock.mockReturnValue(false);
-    await render(<FeedPager cards={cards} />);
+    await renderWithQueryClient(<FeedPager cards={cards} />);
     await selectPage(1);
     expect(prefetchSpy).not.toHaveBeenCalled();
 
@@ -128,5 +138,18 @@ describe('FeedPager', () => {
     await selectPage(0);
     await selectPage(1);
     expect(prefetchSpy).toHaveBeenCalled();
+  });
+
+  it("prefetches upcoming cards' content over wifi but not otherwise (D61)", async () => {
+    const cards = [card('post-1'), card('post-2'), card('post-3')];
+
+    getIsWifiMock.mockReturnValue(false);
+    await renderWithQueryClient(<FeedPager cards={cards} />);
+    await selectPage(0);
+    expect(prefetchPostContentMock).not.toHaveBeenCalled();
+
+    getIsWifiMock.mockReturnValue(true);
+    await selectPage(1);
+    expect(prefetchPostContentMock).toHaveBeenCalledWith(expect.anything(), 'post-3', 'en');
   });
 });

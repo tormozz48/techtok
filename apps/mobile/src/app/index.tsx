@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query';
+import { useIsRestoring, useQueryClient } from '@tanstack/react-query';
 import type { Card as CardData } from '@techtok/shared';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
@@ -14,6 +14,7 @@ import { useStrings } from '@/i18n/useStrings';
 
 export default function FeedScreen() {
   const { data, isLoading, isError, refetch, fetchNextPage, isFetchingNextPage } = useFeedQuery();
+  const isRestoring = useIsRestoring();
   const [activeCard, setActiveCard] = useState<CardData | undefined>(undefined);
   const strings = useStrings();
   const queryClient = useQueryClient();
@@ -39,7 +40,7 @@ export default function FeedScreen() {
     });
   }, [cards]);
 
-  if (isLoading) {
+  if (isLoading || isRestoring) {
     return <LoadingScreen />;
   }
 

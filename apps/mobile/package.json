@@ -42,6 +42,7 @@
   },
   "devDependencies": {
     "@storybook/react-native-web-vite": "^10.5.5",
+    "@testing-library/react-native": "^14.0.1",
     "@types/jest": "29.5.14",
     "@types/react": "~19.2.2",
     "@types/react-test-renderer": "19.1.0",

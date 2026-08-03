@@ -9,6 +9,7 @@ export interface SiteStrings {
     features: string;
     topics: string;
     sources: string;
+    releases: string;
     download: string;
   };
   hero: {
@@ -34,6 +35,13 @@ export interface SiteStrings {
   sources: {
     title: string;
     subtitle: string;
+  };
+  releases: {
+    title: string;
+    subtitle: string;
+    featuresLabel: string;
+    fixesLabel: string;
+    noChanges: string;
   };
   download: {
     title: string;
@@ -65,6 +73,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       features: 'Features',
       topics: 'Topics',
       sources: 'Sources',
+      releases: 'Releases',
       download: 'Download',
     },
     hero: {
@@ -120,6 +129,13 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       title: 'Sources',
       subtitle: 'Pulled in automatically from a curated set of feeds.',
     },
+    releases: {
+      title: "What's new",
+      subtitle: 'The latest updates, straight from the changelog.',
+      featuresLabel: 'Features',
+      fixesLabel: 'Fixes',
+      noChanges: 'No user-facing changes in this release.',
+    },
     download: {
       title: 'Get the app',
       subtitle: 'Scan the QR code or tap the button to download the latest Android build.',
@@ -146,6 +162,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       features: 'Возможности',
       topics: 'Темы',
       sources: 'Источники',
+      releases: 'Релизы',
       download: 'Скачать',
     },
     hero: {
@@ -201,6 +218,13 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       title: 'Источники',
       subtitle: 'Загружаются автоматически из подобранного набора RSS-лент.',
     },
+    releases: {
+      title: 'Что нового',
+      subtitle: 'Последние обновления — прямо из списка изменений.',
+      featuresLabel: 'Новое',
+      fixesLabel: 'Исправления',
+      noChanges: 'В этом релизе нет изменений, заметных пользователю.',
+    },
     download: {
       title: 'Скачать приложение',
       subtitle:
@@ -228,6 +252,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       features: 'Можливості',
       topics: 'Теми',
       sources: 'Джерела',
+      releases: 'Релізи',
       download: 'Завантажити',
     },
     hero: {
@@ -285,6 +310,13 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       title: 'Джерела',
       subtitle: 'Завантажуються автоматично з підібраного набору RSS-стрічок.',
     },
+    releases: {
+      title: 'Що нового',
+      subtitle: 'Останні оновлення — прямо зі списку змін.',
+      featuresLabel: 'Нове',
+      fixesLabel: 'Виправлення',
+      noChanges: 'У цьому релізі немає змін, помітних користувачу.',
+    },
     download: {
       title: 'Завантажити застосунок',
       subtitle:
@@ -312,6 +344,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       features: 'Funkcje',
       topics: 'Tematy',
       sources: 'Źródła',
+      releases: 'Wydania',
       download: 'Pobierz',
     },
     hero: {
@@ -367,6 +400,13 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
     sources: {
       title: 'Źródła',
       subtitle: 'Pobierane automatycznie z wyselekcjonowanego zestawu kanałów RSS.',
+    },
+    releases: {
+      title: 'Co nowego',
+      subtitle: 'Najnowsze aktualizacje — prosto z listy zmian.',
+      featuresLabel: 'Nowości',
+      fixesLabel: 'Poprawki',
+      noChanges: 'Brak zmian widocznych dla użytkownika w tym wydaniu.',
     },
     download: {
       title: 'Pobierz aplikację',

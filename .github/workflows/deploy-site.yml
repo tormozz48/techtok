@@ -30,9 +30,13 @@ jobs:
       # straight to main (D44). Without this, the site's version badge
       # (apps/site/src/lib/version.ts, reading apps/mobile/app.json) would
       # permanently build one release behind the tag mobile-build just cut.
+      # fetch-depth: 0 (D60) — the release-history feed reads mobile-v* tags
+      # via local git commands (apps/site/src/lib/releases.ts); the default
+      # shallow checkout carries no tag history at all.
       - uses: actions/checkout@v4
         with:
           ref: main
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
 

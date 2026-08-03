@@ -42,7 +42,7 @@ function computeStreak(readDays: ReadonlySet<string>): number {
 /** Client-computed from already-fetched history pages — no dedicated
  * backend endpoint (§12/plan: this is a pure derivation of data the app
  * already has). `primaryTopic` is absent on rows read before that field
- * existed (D-whatever affinity work); such rows simply don't contribute to
+ * existed (D48 affinity work); such rows simply don't contribute to
  * `topTopics`, degrading gracefully rather than erroring. */
 export function computeReadingStats(items: HistoryItem[], now: Date = new Date()): ReadingStats {
   const weekAgoMs = now.getTime() - 7 * MS_PER_DAY;

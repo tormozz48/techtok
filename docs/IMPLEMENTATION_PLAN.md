@@ -1,6 +1,6 @@
 # TechTok — Implementation Plan
 
-Companion to [DESIGN.md](DESIGN.md). Seventeen phases (0–6 original build-out, 7–10 the 2026-07-22 extension, D20–D25, 11–12 the 2026-07-24 extension, D26–D30, 13 the 2026-07-24 LLM provider swap, D32, 14 the 2026-07-24 CI/CD hardening, D33–D35, 15 the 2026-07-24 eager compact-article generation, D36, 16 the 2026-07-24 visual identity redesign + native-asset sync fix, D37, 17 the 2026-07-25 public project site on GitHub Pages, D39); every phase ends with something you can demo on a phone. Effort estimates are focused solo days — spread over evenings, multiply accordingly.
+Companion to [DESIGN.md](DESIGN.md). Eighteen phases (0–6 original build-out, 7–10 the 2026-07-22 extension, D20–D25, 11–12 the 2026-07-24 extension, D26–D30, 13 the 2026-07-24 LLM provider swap, D32, 14 the 2026-07-24 CI/CD hardening, D33–D35, 15 the 2026-07-24 eager compact-article generation, D36, 16 the 2026-07-24 visual identity redesign + native-asset sync fix, D37, 17 the 2026-07-25 public project site on GitHub Pages, D39, 18 the 2026-08-03 release history feed, D60); every phase ends with something you can demo on a phone. Effort estimates are focused solo days — spread over evenings, multiply accordingly.
 
 **Principles**
 
@@ -31,6 +31,7 @@ Companion to [DESIGN.md](DESIGN.md). Seventeen phases (0–6 original build-out,
 | 15 | Eager compact-article generation | `ContentQueue` (eager, all 4 languages), per-post figure-mirror dedup, `ContentJobs` table removal, reader API simplification | 2 d |
 | 16 | Visual identity redesign ("Orbit") + native-asset sync fix | New icon/splash assets, surgical `expo prebuild` resource sync preserving D18's signing config, real on-device APK verification | 1 d |
 | 17 | Public project site on GitHub Pages | New `apps/site` (Astro) workspace package, `deploy-site.yml` release-pipeline stage, non-prerelease APK releases | 1 d |
+| 18 | Release history feed | Build-time git-tag read (`apps/site/src/lib/releases.ts`), new site section, `deploy-site.yml` full-history checkout | <1 d |
 
 ---
 
@@ -457,6 +458,28 @@ Code (tasks 1–5) is complete and verified via the unit test suite and a full `
 
 ---
 
+## Phase 18 — Release history feed
+
+**Goal:** the public site's landing page shows the 3 most recent mobile app releases — version, date, and a real Features/Fixes changelog — reusing the release infra that already exists (D42/D58), with zero new backend work and zero new network calls at build time (D60).
+
+**Tasks**
+
+1. **`apps/site/src/lib/releases.ts`:** a build-time module that shells out to `git` via `execFileSync` (mirrors `scripts/bumpMobileVersion.ts`'s existing pattern), lists `mobile-v*` tags (`git tag --list 'mobile-v*' --sort=-v:refname`), takes the newest `RELEASE_HISTORY_COUNT` (= 3 — a comment cross-references `release-cleanup.yml`'s `KEEP` so a future retention change doesn't silently desync the two, since they aren't wired to one shared constant), and for each tag reads its annotated message (`git tag -l --format='%(contents)'`, or `git for-each-ref`) plus its creation date. Parses the message's `### Features`/`### Fixes` sections (D58's own generated format) into a typed `{ version, date, features: string[], fixes: string[] }[]`. No tags, fewer than 3, or a parse miss degrades to however many entries are actually available — never throws, never fails the build (the project's content-level-failures-degrade philosophy, applied to the site build itself).
+2. **`Releases.astro` component:** a new section composed into `Landing.astro` alongside Hero/Features/Topics/Sources/Download, with a `#releases` anchor matching the existing nav-anchor pattern (`#features`/`#topics`/`#sources`/`#download`). Renders each entry as version + localized date + Features/Fixes bullet lists. Changelog text itself stays English regardless of site locale (matches "ingest is English-only" — translating it would need a fourth ad hoc LLM call path outside the three the Hard Rules allow); an empty list (a brand-new repo with no tags yet) renders nothing rather than an empty section.
+3. **`SITE_COPY` additions:** a `releases: { title, subtitle, featuresLabel, fixesLabel }` block across all 4 languages in `copy.ts`, plus a `nav.releases` label and anchor link in `Header.astro`'s existing nav — same one-file-all-languages discipline as the rest of `copy.ts`.
+4. **`deploy-site.yml`:** checkout step gains `fetch-depth: 0` (mirrors `mobile-build.yml`'s existing use of full history) so `apps/site`'s build actually has the tags to read — a shallow checkout would silently see zero tags in CI even though a developer's full local clone works fine.
+5. **Tests:** a vitest file for `releases.ts`'s pure parsing function (tag-message → `{ features, fixes }`) against sample D58-format changelog text — a normal Features+Fixes case, a Features-only case, a Fixes-only case, and the "_No user-facing feat/fix commits..._" fallback case. Matches the "unit-test the pure logic, don't mock the git shell-out" split `bumpMobileVersion.ts`'s own test file already uses.
+
+**Acceptance criteria**
+
+- [ ] `pnpm lint && pnpm typecheck && pnpm test` green, including the new `releases.ts` parser tests.
+- [ ] `astro build` (run from a full local clone, tags present) produces a Releases section showing the 3 most recent `mobile-v*` tags with real version numbers, dates, and Features/Fixes bullets matching `git tag -n99` for those same tags.
+- [ ] A scratch test with a shallow (`--depth 1`) clone confirms `releases.ts` degrades to an empty/partial list rather than throwing or failing the build.
+- [ ] All 4 locales browser-checked: the section's chrome (title/subtitle/labels) is localized; changelog bullet text is English in every locale.
+- [ ] Deployed: `deploy-site.yml` runs with `fetch-depth: 0` and the live site shows real tag data, not a placeholder.
+
+---
+
 ## Sequencing notes & standing risks
 
 - Phases 0→3 are strictly ordered; 4–6 can interleave.
@@ -467,6 +490,7 @@ Code (tasks 1–5) is complete and verified via the unit test suite and a full `
 - Fifth extension (2026-07-24, D36): **13 → 15** — the user explicitly asked for this after the OpenRouter swap, and phase 15's own reasoning depends on it: the eager-compact cost multiplier is only an acceptable tradeoff because D32 already moved LLM spend off the AWS Budget alarm and D31 already removed caps. Phase 15 also reuses phase 12's eager-enqueue pattern (D27) as its template and touches the same reader screen phases 9/11/12 built, so it lands after all of those; it has no dependency on phase 14's CI/CD work.
 - Sixth extension (2026-07-24, D37): **16**, standalone — a mobile-asset/build-pipeline fix plus a redesign, with no dependency on 13/14/15's backend work. Surfaced by the user actually performing the on-device APK check every prior phase (7, 10, 11, 12) had deferred to "the maintainer's own step" without ever running — a reminder that a phase's own acceptance criteria checkbox staying unchecked is exactly the gap it's meant to flag, not a formality.
 - Seventh extension (2026-07-25, D39): **17**, standalone — a new static site with no dependency on any backend/mobile code from phases 0–16 beyond reading already-existing exported constants (topics, sources, app version) at build time. Its only real dependency is `mobile-build`'s GitHub Release step already existing (amended to non-prerelease) — true since D38/phase 14, so it could in principle have landed any time after that; ordered last only because it was decided last.
+- Eighth extension (2026-08-03, D60): **18**, standalone — a small, self-contained addition to phase 17's existing site, with no dependency on any other phase. Its only real dependencies are phase 17's site existing at all and D58's changelog-generating step inside `mobile-build.yml`; ordered last only because it was decided last.
 - The riskiest unknowns are front-loaded deliberately: DDB key design proves itself in phase 1 (read-exclusion at query time), pipeline semantics in phase 2 (dedup under concurrency), LLM economics in phase 3 (cap mechanics, later removed by D31) — and in the extension, on-demand economics in phase 8 (caps/quotas before new spend exists, later removed) and the rights guardrails at the start of phase 9 (the kill switch before the feature — this one stays, D31 only removed cost caps, not rights guardrails). Phase 12 repeats the front-load pattern once more: its task 1 is removing the cap mechanism entirely, before any eager-enqueue code is written on top of it. Phase 13 has no analogous risk to front-load — the provider swap is contained entirely behind the pre-existing `LlmProvider` interface, which is precisely why it's low-risk enough to sequence last. Each phase's acceptance criteria exist to force that proof.
 - Standing rule from DESIGN §2: content-level failures degrade (excerpt cards; for translations, degrade *is* the English fallback; for compacts, the direct link-out), infra-level failures alarm (DLQ). Any new pipeline code follows the same split.
 - Every LLM call goes through one of three defined paths — transform, translate (eager as of D27/phase 12), compact (eager as of D36/phase 15) — with no daily cap on any of them as of D31/phase 12, and no usage-gating (taps) left on any of them as of D36/phase 15. No ad-hoc LLM-provider calls outside those three paths, regardless of which provider (OpenRouter or Bedrock, D32/phase 13) is active.

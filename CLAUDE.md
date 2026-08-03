@@ -50,7 +50,7 @@ Beyond the 17 numbered phases: a follow-up initiative proposed in response to "l
 | B3 | Mute a source: `PUT /v1/me/muted-sources`, `GET /v1/sources`, settings UI | Open (#56) | Maintainer: open a PR from the branch's compare link and merge |
 | B4 | "Covered by N sources" badge, plus a real duplicate-chain bug fix found while building it | Open (#57) | Maintainer: open a PR from the branch's compare link and merge |
 | C1 | Search over history & bookmarks (`?q=` on the existing list endpoints) | Open (#58) | Maintainer: open a PR from the branch's compare link and merge |
-| C2 | Reading stats screen (streak, top topics/sources — client-computed from history pages) | Open (#59) | Maintainer: open a PR from the branch's compare link and merge |
+| C2 | Reading stats screen (streak, top topics/sources — client-computed from history pages) | Merged (#59), logged as D61 | — |
 | C3 | Listen mode: `expo-speech` TTS in the feed action bar and the compact reader | Open (#61) | Maintainer: open a PR from the branch's compare link and merge; on-device voice-availability check for ru/uk/pl |
 | C4 | Offline saved articles: wifi-gated content prefetch on bookmark + on Saved-screen load | Open (#62) | Maintainer: open a PR from the branch's compare link and merge |
 

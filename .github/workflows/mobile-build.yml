@@ -181,6 +181,30 @@ jobs:
           EXPO_PUBLIC_API_URL: ${{ inputs.api_url }}
         run: eas build --platform android --profile preview --local --non-interactive --output "${{ github.workspace }}/techtok.apk"
 
+      # D60: publishes this build's JS/asset bundle to the "preview" EAS
+      # Update channel — the same channel eas.json's `preview` profile (used
+      # just above) embeds into the APK — so an already-installed build picks
+      # it up automatically on next launch (AndroidManifest's
+      # EXPO_UPDATES_CHECK_ON_LAUNCH=ALWAYS) instead of a friend needing to
+      # reinstall. Gated on the build step above succeeding, since a failed
+      # native compile means we don't have confidence this commit's native
+      # side is sound. runtimeVersion is a hand-maintained string (D18's
+      # committed `android/` project has no per-build prebuild step, so a
+      # fingerprint policy would never actually be recomputed by CI — see
+      # D60) — publishing here is only safe for the current runtimeVersion.
+      # Any native-affecting change (new native dependency, app.json
+      # plugin/permission/icon change, Expo SDK bump) MUST bump
+      # runtimeVersion in both app.json and this generated
+      # strings.xml/expo_runtime_version by hand first, or this step would
+      # silently offer an incompatible JS bundle to already-installed apps.
+      - name: Publish OTA update (eas update)
+        working-directory: apps/mobile
+        env:
+          EXPO_PUBLIC_API_URL: ${{ inputs.api_url }}
+        run: |
+          VERSION=$(node -e "console.log(require('./app.json').expo.version)")
+          eas update --channel preview --platform android --non-interactive --message "v$VERSION"
+
       # prerelease: false (D39, amends this decision) — GitHub's
       # releases/latest alias only ever resolves to the newest *non*-prerelease
       # release, and the project site's download button + QR code both point

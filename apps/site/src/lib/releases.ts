@@ -48,8 +48,12 @@ const ITALIC_RE = /^_(.+)_$/;
  * Parses a mobile-v* annotated tag's message into structured bullets.
  * Handles two real shapes seen in this repo's actual tag history: D58's
  * intended "## What's changed" / "### Features" / "### Fixes" sectioning,
- * and the flat unsectioned bullet list every tag has actually carried so
- * far (D58 hasn't produced its sectioned output in a live run yet) —
+ * and the flat unsectioned bullet list every tag up through mobile-v0.15.1
+ * actually carries — not a generator bug, but `git tag -a -F` stripping any
+ * `#`-prefixed line (including those Markdown headers) as a comment before
+ * storing the tag message, fixed going forward by `--cleanup=verbatim` in
+ * mobile-build.yml (D58 amendment). Existing tags predate the fix and are
+ * immutable, so this fallback stays load-bearing indefinitely for them —
  * unsectioned bullets land in `other` rather than being dropped. A message
  * with no bullets at all (a bare commit subject, or the italic
  * "no user-facing changes" note) becomes a single `other` entry instead of

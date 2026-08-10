@@ -1,0 +1,70 @@
+---
+import type { Language } from '@techtok/shared';
+import type { SiteStrings } from '../lib/copy';
+import { getRecentReleases } from '../lib/releases';
+
+interface Props {
+  lang: Language;
+  copy: SiteStrings;
+}
+
+const { lang, copy } = Astro.props;
+const releases = getRecentReleases();
+const dateFormatter = new Intl.DateTimeFormat(lang, { dateStyle: 'long' });
+---
+
+{
+  releases.length > 0 && (
+    <section id="releases">
+      <div class="container">
+        <div class="section-heading">
+          <h2>{copy.releases.title}</h2>
+          <p>{copy.releases.subtitle}</p>
+        </div>
+        <div class="releases-list">
+          {releases.map((release) => (
+            <div class="release-card">
+              <div class="release-header">
+                <span class="release-version">{copy.download.version(release.version)}</span>
+                <span class="release-date">{dateFormatter.format(new Date(release.date))}</span>
+              </div>
+              {release.features.length === 0 && release.fixes.length === 0 && release.other.length === 0 ? (
+                <p class="release-empty">{copy.releases.noChanges}</p>
+              ) : (
+                <>
+                  {release.features.length > 0 && (
+                    <div class="release-group">
+                      <h3>{copy.releases.featuresLabel}</h3>
+                      <ul class="release-bullets" lang="en">
+                        {release.features.map((item) => (
+                          <li>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {release.fixes.length > 0 && (
+                    <div class="release-group">
+                      <h3>{copy.releases.fixesLabel}</h3>
+                      <ul class="release-bullets" lang="en">
+                        {release.fixes.map((item) => (
+                          <li>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {release.other.length > 0 && (
+                    <ul class="release-bullets" lang="en">
+                      {release.other.map((item) => (
+                        <li>{item}</li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}

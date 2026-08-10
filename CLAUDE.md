@@ -4,14 +4,14 @@ TikTok-style swipe feed for tech & science news: Expo/React Native Android app +
 
 The two documents that govern this repo:
 
-- [docs/DESIGN.md](docs/DESIGN.md) — architecture, API, data model. §2 is the **decision log** (D1–D55), §12 the deferred defaults.
+- [docs/DESIGN.md](docs/DESIGN.md) — architecture, API, data model. §2 is the **decision log** (D1–D62), §12 the deferred defaults.
 - [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) — 7 phases, each gated by acceptance criteria.
 
 Never re-decide something already in the decision log. If a decision must change, update the log entry with the reason (`/log-decision`), then implement.
 
 ## Status
 
-Phases 0–17 are code complete (phase 6 doesn't exist yet). Full narrative history/verification detail lives in git history and the DESIGN.md decision log (D1–D55) — this table tracks only current state and what's still outstanding.
+Phases 0–17 are code complete (phase 6 doesn't exist yet). Full narrative history/verification detail lives in git history and the DESIGN.md decision log (D1–D62) — this table tracks only current state and what's still outstanding.
 
 | Phase | Topic | Status | What's left |
 |---|---|---|---|
@@ -47,14 +47,13 @@ Beyond the 17 numbered phases: a follow-up initiative proposed in response to "l
 | A6 | Serve only `ready` posts in the feed, closing a documented-intent gap (D45) | Merged (#53) | — |
 | B1 | Affinity write path: per-user `topicReads` counters, written off the existing feed-touch read | Merged (#55) | — |
 | B2 | Affinity scoring blend: recency × source weight × a bounded topic-affinity boost | Merged (#54) | — |
-| B3 | Mute a source: `PUT /v1/me/muted-sources`, `GET /v1/sources`, settings UI | Open (#56) | Maintainer: open a PR from the branch's compare link and merge |
-| B4 | "Covered by N sources" badge, plus a real duplicate-chain bug fix found while building it | Open (#57) | Maintainer: open a PR from the branch's compare link and merge |
-| C1 | Search over history & bookmarks (`?q=` on the existing list endpoints) | Open (#58) | Maintainer: open a PR from the branch's compare link and merge |
-| C2 | Reading stats screen (streak, top topics/sources — client-computed from history pages) | Open (#59) | Maintainer: open a PR from the branch's compare link and merge |
-| C3 | Listen mode: `expo-speech` TTS in the feed action bar and the compact reader | Open (#61) | Maintainer: open a PR from the branch's compare link and merge; on-device voice-availability check for ru/uk/pl |
-| C4 | Offline saved articles: wifi-gated content prefetch on bookmark + on Saved-screen load | Open (#62) | Maintainer: open a PR from the branch's compare link and merge |
-
-**Decision-log renumbering needed at merge time.** Because every increment above is an independently-forked branch (per the maintainer's "separate PRs" instruction), several branches computed their own decision-log row using the same "next free number" without visibility into each other or into decisions merged elsewhere in the meantime — the same class of collision D44 vs. the concurrently-merged mobile-version-bump PR already hit once, and D46 (in this same PR) backfills an earlier, pre-existing instance of exactly this problem from D38. Concretely: A6/B1/B2 landed cleanly as D45 (A6, now on `main`) because they merged first; B3, B4, C1, C3 (`D44` on its branch), and C4 (`D45` on its branch) each independently added a row that will very likely collide with `main`'s actual next-free number by the time they merge. **Resolution recipe, applied per branch at merge time:** rebase onto `main`, keep the row's Decision/Choice/Why/Revisit-when text as-is, renumber only its `D#` to whatever is actually next on `main`, and fix any cross-reference inside that same row's own text if it cites its old number.
+| B3 | Mute a source: `PUT /v1/me/muted-sources`, `GET /v1/sources`, settings UI | Merged (#56) | — |
+| B4 | "Covered by N sources" badge, plus a real duplicate-chain bug fix found while building it | Merged (#57) | — |
+| C1 | Search over history & bookmarks (`?q=` on the existing list endpoints) | Merged (#58) | — |
+| C2 | Reading stats screen (streak, top topics/sources — client-computed from history pages) | Merged (#59), logged as D62 | — |
+| C3 | Listen mode: `expo-speech` TTS in the feed action bar and the compact reader | Merged (#61) | Maintainer: on-device voice-availability check for ru/uk/pl |
+| C4 | Offline saved articles: wifi-gated content prefetch on bookmark + on Saved-screen load | Merged (#62), logged as D55 | — |
+| C5 | Feed read-ahead content prefetch, extending C4/D55 from explicit bookmarks to scroll position, + a fix so prefetch actually covers in-body figures, + a 50-entry eviction cap (D61) | Code complete | Maintainer: commit, push, open a PR from the branch's compare link and merge. No on-device Expo Go pass possible in this environment (same constraint as every prior mobile phase) |
 
 Notable cross-phase gotchas worth remembering: DynamoDB reserved keywords (`language`, `status`, `transform`) must be aliased in `UpdateExpression`s — `aws-sdk-client-mock` won't catch this, only a live call will (bit both phase 2 and phase 8). Schema narrowing needs a pre-flight row count against live stages (see Schema & Data Migrations below) — phase 12/D31 shipped without this and 500'd on 1,740 stale `dev` rows. In `apps/site` (phase 17), Astro's `getStaticPaths()` runs in an isolated scope that can see imports but not a sibling top-level `const` in the same file (compute locale lists from an imported binding, not a local constant, or the build throws a `ReferenceError` at generate time); and `import.meta.env.BASE_URL` has no trailing slash (`/techtok`, not `/techtok/`) — use the `withBase()` helper in `src/lib/locale.ts` rather than a raw `${base}${path}` concatenation.
 

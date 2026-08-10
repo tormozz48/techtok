@@ -352,6 +352,69 @@ section {
   font-size: 0.8125rem;
 }
 
+/* Releases */
+.releases-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.release-card {
+  background: var(--navy-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+}
+
+.release-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.release-version {
+  font-weight: 700;
+  font-size: 1.0625rem;
+}
+
+.release-date {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.release-group + .release-group {
+  margin-top: var(--space-3);
+}
+
+.release-group h3 {
+  margin: 0 0 var(--space-1);
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--amber-soft);
+}
+
+.release-bullets {
+  margin: 0;
+  padding-left: 1.25em;
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+}
+
+.release-bullets li {
+  margin: var(--space-1) 0;
+}
+
+.release-empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9375rem;
+  font-style: italic;
+}
+
 /* Download */
 .download-panel {
   display: grid;

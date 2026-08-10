@@ -5,10 +5,12 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 
 /**
  * In-app loading screen (DESIGN §2 D25, theme-aware per D56): shown between
- * the native splash screen and the first rendered feed page while that very
- * first fetch is in flight. Cold-start only — a warm start restores the
- * persisted feed cache before `isLoading` ever turns true, so this never
- * flashes on a relaunch.
+ * the native splash screen and the first rendered feed page — while the very
+ * first fetch is in flight (cold start), and while FeedScreen's `isRestoring`
+ * gate is true (warm start). The latter matters because restoring the
+ * persisted cache from AsyncStorage isn't instant, and `isLoading` stays
+ * false the whole time (fetches are paused during restore) — without this
+ * gate the feed's empty state flashes before the restored cards appear.
  */
 export function LoadingScreen() {
   const colors = useThemeColors();

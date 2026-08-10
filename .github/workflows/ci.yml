@@ -149,6 +149,42 @@ jobs:
           fi
           echo "app_name: OK"
 
+          # runtimeVersion is compared by value, for the same reason as
+          # app_name above: app.json changes on every mobile release (the
+          # automated version bump), but runtimeVersion itself only changes
+          # for native-incompatible changes, so a commit-recency check here
+          # would be permanently, falsely stale too.
+          RUNTIME_VERSION=$(jq -r '.expo.runtimeVersion' apps/mobile/app.json)
+          STRINGS_RUNTIME_VERSION=$(grep -o 'name="expo_runtime_version">[^<]*' apps/mobile/android/app/src/main/res/values/strings.xml | sed 's/.*>//')
+          if [ "$RUNTIME_VERSION" != "$STRINGS_RUNTIME_VERSION" ]; then
+            echo "::error::apps/mobile/android/app/src/main/res/values/strings.xml's expo_runtime_version ('$STRINGS_RUNTIME_VERSION') doesn't match app.json's expo.runtimeVersion ('$RUNTIME_VERSION'). Run 'pnpm --filter mobile prebuild:android -- --clean' and commit the change."
+            exit 1
+          fi
+          echo "expo_runtime_version: OK"
+
+  mobile-security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install mobsfscan
+        run: pip install mobsfscan
+      # Scoped to the TS source, the *release* AndroidManifest (main source
+      # set only -- debug/debugOptimized deliberately excluded: their
+      # cleartext-traffic/missing-allowBackup flags are expected Metro/adb
+      # dev conveniences that never ship) and the Expo/EAS config. See
+      # apps/mobile/.mobsf for why android_task_hijacking1/2 are ignored.
+      # No -w/--exit-warning: WARNING-level findings (e.g. allowBackup=true,
+      # Expo's default) surface in the log without failing the build; only
+      # ERROR-severity findings do.
+      - name: Scan apps/mobile for security issues
+        run: |
+          mobsfscan \
+            apps/mobile/src \
+            apps/mobile/android/app/src/main \
+            apps/mobile/app.json \
+            apps/mobile/eas.json \
+            -c apps/mobile/.mobsf
+
   # From here down (D38, extended by D39): this is the release pipeline for a
   # merge to main — dev deploy -> e2e against dev -> production deploy ->
   # mobile build -> {site deploy, release cleanup} (the last two run in
@@ -190,7 +226,7 @@ jobs:
     secrets: inherit
 
   deploy-production:
-    needs: [e2e, lint, typecheck, test, schema-check, mobile-icon-check]
+    needs: [e2e, lint, typecheck, test, schema-check, mobile-icon-check, mobile-security-scan]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     uses: ./.github/workflows/deploy-production.yml
     permissions:

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { SourceRecord } from '../sources.types';
 import { createSourceWeightsCache } from './sourceWeightsCache';
 
-function source(sourceId: string, weight: number): SourceRecord {
+function source(sourceId: string, weight: number, compactEnabled?: boolean): SourceRecord {
   return {
     sourceId,
     name: sourceId,
@@ -11,6 +11,7 @@ function source(sourceId: string, weight: number): SourceRecord {
     weight,
     enabled: true,
     failCount: 0,
+    compactEnabled,
   };
 }
 
@@ -49,5 +50,28 @@ describe('createSourceWeightsCache', () => {
 
     expect(weights.get('a')).toBe(2);
     expect(weights.get('b')).toBe(5);
+  });
+
+  it('exposes sourceIds with the compact-reader kill switch explicitly off', async () => {
+    const listEnabled = vi
+      .fn()
+      .mockResolvedValue([source('a', 2), source('b', 5, false), source('c', 1, true)]);
+    const cache = createSourceWeightsCache({ listEnabled });
+
+    const disabled = await cache.getCompactDisabledSourceIds();
+
+    expect(disabled).toEqual(new Set(['b']));
+  });
+
+  it('shares one scan between getSourceWeights and getCompactDisabledSourceIds', async () => {
+    const listEnabled = vi.fn().mockResolvedValue([source('a', 2, false)]);
+    let now = 0;
+    const cache = createSourceWeightsCache({ listEnabled }, 1000, () => now);
+
+    await cache.getSourceWeights();
+    now += 500;
+    await cache.getCompactDisabledSourceIds();
+
+    expect(listEnabled).toHaveBeenCalledTimes(1);
   });
 });

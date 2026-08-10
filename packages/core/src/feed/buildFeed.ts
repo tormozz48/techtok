@@ -12,6 +12,10 @@ export interface BuildFeedDeps {
   ) => Promise<PostRecord[]>;
   readonly getReadSet: (postIds: string[]) => Promise<Set<string>>;
   readonly getSourceWeights: () => Promise<Map<string, number>>;
+  /** sourceIds with the compact-reader kill switch (D23) off — excluded from
+   * the feed since they can never produce a short version (see D45 amendment).
+   * Optional so existing callers/tests without this concern default to no exclusions. */
+  readonly getCompactDisabledSourceIds?: () => Promise<Set<string>>;
 }
 
 export interface BuildFeedParams {
@@ -45,11 +49,13 @@ export interface FeedPage {
  * change the GSI watermark cursor, or pagination would skip or repeat posts.
  *
  * Posts flagged `duplicateOf` (phase-4 cross-source dedup experiment),
- * posts from a muted source, and posts not yet `status: 'ready'` (pre-transform
- * `discovered`, or `failed`) are filtered out here rather than at the
- * DynamoDB layer — an accepted over-fetch tradeoff (a page with many
- * duplicates, muted-source, or non-ready posts may return fewer than `limit`
- * items) rather than adding a GSI just for this.
+ * posts from a muted source, posts from a source with the compact-reader
+ * kill switch off (D23 — they can never have a short version), and posts not
+ * yet `status: 'ready'` (pre-transform `discovered`, or `failed`) are filtered
+ * out here rather than at the DynamoDB layer — an accepted over-fetch tradeoff
+ * (a page with many duplicates, muted-source, compact-disabled, or non-ready
+ * posts may return fewer than `limit` items) rather than adding a GSI just for
+ * this.
  *
  * The `status` filter has the same watermark-cursor tradeoff as
  * `duplicateOf`: within one continuous pagination session, a post that is
@@ -71,10 +77,15 @@ export async function buildFeed(deps: BuildFeedDeps, params: BuildFeedParams): P
   for (const posts of perTopicResults) {
     for (const post of posts) merged.set(post.postId, post);
   }
+  const compactDisabledSourceIds =
+    (await deps.getCompactDisabledSourceIds?.()) ?? new Set<string>();
   const candidatesByTime = [...merged.values()]
     .filter(
       (post) =>
-        !post.duplicateOf && post.status === 'ready' && !params.mutedSourceIds?.has(post.sourceId),
+        !post.duplicateOf &&
+        post.status === 'ready' &&
+        !params.mutedSourceIds?.has(post.sourceId) &&
+        !compactDisabledSourceIds.has(post.sourceId),
     )
     .sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : a.publishedAt > b.publishedAt ? -1 : 0))
     .slice(0, MAX_CANDIDATES);

@@ -274,6 +274,21 @@ describe('buildFeed', () => {
     expect(page.items.map((p) => p.postId)).toEqual(['a']);
   });
 
+  it('excludes posts from a source with the compact-reader kill switch off', async () => {
+    const kept = post('a', 'ai', '2026-07-19T02:00:00.000Z', 'verge');
+    const disabled = post('b', 'ai', '2026-07-19T01:00:00.000Z', 'paywalled');
+    const queryByTopic = vi.fn().mockResolvedValue([kept, disabled]);
+    const getReadSet = vi.fn().mockResolvedValue(new Set());
+    const getCompactDisabledSourceIds = vi.fn().mockResolvedValue(new Set(['paywalled']));
+
+    const page = await buildFeed(
+      { queryByTopic, getReadSet, getSourceWeights: noWeights(), getCompactDisabledSourceIds },
+      { userTopics: ['ai'], limit: 20 },
+    );
+
+    expect(page.items.map((p) => p.postId)).toEqual(['a']);
+  });
+
   it('excludes posts that are not yet ready (discovered or failed)', async () => {
     const ready = post('a', 'ai', '2026-07-19T02:00:00.000Z');
     const discovered = {

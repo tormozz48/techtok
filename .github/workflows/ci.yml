@@ -149,6 +149,19 @@ jobs:
           fi
           echo "app_name: OK"
 
+          # runtimeVersion is compared by value, for the same reason as
+          # app_name above: app.json changes on every mobile release (the
+          # automated version bump), but runtimeVersion itself only changes
+          # for native-incompatible changes, so a commit-recency check here
+          # would be permanently, falsely stale too.
+          RUNTIME_VERSION=$(jq -r '.expo.runtimeVersion' apps/mobile/app.json)
+          STRINGS_RUNTIME_VERSION=$(grep -o 'name="expo_runtime_version">[^<]*' apps/mobile/android/app/src/main/res/values/strings.xml | sed 's/.*>//')
+          if [ "$RUNTIME_VERSION" != "$STRINGS_RUNTIME_VERSION" ]; then
+            echo "::error::apps/mobile/android/app/src/main/res/values/strings.xml's expo_runtime_version ('$STRINGS_RUNTIME_VERSION') doesn't match app.json's expo.runtimeVersion ('$RUNTIME_VERSION'). Run 'pnpm --filter mobile prebuild:android -- --clean' and commit the change."
+            exit 1
+          fi
+          echo "expo_runtime_version: OK"
+
   mobile-security-scan:
     runs-on: ubuntu-latest
     steps:

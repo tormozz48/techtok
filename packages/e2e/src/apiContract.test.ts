@@ -1,7 +1,5 @@
-import { randomUUID } from 'node:crypto';
 import {
   bookmarksResponseSchema,
-  DEVICE_ID_HEADER,
   DEVICE_LANGUAGE_HEADER,
   feedResponseSchema,
   historyResponseSchema,
@@ -11,29 +9,37 @@ import {
 } from '@techtok/shared';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { discoverDevResources, getApiEndpoint } from './awsDiscovery';
+import { fetchTestIdToken, readTestCredentials } from './googleTestAuth';
 
-/** A fresh device identity, isolated from every other test in this file —
- * mutation tests need their own user row so they can't see stale state left
- * behind by another test (or be seen by one), regardless of run order. */
-function freshHeaders(): Record<string, string> {
-  return { [DEVICE_ID_HEADER]: randomUUID(), [DEVICE_LANGUAGE_HEADER]: 'en' };
-}
+/** D68: the API now requires a verified Google ID token, so per-test
+ * isolation via a random device UUID (the pre-D68 approach) no longer
+ * exists — every test in this file authenticates as the same dedicated test
+ * Google account. Vitest runs tests within one file/describe sequentially by
+ * default, so this is safe, but it does mean these tests are no longer
+ * independent of run order the way the old per-test identity made them; a
+ * future test that needs true isolation would need a second test account. */
+const testCredentials = readTestCredentials();
 
 /**
  * Calls the real deployed `dev` API over HTTP — exactly the requests the
- * mobile client makes on a fresh device — and parses every response through
- * the same `packages/shared` zod schemas the app itself uses. A parse
- * failure here means an already-installed, sideloaded APK (no auto-update,
- * D18) would fail to render (DESIGN §2 D34). Never run against `production`.
+ * mobile client makes — and parses every response through the same
+ * `packages/shared` zod schemas the app itself uses. A parse failure here
+ * means an already-installed, sideloaded APK (no auto-update, D18) would
+ * fail to render (DESIGN §2 D34). Never run against `production`. Skips
+ * entirely when GOOGLE_TEST_REFRESH_TOKEN/GOOGLE_OAUTH_WEB_CLIENT_ID/
+ * GOOGLE_OAUTH_WEB_CLIENT_SECRET aren't set (see googleTestAuth.ts) — true
+ * for every environment except the maintainer-provisioned e2e.yml run.
  */
-describe('API contract E2E', () => {
+describe.skipIf(!testCredentials)('API contract E2E', () => {
   let apiEndpoint: string;
   let headers: Record<string, string>;
 
   beforeAll(async () => {
     const resources = await discoverDevResources();
     apiEndpoint = await getApiEndpoint(resources.apiId);
-    headers = freshHeaders();
+    // biome-ignore lint/style/noNonNullAssertion: describe.skipIf above guarantees this block only runs when testCredentials is set.
+    const idToken = await fetchTestIdToken(testCredentials!);
+    headers = { Authorization: `Bearer ${idToken}`, [DEVICE_LANGUAGE_HEADER]: 'en' };
   }, 60_000);
 
   it('GET /v1/topics returns a body matching topicsResponseSchema', async () => {
@@ -84,16 +90,21 @@ describe('API contract E2E', () => {
  * suite above only ever reads, so a handler that's wired up wrong (e.g. an
  * env var/table link a route's infra config never declared) can 500 in
  * production while every GET-only contract test keeps passing, exactly what
- * happened to `POST /v1/bookmarks` (missing `usersTable` link). Each test
- * uses its own fresh device so they can run in any order without seeing each
- * other's state.
+ * happened to `POST /v1/bookmarks` (missing `usersTable` link). Post-D68,
+ * every test in this file shares one authenticated identity (see the note
+ * on `testCredentials` above) rather than a fresh device per test, so these
+ * mutation tests run against — and mutate — the same user row in sequence.
  */
-describe('API mutation E2E', () => {
+describe.skipIf(!testCredentials)('API mutation E2E', () => {
   let apiEndpoint: string;
+  let headers: Record<string, string>;
 
   beforeAll(async () => {
     const resources = await discoverDevResources();
     apiEndpoint = await getApiEndpoint(resources.apiId);
+    // biome-ignore lint/style/noNonNullAssertion: describe.skipIf above guarantees this block only runs when testCredentials is set.
+    const idToken = await fetchTestIdToken(testCredentials!);
+    headers = { Authorization: `Bearer ${idToken}`, [DEVICE_LANGUAGE_HEADER]: 'en' };
   }, 60_000);
 
   async function fetchFirstPostId(headers: Record<string, string>): Promise<string> {
@@ -106,7 +117,6 @@ describe('API mutation E2E', () => {
   }
 
   it('POST /v1/reads marks a post read, and it shows up in GET /v1/history', async () => {
-    const headers = freshHeaders();
     const postId = await fetchFirstPostId(headers);
 
     const readsRes = await fetch(`${apiEndpoint}/v1/reads`, {
@@ -123,7 +133,6 @@ describe('API mutation E2E', () => {
   });
 
   it('PUT /v1/me/topics persists the given topics into GET /v1/me', async () => {
-    const headers = freshHeaders();
     const topics = ['ai', 'security'];
 
     const putRes = await fetch(`${apiEndpoint}/v1/me/topics`, {
@@ -141,8 +150,6 @@ describe('API mutation E2E', () => {
   });
 
   it('PUT /v1/me/language persists the given language into GET /v1/me', async () => {
-    const headers = freshHeaders();
-
     const putRes = await fetch(`${apiEndpoint}/v1/me/language`, {
       method: 'PUT',
       headers: { ...headers, 'content-type': 'application/json' },
@@ -158,7 +165,6 @@ describe('API mutation E2E', () => {
   });
 
   it('PUT /v1/me/muted-sources persists the given source ids into GET /v1/me', async () => {
-    const headers = freshHeaders();
     const sourceIds = ['e2e-mutation-test-source'];
 
     const putRes = await fetch(`${apiEndpoint}/v1/me/muted-sources`, {
@@ -176,7 +182,6 @@ describe('API mutation E2E', () => {
   });
 
   it('POST /v1/bookmarks creates a bookmark visible in GET /v1/bookmarks, DELETE removes it', async () => {
-    const headers = freshHeaders();
     const postId = await fetchFirstPostId(headers);
 
     const createRes = await fetch(`${apiEndpoint}/v1/bookmarks`, {

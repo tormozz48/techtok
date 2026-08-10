@@ -12,4 +12,11 @@ export interface UserRecord {
   /** Implicit per-topic read affinity signal (feed/scoring.ts consumes this
    * as a bounded ranking boost). Absent until the user's first read. */
   readonly topicReads?: Partial<Record<Topic, number>>;
+  /** From the Google ID token (D68) — the first personal data this app has
+   * ever stored. Kept fresh on every touch, unlike the fields below. */
+  readonly email?: string;
+  readonly name?: string;
+  /** IANA timezone, captured once at sign-in (D68/D69's local-midnight quota
+   * reset) — never re-derived from later requests. Falls back to UTC. */
+  readonly timezone?: string;
 }

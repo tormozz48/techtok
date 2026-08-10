@@ -3,7 +3,7 @@ import { type ContentResponse, contentQuerySchema } from '@techtok/shared';
 import { requireEnv } from '../../env';
 import { lazy } from '../../lazy';
 import { getPostsRepo, getSourcesRepo } from '../../repos';
-import { errorResponse, jsonResponse, parseQuery, withDeviceId } from '../lib/http';
+import { errorResponse, jsonResponse, parseQuery, withAuth } from '../lib/http';
 
 const getS3Client = lazy(createS3Client);
 const getContentStore = lazy(
@@ -18,7 +18,7 @@ const getContentStore = lazy(
  * just-ingested post's eager job hasn't finished yet. Never calls the LLM on
  * this request path.
  */
-export const handler = withDeviceId(async (event, _deviceId) => {
+export const handler = withAuth(async (event, _auth) => {
   const postId = event.pathParameters?.postId;
   if (!postId) {
     return errorResponse(400, 'missing_post_id', 'postId path parameter is required');

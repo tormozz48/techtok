@@ -39,6 +39,24 @@ export interface ChromeStrings {
     hintSome: (selected: number, total: number) => string;
     cta: string;
   };
+  auth: {
+    title: string;
+    subtitle: string;
+    signInCta: string;
+    signingIn: string;
+    error: string;
+  };
+  account: {
+    title: string;
+    signedInAs: (email: string) => string;
+    signOut: string;
+    deleteAccount: string;
+    deleteAccountConfirmTitle: string;
+    deleteAccountConfirmMessage: string;
+    deleteAccountConfirmCta: string;
+    deleteAccountError: string;
+    cancel: string;
+  };
   card: {
     translatedBadge: string;
     sourceCount: (count: number) => string;
@@ -126,6 +144,25 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       hintSome: (selected, total) => `Showing ${selected} of ${total} topics.`,
       cta: 'Get started',
     },
+    auth: {
+      title: 'Welcome to TechTok',
+      subtitle: 'Sign in with Google to start swiping.',
+      signInCta: 'Sign in with Google',
+      signingIn: 'Signing in…',
+      error: 'Sign-in failed. Please try again.',
+    },
+    account: {
+      title: 'Account',
+      signedInAs: (email) => `Signed in as ${email}`,
+      signOut: 'Sign out',
+      deleteAccount: 'Delete account',
+      deleteAccountConfirmTitle: 'Delete your account?',
+      deleteAccountConfirmMessage:
+        'This permanently deletes your reading history, bookmarks, and preferences. This cannot be undone.',
+      deleteAccountConfirmCta: 'Delete',
+      deleteAccountError: 'Failed to delete your account. Please try again.',
+      cancel: 'Cancel',
+    },
     card: {
       translatedBadge: 'Translated',
       sourceCount: (count) => `Covered by ${count} sources`,
@@ -206,6 +243,25 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       hintAll: 'Выберите интересные вам темы или оставьте всё включённым.',
       hintSome: (selected, total) => `Показано ${selected} из ${total} тем.`,
       cta: 'Начать',
+    },
+    auth: {
+      title: 'Добро пожаловать в TechTok',
+      subtitle: 'Войдите через Google, чтобы начать.',
+      signInCta: 'Войти через Google',
+      signingIn: 'Выполняется вход…',
+      error: 'Не удалось войти. Попробуйте снова.',
+    },
+    account: {
+      title: 'Аккаунт',
+      signedInAs: (email) => `Вы вошли как ${email}`,
+      signOut: 'Выйти',
+      deleteAccount: 'Удалить аккаунт',
+      deleteAccountConfirmTitle: 'Удалить аккаунт?',
+      deleteAccountConfirmMessage:
+        'Это навсегда удалит вашу историю чтения, закладки и настройки. Отменить это действие нельзя.',
+      deleteAccountConfirmCta: 'Удалить',
+      deleteAccountError: 'Не удалось удалить аккаунт. Попробуйте снова.',
+      cancel: 'Отмена',
     },
     card: {
       translatedBadge: 'Перевод',
@@ -288,6 +344,25 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       hintSome: (selected, total) => `Показано ${selected} з ${total} тем.`,
       cta: 'Почати',
     },
+    auth: {
+      title: 'Ласкаво просимо до TechTok',
+      subtitle: 'Увійдіть через Google, щоб почати.',
+      signInCta: 'Увійти через Google',
+      signingIn: 'Виконується вхід…',
+      error: 'Не вдалося увійти. Спробуйте ще раз.',
+    },
+    account: {
+      title: 'Обліковий запис',
+      signedInAs: (email) => `Ви увійшли як ${email}`,
+      signOut: 'Вийти',
+      deleteAccount: 'Видалити обліковий запис',
+      deleteAccountConfirmTitle: 'Видалити обліковий запис?',
+      deleteAccountConfirmMessage:
+        'Це назавжди видалить вашу історію читання, закладки та налаштування. Цю дію не можна скасувати.',
+      deleteAccountConfirmCta: 'Видалити',
+      deleteAccountError: 'Не вдалося видалити обліковий запис. Спробуйте ще раз.',
+      cancel: 'Скасувати',
+    },
     card: {
       translatedBadge: 'Переклад',
       sourceCount: (count) => `Висвітлюється у ${count} джерелах`,
@@ -368,6 +443,25 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       hintAll: 'Wybierz interesujące Cię tematy albo zostaw wszystkie włączone.',
       hintSome: (selected, total) => `Wyświetlono ${selected} z ${total} tematów.`,
       cta: 'Zaczynajmy',
+    },
+    auth: {
+      title: 'Witamy w TechTok',
+      subtitle: 'Zaloguj się przez Google, aby zacząć.',
+      signInCta: 'Zaloguj się przez Google',
+      signingIn: 'Logowanie…',
+      error: 'Logowanie nie powiodło się. Spróbuj ponownie.',
+    },
+    account: {
+      title: 'Konto',
+      signedInAs: (email) => `Zalogowano jako ${email}`,
+      signOut: 'Wyloguj się',
+      deleteAccount: 'Usuń konto',
+      deleteAccountConfirmTitle: 'Usunąć konto?',
+      deleteAccountConfirmMessage:
+        'To trwale usunie Twoją historię czytania, zapisane artykuły i ustawienia. Tej operacji nie można cofnąć.',
+      deleteAccountConfirmCta: 'Usuń',
+      deleteAccountError: 'Nie udało się usunąć konta. Spróbuj ponownie.',
+      cancel: 'Anuluj',
     },
     card: {
       translatedBadge: 'Tłumaczenie',

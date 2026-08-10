@@ -1,10 +1,15 @@
 import { meResponseSchema } from '@techtok/shared';
 import { getUsersRepo } from '../../repos';
-import { extractDeviceLanguage } from '../lib/deviceId';
-import { jsonResponse, withDeviceId } from '../lib/http';
+import { extractDeviceLanguage, extractDeviceTimezone } from '../lib/auth';
+import { jsonResponse, withAuth } from '../lib/http';
 import { toMeResponse } from '../transformers/toMeResponse';
 
-export const handler = withDeviceId(async (event, deviceId) => {
-  const user = await getUsersRepo().touch(deviceId, extractDeviceLanguage(event));
+export const handler = withAuth(async (event, auth) => {
+  const user = await getUsersRepo().touch(auth.userId, {
+    deviceLanguage: extractDeviceLanguage(event),
+    timezone: extractDeviceTimezone(event),
+    email: auth.email,
+    name: auth.name,
+  });
   return jsonResponse(200, meResponseSchema.parse(toMeResponse(user)));
 });

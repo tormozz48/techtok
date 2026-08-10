@@ -8,5 +8,7 @@ export function toMeResponse(user: UserRecord): MeResponse {
     createdAt: user.createdAt,
     language: user.language ?? 'en',
     mutedSources: user.mutedSources ?? [],
+    email: user.email,
+    name: user.name,
   };
 }

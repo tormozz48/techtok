@@ -1,4 +1,4 @@
-import { DynamoDBDocumentClient, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { DeleteCommand, DynamoDBDocumentClient, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { mockClient } from 'aws-sdk-client-mock';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { UsersRepo } from './usersRepo';
@@ -30,18 +30,69 @@ describe('usersRepo.touch', () => {
     expect(input?.UpdateExpression).toContain('lastSeenAt = :now');
     expect(input?.UpdateExpression).toContain('if_not_exists(topics, :emptyTopics)');
     expect(input?.UpdateExpression).toContain('#language = if_not_exists(#language, :language)');
+    expect(input?.UpdateExpression).toContain('timezone = if_not_exists(timezone, :timezone)');
     expect(input?.ExpressionAttributeNames).toEqual({ '#language': 'language' });
-    expect(input?.ExpressionAttributeValues).toMatchObject({ ':language': 'en' });
+    expect(input?.ExpressionAttributeValues).toMatchObject({
+      ':language': 'en',
+      ':timezone': 'UTC',
+    });
   });
 
-  it('seeds language from the device language when given', async () => {
+  it('seeds language and timezone from the given opts', async () => {
     ddbMock.on(UpdateCommand).resolves({ Attributes: { userId: 'device-1' } });
     const repo = new UsersRepo(client, 'Users');
 
-    await repo.touch('device-1', 'uk');
+    await repo.touch('device-1', { deviceLanguage: 'uk', timezone: 'Europe/Kyiv' });
 
     const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
-    expect(input?.ExpressionAttributeValues).toMatchObject({ ':language': 'uk' });
+    expect(input?.ExpressionAttributeValues).toMatchObject({
+      ':language': 'uk',
+      ':timezone': 'Europe/Kyiv',
+    });
+  });
+
+  // D68: email/name come from the Google ID token and are kept fresh on
+  // every touch, unlike language/timezone's if_not_exists seed-once shape.
+  it('sets email/name unconditionally (not if_not_exists) when given', async () => {
+    ddbMock.on(UpdateCommand).resolves({ Attributes: { userId: 'device-1' } });
+    const repo = new UsersRepo(client, 'Users');
+
+    await repo.touch('device-1', { email: 'ada@example.com', name: 'Ada' });
+
+    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
+    expect(input?.UpdateExpression).toContain('email = :email');
+    expect(input?.UpdateExpression).toContain('#name = :name');
+    expect(input?.ExpressionAttributeNames).toMatchObject({ '#name': 'name' });
+    expect(input?.ExpressionAttributeValues).toMatchObject({
+      ':email': 'ada@example.com',
+      ':name': 'Ada',
+    });
+  });
+
+  it('omits email/name from the update entirely when not given', async () => {
+    ddbMock.on(UpdateCommand).resolves({ Attributes: { userId: 'device-1' } });
+    const repo = new UsersRepo(client, 'Users');
+
+    await repo.touch('device-1');
+
+    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
+    expect(input?.UpdateExpression).not.toContain('email');
+    expect(input?.UpdateExpression).not.toContain('#name');
+    expect(input?.ExpressionAttributeValues).not.toHaveProperty(':email');
+    expect(input?.ExpressionAttributeValues).not.toHaveProperty(':name');
+  });
+});
+
+describe('usersRepo.deleteUser', () => {
+  it('deletes the user row by userId', async () => {
+    ddbMock.on(DeleteCommand).resolves({});
+    const repo = new UsersRepo(client, 'Users');
+
+    await repo.deleteUser('device-1');
+
+    const input = ddbMock.commandCalls(DeleteCommand)[0]?.args[0]?.input;
+    expect(input?.TableName).toBe('Users');
+    expect(input?.Key).toEqual({ userId: 'device-1' });
   });
 });
 

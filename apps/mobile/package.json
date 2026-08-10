@@ -7,6 +7,7 @@
     "@expo/vector-icons": "^15.1.1",
     "@material/material-color-utilities": "^0.4.0",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-google-signin/google-signin": "16.1.4",
     "@tanstack/query-async-storage-persister": "^5.101.2",
     "@tanstack/react-query": "5.101.2",
     "@tanstack/react-query-persist-client": "^5.101.2",
@@ -56,8 +57,8 @@
   },
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "prebuild:android": "expo prebuild --platform android",
     "build:android": "cd android && ./gradlew bundleRelease",
     "build:android:apk": "cd android && ./gradlew assembleRelease",

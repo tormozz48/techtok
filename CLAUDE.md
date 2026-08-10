@@ -57,11 +57,11 @@ Beyond the 17 numbered phases: a follow-up initiative proposed in response to "l
 
 ### Going public and paid (2026-08-10, D67–D74, phases 19–22)
 
-The project's posture changes here: D1's "me + friends" and §1's "Play Store publication" non-goal are both retired. TechTok becomes a **publicly listed Play app with a €2.99/mo · €24.99/yr subscription**. Nothing is implemented yet — this is a planned stage.
+The project's posture changes here: D1's "me + friends" and §1's "Play Store publication" non-goal are both retired. TechTok becomes a **publicly listed Play app with a €2.99/mo · €24.99/yr subscription**.
 
 | Phase | Topic | Status | What's left |
 |---|---|---|---|
-| 19 | Google identity (D68) | Planned | Everything. Google Sign-In required at launch, `userId` = `g:<sub>`, API GW JWT authorizer against Google (no Cognito), `X-Device-Id` removed, **live `dev`+`production` user data wiped** (backup + counts + confirmation first) |
+| 19 | Google identity (D68) | Code complete | Maintainer-only, all external/credentialed: (1) create the Google Cloud OAuth consent screen + Web/Android client IDs (`infra/auth.ts`, `apps/mobile/src/state/authStore.ts` document exactly what's needed, including the Play-managed-vs-local-debug SHA-1 trap); (2) set `GOOGLE_OAUTH_WEB_CLIENT_ID` at deploy time and `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` in `apps/mobile/.env` (add both to `.env.example` too — this environment couldn't write to that file); (3) run `pnpm exec tsx scripts/wipeUsers.ts --stage dev` then `--confirm` (and same for `production`) — **not run here**, no AWS credentials in this session; (4) `expo prebuild` + a real device/emulator pass, since Google Sign-In ends the plain Expo Go loop (README's Mobile app section covers the new dev-loop commands); (5) provision the E2E suite's dedicated test Google account and its `GOOGLE_TEST_REFRESH_TOKEN`/`GOOGLE_OAUTH_WEB_CLIENT_SECRET` GitHub secrets (`packages/e2e/src/googleTestAuth.ts` — the authenticated E2E suites skip cleanly, not fail, until these exist) |
 | 20 | Entitlements & quota (D69/D70) | Planned | Free tier = 50 card-reads + 10 reader-opens/day, local-midnight reset; entitlement layer decoupled from any payment provider, so the whole paywall ships demoable on manual grants before phase 21 exists |
 | 21 | Play Billing (D67/D71) | Planned | **Stripe is not usable** — Play policy requires Play Billing for in-app digital subscriptions. Verify-on-app-open via the Play Developer API, no GCP Pub/Sub. Needs `PlayServiceAccountKey` secret |
 | 22 | Extended compact, paid (D72/D73) | Planned | ~1,500-word on-demand condensation, the **4th** LLM path, fair-use capped at 100/subscriber/month |

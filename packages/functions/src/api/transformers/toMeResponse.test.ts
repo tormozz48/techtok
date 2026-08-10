@@ -54,4 +54,17 @@ describe('toMeResponse', () => {
 
     expect(toMeResponse(user).mutedSources).toEqual(['hn', 'verge']);
   });
+
+  it('carries through email/name from the Google ID token (D68)', () => {
+    const user: UserRecord = {
+      userId: 'g:1234567890',
+      topics: [],
+      createdAt: '2026-07-18T00:00:00.000Z',
+      lastSeenAt: '2026-07-19T00:00:00.000Z',
+      email: 'ada@example.com',
+      name: 'Ada',
+    };
+
+    expect(toMeResponse(user)).toMatchObject({ email: 'ada@example.com', name: 'Ada' });
+  });
 });

@@ -1,0 +1,12 @@
+# mobsfscan config for the "Scan apps/mobile for security issues" CI job
+# (.github/workflows/ci.yml).
+#
+# android_task_hijacking1/2 flag MainActivity's launchMode=singleTask
+# (Expo's standard template, required for deep-linking) as vulnerable only
+# when targetSdk<28/29. This project's targetSdkVersion is set via
+# `rootProject.ext.targetSdkVersion` in apps/mobile/android/app/build.gradle
+# -- a cross-file Gradle variable mobsfscan can't statically resolve -- so it
+# flags the pattern regardless of the actual (modern, unaffected) targetSdk.
+ignore-rules:
+  - android_task_hijacking1
+  - android_task_hijacking2

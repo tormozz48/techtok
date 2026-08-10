@@ -113,9 +113,28 @@ has a QR code and a direct APK download link. Send either to a friend.
 
 ## Updating an install
 
-Re-run the same `eas build` command and re-share the new build's link.
-There's no auto-update; friends re-download when you tell them there's a new
-build.
+Most changes now reach already-installed apps on their own, no reinstall
+needed (D60): every CI build (see [Automated CI
+builds](#automated-ci-builds-recommended) above) publishes the same JS/asset
+bundle it just compiled to the `preview` EAS Update channel. Installed apps
+check that channel on every launch (`EXPO_UPDATES_CHECK_ON_LAUNCH=ALWAYS`)
+and self-update in the background — friends see the change next time they
+open TechTok.
+
+This only covers **JS and asset changes**. Anything that touches native code
+— a new native dependency, an `app.json` plugin/permission/icon change, an
+Expo SDK bump — still needs a fresh APK: re-run the CI build (or `eas build`
+manually) and re-share the install link, same as before OTA updates existed.
+
+**Before any native-affecting change**, bump `runtimeVersion` by hand in both
+`apps/mobile/app.json` and the generated
+`apps/mobile/android/app/src/main/res/values/strings.xml`
+(`expo_runtime_version`) — regenerate the latter via `pnpm prebuild:android`
+and review the diff, or edit that one line directly. `runtimeVersion` isn't
+recomputed automatically — the committed `android/` project (D18) has no
+per-build prebuild step — so if it's left unbumped, the next OTA publish
+would offer already-installed friends a JS bundle their native side doesn't
+actually support.
 
 ## Rate limiting (Phase 5 review)
 

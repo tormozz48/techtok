@@ -1,10 +1,10 @@
 ---
-// Reproduces the Orbit mark from DESIGN.md D37 as inline SVG — no source file
-// is committed anywhere in the repo, so this geometry is redrawn from the
-// decision log's own description: a 1024 canvas, a stroke-only ring
-// (radius 216, stroke-width 52) centered at (512, 512), plus a detached
-// filled dot (radius 50) with a 34px clear gap from the ring's outer edge,
-// at -40 degrees. Flat colors, no gradients.
+// Reproduces the mascot-in-hexagon mark (replacing D37's ring-and-dot Orbit
+// mark) as inline SVG — mirrors apps/site/public/favicon.svg, the repo's one
+// committed vector source for this logo, since Astro components can't import
+// a static-dir SVG's markup directly. A 1024 canvas: an orange hexagon
+// outline (stroke-width 36) containing the flat one-eyed mascot silhouette,
+// same geometry/colors as favicon.svg.
 interface Props {
   size?: number;
   withBackground?: boolean;
@@ -24,6 +24,26 @@ const { size = 40, withBackground = false, class: className } = Astro.props;
   aria-label="TechTok"
 >
   {withBackground && <rect width="1024" height="1024" fill="#111A33" />}
-  <circle cx="512" cy="512" r="216" fill="none" stroke="#FF9F1C" stroke-width="52" />
-  <circle cx="761.73" cy="302.45" r="50" fill="#FF9F1C" />
+  <polygon
+    points="512,85 864,288 864,693 512,896 160,693 160,288"
+    fill="none"
+    stroke="#FF9F1C"
+    stroke-width="36"
+    stroke-linejoin="round"
+  />
+  <g transform="translate(266.7,227.2) scale(2.4533)">
+    <path
+      d="M 82 118 C 78 148, 72 178, 64 196 C 82 205, 118 205, 136 196 C 128 178, 122 148, 118 118 Z"
+      fill="#FF9F1C"
+    />
+    <path d="M 82 55 C 68 40, 70 26, 60 14 L 66 10 C 78 22, 78 38, 92 52 Z" fill="#FF9F1C" />
+    <circle cx="60" cy="10" r="9" fill="#FF9F1C" />
+    <path d="M 118 55 C 132 40, 128 26, 138 14 L 132 10 C 122 22, 122 38, 108 52 Z" fill="#FF9F1C" />
+    <circle cx="138" cy="10" r="9" fill="#FF9F1C" />
+    <circle cx="100" cy="90" r="52" fill="#FF9F1C" />
+    <circle cx="112" cy="90" r="20" fill="#ffffff" />
+    <circle cx="116" cy="92" r="12" fill="#111A33" />
+    <circle cx="116" cy="92" r="6" fill="#05070a" />
+    <circle cx="120" cy="87" r="3" fill="#ffffff" />
+  </g>
 </svg>

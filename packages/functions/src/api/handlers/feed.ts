@@ -25,6 +25,7 @@ export const handler = withDeviceId(async (event, deviceId) => {
       queryByTopic: (topic, opts) => posts.queryByTopic(topic, opts),
       getReadSet: (postIds) => activity.getReadSet(deviceId, postIds),
       getSourceWeights: () => getSourceWeightsCache().getSourceWeights(),
+      getCompactDisabledSourceIds: () => getSourceWeightsCache().getCompactDisabledSourceIds(),
     },
     {
       userTopics: user.topics,

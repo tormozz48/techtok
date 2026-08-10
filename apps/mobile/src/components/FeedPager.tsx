@@ -33,6 +33,7 @@ export function FeedPager({ cards, onNearEnd, onPageChange }: FeedPagerProps) {
       style={styles.pager}
       orientation="vertical"
       offscreenPageLimit={1}
+      initialPage={0}
       onPageSelected={(event) => {
         clearTimeout(settleTimer.current);
 

@@ -103,7 +103,7 @@ jobs:
             git reset --hard origin/main
           done
 
-      # D57: generates feature/fix release notes from conventional commits
+      # D58: generates feature/fix release notes from conventional commits
       # since the last mobile-v* tag (the same commit range and feat:/fix:
       # classification bumpMobileVersion.ts uses to pick the version bump),
       # so the GitHub Release body and the release tag's annotation describe
@@ -221,7 +221,7 @@ jobs:
       # Tag-only reinstatement of release marking (D42, amends D41). Reads the
       # version off `app.json` as left on disk by the bump step above (D44),
       # which already committed and pushed it to `main` if it changed. Now an
-      # annotated tag (D57) carrying the feat/fix changelog from the release
+      # annotated tag (D58) carrying the feat/fix changelog from the release
       # notes step above as its message, instead of a bare lightweight tag.
       - name: Tag release version
         env:
@@ -236,5 +236,13 @@ jobs:
             echo "$TAG already exists on origin (version wasn't bumped since the last release) — skipping."
             exit 0
           fi
-          git tag -a "$TAG" -F changelog.md
+          # --cleanup=verbatim: git's default tag-message cleanup ("strip")
+          # treats any line starting with `#` as a comment and drops it —
+          # including changelog.md's own "## What's changed"/"### Features"/
+          # "### Fixes" Markdown headers — and collapses blank lines, so
+          # without this flag every tag message silently degraded to a flat,
+          # unsectioned bullet list (D58 amendment). release-body.md above
+          # doesn't hit this: `body_path` ships those same bytes verbatim
+          # through the GitHub API, never through git's message cleanup.
+          git tag -a "$TAG" --cleanup=verbatim -F changelog.md
           git push origin "refs/tags/$TAG"

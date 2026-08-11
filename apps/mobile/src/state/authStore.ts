@@ -76,12 +76,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
 
   restore: async () => {
-    ensureConfigured();
-    if (!GoogleSignin.hasPreviousSignIn()) {
-      set({ status: 'signedOut', user: null });
-      return;
-    }
     try {
+      ensureConfigured();
+      if (!GoogleSignin.hasPreviousSignIn()) {
+        set({ status: 'signedOut', user: null });
+        return;
+      }
       const response = await GoogleSignin.signInSilently();
       if (isNoSavedCredentialFoundResponse(response)) {
         set({ status: 'signedOut', user: null });

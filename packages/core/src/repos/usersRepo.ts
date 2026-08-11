@@ -24,9 +24,9 @@ export class UsersRepo {
     private readonly tableName: string,
   ) {}
 
-  /** `language`/`name` are both DynamoDB reserved keywords (confirmed live —
-   * the same class of bug this project has hit twice before, see
-   * CLAUDE.md), so both are aliased like every other attribute name in this
+  /** `language`/`name`/`timezone` are all DynamoDB reserved keywords
+   * (confirmed live — the same class of bug this project has hit before, see
+   * CLAUDE.md), so all are aliased like every other attribute name in this
    * repo, reserved or not. */
   async touch(userId: string, opts: TouchOptions = {}): Promise<UserRecord> {
     const now = new Date().toISOString();
@@ -35,9 +35,9 @@ export class UsersRepo {
       'lastSeenAt = :now',
       'topics = if_not_exists(topics, :emptyTopics)',
       '#language = if_not_exists(#language, :language)',
-      'timezone = if_not_exists(timezone, :timezone)',
+      '#timezone = if_not_exists(#timezone, :timezone)',
     ];
-    const names: Record<string, string> = { '#language': 'language' };
+    const names: Record<string, string> = { '#language': 'language', '#timezone': 'timezone' };
     const values: Record<string, unknown> = {
       ':now': now,
       ':emptyTopics': [],

@@ -11,10 +11,11 @@ beforeEach(() => {
 });
 
 describe('usersRepo.touch', () => {
-  // `language` is a DynamoDB reserved keyword (confirmed live against real
-  // DynamoDB — aws-sdk-client-mock does not simulate this validation, so it
-  // slips past a mocked test unless the alias is asserted explicitly; see
-  // CLAUDE.md's status log for this exact bug class hitting twice before).
+  // `language`/`timezone` are DynamoDB reserved keywords (confirmed live
+  // against real DynamoDB — aws-sdk-client-mock does not simulate this
+  // validation, so it slips past a mocked test unless the alias is asserted
+  // explicitly; see CLAUDE.md's status log for this exact bug class hitting
+  // multiple times before).
   it('upserts createdAt/topics only if absent and always bumps lastSeenAt', async () => {
     ddbMock.on(UpdateCommand).resolves({
       Attributes: { userId: 'device-1', topics: [], createdAt: 'x', lastSeenAt: 'y' },
@@ -30,8 +31,11 @@ describe('usersRepo.touch', () => {
     expect(input?.UpdateExpression).toContain('lastSeenAt = :now');
     expect(input?.UpdateExpression).toContain('if_not_exists(topics, :emptyTopics)');
     expect(input?.UpdateExpression).toContain('#language = if_not_exists(#language, :language)');
-    expect(input?.UpdateExpression).toContain('timezone = if_not_exists(timezone, :timezone)');
-    expect(input?.ExpressionAttributeNames).toEqual({ '#language': 'language' });
+    expect(input?.UpdateExpression).toContain('#timezone = if_not_exists(#timezone, :timezone)');
+    expect(input?.ExpressionAttributeNames).toEqual({
+      '#language': 'language',
+      '#timezone': 'timezone',
+    });
     expect(input?.ExpressionAttributeValues).toMatchObject({
       ':language': 'en',
       ':timezone': 'UTC',

@@ -44,5 +44,13 @@ jobs:
       - name: Unlock SST state
         run: npx sst unlock --stage dev
 
+      # GOOGLE_OAUTH_WEB_CLIENT_ID (D68) is read by infra/auth.ts as the JWT
+      # authorizer's audience — not a secret (an OAuth client ID is public
+      # by design), but wiring it as a repo secret keeps it alongside the
+      # rest of this pipeline's config. Without it, the deploy falls back to
+      # infra/auth.ts's placeholder and every real Google ID token gets
+      # rejected on audience mismatch.
       - name: Deploy dev
+        env:
+          GOOGLE_OAUTH_WEB_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_WEB_CLIENT_ID }}
         run: npx sst deploy --stage dev

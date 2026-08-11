@@ -52,8 +52,11 @@ jobs:
       # URL as `api`) to .sst/outputs.json. Reading it here is how the
       # mobile-build workflow gets the real production URL without it ever
       # being committed to apps/mobile/eas.json.
+      # GOOGLE_OAUTH_WEB_CLIENT_ID (D68): see deploy-dev.yml's identical note.
       - name: Deploy production
         id: deploy
+        env:
+          GOOGLE_OAUTH_WEB_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_WEB_CLIENT_ID }}
         run: |
           npx sst deploy --stage production
           echo "api_url=$(node -e "console.log(require('./.sst/outputs.json').api)")" >> "$GITHUB_OUTPUT"

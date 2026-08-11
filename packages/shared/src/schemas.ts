@@ -84,8 +84,14 @@ export const errorResponseSchema = z.object({
 });
 export type ErrorResponse = z.infer<typeof errorResponseSchema>;
 
-export const DEVICE_ID_HEADER = 'x-device-id';
+/** Retired by D68 — Google Sign-In (a JWT `Authorization` header verified by
+ * API Gateway's built-in authorizer) replaces the anonymous device-id model
+ * entirely. Kept out of the exports on purpose so nothing can resurrect it. */
 export const DEVICE_LANGUAGE_HEADER = 'x-device-language';
+/** Device-reported IANA timezone, sent once at sign-in to seed `Users.timezone`
+ * (D69's local-midnight quota reset) the same way `DEVICE_LANGUAGE_HEADER`
+ * seeds `language` — first-touch only, never overwritten afterward. */
+export const DEVICE_TIMEZONE_HEADER = 'x-device-timezone';
 
 export const meResponseSchema = z.object({
   userId: z.string(),
@@ -93,6 +99,11 @@ export const meResponseSchema = z.object({
   createdAt: z.iso.datetime(),
   language: languageSchema,
   mutedSources: z.array(z.string()),
+  /** From the Google ID token (D68) — the first personal data this app has
+   * ever stored. Optional only for schema-evolution safety; every user
+   * created post-D68 has both. */
+  email: z.string().optional(),
+  name: z.string().optional(),
 });
 export type MeResponse = z.infer<typeof meResponseSchema>;
 

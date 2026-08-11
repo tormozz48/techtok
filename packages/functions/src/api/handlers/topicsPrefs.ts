@@ -1,12 +1,12 @@
 import { meResponseSchema, topicsPrefsRequestSchema } from '@techtok/shared';
 import { getUsersRepo } from '../../repos';
-import { jsonResponse, parseJsonBody, withDeviceId } from '../lib/http';
+import { jsonResponse, parseJsonBody, withAuth } from '../lib/http';
 import { toMeResponse } from '../transformers/toMeResponse';
 
-export const handler = withDeviceId(async (event, deviceId) => {
+export const handler = withAuth(async (event, auth) => {
   const body = parseJsonBody(event, topicsPrefsRequestSchema);
   if (!body.ok) return body.response;
 
-  const user = await getUsersRepo().updateTopics(deviceId, body.data.topics);
+  const user = await getUsersRepo().updateTopics(auth.userId, body.data.topics);
   return jsonResponse(200, meResponseSchema.parse(toMeResponse(user)));
 });

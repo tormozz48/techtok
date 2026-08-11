@@ -1,4 +1,4 @@
-import { DEVICE_ID_HEADER, type ErrorResponse } from '@techtok/shared';
+import type { ErrorResponse } from '@techtok/shared';
 import type {
   APIGatewayProxyEventV2,
   APIGatewayProxyHandlerV2,
@@ -6,7 +6,7 @@ import type {
   APIGatewayProxyStructuredResultV2,
 } from 'aws-lambda';
 import type { z } from 'zod';
-import { extractDeviceId } from './deviceId';
+import { type AuthContext, extractAuthContext } from './auth';
 
 export function jsonResponse(statusCode: number, body: unknown): APIGatewayProxyStructuredResultV2 {
   return {
@@ -61,18 +61,20 @@ export function parseJsonBody<S extends z.ZodType>(
 }
 
 /**
- * Device-identity middleware (DESIGN §5.1): rejects requests without a valid
- * `X-Device-Id` header before the wrapped handler runs, so handlers only ever
- * see an authenticated deviceId.
+ * Google-identity middleware (DESIGN §5, D68): every route wired to the API
+ * Gateway JWT authorizer only ever reaches its handler with an
+ * already-verified token, so this just reads the resulting claims. The 401
+ * branch is defensive (unit tests / a route accidentally left off the
+ * authorizer) rather than a real code path in production.
  */
-export function withDeviceId(
-  handle: (event: APIGatewayProxyEventV2, deviceId: string) => Promise<APIGatewayProxyResultV2>,
+export function withAuth(
+  handle: (event: APIGatewayProxyEventV2, auth: AuthContext) => Promise<APIGatewayProxyResultV2>,
 ): APIGatewayProxyHandlerV2 {
   return async (event) => {
-    const deviceId = extractDeviceId(event);
-    if (!deviceId) {
-      return errorResponse(400, 'missing_device_id', `${DEVICE_ID_HEADER} header is required`);
+    const auth = extractAuthContext(event);
+    if (!auth) {
+      return errorResponse(401, 'unauthorized', 'A valid Google ID token is required');
     }
-    return handle(event, deviceId);
+    return handle(event, auth);
   };
 }

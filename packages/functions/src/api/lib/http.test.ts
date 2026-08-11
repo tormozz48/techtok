@@ -7,16 +7,26 @@ import {
   noContent,
   parseJsonBody,
   parseQuery,
-  withDeviceId,
+  withAuth,
 } from './http';
 
-const DEVICE_ID = '123e4567-e89b-12d3-a456-426614174000';
+const SUB = '1234567890';
 
 function makeEvent(overrides: Partial<APIGatewayProxyEventV2> = {}): APIGatewayProxyEventV2 {
-  return { headers: {}, ...overrides } as APIGatewayProxyEventV2;
+  return { headers: {}, requestContext: {}, ...overrides } as APIGatewayProxyEventV2;
 }
 
-async function invoke(handler: ReturnType<typeof withDeviceId>, event: APIGatewayProxyEventV2) {
+function eventWithClaims(
+  claims: Record<string, unknown> | undefined,
+  overrides: Partial<APIGatewayProxyEventV2> = {},
+): APIGatewayProxyEventV2 {
+  return makeEvent({
+    requestContext: claims ? ({ authorizer: { jwt: { claims } } } as never) : ({} as never),
+    ...overrides,
+  });
+}
+
+async function invoke(handler: ReturnType<typeof withAuth>, event: APIGatewayProxyEventV2) {
   return handler(event, {} as Context, () => undefined);
 }
 
@@ -98,31 +108,34 @@ describe('parseJsonBody', () => {
   });
 });
 
-describe('withDeviceId', () => {
-  it('rejects a request without a valid device id before the handler runs', async () => {
+describe('withAuth', () => {
+  it('rejects a request with no verified JWT claims before the handler runs', async () => {
     let called = false;
-    const handler = withDeviceId(async () => {
+    const handler = withAuth(async () => {
       called = true;
       return noContent();
     });
 
-    const response = await invoke(handler, makeEvent({ headers: { 'x-device-id': 'nope' } }));
+    const response = await invoke(handler, eventWithClaims(undefined));
 
     expect(called).toBe(false);
-    expect(response).toMatchObject({ statusCode: 400 });
-    expect(JSON.parse((response as { body?: string }).body ?? '').error.code).toBe(
-      'missing_device_id',
-    );
+    expect(response).toMatchObject({ statusCode: 401 });
+    expect(JSON.parse((response as { body?: string }).body ?? '').error.code).toBe('unauthorized');
   });
 
-  it('passes the extracted device id through to the handler', async () => {
-    const handler = withDeviceId(async (_event, deviceId) => jsonResponse(200, { deviceId }));
+  it('passes the extracted auth context through to the handler', async () => {
+    const handler = withAuth(async (_event, auth) => jsonResponse(200, auth));
 
-    const response = await invoke(handler, makeEvent({ headers: { 'x-device-id': DEVICE_ID } }));
+    const response = await invoke(
+      handler,
+      eventWithClaims({ sub: SUB, email: 'a@example.com', name: 'Ada' }),
+    );
 
     expect(response).toMatchObject({ statusCode: 200 });
     expect(JSON.parse((response as { body?: string }).body ?? '')).toEqual({
-      deviceId: DEVICE_ID,
+      userId: `g:${SUB}`,
+      email: 'a@example.com',
+      name: 'Ada',
     });
   });
 });

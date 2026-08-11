@@ -15,6 +15,7 @@ import {
   techtokNavigationLightTheme,
 } from '@/constants/paperTheme';
 import { useStrings } from '@/i18n/useStrings';
+import { useAuthStore } from '@/state/authStore';
 import { useLanguageStore } from '@/state/languageStore';
 import { startNetworkMonitoring } from '@/state/network';
 import { hasSeenOnboarding } from '@/state/onboardingStore';
@@ -42,17 +43,23 @@ export default function RootLayout() {
   const themeMode = useThemeStore((state) => state.mode);
   const colorScheme = themeMode === 'system' ? systemScheme : themeMode;
   const strings = useStrings();
+  const authStatus = useAuthStore((state) => state.status);
   const [isHydrated, setIsHydrated] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
-    ready().then(() => {
+    ready().then(async () => {
       startReadQueueFlushing();
       startNetworkMonitoring();
       useTopicsStore.getState().load();
       useLanguageStore.getState().load();
       useThemeStore.getState().load();
       setShowOnboarding(!hasSeenOnboarding());
+      // Held inside the same hydration gate as everything else (D68): a
+      // silent-restore attempt (Google Sign-In's own persisted session, not
+      // anything this app caches) resolves before the first Stack.Protected
+      // guard evaluates, so a signed-in user never sees a flash of /auth.
+      await useAuthStore.getState().restore();
       setIsHydrated(true);
     });
   }, []);
@@ -104,25 +111,41 @@ export default function RootLayout() {
             screenOptions={{ headerShown: false }}
             initialRouteName={showOnboarding ? 'onboarding' : 'index'}
           >
-            <Stack.Screen name="index" />
-            <Stack.Screen name="onboarding" />
-            <Stack.Screen
-              name="settings"
-              options={{ presentation: 'modal', headerShown: true, title: strings.settings.title }}
-            />
-            <Stack.Screen
-              name="history"
-              options={{ headerShown: true, title: strings.history.title }}
-            />
-            <Stack.Screen
-              name="saved"
-              options={{ headerShown: true, title: strings.saved.title }}
-            />
-            <Stack.Screen
-              name="stats"
-              options={{ headerShown: true, title: strings.stats.title }}
-            />
-            <Stack.Screen name="post/[id]" options={{ headerShown: true, title: '' }} />
+            {/* D68: sign-in gates every other screen. Stack.Protected redirects
+                automatically when its guard flips — no manual router.replace
+                calls needed on sign-in/sign-out. */}
+            <Stack.Protected guard={authStatus === 'signedIn'}>
+              <Stack.Screen name="index" />
+              <Stack.Screen name="onboarding" />
+              <Stack.Screen
+                name="settings"
+                options={{
+                  presentation: 'modal',
+                  headerShown: true,
+                  title: strings.settings.title,
+                }}
+              />
+              <Stack.Screen
+                name="history"
+                options={{ headerShown: true, title: strings.history.title }}
+              />
+              <Stack.Screen
+                name="saved"
+                options={{ headerShown: true, title: strings.saved.title }}
+              />
+              <Stack.Screen
+                name="stats"
+                options={{ headerShown: true, title: strings.stats.title }}
+              />
+              <Stack.Screen
+                name="account"
+                options={{ headerShown: true, title: strings.account.title }}
+              />
+              <Stack.Screen name="post/[id]" options={{ headerShown: true, title: '' }} />
+            </Stack.Protected>
+            <Stack.Protected guard={authStatus !== 'signedIn'}>
+              <Stack.Screen name="auth" />
+            </Stack.Protected>
           </Stack>
         </ThemeProvider>
       </PaperProvider>

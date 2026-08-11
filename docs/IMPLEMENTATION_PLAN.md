@@ -503,21 +503,23 @@ Code (tasks 1–5) is complete and verified via the unit test suite and a full `
 3. **JWT authorizer in `infra/api.ts`:** one `aws.apigatewayv2.Authorizer` (`jwt`, issuer `https://accounts.google.com`, audience = web client ID) attached to every `/v1` route except `GET /v1/topics` and `GET /v1/sources`. Verify SST v4 exposes this on `ApiGatewayV2.route()`; if it doesn't, `transform` on the route is the escape hatch.
 4. **Server:** replace `extractDeviceId` with `extractUserId(event)` reading `requestContext.authorizer.jwt.claims.sub` → `g:<sub>`; delete `DEVICE_ID_HEADER` and `deviceId.ts`; `UsersRepo.touch` upserts on first sight and stores `email`, `name`, `timezone`. `X-Device-Language` stays (it still seeds a new user's language, D20).
 5. **`DELETE /v1/me`:** deletes the `Users` row and paginates every `UserActivity` row for the user. A Play requirement (D68), built now rather than bolted on before listing.
-6. **Mobile:** `@react-native-google-signin/google-signin` (Credential Manager) + `expo-secure-store` for the token; `/auth` route as an unauthenticated gate in `_layout.tsx`; a TanStack Query/fetch interceptor that attaches `Authorization` and, on a 401, silently re-signs-in and retries **once**; `/account` screen (email, delete account). Zustand's device-UUID state is deleted.
+6. **Mobile:** `@react-native-google-signin/google-signin` (Credential Manager). No `expo-secure-store` needed — the SDK persists its own session (Credential Manager), so `authStore.restore()` calls `signInSilently()` at app start instead of this app caching a token itself. `/auth` route gated via expo-router's `Stack.Protected`; `api/client.ts`'s `apiFetch` attaches `Authorization` and, on a 401, calls `refreshToken()` (a silent re-sign-in) and retries **once**; `/account` screen (email, sign out, delete account with a native confirm dialog). Zustand's device-UUID state is deleted.
 7. **`expo prebuild` + Gradle debug build** — the Expo Go loop ends here (D67). Update `docs/DISTRIBUTION.md` to say so, and document the two-SHA-1 setup.
 8. **Regenerate `packages/shared/schema-snapshot.json` deliberately.** D34's guardrail *will* fail on the removed `X-Device-Id` contract — that failure is correct and the regeneration is the deliberate act it's designed to force. Note it in the PR body.
 
 **Acceptance criteria**
 
-- [ ] `pnpm lint && pnpm typecheck && pnpm test` green; Metro bundle check passes.
-- [ ] Backup taken, row counts printed, confirmation obtained, wipe executed on `dev` and `production`.
-- [ ] On a real device (debug build): cold open → Google sign-in sheet → feed loads. Force-quit and reopen → still signed in, no re-prompt.
-- [ ] A request with no `Authorization` header returns 401 **from the authorizer, not from handler code**; `GET /v1/topics` still works unauthenticated.
-- [ ] An expired ID token triggers exactly one silent refresh + retry, not a sign-out loop (verify by shortening the client's refresh threshold).
-- [ ] `DELETE /v1/me` removes the user row *and* every UserActivity row — verified by querying the table after, not by reading the code.
-- [ ] Sign in on a second device with the same Google account → same history and bookmarks.
+- [x] `pnpm lint && pnpm typecheck && pnpm test` green (296 files linted, 6 workspaces typechecked including infra, 49 vitest files/423 tests + 25 mobile-jest suites/142 tests); Metro bundle check passes (1802 modules, no errors).
+- [ ] **Blocked, not deferred — no AWS credentials in this environment.** Backup taken, row counts printed, confirmation obtained, wipe executed on `dev` and `production`. `scripts/wipeUsers.ts` is written and ready (`pnpm wipe-users -- --stage dev`, then `--confirm`); the maintainer runs it.
+- [ ] **Blocked — no Google Cloud project, no real device.** On a real device (debug build): cold open → Google sign-in sheet → feed loads. Force-quit and reopen → still signed in, no re-prompt.
+- [ ] **Blocked — needs a deployed API GW authorizer.** A request with no `Authorization` header returns 401 **from the authorizer, not from handler code**; `GET /v1/topics` still works unauthenticated. (`infra/api.ts` typechecks against SST's generated types; behavior unverified against live AWS.)
+- [ ] **Blocked — needs a real device + real tokens.** An expired ID token triggers exactly one silent refresh + retry, not a sign-out loop. Covered at the unit level: `apps/mobile/src/api/client.test.ts`-equivalent behavior is exercised via `authStore.test.ts`'s `refreshToken` tests, but the actual 401-retry path in `api/client.ts` has no live-server test.
+- [ ] **Blocked — needs a deployed `UserActivity` table.** `DELETE /v1/me` removes the user row *and* every UserActivity row. Covered at the unit level: `UsersRepo.deleteUser`/`UserActivityRepo.deleteAllForUser` both have `aws-sdk-client-mock` tests (pagination + chunked `BatchWriteItem` included).
+- [ ] **Blocked — needs two real devices.** Sign in on a second device with the same Google account → same history and bookmarks.
 
 **Out of scope:** entitlements, quota, payments, extended compact.
+
+**Implementation note:** built without `expo-secure-store` — Google Sign-In's SDK persists its own session (Android Credential Manager), so `authStore.restore()` calls `signInSilently()` at app start instead of this app caching a token. `/auth` gating uses expo-router's `Stack.Protected` rather than manual `router.replace` calls.
 
 ---
 

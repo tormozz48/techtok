@@ -12,9 +12,13 @@
     "typecheck": "./scripts/typecheck-infra.sh && pnpm -r --if-present run typecheck",
     "test": "vitest run && pnpm --filter mobile run test",
     "dev": "sst dev --stage dev",
-    "deploy:dev": "sst deploy --stage dev"
+    "deploy:dev": "sst deploy --stage dev",
+    "wipe-users": "tsx scripts/wipeUsers.ts"
   },
   "devDependencies": {
+    "@aws-sdk/client-dynamodb": "3.1090.0",
+    "@aws-sdk/client-resource-groups-tagging-api": "3.1090.0",
+    "@aws-sdk/lib-dynamodb": "3.1090.0",
     "@biomejs/biome": "2.5.4",
     "@types/node": "22.20.1",
     "sst": "4.17.1",

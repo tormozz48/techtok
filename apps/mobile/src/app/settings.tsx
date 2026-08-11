@@ -105,6 +105,14 @@ export default function SettingsScreen() {
           right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.text} />}
         />
       </Link>
+      <Link href="/account" asChild>
+        <List.Item
+          title={strings.account.title}
+          titleStyle={styles.rowText}
+          style={styles.row}
+          right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.text} />}
+        />
+      </Link>
       <Text style={styles.hint}>
         {topics.length === 0
           ? strings.settings.hintAll

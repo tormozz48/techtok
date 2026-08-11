@@ -1,5 +1,5 @@
 import * as Localization from 'expo-localization';
-import { detectDeviceLanguage } from './deviceLanguage';
+import { detectDeviceLanguage, detectDeviceTimezone } from './deviceLanguage';
 
 function mockLocales(locales: Array<{ languageCode: string }>) {
   // biome-ignore lint/suspicious/noExplicitAny: real Locale has ~13 required fields we don't need here.
@@ -24,5 +24,21 @@ describe('detectDeviceLanguage', () => {
   it('returns undefined when there are no locales', () => {
     mockLocales([]);
     expect(detectDeviceLanguage()).toBeUndefined();
+  });
+});
+
+describe('detectDeviceTimezone', () => {
+  it('returns a non-empty IANA-shaped timezone string from the JS runtime', () => {
+    const tz = detectDeviceTimezone();
+    expect(typeof tz).toBe('string');
+    expect(tz?.length).toBeGreaterThan(0);
+  });
+
+  it('returns undefined if Intl.DateTimeFormat throws', () => {
+    const spy = jest.spyOn(Intl, 'DateTimeFormat').mockImplementation(() => {
+      throw new Error('boom');
+    });
+    expect(detectDeviceTimezone()).toBeUndefined();
+    spy.mockRestore();
   });
 });

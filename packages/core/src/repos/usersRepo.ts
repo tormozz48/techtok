@@ -1,6 +1,22 @@
-import { type DynamoDBDocumentClient, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { DeleteCommand, type DynamoDBDocumentClient, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import type { Language, Topic } from '@techtok/shared';
 import type { UserRecord } from '../users.types';
+
+export interface TouchOptions {
+  /** Seeds `language` only on a brand-new user (D20's "device-locale default
+   * on first sight") — `if_not_exists` never overwrites a language the user
+   * already chose. */
+  readonly deviceLanguage?: Language;
+  /** Seeds `timezone` only on a brand-new user, captured once at sign-in
+   * (D68/D69) — never re-derived from later requests. Falls back to UTC. */
+  readonly timezone?: string;
+  /** From the Google ID token (D68). Kept fresh on every touch (a plain
+   * `SET`, not `if_not_exists`) since Google, not this app, is the source of
+   * truth for a user's current email/display name. Omitted (not sent as
+   * `undefined`) when the token didn't carry the claim. */
+  readonly email?: string;
+  readonly name?: string;
+}
 
 export class UsersRepo {
   constructor(
@@ -8,30 +24,56 @@ export class UsersRepo {
     private readonly tableName: string,
   ) {}
 
-  /** `deviceLanguage`, when given, seeds `language` only on a brand-new user
-   * (D20's "device-locale default on first sight") — `if_not_exists` never
-   * overwrites a language the user already chose. `language` is a DynamoDB
-   * reserved keyword (confirmed live — the same class of bug this project
-   * has hit twice before, see CLAUDE.md), so it's aliased like every other
-   * attribute name in this repo, reserved or not. */
-  async touch(userId: string, deviceLanguage?: Language): Promise<UserRecord> {
+  /** `language`/`name` are both DynamoDB reserved keywords (confirmed live —
+   * the same class of bug this project has hit twice before, see
+   * CLAUDE.md), so both are aliased like every other attribute name in this
+   * repo, reserved or not. */
+  async touch(userId: string, opts: TouchOptions = {}): Promise<UserRecord> {
     const now = new Date().toISOString();
+    const setClauses = [
+      'createdAt = if_not_exists(createdAt, :now)',
+      'lastSeenAt = :now',
+      'topics = if_not_exists(topics, :emptyTopics)',
+      '#language = if_not_exists(#language, :language)',
+      'timezone = if_not_exists(timezone, :timezone)',
+    ];
+    const names: Record<string, string> = { '#language': 'language' };
+    const values: Record<string, unknown> = {
+      ':now': now,
+      ':emptyTopics': [],
+      ':language': opts.deviceLanguage ?? 'en',
+      ':timezone': opts.timezone ?? 'UTC',
+    };
+
+    if (opts.email !== undefined) {
+      setClauses.push('email = :email');
+      values[':email'] = opts.email;
+    }
+    if (opts.name !== undefined) {
+      setClauses.push('#name = :name');
+      names['#name'] = 'name';
+      values[':name'] = opts.name;
+    }
+
     const result = await this.client.send(
       new UpdateCommand({
         TableName: this.tableName,
         Key: { userId },
-        UpdateExpression:
-          'SET createdAt = if_not_exists(createdAt, :now), lastSeenAt = :now, topics = if_not_exists(topics, :emptyTopics), #language = if_not_exists(#language, :language)',
-        ExpressionAttributeNames: { '#language': 'language' },
-        ExpressionAttributeValues: {
-          ':now': now,
-          ':emptyTopics': [],
-          ':language': deviceLanguage ?? 'en',
-        },
+        UpdateExpression: `SET ${setClauses.join(', ')}`,
+        ExpressionAttributeNames: names,
+        ExpressionAttributeValues: values,
         ReturnValues: 'ALL_NEW',
       }),
     );
     return result.Attributes as UserRecord;
+  }
+
+  /** Deletes the user's profile row (D68's `DELETE /v1/me`, required by Play
+   * policy). Deleting `UserActivity` rows is a separate call
+   * (`UserActivityRepo.deleteAllForUser`) — different table, different
+   * partition scheme. */
+  async deleteUser(userId: string): Promise<void> {
+    await this.client.send(new DeleteCommand({ TableName: this.tableName, Key: { userId } }));
   }
 
   async updateTopics(userId: string, topics: Topic[]): Promise<UserRecord> {

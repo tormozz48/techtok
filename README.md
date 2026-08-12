@@ -149,7 +149,7 @@ cd ../..
 pnpm --filter mobile start
 ```
 
-**Google Sign-In ends the plain Expo Go loop (D68).** `@react-native-google-signin/google-signin` is a native module Expo Go can't load, so scanning the QR code into Expo Go no longer works for this app. Use the committed bare `android/` project instead:
+**Google Sign-In ends the plain Expo Go loop (D68).** `react-native-nitro-google-signin` (D75) is a native module Expo Go can't load, so scanning the QR code into Expo Go no longer works for this app. Use the committed bare `android/` project instead:
 
 ```bash
 pnpm --filter mobile prebuild:android   # only needed after app.json/plugin changes

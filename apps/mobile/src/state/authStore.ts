@@ -1,8 +1,4 @@
-import {
-  GoogleSignin,
-  isNoSavedCredentialFoundResponse,
-  isSuccessResponse,
-} from '@react-native-google-signin/google-signin';
+import { GoogleOneTapSignIn, isSuccessResponse } from 'react-native-nitro-google-signin';
 import { create } from 'zustand';
 
 export interface AuthUser {
@@ -51,41 +47,22 @@ function requireWebClientId(): string {
 let configured = false;
 function ensureConfigured(): void {
   if (configured) return;
-  // offlineAccess/webClientId (not iosClientId) is what makes signIn()
-  // return a Google *ID token* (a verifiable JWT) rather than just an
-  // opaque access token — the server's JWT authorizer (infra/api.ts) needs
-  // the former.
-  GoogleSignin.configure({ webClientId: requireWebClientId() });
+  // webClientId (not iosClientId) is what makes sign-in return a Google *ID
+  // token* (a verifiable JWT) rather than just an opaque access token — the
+  // server's JWT authorizer (infra/api.ts) needs the former.
+  GoogleOneTapSignIn.configure({ webClientId: requireWebClientId() });
   configured = true;
-}
-
-// TEMPORARY (mobile-app-launch-crashes debugging): logs only the ID
-// token's aud/iss/exp — never sub/email/name — to diagnose a live 401
-// where API Gateway's JWT authorizer rejects every request/retry before
-// the Lambda is ever invoked, despite the client's baked-in webClientId
-// matching the server's configured audience byte-for-byte. Remove once
-// resolved.
-function logJwtClaims(idToken: string): void {
-  try {
-    const payload = idToken.split('.')[1] ?? '';
-    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
-    const { aud, iss, exp } = JSON.parse(json);
-    console.warn('[debug] Google ID token claims', { aud, iss, exp });
-  } catch (err) {
-    console.warn('[debug] failed to decode ID token claims', err);
-  }
 }
 
 function toAuthUser(
   idToken: string | null,
-  user: { email: string; name: string | null },
+  user: { email: string | null; name: string | null },
 ): AuthUser {
   if (!idToken) {
     throw new Error(
-      'Google Sign-In returned no ID token — check that GoogleSignin.configure() was called with webClientId, not just iosClientId.',
+      'Google Sign-In returned no ID token — check that GoogleOneTapSignIn.configure() was called with webClientId, not just iosClientId.',
     );
   }
-  logJwtClaims(idToken);
   return { idToken, email: user.email, name: user.name };
 }
 
@@ -96,12 +73,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   restore: async () => {
     try {
       ensureConfigured();
-      if (!GoogleSignin.hasPreviousSignIn()) {
-        set({ status: 'signedOut', user: null });
-        return;
-      }
-      const response = await GoogleSignin.signInSilently();
-      if (isNoSavedCredentialFoundResponse(response)) {
+      // signIn() itself attempts a low-friction/silent restore first (the
+      // package's documented cascade) — a saved Credential Manager session
+      // resolves with no UI, same shape as the old signInSilently() call.
+      const response = await GoogleOneTapSignIn.signIn();
+      if (!isSuccessResponse(response) || !response.data) {
         set({ status: 'signedOut', user: null });
         return;
       }
@@ -113,23 +89,23 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   signIn: async () => {
     ensureConfigured();
-    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-    const response = await GoogleSignin.signIn();
-    if (!isSuccessResponse(response)) return; // user cancelled — stay signedOut
+    await GoogleOneTapSignIn.checkPlayServices(true);
+    const response = await GoogleOneTapSignIn.presentExplicitSignIn();
+    if (!isSuccessResponse(response) || !response.data) return; // user cancelled — stay signedOut
     set({ status: 'signedIn', user: toAuthUser(response.data.idToken, response.data.user) });
   },
 
   signOut: async () => {
     ensureConfigured();
-    await GoogleSignin.signOut();
+    await GoogleOneTapSignIn.signOut();
     set({ status: 'signedOut', user: null });
   },
 
   refreshToken: async () => {
     ensureConfigured();
     try {
-      const response = await GoogleSignin.signInSilently();
-      if (isNoSavedCredentialFoundResponse(response)) {
+      const response = await GoogleOneTapSignIn.signIn();
+      if (!isSuccessResponse(response) || !response.data) {
         set({ status: 'signedOut', user: null });
         return null;
       }

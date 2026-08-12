@@ -1,4 +1,4 @@
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { GoogleOneTapSignIn } from 'react-native-nitro-google-signin';
 import { useAuthStore } from './authStore';
 
 const ORIGINAL_ENV = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
@@ -17,18 +17,19 @@ beforeEach(() => {
 });
 
 describe('authStore.restore', () => {
-  it('goes straight to signedOut when there is no previous sign-in', async () => {
-    (GoogleSignin.hasPreviousSignIn as jest.Mock).mockReturnValue(false);
+  it('goes straight to signedOut when there is no saved credential', async () => {
+    (GoogleOneTapSignIn.signIn as jest.Mock).mockResolvedValue({
+      type: 'noSavedCredentialFound',
+      data: null,
+    });
 
     await useAuthStore.getState().restore();
 
     expect(useAuthStore.getState()).toMatchObject({ status: 'signedOut', user: null });
-    expect(GoogleSignin.signInSilently).not.toHaveBeenCalled();
   });
 
   it('restores a signed-in session silently when one exists', async () => {
-    (GoogleSignin.hasPreviousSignIn as jest.Mock).mockReturnValue(true);
-    (GoogleSignin.signInSilently as jest.Mock).mockResolvedValue({
+    (GoogleOneTapSignIn.signIn as jest.Mock).mockResolvedValue({
       type: 'success',
       data: { idToken: 'tok-1', user: { email: 'a@example.com', name: 'Ada' } },
     });
@@ -41,21 +42,8 @@ describe('authStore.restore', () => {
     });
   });
 
-  it('falls back to signedOut when silent sign-in finds no saved credential', async () => {
-    (GoogleSignin.hasPreviousSignIn as jest.Mock).mockReturnValue(true);
-    (GoogleSignin.signInSilently as jest.Mock).mockResolvedValue({
-      type: 'noSavedCredentialFound',
-      data: null,
-    });
-
-    await useAuthStore.getState().restore();
-
-    expect(useAuthStore.getState()).toMatchObject({ status: 'signedOut', user: null });
-  });
-
-  it('falls back to signedOut when silent sign-in throws', async () => {
-    (GoogleSignin.hasPreviousSignIn as jest.Mock).mockReturnValue(true);
-    (GoogleSignin.signInSilently as jest.Mock).mockRejectedValue(new Error('network'));
+  it('falls back to signedOut when the low-friction sign-in throws', async () => {
+    (GoogleOneTapSignIn.signIn as jest.Mock).mockRejectedValue(new Error('network'));
 
     await useAuthStore.getState().restore();
 
@@ -65,7 +53,7 @@ describe('authStore.restore', () => {
 
 describe('authStore.signIn', () => {
   it('signs in and stores the user on success', async () => {
-    (GoogleSignin.signIn as jest.Mock).mockResolvedValue({
+    (GoogleOneTapSignIn.presentExplicitSignIn as jest.Mock).mockResolvedValue({
       type: 'success',
       data: { idToken: 'tok-2', user: { email: 'b@example.com', name: 'Bea' } },
     });
@@ -79,7 +67,10 @@ describe('authStore.signIn', () => {
   });
 
   it('leaves the store unchanged when the user cancels the sign-in sheet', async () => {
-    (GoogleSignin.signIn as jest.Mock).mockResolvedValue({ type: 'cancelled', data: null });
+    (GoogleOneTapSignIn.presentExplicitSignIn as jest.Mock).mockResolvedValue({
+      type: 'cancelled',
+      data: null,
+    });
 
     await useAuthStore.getState().signIn();
 
@@ -93,14 +84,14 @@ describe('authStore.signOut', () => {
 
     await useAuthStore.getState().signOut();
 
-    expect(GoogleSignin.signOut).toHaveBeenCalled();
+    expect(GoogleOneTapSignIn.signOut).toHaveBeenCalled();
     expect(useAuthStore.getState()).toMatchObject({ status: 'signedOut', user: null });
   });
 });
 
 describe('authStore.refreshToken', () => {
   it('returns a fresh id token and updates the store on success', async () => {
-    (GoogleSignin.signInSilently as jest.Mock).mockResolvedValue({
+    (GoogleOneTapSignIn.signIn as jest.Mock).mockResolvedValue({
       type: 'success',
       data: { idToken: 'tok-3', user: { email: 'c@example.com', name: 'Cy' } },
     });
@@ -112,7 +103,7 @@ describe('authStore.refreshToken', () => {
   });
 
   it('returns null and signs the store out when there is no saved credential', async () => {
-    (GoogleSignin.signInSilently as jest.Mock).mockResolvedValue({
+    (GoogleOneTapSignIn.signIn as jest.Mock).mockResolvedValue({
       type: 'noSavedCredentialFound',
       data: null,
     });
@@ -124,7 +115,7 @@ describe('authStore.refreshToken', () => {
   });
 
   it('returns null and signs the store out when the silent refresh throws', async () => {
-    (GoogleSignin.signInSilently as jest.Mock).mockRejectedValue(new Error('expired'));
+    (GoogleOneTapSignIn.signIn as jest.Mock).mockRejectedValue(new Error('expired'));
 
     const token = await useAuthStore.getState().refreshToken();
 
@@ -136,8 +127,8 @@ describe('authStore.refreshToken', () => {
 describe('authStore configuration', () => {
   it('throws a clear error when EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set', async () => {
     // A fresh module instance is required: the real `useAuthStore` module
-    // memoizes `GoogleSignin.configure()` behind a module-level flag once
-    // any earlier test in this file has configured it successfully.
+    // memoizes `GoogleOneTapSignIn.configure()` behind a module-level flag
+    // once any earlier test in this file has configured it successfully.
     let isolatedStore: typeof import('./authStore').useAuthStore | undefined;
     jest.isolateModules(() => {
       isolatedStore = (require('./authStore') as typeof import('./authStore')).useAuthStore;

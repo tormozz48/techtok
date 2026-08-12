@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Button } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Radius, Spacing, type ThemeColors, Typography } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
@@ -14,6 +15,7 @@ import { useAuthStore } from '@/state/authStore';
 export default function AuthScreen() {
   const strings = useStrings();
   const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const signIn = useAuthStore((state) => state.signIn);
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -24,7 +26,13 @@ export default function AuthScreen() {
     setIsSigningIn(true);
     try {
       await signIn();
-    } catch {
+    } catch (err) {
+      // TEMPORARY (mobile-app-launch-crashes debugging): the actual native
+      // GoogleSignin.signIn() error (e.g. a DEVELOPER_ERROR code from a
+      // SHA-1/OAuth-client mismatch) is swallowed by the generic
+      // strings.auth.error copy below. Remove once the real-device
+      // sign-in failure is diagnosed.
+      console.warn('[debug] Google sign-in failed', err);
       setHasError(true);
     } finally {
       setIsSigningIn(false);
@@ -43,7 +51,7 @@ export default function AuthScreen() {
         onPress={handleSignIn}
         loading={isSigningIn}
         disabled={isSigningIn}
-        style={styles.cta}
+        style={[styles.cta, { marginBottom: Spacing.four + insets.bottom }]}
       >
         {isSigningIn ? strings.auth.signingIn : strings.auth.signInCta}
       </Button>

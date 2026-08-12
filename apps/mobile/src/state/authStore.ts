@@ -59,23 +59,6 @@ function ensureConfigured(): void {
   configured = true;
 }
 
-// TEMPORARY (mobile-app-launch-crashes debugging): logs only the ID
-// token's aud/iss/exp — never sub/email/name — to diagnose a live 401
-// where API Gateway's JWT authorizer rejects every request/retry before
-// the Lambda is ever invoked, despite the client's baked-in webClientId
-// matching the server's configured audience byte-for-byte. Remove once
-// resolved.
-function logJwtClaims(idToken: string): void {
-  try {
-    const payload = idToken.split('.')[1] ?? '';
-    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
-    const { aud, iss, exp } = JSON.parse(json);
-    console.warn('[debug] Google ID token claims', { aud, iss, exp });
-  } catch (err) {
-    console.warn('[debug] failed to decode ID token claims', err);
-  }
-}
-
 function toAuthUser(
   idToken: string | null,
   user: { email: string; name: string | null },
@@ -85,7 +68,6 @@ function toAuthUser(
       'Google Sign-In returned no ID token — check that GoogleSignin.configure() was called with webClientId, not just iosClientId.',
     );
   }
-  logJwtClaims(idToken);
   return { idToken, email: user.email, name: user.name };
 }
 

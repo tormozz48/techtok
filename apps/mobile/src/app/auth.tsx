@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Button } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Radius, Spacing, type ThemeColors, Typography } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
@@ -14,6 +15,7 @@ import { useAuthStore } from '@/state/authStore';
 export default function AuthScreen() {
   const strings = useStrings();
   const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const signIn = useAuthStore((state) => state.signIn);
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -43,7 +45,7 @@ export default function AuthScreen() {
         onPress={handleSignIn}
         loading={isSigningIn}
         disabled={isSigningIn}
-        style={styles.cta}
+        style={[styles.cta, { marginBottom: Spacing.four + insets.bottom }]}
       >
         {isSigningIn ? strings.auth.signingIn : strings.auth.signInCta}
       </Button>

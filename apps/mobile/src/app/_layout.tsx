@@ -109,7 +109,18 @@ export default function RootLayout() {
           <StatusBar style="auto" />
           <Stack
             screenOptions={{ headerShown: false }}
-            initialRouteName={showOnboarding ? 'onboarding' : 'index'}
+            // Only ever names a screen from the currently-active
+            // Stack.Protected group below — 'onboarding'/'index' exist only
+            // when signed in, so naming one while signed out (e.g. a fresh
+            // device's very first render, before any sign-in) throws
+            // "Couldn't find a screen named '...' to use as
+            // 'initialRouteName'" and crashes the app (confirmed live on a
+            // real device that hit this exact signed-out-at-first-paint
+            // case; an emulator with a persisted sign-in session skipped
+            // this window and never hit it).
+            initialRouteName={
+              authStatus === 'signedIn' ? (showOnboarding ? 'onboarding' : 'index') : undefined
+            }
           >
             {/* D68: sign-in gates every other screen. Stack.Protected redirects
                 automatically when its guard flips — no manual router.replace

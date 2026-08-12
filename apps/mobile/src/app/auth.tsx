@@ -26,13 +26,7 @@ export default function AuthScreen() {
     setIsSigningIn(true);
     try {
       await signIn();
-    } catch (err) {
-      // TEMPORARY (mobile-app-launch-crashes debugging): the actual native
-      // GoogleSignin.signIn() error (e.g. a DEVELOPER_ERROR code from a
-      // SHA-1/OAuth-client mismatch) is swallowed by the generic
-      // strings.auth.error copy below. Remove once the real-device
-      // sign-in failure is diagnosed.
-      console.warn('[debug] Google sign-in failed', err);
+    } catch {
       setHasError(true);
     } finally {
       setIsSigningIn(false);

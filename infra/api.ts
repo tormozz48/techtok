@@ -196,16 +196,31 @@ api.route(
 // Compact-article reader (D23; eager generation as of D36): a plain S3 cache
 // read — generation already happened during ingest (infra/pipeline.ts's
 // `contentQueue`), so this route never calls the LLM on the request path.
+// usersTable is linked as of D69: this route now also gates/increments the
+// free tier's daily reader-opens quota.
 api.route(
   'GET /v1/posts/{postId}/content',
   {
     handler: 'packages/functions/src/api/handlers/content.handler',
-    link: [postsTable, sourcesTable, contentBucket],
+    link: [postsTable, sourcesTable, contentBucket, usersTable],
     environment: {
       POSTS_TABLE_NAME: postsTable.name,
       SOURCES_TABLE_NAME: sourcesTable.name,
       CONTENT_BUCKET_NAME: contentBucket.name,
+      USERS_TABLE_NAME: usersTable.name,
     },
+    runtime: 'nodejs22.x',
+  },
+  googleAuth,
+);
+
+// D69/D70: the single source every paywall surface reads from.
+api.route(
+  'GET /v1/me/entitlement',
+  {
+    handler: 'packages/functions/src/api/handlers/entitlement.handler',
+    link: [usersTable],
+    environment: { USERS_TABLE_NAME: usersTable.name },
     runtime: 'nodejs22.x',
   },
   googleAuth,

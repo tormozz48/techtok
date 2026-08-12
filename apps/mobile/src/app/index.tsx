@@ -1,27 +1,47 @@
 import { useIsRestoring, useQueryClient } from '@tanstack/react-query';
 import type { Card as CardData } from '@techtok/shared';
+import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Button } from 'react-native-paper';
+import { useEntitlementQuery } from '@/api/useEntitlementQuery';
 import { useFeedQuery } from '@/api/useFeedQuery';
 import { BottomActionBar } from '@/components/BottomActionBar';
 import { FeedPager } from '@/components/FeedPager';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { QuotaBadge } from '@/components/QuotaBadge';
 import { Colors, Spacing, type ThemeColors } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 
 export default function FeedScreen() {
   const { data, isLoading, isError, refetch, fetchNextPage, isFetchingNextPage } = useFeedQuery();
+  const entitlementQuery = useEntitlementQuery();
   const isRestoring = useIsRestoring();
   const [activeCard, setActiveCard] = useState<CardData | undefined>(undefined);
   const strings = useStrings();
   const queryClient = useQueryClient();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  // Guards against re-navigating to /paywall on every subsequent onNearEnd
+  // call while the user keeps swiping through already-cached cards.
+  const hasPromptedPaywall = useRef(false);
 
   const cards = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data]);
+  // D69: the *last* fetched page, not any page, since only the newest tells
+  // us today's cardReads quota is actually exhausted right now.
+  const isQuotaExhausted = data?.pages.at(-1)?.quotaExhausted === true;
+
+  // A brand-new fetch (no cards cached yet — e.g. a fresh install already at
+  // the daily limit from another device) has nothing to swipe through at
+  // all, so go straight to the paywall instead of showing an empty feed.
+  useEffect(() => {
+    if (isQuotaExhausted && cards.length === 0 && !hasPromptedPaywall.current) {
+      hasPromptedPaywall.current = true;
+      router.replace('/paywall');
+    }
+  }, [isQuotaExhausted, cards.length]);
 
   // Keeps the action bar's per-card actions in sync with the visible card
   // without waiting for a swipe: seeds activeCard on first load, and
@@ -86,12 +106,27 @@ export default function FeedScreen() {
         cards={cards}
         onPageChange={setActiveCard}
         onNearEnd={() => {
+          if (isQuotaExhausted) {
+            if (!hasPromptedPaywall.current) {
+              hasPromptedPaywall.current = true;
+              router.push('/paywall');
+            }
+            return;
+          }
           if (!isFetchingNextPage) fetchNextPage();
         }}
       />
       {isFetchingNextPage ? (
         <View style={styles.fetchingIndicator} pointerEvents="none">
           <ActivityIndicator color={Colors.overlay.text} size="small" />
+        </View>
+      ) : null}
+      {entitlementQuery.data?.plan === 'free' ? (
+        <View style={styles.quotaBadge} pointerEvents="none">
+          <QuotaBadge
+            used={entitlementQuery.data.quota.cardReads}
+            limit={entitlementQuery.data.quota.cardReadsLimit}
+          />
         </View>
       ) : null}
       <BottomActionBar
@@ -131,6 +166,11 @@ function createStyles(colors: ThemeColors) {
       position: 'absolute',
       top: Spacing.six,
       alignSelf: 'center',
+    },
+    quotaBadge: {
+      position: 'absolute',
+      top: Spacing.six,
+      right: Spacing.three,
     },
   });
 }

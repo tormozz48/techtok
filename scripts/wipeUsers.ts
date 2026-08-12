@@ -2,11 +2,8 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import {
-  GetResourcesCommand,
-  ResourceGroupsTaggingAPIClient,
-} from '@aws-sdk/client-resource-groups-tagging-api';
 import { BatchWriteCommand, DynamoDBDocumentClient, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { discoverTableName, REGION } from './lib/discoverTableName';
 
 /**
  * One-time D68 cutover tool: wipes every `Users` and `UserActivity` row on a
@@ -31,7 +28,6 @@ import { BatchWriteCommand, DynamoDBDocumentClient, ScanCommand } from '@aws-sdk
  * the backup from) `--stage dev` first.
  */
 
-const REGION = 'eu-central-1';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const BACKUP_DIR = resolve(__dirname, '../ops-backups');
 const BATCH_WRITE_CHUNK_SIZE = 25;
@@ -48,38 +44,6 @@ function parseArgs(argv: string[]): Args {
     throw new Error('Usage: tsx scripts/wipeUsers.ts --stage <dev|production> [--confirm]');
   }
   return { stage, confirm: argv.includes('--confirm') };
-}
-
-/** Every resource this app deploys carries `app: techtok-<stage>` (DESIGN §2
- * D17) — same tag-based discovery packages/e2e/src/awsDiscovery.ts uses,
- * so this never has to guess SST's generated physical table names. */
-async function discoverTableName(stage: string, logicalNameFragment: string): Promise<string> {
-  const client = new ResourceGroupsTaggingAPIClient({ region: REGION });
-  const arns: string[] = [];
-  let paginationToken: string | undefined;
-  do {
-    const result = await client.send(
-      new GetResourcesCommand({
-        TagFilters: [{ Key: 'app', Values: [`techtok-${stage}`] }],
-        ResourceTypeFilters: ['dynamodb'],
-        PaginationToken: paginationToken,
-      }),
-    );
-    for (const mapping of result.ResourceTagMappingList ?? []) {
-      if (mapping.ResourceARN) arns.push(mapping.ResourceARN);
-    }
-    paginationToken = result.PaginationToken || undefined;
-  } while (paginationToken);
-
-  const match = arns.find((arn) => arn.includes(logicalNameFragment));
-  if (!match) {
-    throw new Error(
-      `Could not find a DynamoDB table matching "${logicalNameFragment}" tagged app=techtok-${stage}`,
-    );
-  }
-  const name = match.split('/').pop();
-  if (!name) throw new Error(`Could not parse a table name out of ARN: ${match}`);
-  return name;
 }
 
 async function scanAll(

@@ -20,6 +20,9 @@ importers:
       '@biomejs/biome':
         specifier: 2.5.4
         version: 2.5.4
+      '@techtok/core':
+        specifier: workspace:*
+        version: link:packages/core
       '@types/node':
         specifier: 22.20.1
         version: 22.20.1
@@ -9846,9 +9849,7 @@ snapshots:
       metro-runtime: 0.84.4
     transitivePeerDependencies:
       - '@babel/core'
-      - bufferutil
       - supports-color
-      - utf-8-validate
 
   '@react-native/normalize-colors@0.74.89': {}
 

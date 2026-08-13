@@ -1,4 +1,4 @@
-import { countTopicReads, selectCardVariant } from '@techtok/core';
+import { countTopicReads, isPlus, selectCardVariant } from '@techtok/core';
 import { readsRequestSchema } from '@techtok/shared';
 import { getPostsRepo, getUserActivityRepo, getUsersRepo } from '../../repos';
 import { noContent, parseJsonBody, withAuth } from '../lib/http';
@@ -37,11 +37,22 @@ export const handler = withAuth(async (event, auth) => {
 
   // This endpoint is documented idempotent (a retried postId just overwrites
   // readAt/snapshot), but the affinity counter it drives is not — only a
-  // post's first-ever read should count toward it.
+  // post's first-ever read should count toward it. The D69 quota counter
+  // shares that same "first read only" contract for the identical reason:
+  // a retried postId must not burn a free user's daily allowance twice.
+  const newlyReadCount = results.filter((r) => r.wasNew).length;
   const firstReadTopics = results.filter((r) => r.wasNew).map((r) => r.post.primaryTopic);
   const topicCounts = countTopicReads(firstReadTopics);
   if (Object.keys(topicCounts).length > 0) {
     await getUsersRepo().addTopicReads(auth.userId, topicCounts);
+  }
+  if (newlyReadCount > 0 && !isPlus(user)) {
+    await getUsersRepo().incrementQuota(
+      auth.userId,
+      'cardReads',
+      user.timezone ?? 'UTC',
+      newlyReadCount,
+    );
   }
 
   return noContent();

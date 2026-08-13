@@ -8,7 +8,9 @@ import {
   compactBlockSchema,
   contentQuerySchema,
   contentResponseSchema,
+  entitlementResponseSchema,
   feedQuerySchema,
+  feedResponseSchema,
   historyQuerySchema,
   languagePrefsRequestSchema,
   languageSchema,
@@ -253,5 +255,63 @@ describe('contentResponseSchema', () => {
   it('parses an unavailable response with a reason', () => {
     const response = { available: false, reason: 'not ready yet' };
     expect(contentResponseSchema.parse(response)).toEqual(response);
+  });
+});
+
+describe('feedResponseSchema', () => {
+  it('parses an ordinary page with no quota fields present', () => {
+    const response = { items: [], nextBefore: null };
+    expect(feedResponseSchema.parse(response)).toEqual(response);
+  });
+
+  it('parses a quota-exhausted response', () => {
+    const response = {
+      items: [],
+      nextBefore: null,
+      quotaExhausted: true,
+      resetsAt: '2026-08-13T00:00:00.000Z',
+    };
+    expect(feedResponseSchema.parse(response)).toEqual(response);
+  });
+
+  it('rejects quotaExhausted: false — the field is meant to be absent, not falsy', () => {
+    expect(() =>
+      feedResponseSchema.parse({ items: [], nextBefore: null, quotaExhausted: false }),
+    ).toThrow();
+  });
+});
+
+describe('entitlementResponseSchema', () => {
+  it('parses a free-plan response with quota and no expiresAt', () => {
+    const response = {
+      plan: 'free',
+      quota: {
+        cardReads: 12,
+        cardReadsLimit: 50,
+        readerOpens: 3,
+        readerOpensLimit: 10,
+        resetsAt: '2026-08-13T00:00:00.000Z',
+      },
+    };
+    expect(entitlementResponseSchema.parse(response)).toEqual(response);
+  });
+
+  it('parses a plus-plan response with an expiresAt', () => {
+    const response = {
+      plan: 'plus',
+      expiresAt: '2026-09-12T00:00:00.000Z',
+      quota: {
+        cardReads: 0,
+        cardReadsLimit: 50,
+        readerOpens: 0,
+        readerOpensLimit: 10,
+        resetsAt: '2026-08-13T00:00:00.000Z',
+      },
+    };
+    expect(entitlementResponseSchema.parse(response)).toEqual(response);
+  });
+
+  it('rejects a missing quota', () => {
+    expect(() => entitlementResponseSchema.parse({ plan: 'free' })).toThrow();
   });
 });

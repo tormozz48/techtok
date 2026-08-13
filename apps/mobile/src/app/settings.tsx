@@ -13,6 +13,7 @@ import { useEffect, useMemo } from 'react';
 import { ScrollView, StyleSheet, Text } from 'react-native';
 import { List } from 'react-native-paper';
 import { fetchSources } from '@/api/client';
+import { useEntitlementQuery } from '@/api/useEntitlementQuery';
 import { LanguageFlagRow } from '@/components/LanguageFlagRow';
 import { SelectableList } from '@/components/SelectableList';
 import { Spacing, type ThemeColors } from '@/constants/theme';
@@ -37,9 +38,17 @@ export default function SettingsScreen() {
     setMutedSources,
   } = useMutedSourcesStore();
   const sourcesQuery = useQuery({ queryKey: ['sources'], queryFn: fetchSources });
+  const entitlementQuery = useEntitlementQuery();
   const strings = useStrings();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const entitlement = entitlementQuery.data;
+  const planDescription = entitlement
+    ? entitlement.plan === 'plus'
+      ? strings.quota.planPlus
+      : `${strings.quota.planFree} · ${strings.quota.remaining(entitlement.quota.cardReads, entitlement.quota.cardReadsLimit)}`
+    : undefined;
 
   useEffect(() => {
     load();
@@ -109,6 +118,16 @@ export default function SettingsScreen() {
         <List.Item
           title={strings.account.title}
           titleStyle={styles.rowText}
+          style={styles.row}
+          right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.text} />}
+        />
+      </Link>
+      <Link href="/paywall" asChild>
+        <List.Item
+          title={strings.paywall.title}
+          description={planDescription}
+          titleStyle={styles.rowText}
+          descriptionStyle={styles.rowDescription}
           style={styles.row}
           right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.text} />}
         />
@@ -194,6 +213,10 @@ function createStyles(colors: ThemeColors) {
       color: colors.text,
       fontSize: 16,
       fontWeight: '600',
+    },
+    rowDescription: {
+      color: colors.textSecondary,
+      fontSize: 13,
     },
     flagButton: {
       backgroundColor: colors.backgroundElement,

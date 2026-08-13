@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
-import type { SourcesResponse } from '@techtok/shared';
+import type { EntitlementResponse, SourcesResponse } from '@techtok/shared';
 import SettingsScreen from '@/app/settings';
-import { withSeededQuery } from '../withSeededQuery';
+import { withSeededQueries } from '../withSeededQuery';
 
 const SOURCES: SourcesResponse = {
   sources: [
@@ -10,6 +10,17 @@ const SOURCES: SourcesResponse = {
     { sourceId: 'ars-technica', name: 'Ars Technica' },
     { sourceId: 'hacker-news', name: 'Hacker News' },
   ],
+};
+
+const ENTITLEMENT: EntitlementResponse = {
+  plan: 'free',
+  quota: {
+    cardReads: 12,
+    cardReadsLimit: 50,
+    readerOpens: 3,
+    readerOpensLimit: 10,
+    resetsAt: new Date(Date.now() + 8 * 3_600_000).toISOString(),
+  },
 };
 
 const meta: Meta<typeof SettingsScreen> = {
@@ -22,5 +33,10 @@ export default meta;
 type Story = StoryObj<typeof SettingsScreen>;
 
 export const Default: Story = {
-  decorators: [withSeededQuery(['sources'], SOURCES)],
+  decorators: [
+    withSeededQueries([
+      { queryKey: ['sources'], data: SOURCES },
+      { queryKey: ['entitlement'], data: ENTITLEMENT },
+    ]),
+  ],
 };

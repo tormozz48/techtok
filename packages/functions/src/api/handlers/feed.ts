@@ -1,4 +1,10 @@
-import { buildFeed } from '@techtok/core';
+import {
+  buildFeed,
+  effectiveQuota,
+  FREE_CARD_READS_PER_DAY,
+  isPlus,
+  nextLocalMidnightUtc,
+} from '@techtok/core';
 import { feedQuerySchema, feedResponseSchema } from '@techtok/shared';
 import {
   getPostsRepo,
@@ -24,6 +30,25 @@ export const handler = withAuth(async (event, auth) => {
     name: auth.name,
   });
   const lang = user.language ?? 'en';
+  const timezone = user.timezone ?? 'UTC';
+
+  // D69's quota gate (DESIGN §5.2 step 8): checked here, incremented on the
+  // read path (reads.ts) instead — so serving a page and D61's read-ahead
+  // prefetch never themselves consume quota. Plus users skip this entirely.
+  if (!isPlus(user)) {
+    const quota = effectiveQuota(user.quota, timezone);
+    if (quota.cardReads >= FREE_CARD_READS_PER_DAY) {
+      return jsonResponse(
+        200,
+        feedResponseSchema.parse({
+          items: [],
+          nextBefore: null,
+          quotaExhausted: true,
+          resetsAt: nextLocalMidnightUtc(timezone).toISOString(),
+        }),
+      );
+    }
+  }
 
   const page = await buildFeed(
     {

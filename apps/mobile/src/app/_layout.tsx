@@ -152,6 +152,14 @@ export default function RootLayout() {
                 name="account"
                 options={{ headerShown: true, title: strings.account.title }}
               />
+              <Stack.Screen
+                name="paywall"
+                options={{
+                  presentation: 'modal',
+                  headerShown: true,
+                  title: strings.paywall.title,
+                }}
+              />
               <Stack.Screen name="post/[id]" options={{ headerShown: true, title: '' }} />
             </Stack.Protected>
             <Stack.Protected guard={authStatus !== 'signedIn'}>

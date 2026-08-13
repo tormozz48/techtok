@@ -5,6 +5,8 @@ import {
   contentResponseSchema,
   DEVICE_LANGUAGE_HEADER,
   DEVICE_TIMEZONE_HEADER,
+  type EntitlementResponse,
+  entitlementResponseSchema,
   type FeedResponse,
   feedResponseSchema,
   type HistoryResponse,
@@ -20,6 +22,21 @@ import { useAuthStore } from '@/state/authStore';
 import { detectDeviceLanguage, detectDeviceTimezone } from '@/state/deviceLanguage';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
+
+/** Carries the response status/error code through a failed request so
+ * callers can distinguish "quota exceeded" (402, D69) from any other
+ * failure — e.g. the reader routes to `/paywall` on 402 instead of showing
+ * its generic error state. */
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string | undefined,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
 
 function apiUrl(path: string): URL {
   if (!API_URL) {
@@ -59,9 +76,16 @@ async function apiFetch(url: URL, init: RequestInit = {}): Promise<Response> {
   }
 
   if (!response.ok) {
-    throw new Error(
-      `${init.method ?? 'GET'} ${url.pathname} failed with status ${response.status}`,
-    );
+    let code: string | undefined;
+    let message = `${init.method ?? 'GET'} ${url.pathname} failed with status ${response.status}`;
+    try {
+      const body = (await response.json()) as { error?: { code?: string; message?: string } };
+      code = body.error?.code;
+      message = body.error?.message ?? message;
+    } catch {
+      // Non-JSON error body (e.g. an API Gateway-level rejection) — keep the generic message.
+    }
+    throw new ApiError(response.status, code, message);
   }
   return response;
 }
@@ -196,4 +220,12 @@ export async function fetchPostContent(postId: string, lang: Language): Promise<
  * by Google Play policy for any app with accounts. Irreversible. */
 export async function deleteAccount(): Promise<void> {
   await apiFetch(apiUrl('/v1/me'), { method: 'DELETE' });
+}
+
+/** Current plan + today's quota usage/limits (D69/D70) — the single call
+ * every paywall surface (the feed/reader exhaustion states, the paywall
+ * screen itself, the settings quota row) reads from. */
+export async function fetchEntitlement(): Promise<EntitlementResponse> {
+  const response = await apiFetch(apiUrl('/v1/me/entitlement'));
+  return entitlementResponseSchema.parse(await response.json());
 }

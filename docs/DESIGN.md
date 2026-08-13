@@ -172,7 +172,7 @@ flowchart LR
     CONTENT[Content Lambda<br/>eager compact gen, D36]
     S3[(S3 raw articles<br/>90-day lifecycle)]
     CDN[(S3 + CloudFront<br/>images · compact content)]
-    LLM[OpenRouter<br/>Claude Haiku 4.5<br/>Bedrock: dormant fallback, D32]
+    LLM[OpenRouter<br/>google/gemini-3.1-flash-lite, D38<br/>Bedrock: dormant fallback, D32]
   end
 
   SOURCES[RSS feeds] --> FETCH
@@ -350,7 +350,7 @@ Step Functions buys per-source retry/isolation, visible execution history, and M
 
 ### 7.4 LLM contracts
 
-All **four** contracts (three through D36; the fourth added by D72) share the same machinery: prompt in the repo (`packages/core/src/llm/prompts/`), zod-validated JSON output, one repair-retry, golden-fixture tests (recorded outputs, no live LLM calls in CI), Claude Haiku 4.5 via OpenRouter (D32, primary) with Bedrock's EU inference profile kept as a dormant, env-switchable fallback (D6/D22).
+All **four** contracts (three through D36; the fourth added by D72) share the same machinery: prompt in the repo (`packages/core/src/llm/prompts/`), zod-validated JSON output, one repair-retry, golden-fixture tests (recorded outputs, no live LLM calls in CI), `google/gemini-3.1-flash-lite` via OpenRouter (D32 provider, D38 model) with Bedrock's EU Claude Haiku 4.5 inference profile kept as a dormant, env-switchable fallback (D6/D22).
 
 - **Card generation** (transform stage) — **Input:** extracted article text truncated to ~4,000 chars + title + source. **Output:** `{ cardTitle ≤ 80, summary 2–3 sentences ≤ 320, whyItMatters ≤ 160, primaryTopic: enum, topics: enum[], lang }`. Failure → excerpt fallback.
 - **Card translation** (translate stage, D22) — **Input:** the English card fields (or excerpt for `transform=excerpt` posts) + target language. **Self-critique in-call:** the prompt instructs translate → critique the draft → emit only the corrected final JSON (same field shape as the card copy). Failure → post simply stays English (no degrade state needed — EN fallback *is* the resting state).

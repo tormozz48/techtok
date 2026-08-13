@@ -1,0 +1,142 @@
+---
+import MascotSilhouette from './MascotSilhouette.astro';
+
+// Decorative only (aria-hidden): the 8 topic mascots drift in slow circular
+// orbits around a large center "Buddy", each tinted to its topic's accent
+// color — mirrors TopicMascot.tsx's TOPIC_CONFIG accents (mobile). Kept as a
+// local copy since these are design tokens duplicated across app/site, not
+// shared business logic worth a packages/shared export.
+//
+// Pure CSS (no client JS, matching the rest of this zero-JS site): each
+// orbit is a rotating ring div with the mascot placed at its top edge and
+// counter-rotated at the same speed so it stays upright while tracing the
+// circle — the classic "moon around a planet" trick.
+const ORBITS = [
+  { topic: 'space', color: '#7C8CE0', radius: 120, size: 22, duration: 28, delay: -2 },
+  { topic: 'ai', color: '#00C2D1', radius: 145, size: 30, duration: 34, delay: -9 },
+  { topic: 'startups', color: '#FF9F1C', radius: 170, size: 24, duration: 40, delay: -16 },
+  { topic: 'dev', color: '#2ECC71', radius: 195, size: 26, duration: 46, delay: -23 },
+  { topic: 'security', color: '#E74C3C', radius: 220, size: 28, duration: 52, delay: -30 },
+  { topic: 'gadgets', color: '#4A90D9', radius: 245, size: 32, duration: 58, delay: -37 },
+  { topic: 'science', color: '#9B59B6', radius: 270, size: 30, duration: 64, delay: -44 },
+  { topic: 'bio', color: '#16A085', radius: 295, size: 26, duration: 70, delay: -51 },
+];
+---
+
+<div class="hero-bg" aria-hidden="true">
+  {
+    ORBITS.map((orbit) => (
+      <div
+        class="orbit"
+        style={{
+          width: `${orbit.radius * 2}px`,
+          height: `${orbit.radius * 2}px`,
+          animationDuration: `${orbit.duration}s`,
+          animationDelay: `${orbit.delay}s`,
+        }}
+      >
+        <div
+          class="orbit-ring-line"
+          style={{ width: `${orbit.radius * 2}px`, height: `${orbit.radius * 2}px` }}
+        />
+        <div
+          class="orbit-counter"
+          style={{ animationDuration: `${orbit.duration}s`, animationDelay: `${orbit.delay}s` }}
+        >
+          <MascotSilhouette size={orbit.size} color={orbit.color} class="orbit-mascot" />
+        </div>
+      </div>
+    ))
+  }
+  <div class="hero-bg-center">
+    <MascotSilhouette size={130} color="#FF9F1C" class="hero-bg-mascot" />
+  </div>
+</div>
+
+<style>
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+
+  .hero-bg-center {
+    position: relative;
+    animation: bob 6s ease-in-out infinite;
+  }
+
+  .hero-bg-mascot {
+    opacity: 0.9;
+    filter: drop-shadow(0 0 50px rgba(255, 159, 28, 0.35));
+  }
+
+  .orbit {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    animation-name: spin;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+
+  .orbit-ring-line {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 1px dashed rgba(255, 255, 255, 0.06);
+  }
+
+  .orbit-counter {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    animation-name: counter-spin;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+
+  .orbit-mascot {
+    opacity: 0.5;
+  }
+
+  @keyframes spin {
+    from {
+      transform: translate(-50%, -50%) rotate(0deg);
+    }
+    to {
+      transform: translate(-50%, -50%) rotate(360deg);
+    }
+  }
+
+  @keyframes counter-spin {
+    from {
+      transform: translate(-50%, -50%) rotate(0deg);
+    }
+    to {
+      transform: translate(-50%, -50%) rotate(-360deg);
+    }
+  }
+
+  @keyframes bob {
+    0%,
+    100% {
+      transform: translateY(0) scale(1);
+    }
+    50% {
+      transform: translateY(-10px) scale(1.03);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .orbit,
+    .orbit-counter,
+    .hero-bg-center {
+      animation: none;
+    }
+  }
+</style>

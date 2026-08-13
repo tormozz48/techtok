@@ -1,6 +1,6 @@
 # TechTok — Implementation Plan
 
-Companion to [DESIGN.md](DESIGN.md). Eighteen phases (0–6 original build-out, 7–10 the 2026-07-22 extension, D20–D25, 11–12 the 2026-07-24 extension, D26–D30, 13 the 2026-07-24 LLM provider swap, D32, 14 the 2026-07-24 CI/CD hardening, D33–D35, 15 the 2026-07-24 eager compact-article generation, D36, 16 the 2026-07-24 visual identity redesign + native-asset sync fix, D37, 17 the 2026-07-25 public project site on GitHub Pages, D39, 18 the 2026-08-03 release history feed, D60); every phase ends with something you can demo on a phone. Effort estimates are focused solo days — spread over evenings, multiply accordingly.
+Companion to [DESIGN.md](DESIGN.md). Eighteen phases (0–6 original build-out, 7–10 the 2026-07-22 extension, D20–D25, 11–12 the 2026-07-24 extension, D26–D30, 13 the 2026-07-24 LLM provider swap, D32, 14 the 2026-07-24 CI/CD hardening, D33–D35, 15 the 2026-07-24 eager compact-article generation, D36, 16 the 2026-07-24 visual identity redesign + native-asset sync fix, D37, 17 the 2026-07-25 public project site on GitHub Pages, D39, 18 the 2026-08-03 release history feed, D60, **19–22 the 2026-08-10 going-public-and-paid stage, D67–D74**); every phase ends with something you can demo on a phone. Effort estimates are focused solo days — spread over evenings, multiply accordingly.
 
 **Principles**
 
@@ -32,6 +32,25 @@ Companion to [DESIGN.md](DESIGN.md). Eighteen phases (0–6 original build-out, 
 | 16 | Visual identity redesign ("Orbit") + native-asset sync fix | New icon/splash assets, surgical `expo prebuild` resource sync preserving D18's signing config, real on-device APK verification | 1 d |
 | 17 | Public project site on GitHub Pages | New `apps/site` (Astro) workspace package, `deploy-site.yml` release-pipeline stage, non-prerelease APK releases | 1 d |
 | 18 | Release history feed | Build-time git-tag read (`apps/site/src/lib/releases.ts`), new site section, `deploy-site.yml` full-history checkout | <1 d |
+| 19 | Google identity | API GW JWT authorizer (Google issuer), native Google Sign-In, `userId` = `g:<sub>`, live user-data wipe, `DELETE /v1/me` | 2–3 d |
+| 20 | Entitlements & quota | Entitlement model + manual grants, daily counters on `Users`, feed/reader gating, paywall screen | 2–3 d |
+| 21 | Play Billing | `PlayServiceAccountKey` secret, Play Developer API verification, IAP client, Play Console subscription products | 3–4 d |
+| 22 | Extended compact (paid) | 4th LLM path, `POST /v1/posts/:id/extended`, fair-use cap, reader integration | 2 d |
+| 23 | Public Play launch (free) — **runs before 21–22** | Deploy/verify 19–20, upload keystore + AAB pipeline, legal surface on `apps/site`, Play listing, 14-day closed test | 3–4 d work, ~4–6 weeks elapsed |
+
+**Release gate (parallel, maintainer-side, D67, re-scoped by D75).** Not a phase — it blocks *shipping*, not coding. D75's free-first ordering splits it in two: items 1–4 block the free public launch (phase 23) and start now, because the longest takes 14 calendar days plus an approval wait; items 5–6 block monetization only and are not on the launch critical path.
+
+*Blocks the free launch (phase 23):*
+
+1. **Rights review** for a public app built on third-party article condensations (challenged assumption #4, re-resolved by D67/D72; due for *any* public release, not just a paid one). At free-first scope the question narrows to what actually ships: D23/D36's existing ~400–600-word compacts with attribution and link-out. Decide whether any source is excluded, and whether `transform=excerpt` posts should drop out of translation eligibility now that D20's friends-scale acceptance no longer holds. The *paid*-tier question (does a 1,500-word condensation substitute for the original?) defers with phase 22.
+2. **Play Console:** developer account ($25 one-time, personal per D75 — so item 4 applies), app listing, content rating (IARC), target-API compliance, **no News category** (it carries publisher-transparency requirements this app can't meet) — pick a neutral alternative such as Books & Reference.
+3. **Legal/compliance surface** (none of which exists today — `apps/site/src/pages` holds only `index.astro` and `[lang]/index.astro`): privacy policy hosted on the project site (D39), Data Safety form matching what D68 actually stores, and a **public web account-deletion URL** alongside the in-app `DELETE /v1/me` — Play requires the web route to be reachable without installing the app. Terms of service are not required for a free app and land with item 5.
+4. **12 testers × 14 continuous days** closed test before production access can even be applied for; the application itself then takes days more. Personal account (D75), created after Nov 2023, so **no exemption applies**. **Longest-lead item in the entire project; start it the day phase 23 produces an uploadable AAB.** Confirm 12 real Google accounts can be fielded before phase 23 begins — this is the single assumption most likely to slip the date.
+
+*Blocks monetization only (phases 21–22):*
+
+5. **Subscription products** in Play Console: one product, two base plans (€2.99/mo, €24.99/yr), no offers (D73), plus terms of service covering the subscription.
+6. **Paid-scope rights review** — the deferred half of item 1, gating phase 22's scope. If it lands badly, the paid tier is redefined to sell only our own features (unlimited reading, offline, listen mode, stats), which is an entitlement-check change, not an architecture change.
 
 ---
 
@@ -480,6 +499,181 @@ Code (tasks 1–5) is complete and verified via the unit test suite and a full `
 
 ---
 
+## Phase 19 — Google identity
+
+**Goal:** the app opens to a Google sign-in screen; after signing in you get your feed, and every API call is authenticated by a real verified token instead of a guessable header. Anonymous device identity is gone.
+
+**Tasks**
+
+1. **Front-load the destructive step.** Before any code: count `Users` and `UserActivity` rows on `dev` and `production`, export both tables to a scratchpad backup, print the exact counts, and get one explicit confirmation (CLAUDE.md Destructive Operations). The wipe (D68) is what makes the rest of this phase a rewrite rather than a migration, so it goes first — the same front-load-the-risk pattern phase 12 used for cap removal.
+2. **Google Cloud project + OAuth clients:** an Android client (package name + SHA-1) and a Web client (whose ID is the `audience` the JWT authorizer checks and the `webClientId` the native SDK needs for an ID token). **Register the Play-managed SHA-1, not the local upload key** — D68's named failure mode; register the local debug SHA-1 too so debug builds work.
+3. **JWT authorizer in `infra/api.ts`:** one `aws.apigatewayv2.Authorizer` (`jwt`, issuer `https://accounts.google.com`, audience = web client ID) attached to every `/v1` route except `GET /v1/topics` and `GET /v1/sources`. Verify SST v4 exposes this on `ApiGatewayV2.route()`; if it doesn't, `transform` on the route is the escape hatch.
+4. **Server:** replace `extractDeviceId` with `extractUserId(event)` reading `requestContext.authorizer.jwt.claims.sub` → `g:<sub>`; delete `DEVICE_ID_HEADER` and `deviceId.ts`; `UsersRepo.touch` upserts on first sight and stores `email`, `name`, `timezone`. `X-Device-Language` stays (it still seeds a new user's language, D20).
+5. **`DELETE /v1/me`:** deletes the `Users` row and paginates every `UserActivity` row for the user. A Play requirement (D68), built now rather than bolted on before listing.
+6. **Mobile:** `@react-native-google-signin/google-signin` (Credential Manager). No `expo-secure-store` needed — the SDK persists its own session (Credential Manager), so `authStore.restore()` calls `signInSilently()` at app start instead of this app caching a token itself. `/auth` route gated via expo-router's `Stack.Protected`; `api/client.ts`'s `apiFetch` attaches `Authorization` and, on a 401, calls `refreshToken()` (a silent re-sign-in) and retries **once**; `/account` screen (email, sign out, delete account with a native confirm dialog). Zustand's device-UUID state is deleted.
+7. **`expo prebuild` + Gradle debug build** — the Expo Go loop ends here (D67). Update `docs/DISTRIBUTION.md` to say so, and document the two-SHA-1 setup.
+8. **Regenerate `packages/shared/schema-snapshot.json` deliberately.** D34's guardrail *will* fail on the removed `X-Device-Id` contract — that failure is correct and the regeneration is the deliberate act it's designed to force. Note it in the PR body.
+
+**Acceptance criteria**
+
+- [x] `pnpm lint && pnpm typecheck && pnpm test` green (296 files linted, 6 workspaces typechecked including infra, 49 vitest files/423 tests + 25 mobile-jest suites/142 tests); Metro bundle check passes (1802 modules, no errors).
+- [ ] **Blocked, not deferred — no AWS credentials in this environment.** Backup taken, row counts printed, confirmation obtained, wipe executed on `dev` and `production`. `scripts/wipeUsers.ts` is written and ready (`pnpm wipe-users -- --stage dev`, then `--confirm`); the maintainer runs it.
+- [ ] **Blocked — no Google Cloud project, no real device.** On a real device (debug build): cold open → Google sign-in sheet → feed loads. Force-quit and reopen → still signed in, no re-prompt.
+- [ ] **Blocked — needs a deployed API GW authorizer.** A request with no `Authorization` header returns 401 **from the authorizer, not from handler code**; `GET /v1/topics` still works unauthenticated. (`infra/api.ts` typechecks against SST's generated types; behavior unverified against live AWS.)
+- [ ] **Blocked — needs a real device + real tokens.** An expired ID token triggers exactly one silent refresh + retry, not a sign-out loop. Covered at the unit level: `apps/mobile/src/api/client.test.ts`-equivalent behavior is exercised via `authStore.test.ts`'s `refreshToken` tests, but the actual 401-retry path in `api/client.ts` has no live-server test.
+- [ ] **Blocked — needs a deployed `UserActivity` table.** `DELETE /v1/me` removes the user row *and* every UserActivity row. Covered at the unit level: `UsersRepo.deleteUser`/`UserActivityRepo.deleteAllForUser` both have `aws-sdk-client-mock` tests (pagination + chunked `BatchWriteItem` included).
+- [ ] **Blocked — needs two real devices.** Sign in on a second device with the same Google account → same history and bookmarks.
+
+**Out of scope:** entitlements, quota, payments, extended compact.
+
+**Implementation note:** built without `expo-secure-store` — Google Sign-In's SDK persists its own session (Android Credential Manager), so `authStore.restore()` calls `signInSilently()` at app start instead of this app caching a token. `/auth` gating uses expo-router's `Stack.Protected` rather than manual `router.replace` calls.
+
+---
+
+## Phase 20 — Entitlements & quota
+
+**Goal:** the free tier is real and enforced — 50 card-reads and 10 reader-opens a day, a paywall when you hit either — and the whole paid experience is demoable on a phone **with no payment code in existence**, via manually-granted entitlements.
+
+**Tasks**
+
+1. **Entitlement model in `core` (D70):** `entitlement` on the `Users` item, an `isPlus(user, now)` predicate, and a provider-agnostic `grantEntitlement({ source: 'manual' | 'play', ... })` write path. Play is a *future* caller; nothing in this phase knows Play exists.
+2. **Quota counters (D69):** `quota { day, cardReads, readerOpens }` on the `Users` item, atomic `ADD` with a conditional day-rollover reset against the user's stored IANA timezone. **Do not resurrect the `Counters` table** (D31). Watch for DynamoDB reserved keywords in the `UpdateExpression` — `day` and `status` are both reserved, and `aws-sdk-client-mock` will not catch it (the bug that bit phases 2 and 8).
+3. **Enforcement:** `POST /v1/reads` increments `cardReads`; `GET /v1/feed` gains §5.2 step 8's page-granularity check returning `quotaExhausted`; `GET /v1/posts/:id/content` increments `readerOpens` and returns 402 when exhausted. Plus users skip all three branches.
+4. **`GET /v1/me/entitlement`:** one call returning plan, expiry, both counters with limits, and `resetsAt` — the single source for every paywall surface.
+5. **Ops script:** `scripts/grantEntitlement.ts` to grant/revoke `plus` by `userId` — how the maintainer tests the paid path in this phase and comps accounts forever after. Built as a local CLI tool (not a deployed Lambda), same tag-based table-discovery pattern as phase 19's `scripts/wipeUsers.ts` (extracted into a shared `scripts/lib/discoverTableName.ts` since both need it) — calls `UsersRepo.grantEntitlement` directly, the exact same write path Play's verify callback will use in phase 21.
+6. **Mobile:** `/paywall` screen (plan comparison, both prices, no purchase button yet — a disabled "Coming soon"), a `QuotaBadge` indicator in the feed and a plan row in settings, and exhaustion states in the feed and reader that route to `/paywall`. All strings in all 4 languages (D20), Paper components (D26), stories for every new component and page (CLAUDE.md hard rule).
+
+**Acceptance criteria**
+
+- [x] `pnpm lint && pnpm typecheck && pnpm test` green (313 files linted, 6 workspaces + `scripts/` typechecked, 52 vitest files/456 tests + 26 mobile-jest suites/143 tests); Metro bundle check passes (1805 modules, no errors).
+- [ ] **Blocked — no AWS credentials, no real device in this environment.** On a device, as a free user: read 50 cards → feed stops and the paywall appears; open 10 articles → the 11th shows the paywall, not an error. Covered at the unit level: `feed.ts`'s quota gate and `content.ts`'s 402 path are exercised indirectly via `UsersRepo.incrementQuota`/`isPlus`/`effectiveQuota` core tests, but the handlers themselves have no live-server test (matches this codebase's existing handlers-stay-thin/untested-at-the-handler-level convention).
+- [ ] **Blocked — needs a deployed API + a real client.** Quota survives app restart and is enforced server-side — verified by calling the API directly with a fresh client, not just through the UI.
+- [x] Reset fires at **local** midnight for a non-UTC timezone — verified at the unit level: `packages/core/src/entitlement/quota.test.ts` checks `nextLocalMidnightUtc`/`localDayKey` against both a positive-DST offset (Europe/Warsaw, UTC+2) and a negative offset (America/New_York, UTC-4), and `usersRepo.test.ts` exercises the actual day-rollover `UpdateCommand` conditional logic.
+- [ ] **Blocked — needs AWS credentials.** `grantEntitlement` → the same account immediately reads unlimited cards and articles, with no app reinstall. The script itself typechecks and reuses the already-tested `UsersRepo.grantEntitlement`; running it against a live table is unverified in this session.
+- [x] Prefetched/offscreen cards demonstrably do **not** burn quota: by construction, not just by observation — `POST /v1/reads` is the only call site that increments `cardReads` (`reads.ts`), and it only fires on the settle-based read event (§1), never on `GET /v1/feed` serving a page or D61's prefetch. `feed.ts`'s quota gate only ever *reads* `effectiveQuota`, never increments it.
+- [x] All 4 languages render the paywall and quota strings — `strings.ts`'s `paywall`/`quota` blocks are typed identically across `en`/`ru`/`uk`/`pl` (a missing key is a compile error, per the file's own stated convention), confirmed by `pnpm --filter mobile run typecheck`. Both color schemes read from `useThemeColors()`/`Colors.overlay.*` the same way every other screen does — no scheme-specific code path to verify separately. Real on-device visual check not done in this environment.
+
+**Out of scope:** any real payment, the extended compact.
+
+---
+
+## Phase 21 — Play Billing
+
+**Goal:** a real purchase on a real device from a real Play track grants `plus`, verified server-side.
+
+**Tasks**
+
+1. **Play Console setup** (release-gate items 2 and 4): app listing, subscription product with two base plans, license testers.
+2. **`PlayServiceAccountKey` secret** (D71): Google Cloud service account with Play Developer API access, `sst secret set --stage dev|production`. **Check the deploying principals** before merging any `infra/` change here (CLAUDE.md AWS rule) — a new secret plus a new route is exactly the shape that has broken dev deploys before.
+3. **`POST /v1/billing/play/verify`:** validates the purchase token against `purchases.subscriptionsv2.get`, maps the result to an entitlement grant through phase 20's *unchanged* write path, and is idempotent (called on every app open). Verification logic lives in `core` behind an injectable Play API client so it is unit-testable with recorded fixtures and no live calls (CLAUDE.md hard rule).
+4. **Mobile:** Play Billing client (`expo-iap`/`react-native-iap`), purchase flow from `/paywall`, `queryPurchases()` on app launch → verify → refresh entitlement, restore-purchases path, and a "Manage subscription" deep link into Play (Play owns cancel/upgrade/proration entirely — the server only reads the result).
+5. **Track build + closed test kickoff:** produce an internal-track build via D18's Gradle path and start release-gate item 5's 14-day clock. IAP cannot be tested any other way.
+
+**Acceptance criteria**
+
+- [ ] `pnpm lint && pnpm typecheck && pnpm test` green; Metro bundle check passes.
+- [ ] A license tester completes a real purchase from an internal-track build → `plus` is active within seconds, and the quota limits are gone.
+- [ ] Verification is genuinely server-side: a forged/replayed purchase token is rejected — tested explicitly, not assumed.
+- [ ] Calling verify twice with the same token doesn't double-grant or error.
+- [ ] Cancel in Play → access continues to period end → lapses after expiry (verified with a test subscription's accelerated renewal timing).
+- [ ] Reinstall + restore purchases → `plus` returns with no repurchase.
+- [ ] Sign-in works in a **Play-signed** build, not just debug — the D68 SHA-1 trap, confirmed rather than assumed.
+- [ ] Closed test running with ≥12 opted-in testers; day 1 of 14 logged with a date.
+
+**Out of scope:** RTDN/Pub/Sub (D71 declined it), the extended compact.
+
+---
+
+## Phase 22 — Extended compact (paid)
+
+**Goal:** a Plus subscriber taps "Read the long version" and gets a ~1,500-word condensation in their language, on demand.
+
+**Tasks**
+
+1. **Fourth LLM path (D72):** prompt in `packages/core/src/llm/prompts/`, reusing the *existing* compact block schema with a `variant: "extended"` marker so one reader component renders both and a failure degrades with zero UI branching. Golden-fixture tests, one repair-retry, ~16,000-char input truncation. Update CLAUDE.md's "three defined paths" hard rule, DESIGN §7.4, and the sequencing note below — all three say "three" today.
+2. **`POST /v1/posts/:id/extended`** in its own Lambda (60 s timeout, separate from the thin content cache-read route) implementing §7.6's order: entitlement → fair use → CDN cache → `compactEnabled` → S3 archive → LLM → cache + `Posts.extendedLangs` + increment. Cache hits and failures both skip the fair-use increment.
+3. **Fair-use cap (D73):** `fairUse { month, extendedCompacts }` on the `Users` item, monthly rollover, soft 429 that the reader presents as "you've hit this month's limit, here's the standard version".
+4. **Mobile:** reader CTA (Plus badge for free users → `/paywall`), a real progress affordance for a 15–25 s wait — reuse D27's staged-progress thinking, since a bare spinner was already judged inadequate for an 11 s wait — and graceful degrade to the free compact on any failure.
+5. **S3 lifecycle** for `content/<postId>/<lang>.extended.json`, matched to the existing 90-day TTL.
+
+**Acceptance criteria**
+
+- [ ] `pnpm lint && pnpm typecheck && pnpm test` green, including golden fixtures for the new path; Metro bundle check passes.
+- [ ] On a device as Plus: tap → progress → a ~1,500-word extended article in the user's language, with attribution and "Read original" intact. Second tap on the same article returns from cache in well under a second **and doesn't increment fair use**.
+- [ ] As free: the CTA shows a Plus badge and routes to `/paywall`; the endpoint returns 402 when called directly.
+- [ ] A source with `compactEnabled: false` returns no extended compact — the D23 rights kill switch verified against the *paid* path specifically.
+- [ ] A forced LLM failure degrades to the free compact **and leaves the fair-use counter unchanged** — verified by reading the counter, not by reading the code.
+- [ ] Fair-use cap triggers the soft message at 100, not an error screen.
+- [ ] Measured: real per-generation token cost recorded from OpenRouter's dashboard against D74's ≤€2/subscriber/month assumption. **This is the first real datapoint for D74's unit economics — record the number in the decision log, don't just eyeball it.**
+- [ ] Rights review (release-gate item 1) complete, since it governs whether this phase ships as designed.
+
+**Out of scope:** eager generation for subscribers, RTDN, iOS/StoreKit.
+
+---
+
+## Phase 23 — Public Play launch (free)
+
+> **Ordering:** despite the number, this phase runs **immediately after phase 20 and before phases 21–22** (D75). It is numbered last only because it was decided last — the same convention phases 13, 17 and 18 already follow.
+
+**Goal:** TechTok is publicly installable from Google Play as a free app: real sign-in, real feed, real reader, no payment code anywhere. Phases 19 and 20 stop being code-complete-but-unproven and become deployed-and-verified.
+
+**Why this is mostly not a coding phase:** phases 19–20 have **zero** verified acceptance criteria between them (no deploy, no live wipe, no on-device pass), and the store work is dominated by credentialed, maintainer-only steps with real wall-clock latency. The four tracks below are deliberately parallel; only track A is a hard prerequisite for the others.
+
+### Track A — Deploy and verify phases 19–20 (blocks everything else)
+
+1. **Google Cloud project + OAuth clients** (phase 19 task 2, still undone): consent screen, a **Web** client (its ID is the JWT authorizer's `audience` and the native SDK's `webClientId`) and an **Android** client for `com.tormozz48dev.techtok`. Register the **local debug SHA-1** now; the Play-managed SHA-1 does not exist yet — see track C's ordering note, which is the single most important sequencing detail in this phase.
+2. **Wire the client ID:** `GOOGLE_OAUTH_WEB_CLIENT_ID` at deploy time, `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` in `apps/mobile/.env`, and both added to `apps/mobile/.env.example` (phase 19 left this undone — that environment could not write the file).
+3. **Run the D68 wipe:** `pnpm wipe-users -- --stage dev`, then `--confirm`; same for `production`. Follow CLAUDE.md's Destructive Operations rule — export both tables to a scratchpad backup and print exact row counts before confirming.
+4. **Deploy both stages:** `pnpm exec sst deploy --stage dev`, verify, then let CI deploy `production`. Watch for the deploy-role trap in CLAUDE.md's AWS rule — phase 19 adds an `aws.apigatewayv2.Authorizer` and phase 20 adds a route, exactly the resource-shape that has broken dev deploys before with `AccessDenied`.
+5. **Verify server-side, not through the UI:** a request with no `Authorization` header returns 401 **from the authorizer**; `GET /v1/topics` still works unauthenticated; `GET /v1/me/entitlement` returns the expected shape.
+6. **Raise the quota constants out of reach** (D75d): `FREE_CARD_READS_PER_DAY` / `FREE_READER_OPENS_PER_DAY` in `packages/core/src/entitlement/entitlement.types.ts`. Enforcement code stays deployed and exercised — only the numbers change. Phase 21 restores D69's 50/10 in the same commit that enables purchases. Update phase 20's paywall copy so "Coming soon" is the only state a free user can reach.
+7. **On-device pass** on a debug build: cold open → sign-in sheet → feed; force-quit → still signed in; reader, history, saved, search, listen mode, stats; account deletion removes the user *and* every `UserActivity` row; both color schemes; at least English and one Cyrillic locale.
+8. **E2E credentials:** provision the dedicated test Google account and set `GOOGLE_TEST_REFRESH_TOKEN` + `GOOGLE_OAUTH_WEB_CLIENT_SECRET` so `packages/e2e`'s authenticated suites stop skipping.
+
+### Track B — Legal & compliance surface (`apps/site`, D39)
+
+9. **Privacy policy page**, derived from what the code actually does rather than from a template: identity data (email, name, Google `sub`, IANA timezone) from D68; behavioural data (read history, bookmarks, topic affinity, muted sources); processors (Google for auth, AWS `eu-central-1` for hosting, OpenRouter for condensation — which receives *article* text, never user data); retention and the deletion route. **English only** — machine-translating legal text into ru/uk/pl is a liability, not a feature; link all four locales at the one English page.
+10. **Public account-deletion page:** Play requires a web URL reachable **without installing the app**. Documents the in-app path (`/account` → delete, which already calls `DELETE /v1/me`) plus an email route for people who have uninstalled. This is a Play requirement the in-app deletion alone does not satisfy.
+11. **Link both from the site footer and the app's settings screen**, and record the URLs — the Play listing form asks for the privacy policy URL specifically.
+12. **Data Safety form answers**, written down in the repo alongside the policy so the form and reality cannot drift: what is collected, what is shared, encryption in transit, deletion mechanism, and the fact that no data is sold and there is no advertising SDK.
+
+### Track C — Signing chain and the AAB pipeline
+
+13. **Generate the upload keystore** (maintainer, credential): `keytool -genkeypair` per `docs/DISTRIBUTION.md`, stored outside the repo, with `apps/mobile/android/keystore.properties` filled in from the committed `.example`. `android/app/build.gradle` already reads it and falls back to the debug key when absent.
+14. **Make the store artifact an AAB with a bound update channel.** `eas.json`'s `production` profile is currently `"buildType": "apk"` with `"distribution": "internal"` — wrong on both counts for Play. Change to `"buildType": "app-bundle"` and build via `eas build --platform android --profile production --local`. This matters beyond the file extension: the committed `AndroidManifest.xml` has `EXPO_UPDATES_CHECK_ON_LAUNCH=ALWAYS` and an update URL but **no channel meta-data** — `eas build` injects the channel from `eas.json`, so the `pnpm build:android` raw-Gradle path documented in `DISTRIBUTION.md` would ship an app polling for updates with no channel binding.
+15. **Point CI's OTA publish at the store channel too.** `mobile-build.yml:211` publishes `eas update --channel preview`; a `production`-profile store build listens on `production` and would never see it (D65's mechanism, silently inert). Either publish to both channels or make the store release its own workflow — decide deliberately rather than discovering it when a hotfix does not arrive.
+16. **Bake the production API URL:** `EXPO_PUBLIC_API_URL` must point at the `production` API, not `dev`. It is a `workflow_dispatch` input in CI and a local `.env` value otherwise — both are easy to get wrong silently. Add a pre-upload check that fails loudly on a non-production URL.
+17. **Verify `targetSdkVersion`** (inherited from Expo SDK 57's root-project defaults via `rootProject.ext`) against Play's current requirement for new apps, and confirm `versionCode` has advanced past every prior upload — CI auto-bumps it on merge (D44), not on your publish schedule.
+18. **Decide on R8/minification.** `enableMinifyInReleaseBuilds` is `false` and release lint is disabled (`checkReleaseBuilds false`) — both defensible for an internal APK, both worth revisiting for a public app. If enabled, it needs its own on-device pass; RN/Hermes minification failures are runtime, not build-time.
+
+### Track D — Store listing and the 14-day clock
+
+19. **Register the Play developer account** ($25, personal per D75) and complete identity verification — start this on day one; verification alone can take days.
+20. **Create the app** with `applicationId` `com.tormozz48dev.techtok` (permanent, confirmed by D75b) and **enable Play App Signing**.
+21. **⚠️ The SHA-1 ordering trap (D68's named failure mode).** Play App Signing rewrites the signing certificate, so the Play-managed SHA-1 **does not exist until the first AAB is uploaded**. The correct order is: upload the first internal-track AAB → read the Play-managed SHA-1 from Play Console (Setup → App signing) → add it to the Android OAuth client → rebuild or re-test. **Google Sign-In will be broken on that very first Play-signed build, by construction.** Expect it; do not debug it.
+22. **Store listing:** title, short (80 char) and full (4000 char) descriptions, phone screenshots, a 1024×500 feature graphic, and the 512×512 icon (D66's mascot-in-hexagon mark). Listing copy **is** worth localizing to all four app languages — it is marketing text, not legal text. Category: not News (release-gate item 2); Books & Reference is the natural fit.
+23. **Content rating (IARC) and target audience.** Declare app access honestly: the app is behind a sign-in wall, but any Google account works, so reviewers need no special credentials — state that explicitly, since an unexplained login wall is a common rejection cause.
+24. **Internal testing track first** (instant, up to 100 testers) to prove the upload, signing, and sign-in chain end to end. Only then promote to the closed track.
+25. **Start the closed test:** ≥12 testers opted in, 14 **continuous** days. Log day 1 with a real date. Confirm the 12 accounts exist before starting — a tester dropping out mid-window resets progress.
+26. **Apply for production access** after the window closes, then roll out — staged rollout, not 100% on day one.
+
+**Acceptance criteria**
+
+- [ ] `pnpm lint && pnpm typecheck && pnpm test` green; Metro bundle check passes; `apps/site` builds.
+- [ ] Phase 19's and phase 20's own acceptance criteria are checked off for real — this phase does not close while they are still "blocked, not deferred".
+- [ ] Privacy policy and account-deletion pages are live on the public site and reachable without installing the app; their URLs are recorded in the repo.
+- [ ] Data Safety answers in the repo match what the deployed code actually stores, verified field by field against the `Users` item — not against the design doc.
+- [ ] A **Play-signed** build from the internal track signs in successfully — the D68 SHA-1 trap confirmed closed, not assumed.
+- [ ] A free user can read past D69's nominal 50/10 limits without hitting a paywall (D75d), while `GET /v1/me/entitlement` still reports live counters — enforcement present, limits not biting.
+- [ ] The store AAB resolves OTA updates on the channel CI actually publishes to — verified by shipping a JS-only change and watching an installed build pick it up, not by reading config.
+- [ ] Closed test running with ≥12 opted-in testers; day 1 logged with a date.
+- [ ] Rights review (release-gate item 1) complete at free-launch scope.
+- [ ] App live on production with a staged rollout; the install link is on the project site.
+
+**Out of scope:** Play Billing and subscription products (phase 21), extended compact (phase 22), enforcing D69's real limits (phase 21), iOS, and RTDN.
+
+---
+
 ## Sequencing notes & standing risks
 
 - Phases 0→3 are strictly ordered; 4–6 can interleave.
@@ -491,7 +685,9 @@ Code (tasks 1–5) is complete and verified via the unit test suite and a full `
 - Sixth extension (2026-07-24, D37): **16**, standalone — a mobile-asset/build-pipeline fix plus a redesign, with no dependency on 13/14/15's backend work. Surfaced by the user actually performing the on-device APK check every prior phase (7, 10, 11, 12) had deferred to "the maintainer's own step" without ever running — a reminder that a phase's own acceptance criteria checkbox staying unchecked is exactly the gap it's meant to flag, not a formality.
 - Seventh extension (2026-07-25, D39): **17**, standalone — a new static site with no dependency on any backend/mobile code from phases 0–16 beyond reading already-existing exported constants (topics, sources, app version) at build time. Its only real dependency is `mobile-build`'s GitHub Release step already existing (amended to non-prerelease) — true since D38/phase 14, so it could in principle have landed any time after that; ordered last only because it was decided last.
 - Eighth extension (2026-08-03, D60): **18**, standalone — a small, self-contained addition to phase 17's existing site, with no dependency on any other phase. Its only real dependencies are phase 17's site existing at all and D58's changelog-generating step inside `mobile-build.yml`; ordered last only because it was decided last.
+- Ninth extension (2026-08-10, D67–D74): **19 → 20 → 21 → 22**, and unlike every prior extension this ordering is a hard dependency chain, not a preference — entitlements need a real identity to hang off, payments need something to grant, and the paid feature needs something to gate it. The one deliberate piece of sequencing freedom is D70's entitlement indirection, which lets **phase 20 ship a fully demoable paywall before any payment code exists**, taking the riskiest integration (Play Billing, untestable outside a real Play track) off the critical path of proving the product works. Running alongside all four is the release gate above (rights review, Play Console, legal surface, and the 12-testers-for-14-days closed test) — maintainer-side work that blocks *shipping* rather than coding, and whose longest item should start the day phase 21 produces a track build. Two standing constraints change permanently in phase 19 and are worth stating once: the **Expo Go loop ends** (native modules for sign-in and billing; D18's committed `android/` is what makes that survivable), and the app **stores personal data for the first time** (email/name), which is what pulls GDPR, the Data Safety form, and account deletion into scope.
+- Tenth extension (2026-08-13, D75): **19 → 20 → 23 → 21 → 22**. Phase 23 is numbered last but executes third — the same "ordered last only because it was decided last" convention phases 13, 17 and 18 already use, chosen over renumbering 21/22 because those numbers are already referenced across CLAUDE.md, DESIGN §7.6, §9 and §11. The re-sequence exists because the ninth extension's ordering had the two longest-latency items in the wrong place: Play's 12-testers-for-14-days gate and store review sat *after* Play Billing, the one integration that cannot be tested outside a real Play track. Free-first moves the clock to the front, where it runs against code that already exists, and turns phase 21 into an update to a live listing with a proven signing chain rather than a first upload and a payment integration at once. Two consequences worth stating: phase 23 is the first phase that is **mostly not coding** — its critical path is account verification, review queues and a 14-calendar-day tester window, so "3–4 days of work" and "4–6 weeks elapsed" are both true and should not be conflated; and it is the phase that finally *closes* phases 19 and 20, which are code-complete with zero verified acceptance criteria between them. The one ordering constraint inside phase 23 that cannot be worked around is D68's SHA-1 trap: the Play-managed signing certificate does not exist until the first AAB is uploaded, so Google Sign-In is necessarily broken on that first Play-signed build and is fixed by a Play Console read-back, not by code.
 - The riskiest unknowns are front-loaded deliberately: DDB key design proves itself in phase 1 (read-exclusion at query time), pipeline semantics in phase 2 (dedup under concurrency), LLM economics in phase 3 (cap mechanics, later removed by D31) — and in the extension, on-demand economics in phase 8 (caps/quotas before new spend exists, later removed) and the rights guardrails at the start of phase 9 (the kill switch before the feature — this one stays, D31 only removed cost caps, not rights guardrails). Phase 12 repeats the front-load pattern once more: its task 1 is removing the cap mechanism entirely, before any eager-enqueue code is written on top of it. Phase 13 has no analogous risk to front-load — the provider swap is contained entirely behind the pre-existing `LlmProvider` interface, which is precisely why it's low-risk enough to sequence last. Each phase's acceptance criteria exist to force that proof.
 - Standing rule from DESIGN §2: content-level failures degrade (excerpt cards; for translations, degrade *is* the English fallback; for compacts, the direct link-out), infra-level failures alarm (DLQ). Any new pipeline code follows the same split.
-- Every LLM call goes through one of three defined paths — transform, translate (eager as of D27/phase 12), compact (eager as of D36/phase 15) — with no daily cap on any of them as of D31/phase 12, and no usage-gating (taps) left on any of them as of D36/phase 15. No ad-hoc LLM-provider calls outside those three paths, regardless of which provider (OpenRouter or Bedrock, D32/phase 13) is active.
+- Every LLM call goes through one of **four** defined paths — transform, translate (eager as of D27/phase 12), compact (eager as of D36/phase 15), and extended compact (on demand, paid, D72/phase 22) — with no daily cap on the first three as of D31/phase 12. The fourth is the exception to two standing properties at once: it is **request-triggered rather than pipeline-triggered** (so it's the only one a user waits on) and it is **the only one with an enforced ceiling** (D73's per-subscriber fair-use cap). No ad-hoc LLM-provider calls outside those four paths, regardless of which provider (OpenRouter or Bedrock, D32/phase 13) is active.
 - After phase 3, re-read DESIGN §12 (deferred defaults) and promote/kill items deliberately rather than by drift; same review after phase 10 and after phase 12 (the first real Cost Explorer read under uncapped spend, D31). Phase 13 shifts that spend off Cost Explorer entirely (D32) — its own equivalent check is against OpenRouter's dashboard, not §12.

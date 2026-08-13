@@ -1,5 +1,6 @@
 import {
   BatchGetCommand,
+  BatchWriteCommand,
   DeleteCommand,
   DynamoDBDocumentClient,
   PutCommand,
@@ -190,5 +191,55 @@ describe('userActivityRepo.queryBookmarks', () => {
     expect(input?.IndexName).toBe('byBookmarkedAt');
     expect(input?.ScanIndexForward).toBe(false);
     expect(input?.Limit).toBe(10);
+  });
+});
+
+describe('userActivityRepo.deleteAllForUser', () => {
+  it('deletes nothing and issues no BatchWrite when the user has no rows', async () => {
+    ddbMock.on(QueryCommand).resolves({ Items: [] });
+    const repo = new UserActivityRepo(client, 'UserActivity');
+
+    await repo.deleteAllForUser('device-1');
+
+    expect(ddbMock.commandCalls(BatchWriteCommand)).toHaveLength(0);
+  });
+
+  it('batch-deletes every row for the user, chunked at 25 per BatchWriteItem call', async () => {
+    const items = Array.from({ length: 30 }, (_, i) => ({
+      userId: 'device-1',
+      sk: `read#post-${i}`,
+    }));
+    ddbMock.on(QueryCommand).resolves({ Items: items });
+    ddbMock.on(BatchWriteCommand).resolves({});
+    const repo = new UserActivityRepo(client, 'UserActivity');
+
+    await repo.deleteAllForUser('device-1');
+
+    const calls = ddbMock.commandCalls(BatchWriteCommand);
+    expect(calls).toHaveLength(2);
+    expect(calls[0]?.args[0]?.input.RequestItems?.UserActivity).toHaveLength(25);
+    expect(calls[1]?.args[0]?.input.RequestItems?.UserActivity).toHaveLength(5);
+    expect(calls[0]?.args[0]?.input.RequestItems?.UserActivity?.[0]).toEqual({
+      DeleteRequest: { Key: { userId: 'device-1', sk: 'read#post-0' } },
+    });
+  });
+
+  it('follows LastEvaluatedKey across multiple Query pages', async () => {
+    ddbMock
+      .on(QueryCommand)
+      .resolvesOnce({
+        Items: [{ userId: 'device-1', sk: 'read#post-1' }],
+        LastEvaluatedKey: { userId: 'device-1', sk: 'read#post-1' },
+      })
+      .resolvesOnce({ Items: [{ userId: 'device-1', sk: 'read#post-2' }] });
+    ddbMock.on(BatchWriteCommand).resolves({});
+    const repo = new UserActivityRepo(client, 'UserActivity');
+
+    await repo.deleteAllForUser('device-1');
+
+    expect(ddbMock.commandCalls(QueryCommand)).toHaveLength(2);
+    expect(ddbMock.commandCalls(BatchWriteCommand)).toHaveLength(2);
+    const secondQueryInput = ddbMock.commandCalls(QueryCommand)[1]?.args[0]?.input;
+    expect(secondQueryInput?.ExclusiveStartKey).toEqual({ userId: 'device-1', sk: 'read#post-1' });
   });
 });

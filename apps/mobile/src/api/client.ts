@@ -3,8 +3,10 @@ import {
   bookmarksResponseSchema,
   type ContentResponse,
   contentResponseSchema,
-  DEVICE_ID_HEADER,
   DEVICE_LANGUAGE_HEADER,
+  DEVICE_TIMEZONE_HEADER,
+  type EntitlementResponse,
+  entitlementResponseSchema,
   type FeedResponse,
   feedResponseSchema,
   type HistoryResponse,
@@ -16,10 +18,25 @@ import {
   sourcesResponseSchema,
   type Topic,
 } from '@techtok/shared';
-import { getOrCreateDeviceId } from '@/state/deviceId';
-import { detectDeviceLanguage } from '@/state/deviceLanguage';
+import { useAuthStore } from '@/state/authStore';
+import { detectDeviceLanguage, detectDeviceTimezone } from '@/state/deviceLanguage';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
+
+/** Carries the response status/error code through a failed request so
+ * callers can distinguish "quota exceeded" (402, D69) from any other
+ * failure — e.g. the reader routes to `/paywall` on 402 instead of showing
+ * its generic error state. */
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string | undefined,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
 
 function apiUrl(path: string): URL {
   if (!API_URL) {
@@ -30,20 +47,45 @@ function apiUrl(path: string): URL {
   return new URL(path, API_URL);
 }
 
+function buildHeaders(init: RequestInit): HeadersInit {
+  const idToken = useAuthStore.getState().user?.idToken;
+  return {
+    ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+    [DEVICE_LANGUAGE_HEADER]: detectDeviceLanguage() ?? 'en',
+    [DEVICE_TIMEZONE_HEADER]: detectDeviceTimezone() ?? 'UTC',
+    ...(init.body ? { 'content-type': 'application/json' } : {}),
+    ...init.headers,
+  };
+}
+
+/**
+ * Google ID tokens expire in ~1h (D68), so a 401 triggers exactly one silent
+ * re-sign-in + retry before giving up — the same shape as any other
+ * transient-auth-failure retry, not a sign-out loop. `GET /v1/topics` and
+ * `GET /v1/sources` never 401 (no authorizer attached, DESIGN §5), so this
+ * only ever fires for the authenticated routes.
+ */
 async function apiFetch(url: URL, init: RequestInit = {}): Promise<Response> {
-  const response = await fetch(url.toString(), {
-    ...init,
-    headers: {
-      [DEVICE_ID_HEADER]: getOrCreateDeviceId(),
-      [DEVICE_LANGUAGE_HEADER]: detectDeviceLanguage() ?? 'en',
-      ...(init.body ? { 'content-type': 'application/json' } : {}),
-      ...init.headers,
-    },
-  });
+  let response = await fetch(url.toString(), { ...init, headers: buildHeaders(init) });
+
+  if (response.status === 401) {
+    const refreshedIdToken = await useAuthStore.getState().refreshToken();
+    if (refreshedIdToken) {
+      response = await fetch(url.toString(), { ...init, headers: buildHeaders(init) });
+    }
+  }
+
   if (!response.ok) {
-    throw new Error(
-      `${init.method ?? 'GET'} ${url.pathname} failed with status ${response.status}`,
-    );
+    let code: string | undefined;
+    let message = `${init.method ?? 'GET'} ${url.pathname} failed with status ${response.status}`;
+    try {
+      const body = (await response.json()) as { error?: { code?: string; message?: string } };
+      code = body.error?.code;
+      message = body.error?.message ?? message;
+    } catch {
+      // Non-JSON error body (e.g. an API Gateway-level rejection) — keep the generic message.
+    }
+    throw new ApiError(response.status, code, message);
   }
   return response;
 }
@@ -172,4 +214,18 @@ export async function fetchPostContent(postId: string, lang: Language): Promise<
 
   const response = await apiFetch(url);
   return contentResponseSchema.parse(await response.json());
+}
+
+/** Deletes the signed-in user's account and all their data (D68) — required
+ * by Google Play policy for any app with accounts. Irreversible. */
+export async function deleteAccount(): Promise<void> {
+  await apiFetch(apiUrl('/v1/me'), { method: 'DELETE' });
+}
+
+/** Current plan + today's quota usage/limits (D69/D70) — the single call
+ * every paywall surface (the feed/reader exhaustion states, the paywall
+ * screen itself, the settings quota row) reads from. */
+export async function fetchEntitlement(): Promise<EntitlementResponse> {
+  const response = await apiFetch(apiUrl('/v1/me/entitlement'));
+  return entitlementResponseSchema.parse(await response.json());
 }

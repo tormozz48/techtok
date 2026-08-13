@@ -163,3 +163,7 @@ web-build/
 
 # pnpm
 .pnpm-debug.log*
+
+# scripts/wipeUsers.ts backups — contain real user data (email/name post-D68),
+# never commit these
+ops-backups/

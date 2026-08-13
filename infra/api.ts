@@ -1,3 +1,4 @@
+import { GOOGLE_OAUTH_WEB_CLIENT_ID } from './auth';
 import { contentBucket, postsTable, sourcesTable, userActivityTable, usersTable } from './storage';
 
 export const api = new sst.aws.ApiGatewayV2('Api', {
@@ -24,6 +25,20 @@ export const api = new sst.aws.ApiGatewayV2('Api', {
   },
 });
 
+// Google Sign-In JWT authorizer (D68). Every route below except the two
+// public catalogs (GET /v1/topics, GET /v1/sources) requires this — a
+// request with no valid Google ID token never reaches its Lambda at all,
+// which is why `packages/functions/src/api/lib/http.ts`'s `withAuth` only
+// needs to *read* claims, not verify a signature itself.
+const googleAuthorizer = api.addAuthorizer({
+  name: 'GoogleJwt',
+  jwt: {
+    issuer: 'https://accounts.google.com',
+    audiences: [GOOGLE_OAUTH_WEB_CLIENT_ID],
+  },
+});
+const googleAuth = { auth: { jwt: { authorizer: googleAuthorizer.id } } };
+
 const feedEnvironment = {
   POSTS_TABLE_NAME: postsTable.name,
   USERS_TABLE_NAME: usersTable.name,
@@ -31,12 +46,16 @@ const feedEnvironment = {
   SOURCES_TABLE_NAME: sourcesTable.name,
 };
 
-api.route('GET /v1/feed', {
-  handler: 'packages/functions/src/api/handlers/feed.handler',
-  link: [postsTable, usersTable, userActivityTable, sourcesTable],
-  environment: feedEnvironment,
-  runtime: 'nodejs22.x',
-});
+api.route(
+  'GET /v1/feed',
+  {
+    handler: 'packages/functions/src/api/handlers/feed.handler',
+    link: [postsTable, usersTable, userActivityTable, sourcesTable],
+    environment: feedEnvironment,
+    runtime: 'nodejs22.x',
+  },
+  googleAuth,
+);
 
 api.route('GET /v1/topics', {
   handler: 'packages/functions/src/api/handlers/topics.handler',
@@ -52,87 +71,157 @@ api.route('GET /v1/sources', {
   runtime: 'nodejs22.x',
 });
 
-api.route('POST /v1/reads', {
-  handler: 'packages/functions/src/api/handlers/reads.handler',
-  link: [postsTable, userActivityTable, usersTable],
-  environment: {
-    POSTS_TABLE_NAME: postsTable.name,
-    USER_ACTIVITY_TABLE_NAME: userActivityTable.name,
-    USERS_TABLE_NAME: usersTable.name,
+api.route(
+  'POST /v1/reads',
+  {
+    handler: 'packages/functions/src/api/handlers/reads.handler',
+    link: [postsTable, userActivityTable, usersTable],
+    environment: {
+      POSTS_TABLE_NAME: postsTable.name,
+      USER_ACTIVITY_TABLE_NAME: userActivityTable.name,
+      USERS_TABLE_NAME: usersTable.name,
+    },
+    runtime: 'nodejs22.x',
   },
-  runtime: 'nodejs22.x',
-});
+  googleAuth,
+);
 
-api.route('GET /v1/me', {
-  handler: 'packages/functions/src/api/handlers/me.handler',
-  link: [usersTable],
-  environment: { USERS_TABLE_NAME: usersTable.name },
-  runtime: 'nodejs22.x',
-});
-
-api.route('PUT /v1/me/topics', {
-  handler: 'packages/functions/src/api/handlers/topicsPrefs.handler',
-  link: [usersTable],
-  environment: { USERS_TABLE_NAME: usersTable.name },
-  runtime: 'nodejs22.x',
-});
-
-api.route('PUT /v1/me/language', {
-  handler: 'packages/functions/src/api/handlers/languagePrefs.handler',
-  link: [usersTable],
-  environment: { USERS_TABLE_NAME: usersTable.name },
-  runtime: 'nodejs22.x',
-});
-
-api.route('PUT /v1/me/muted-sources', {
-  handler: 'packages/functions/src/api/handlers/mutedSourcesPrefs.handler',
-  link: [usersTable],
-  environment: { USERS_TABLE_NAME: usersTable.name },
-  runtime: 'nodejs22.x',
-});
-
-api.route('GET /v1/history', {
-  handler: 'packages/functions/src/api/handlers/history.handler',
-  link: [userActivityTable],
-  environment: { USER_ACTIVITY_TABLE_NAME: userActivityTable.name },
-  runtime: 'nodejs22.x',
-});
-
-api.route('POST /v1/bookmarks', {
-  handler: 'packages/functions/src/api/handlers/bookmarkCreate.handler',
-  link: [postsTable, usersTable, userActivityTable],
-  environment: {
-    POSTS_TABLE_NAME: postsTable.name,
-    USERS_TABLE_NAME: usersTable.name,
-    USER_ACTIVITY_TABLE_NAME: userActivityTable.name,
+api.route(
+  'GET /v1/me',
+  {
+    handler: 'packages/functions/src/api/handlers/me.handler',
+    link: [usersTable],
+    environment: { USERS_TABLE_NAME: usersTable.name },
+    runtime: 'nodejs22.x',
   },
-  runtime: 'nodejs22.x',
-});
+  googleAuth,
+);
 
-api.route('DELETE /v1/bookmarks/{postId}', {
-  handler: 'packages/functions/src/api/handlers/bookmarkDelete.handler',
-  link: [userActivityTable],
-  environment: { USER_ACTIVITY_TABLE_NAME: userActivityTable.name },
-  runtime: 'nodejs22.x',
-});
+// Required by Google Play policy for any app with accounts (D68).
+api.route(
+  'DELETE /v1/me',
+  {
+    handler: 'packages/functions/src/api/handlers/accountDelete.handler',
+    link: [usersTable, userActivityTable],
+    environment: {
+      USERS_TABLE_NAME: usersTable.name,
+      USER_ACTIVITY_TABLE_NAME: userActivityTable.name,
+    },
+    runtime: 'nodejs22.x',
+  },
+  googleAuth,
+);
 
-api.route('GET /v1/bookmarks', {
-  handler: 'packages/functions/src/api/handlers/bookmarkList.handler',
-  link: [userActivityTable],
-  environment: { USER_ACTIVITY_TABLE_NAME: userActivityTable.name },
-  runtime: 'nodejs22.x',
-});
+api.route(
+  'PUT /v1/me/topics',
+  {
+    handler: 'packages/functions/src/api/handlers/topicsPrefs.handler',
+    link: [usersTable],
+    environment: { USERS_TABLE_NAME: usersTable.name },
+    runtime: 'nodejs22.x',
+  },
+  googleAuth,
+);
+
+api.route(
+  'PUT /v1/me/language',
+  {
+    handler: 'packages/functions/src/api/handlers/languagePrefs.handler',
+    link: [usersTable],
+    environment: { USERS_TABLE_NAME: usersTable.name },
+    runtime: 'nodejs22.x',
+  },
+  googleAuth,
+);
+
+api.route(
+  'PUT /v1/me/muted-sources',
+  {
+    handler: 'packages/functions/src/api/handlers/mutedSourcesPrefs.handler',
+    link: [usersTable],
+    environment: { USERS_TABLE_NAME: usersTable.name },
+    runtime: 'nodejs22.x',
+  },
+  googleAuth,
+);
+
+api.route(
+  'GET /v1/history',
+  {
+    handler: 'packages/functions/src/api/handlers/history.handler',
+    link: [userActivityTable],
+    environment: { USER_ACTIVITY_TABLE_NAME: userActivityTable.name },
+    runtime: 'nodejs22.x',
+  },
+  googleAuth,
+);
+
+api.route(
+  'POST /v1/bookmarks',
+  {
+    handler: 'packages/functions/src/api/handlers/bookmarkCreate.handler',
+    link: [postsTable, usersTable, userActivityTable],
+    environment: {
+      POSTS_TABLE_NAME: postsTable.name,
+      USERS_TABLE_NAME: usersTable.name,
+      USER_ACTIVITY_TABLE_NAME: userActivityTable.name,
+    },
+    runtime: 'nodejs22.x',
+  },
+  googleAuth,
+);
+
+api.route(
+  'DELETE /v1/bookmarks/{postId}',
+  {
+    handler: 'packages/functions/src/api/handlers/bookmarkDelete.handler',
+    link: [userActivityTable],
+    environment: { USER_ACTIVITY_TABLE_NAME: userActivityTable.name },
+    runtime: 'nodejs22.x',
+  },
+  googleAuth,
+);
+
+api.route(
+  'GET /v1/bookmarks',
+  {
+    handler: 'packages/functions/src/api/handlers/bookmarkList.handler',
+    link: [userActivityTable],
+    environment: { USER_ACTIVITY_TABLE_NAME: userActivityTable.name },
+    runtime: 'nodejs22.x',
+  },
+  googleAuth,
+);
 
 // Compact-article reader (D23; eager generation as of D36): a plain S3 cache
 // read — generation already happened during ingest (infra/pipeline.ts's
 // `contentQueue`), so this route never calls the LLM on the request path.
-api.route('GET /v1/posts/{postId}/content', {
-  handler: 'packages/functions/src/api/handlers/content.handler',
-  link: [postsTable, sourcesTable, contentBucket],
-  environment: {
-    POSTS_TABLE_NAME: postsTable.name,
-    SOURCES_TABLE_NAME: sourcesTable.name,
-    CONTENT_BUCKET_NAME: contentBucket.name,
+// usersTable is linked as of D69: this route now also gates/increments the
+// free tier's daily reader-opens quota.
+api.route(
+  'GET /v1/posts/{postId}/content',
+  {
+    handler: 'packages/functions/src/api/handlers/content.handler',
+    link: [postsTable, sourcesTable, contentBucket, usersTable],
+    environment: {
+      POSTS_TABLE_NAME: postsTable.name,
+      SOURCES_TABLE_NAME: sourcesTable.name,
+      CONTENT_BUCKET_NAME: contentBucket.name,
+      USERS_TABLE_NAME: usersTable.name,
+    },
+    runtime: 'nodejs22.x',
   },
-  runtime: 'nodejs22.x',
-});
+  googleAuth,
+);
+
+// D69/D70: the single source every paywall surface reads from.
+api.route(
+  'GET /v1/me/entitlement',
+  {
+    handler: 'packages/functions/src/api/handlers/entitlement.handler',
+    link: [usersTable],
+    environment: { USERS_TABLE_NAME: usersTable.name },
+    runtime: 'nodejs22.x',
+  },
+  googleAuth,
+);

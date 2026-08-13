@@ -1,7 +1,18 @@
 import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
-import type { Card as CardData, FeedResponse } from '@techtok/shared';
+import type { Card as CardData, EntitlementResponse, FeedResponse } from '@techtok/shared';
 import FeedScreen from '@/app/index';
-import { withSeededQuery } from '../withSeededQuery';
+import { withSeededQueries } from '../withSeededQuery';
+
+const FREE_ENTITLEMENT: EntitlementResponse = {
+  plan: 'free',
+  quota: {
+    cardReads: 12,
+    cardReadsLimit: 50,
+    readerOpens: 3,
+    readerOpensLimit: 10,
+    resetsAt: new Date(Date.now() + 8 * 3_600_000).toISOString(),
+  },
+};
 
 const SOURCES = ['TechCrunch', 'The Verge', 'Ars Technica'];
 const TOPICS: CardData['primaryTopic'][] = ['ai', 'dev', 'science', 'gadgets'];
@@ -38,9 +49,19 @@ export default meta;
 type Story = StoryObj<typeof FeedScreen>;
 
 export const Populated: Story = {
-  decorators: [withSeededQuery(['feed'], infinitePage({ items: buildCards(6), nextBefore: null }))],
+  decorators: [
+    withSeededQueries([
+      { queryKey: ['feed'], data: infinitePage({ items: buildCards(6), nextBefore: null }) },
+      { queryKey: ['entitlement'], data: FREE_ENTITLEMENT },
+    ]),
+  ],
 };
 
 export const Empty: Story = {
-  decorators: [withSeededQuery(['feed'], infinitePage({ items: [], nextBefore: null }))],
+  decorators: [
+    withSeededQueries([
+      { queryKey: ['feed'], data: infinitePage({ items: [], nextBefore: null }) },
+      { queryKey: ['entitlement'], data: FREE_ENTITLEMENT },
+    ]),
+  ],
 };

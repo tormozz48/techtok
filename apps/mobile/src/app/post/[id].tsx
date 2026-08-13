@@ -6,7 +6,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useMemo, useState } from 'react';
 import { Linking, Platform, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { ActivityIndicator, Button, IconButton, TouchableRipple } from 'react-native-paper';
-import { fetchPostContent } from '@/api/client';
+import { ApiError, fetchPostContent } from '@/api/client';
 import { BookmarkButton } from '@/components/BookmarkButton';
 import { Radius, Spacing, type ThemeColors, Typography } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -33,8 +33,14 @@ export default function PostScreen() {
   const contentQuery = useQuery({
     queryKey: ['content', id, viewLang],
     queryFn: () => fetchPostContent(id, viewLang),
+    // A 402 (D69's reader-opens quota) means "go to the paywall", not a
+    // transient failure worth TanStack Query's default retry.
+    retry: (failureCount, error) =>
+      !(error instanceof ApiError && error.status === 402) && failureCount < 3,
   });
   const content = contentQuery.data;
+  const isQuotaExceeded =
+    contentQuery.error instanceof ApiError && contentQuery.error.status === 402;
 
   const isSpeakingThisArticle = useSpeechStore((state) => state.isSpeaking(id));
   const isSpeechLanguageAvailable = useSpeechStore((state) =>
@@ -65,6 +71,15 @@ export default function PostScreen() {
     }
   }, [content, url]);
 
+  // D69: reader-opens quota exhausted (402) routes to the paywall instead of
+  // the generic error state — `replace`, not `push`, so the paywall's own
+  // back button returns to the feed, not to this now-unusable reader.
+  useEffect(() => {
+    if (isQuotaExceeded) {
+      router.replace('/paywall');
+    }
+  }, [isQuotaExceeded]);
+
   const openOriginal = () => WebBrowser.openBrowserAsync(url);
   // Android ignores `url` (iOS-only field), so the link must ride in `message`
   // or the share intent goes out empty (see BottomActionBar).
@@ -75,7 +90,7 @@ export default function PostScreen() {
       message: Platform.OS === 'android' ? (title ? `${title}\n${url}` : url) : title,
     });
 
-  if (contentQuery.isPending || content?.available === false) {
+  if (contentQuery.isPending || content?.available === false || isQuotaExceeded) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.primary} />

@@ -174,11 +174,15 @@ jobs:
       # using EXPO_TOKEN, so no keystore is stored in GitHub. EXPO_PUBLIC_API_URL
       # comes from this workflow's own `api_url` input (the caller passes the
       # production deploy's real URL) — it never lives in eas.json or anywhere
-      # else in source control.
+      # else in source control. EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID (D68) is not
+      # sensitive (an OAuth client ID is public by design) but is wired the
+      # same way as the deploy workflows' GOOGLE_OAUTH_WEB_CLIENT_ID — without
+      # it, Google Sign-In fails to configure in every APK this workflow ships.
       - name: Build Android APK (eas build --local)
         working-directory: apps/mobile
         env:
           EXPO_PUBLIC_API_URL: ${{ inputs.api_url }}
+          EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_WEB_CLIENT_ID }}
         run: eas build --platform android --profile preview --local --non-interactive --output "${{ github.workspace }}/techtok.apk"
 
       # D60: publishes this build's JS/asset bundle to the "preview" EAS
@@ -201,6 +205,7 @@ jobs:
         working-directory: apps/mobile
         env:
           EXPO_PUBLIC_API_URL: ${{ inputs.api_url }}
+          EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_WEB_CLIENT_ID }}
         run: |
           VERSION=$(node -e "console.log(require('./app.json').expo.version)")
           eas update --channel preview --platform android --non-interactive --message "v$VERSION"

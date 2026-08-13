@@ -142,12 +142,21 @@ Set `LLM_PROVIDER=bedrock` (per stage, via `infra/pipeline.ts`'s env vars) to fa
 
 ```bash
 cd apps/mobile
-cp .env.example .env    # then set EXPO_PUBLIC_API_URL to the sst dev API URL above
+cp .env.example .env    # then set EXPO_PUBLIC_API_URL to the sst dev API URL above,
+                         # and EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID to the Google OAuth
+                         # "Web application" client ID (D68 — see infra/auth.ts)
 cd ../..
 pnpm --filter mobile start
 ```
 
-Scan the QR code with Expo Go, or press `a` for an Android emulator.
+**Google Sign-In ends the plain Expo Go loop (D68).** `@react-native-google-signin/google-signin` is a native module Expo Go can't load, so scanning the QR code into Expo Go no longer works for this app. Use the committed bare `android/` project instead:
+
+```bash
+pnpm --filter mobile prebuild:android   # only needed after app.json/plugin changes
+cd apps/mobile/android && ./gradlew installDebug
+```
+
+or `pnpm --filter mobile android` (`expo run:android`), which builds and installs the debug APK directly. Either way needs an Android emulator or a device connected via `adb`.
 
 ## Mobile builds (Android)
 

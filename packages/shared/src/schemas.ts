@@ -42,6 +42,12 @@ export type Card = z.infer<typeof cardSchema>;
 export const feedResponseSchema = z.object({
   items: z.array(cardSchema),
   nextBefore: z.string().nullable(),
+  /** D69: set (with `items: []`, `nextBefore: null`) instead of serving a
+   * page once a free user's daily card-reads are exhausted — the client
+   * routes to the paywall rather than rendering an empty/stuck feed. Absent
+   * (not `false`) on every ordinary response, including for Plus users. */
+  quotaExhausted: z.literal(true).optional(),
+  resetsAt: z.iso.datetime().optional(),
 });
 export type FeedResponse = z.infer<typeof feedResponseSchema>;
 
@@ -84,8 +90,14 @@ export const errorResponseSchema = z.object({
 });
 export type ErrorResponse = z.infer<typeof errorResponseSchema>;
 
-export const DEVICE_ID_HEADER = 'x-device-id';
+/** Retired by D68 — Google Sign-In (a JWT `Authorization` header verified by
+ * API Gateway's built-in authorizer) replaces the anonymous device-id model
+ * entirely. Kept out of the exports on purpose so nothing can resurrect it. */
 export const DEVICE_LANGUAGE_HEADER = 'x-device-language';
+/** Device-reported IANA timezone, sent once at sign-in to seed `Users.timezone`
+ * (D69's local-midnight quota reset) the same way `DEVICE_LANGUAGE_HEADER`
+ * seeds `language` — first-touch only, never overwritten afterward. */
+export const DEVICE_TIMEZONE_HEADER = 'x-device-timezone';
 
 export const meResponseSchema = z.object({
   userId: z.string(),
@@ -93,8 +105,30 @@ export const meResponseSchema = z.object({
   createdAt: z.iso.datetime(),
   language: languageSchema,
   mutedSources: z.array(z.string()),
+  /** From the Google ID token (D68) — the first personal data this app has
+   * ever stored. Optional only for schema-evolution safety; every user
+   * created post-D68 has both. */
+  email: z.string().optional(),
+  name: z.string().optional(),
 });
 export type MeResponse = z.infer<typeof meResponseSchema>;
+
+/** `GET /v1/me/entitlement` (D69/D70) — the single source every paywall
+ * surface reads from: current plan, today's quota usage/limits, and when
+ * it resets. `fairUse` (D72/D73's extended-compact cap) doesn't exist until
+ * phase 22 and is intentionally not modeled here yet. */
+export const entitlementResponseSchema = z.object({
+  plan: z.enum(['free', 'plus']),
+  expiresAt: z.iso.datetime().optional(),
+  quota: z.object({
+    cardReads: z.number().int().min(0),
+    cardReadsLimit: z.number().int().min(0),
+    readerOpens: z.number().int().min(0),
+    readerOpensLimit: z.number().int().min(0),
+    resetsAt: z.iso.datetime(),
+  }),
+});
+export type EntitlementResponse = z.infer<typeof entitlementResponseSchema>;
 
 export const topicsPrefsRequestSchema = z.object({
   topics: z.array(topicSchema),

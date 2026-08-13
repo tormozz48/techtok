@@ -1,0 +1,193 @@
+---
+import Document from '../layouts/Document.astro';
+import { CONTACT_EMAIL, HOSTING_REGION } from '../lib/legal';
+import { withBase } from '../lib/locale';
+import { GITHUB_REPO_URL } from '../lib/download';
+
+const title = 'Privacy Policy';
+const description =
+  'What TechTok stores about you, who processes it, how long it is kept, and how to delete it.';
+---
+
+<Document title={title} description={description} subpath="privacy/">
+  <p>
+    TechTok is a reading app for technology and science news. It shows short summaries of articles
+    published by other people, and links out to the originals. This page explains exactly what the
+    app stores about you and what you can do about it.
+  </p>
+
+  <p>
+    It is written to be read, not to be survived. If something here is unclear, ask — the whole
+    service is <a href={GITHUB_REPO_URL} rel="noopener">open source</a>, so the answer is always
+    checkable against the code.
+  </p>
+
+  <h2>Who is responsible</h2>
+
+  <p>
+    TechTok is an independent project run by a single developer, who is the data controller for the
+    purposes of the GDPR. Contact: <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+  </p>
+
+  <h2>What the app stores about you</h2>
+
+  <p>
+    You sign in with Google, and TechTok keeps one record per account. That record contains only the
+    following.
+  </p>
+
+  <div class="doc-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">What</th>
+          <th scope="col">Why it exists</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Your Google account identifier</td>
+          <td>Identifies your account. It is what links your reading history to you across devices.</td>
+        </tr>
+        <tr>
+          <td>Your email address and display name</td>
+          <td>Comes from Google when you sign in, so the app can show you which account you are using.</td>
+        </tr>
+        <tr>
+          <td>Your time zone</td>
+          <td>Captured once at sign-in, so that daily usage counters reset at your local midnight rather than at midnight UTC.</td>
+        </tr>
+        <tr>
+          <td>Your language, followed topics, and muted sources</td>
+          <td>Your preferences. They decide what the feed shows you and in which language.</td>
+        </tr>
+        <tr>
+          <td>Which articles you have read, and when</td>
+          <td>Stops the feed showing you the same article twice, and powers the History screen.</td>
+        </tr>
+        <tr>
+          <td>Your bookmarks</td>
+          <td>The Saved screen.</td>
+        </tr>
+        <tr>
+          <td>A per-topic read count</td>
+          <td>A ranking signal — topics you read more get a small boost in the feed.</td>
+        </tr>
+        <tr>
+          <td>Your plan and daily usage counters</td>
+          <td>Everyone is currently on the free plan. The counters exist so the service can apply fair daily limits.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    Some things stay on your phone and are never sent anywhere: articles cached for offline reading,
+    and your light/dark theme choice.
+  </p>
+
+  <h2>What the app does not do</h2>
+
+  <ul>
+    <li>There is <strong>no advertising</strong>, and no advertising SDK in the app.</li>
+    <li>There is <strong>no analytics or tracking SDK</strong>, and no crash-reporting service.</li>
+    <li>Your data is <strong>never sold</strong>, and never shared for anyone else's marketing.</li>
+    <li>There is no access to your location, contacts, photos, camera, or microphone.</li>
+    <li>There is no advertising identifier, and no cross-app or cross-site tracking.</li>
+    <li>There are no push notifications, so no notification token is stored.</li>
+  </ul>
+
+  <h2>Who else is involved</h2>
+
+  <p>Running the service means a small number of other companies process data on its behalf.</p>
+
+  <div class="doc-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Who</th>
+          <th scope="col">What they handle</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Google</td>
+          <td>Sign-in. Google confirms who you are and provides your email and name. Google's own privacy policy governs your Google account.</td>
+        </tr>
+        <tr>
+          <td>Amazon Web Services</td>
+          <td>Hosting — the servers, database, and content delivery. Everything runs in {HOSTING_REGION}.</td>
+        </tr>
+        <tr>
+          <td>Expo</td>
+          <td>Delivers app updates. When the app starts, it asks Expo whether a newer version is available; that request carries app and device version information, not your identity.</td>
+        </tr>
+        <tr>
+          <td>OpenRouter</td>
+          <td>
+            Produces the summaries and translations. It receives <strong>article text from public
+            news feeds only</strong> — never your account details and never anything about what you
+            personally read. Summarising happens when an article is published, not when you open it.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    When you tap <strong>Read original</strong>, your browser opens the publisher's own website. From
+    that moment the publisher's privacy policy applies, not this one.
+  </p>
+
+  <h2>Where your data is kept</h2>
+
+  <p>
+    All account data is stored in {HOSTING_REGION}, inside the EU. Google, Expo and OpenRouter are
+    US-based providers, so their processing may involve transfers outside the EU under the standard
+    safeguards those companies publish.
+  </p>
+
+  <h2>How long it is kept</h2>
+
+  <p>
+    Your account and reading history are kept <strong>until you delete them</strong>. There is no
+    automatic expiry — if you keep using TechTok, your history keeps growing, and if you delete your
+    account it goes immediately. Cached article content, which is not personal data, is discarded
+    after about 90 days.
+  </p>
+
+  <h2>Your rights</h2>
+
+  <p>
+    Under the GDPR you can ask for a copy of your data, ask for it to be corrected, ask for it to be
+    deleted, object to how it is used, or complain to your national data protection authority. The
+    fastest of these is deletion, which you can do yourself, immediately, without asking anyone.
+  </p>
+
+  <div class="callout">
+    <p>
+      <strong>Deleting your account</strong> removes your record and your entire reading history and
+      bookmarks. See <a href={withBase('delete-account/')}>how to delete your account</a> — it works
+      from inside the app, and also by email if you have already uninstalled it.
+    </p>
+  </div>
+
+  <p>
+    For anything else on that list, email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+  </p>
+
+  <h2>Children</h2>
+
+  <p>
+    TechTok is not directed at children and does not knowingly collect data from anyone under 13. If
+    you believe a child has an account, email the address above and it will be removed.
+  </p>
+
+  <h2>Changes to this policy</h2>
+
+  <p>
+    If what the app stores ever changes, this page changes with it, and the date at the top moves.
+    Paid subscriptions are planned but not yet available; when they arrive, this page will be updated
+    before they go live.
+  </p>
+</Document>

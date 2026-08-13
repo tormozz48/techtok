@@ -1,5 +1,6 @@
 ---
 import { AUTHOR_LINKEDIN_URL, GITHUB_REPO_URL } from '../lib/download';
+import { withBase } from '../lib/locale';
 import type { SiteStrings } from '../lib/copy';
 
 interface Props {
@@ -14,6 +15,8 @@ const year = new Date().getFullYear();
   <div class="container footer-row">
     <span>{copy.footer.tagline}</span>
     <nav class="footer-links">
+      <a href={withBase('privacy/')}>{copy.footer.privacy}</a>
+      <a href={withBase('delete-account/')}>{copy.footer.deleteAccount}</a>
       <a href={GITHUB_REPO_URL} rel="noopener">{copy.footer.sourceCode}</a>
       <a href={AUTHOR_LINKEDIN_URL} rel="noopener">Andrii Kuznietsov</a>
       <span>© {year} · {copy.footer.license}</span>

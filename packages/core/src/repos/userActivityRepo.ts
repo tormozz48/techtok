@@ -1,4 +1,5 @@
 import {
+  BatchWriteCommand,
   DeleteCommand,
   type DynamoDBDocumentClient,
   PutCommand,
@@ -6,8 +7,11 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import { batchGetChunked } from '../clients/dynamoClient';
 import type { ActivityRecord, BookmarkRecord, ReadSnapshot } from '../history.types';
+import { chunk } from '../util/chunk';
 
 const BATCH_GET_CHUNK_SIZE = 100;
+/** DynamoDB's BatchWriteItem hard cap. */
+const BATCH_WRITE_CHUNK_SIZE = 25;
 
 export interface HistoryPage {
   readonly items: ActivityRecord[];
@@ -112,6 +116,39 @@ export class UserActivityRepo {
     opts: { limit?: number; cursor?: string } = {},
   ): Promise<BookmarksPage> {
     return this.queryNewestFirstPage<BookmarkRecord>('byBookmarkedAt', userId, opts);
+  }
+
+  /** Deletes every row (reads and bookmarks alike — both live in this same
+   * base-table partition, `read#`/`bm#` sort-key prefixes) for a user. Used
+   * only by `DELETE /v1/me` (D68), a Play policy requirement — paginates the
+   * full partition via the base table's key (no GSI needed, since `userId`
+   * is already the partition key) and issues chunked `BatchWriteItem`
+   * deletes, 25 at a time. */
+  async deleteAllForUser(userId: string): Promise<void> {
+    let exclusiveStartKey: Record<string, unknown> | undefined;
+    do {
+      const page = await this.client.send(
+        new QueryCommand({
+          TableName: this.tableName,
+          KeyConditionExpression: 'userId = :userId',
+          ExpressionAttributeValues: { ':userId': userId },
+          ProjectionExpression: 'userId, sk',
+          ExclusiveStartKey: exclusiveStartKey,
+        }),
+      );
+      const keys = (page.Items ?? []) as { userId: string; sk: string }[];
+      for (const batch of chunk(keys, BATCH_WRITE_CHUNK_SIZE)) {
+        if (batch.length === 0) continue;
+        await this.client.send(
+          new BatchWriteCommand({
+            RequestItems: {
+              [this.tableName]: batch.map((key) => ({ DeleteRequest: { Key: key } })),
+            },
+          }),
+        );
+      }
+      exclusiveStartKey = page.LastEvaluatedKey;
+    } while (exclusiveStartKey);
   }
 
   private async batchGetMarkedIds(

@@ -21,11 +21,14 @@ export default $config({
     };
   },
   async run() {
-    // DESIGN §10 budgets for 14-day log retention; SST's own default is 1
-    // month, and nothing overrode it — so every function was holding logs for
-    // twice the budgeted window. Set once here rather than per function.
+    // DESIGN §10 budgets for 14-day log retention on production; SST's own
+    // default is 1 month, and nothing overrode it — so every function was
+    // holding logs for twice the budgeted window. `dev` gets a much shorter
+    // window since nobody re-reads a personal dev stage's logs a week later,
+    // and it cuts CloudWatch storage cost for a stage that ingests on the
+    // same schedule as production.
     $transform(sst.aws.Function, (args) => {
-      args.logging = { retention: '2 weeks' };
+      args.logging = { retention: $app.stage === 'production' ? '2 weeks' : '3 days' };
     });
 
     const { imagesRouter, postsTable, sourcesTable, userActivityTable, usersTable } = await import(

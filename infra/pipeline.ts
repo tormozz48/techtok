@@ -321,8 +321,13 @@ new aws.iam.RolePolicy('IngestSchedulerPolicy', {
   ),
 });
 
+// `dev` runs the identical pipeline (same fan-out into eager translate/
+// compact-content jobs) but has no real readers, so it doesn't need
+// production's freshness — every run's cost multiplies out across every
+// enabled source and every post. A 6-hour rate still exercises the pipeline
+// regularly without paying for 24 unread runs a day.
 new aws.scheduler.Schedule('IngestSchedule', {
-  scheduleExpression: 'rate(60 minutes)',
+  scheduleExpression: $app.stage === 'production' ? 'rate(60 minutes)' : 'rate(6 hours)',
   flexibleTimeWindow: { mode: 'OFF' },
   target: {
     arn: ingestPipeline.arn,

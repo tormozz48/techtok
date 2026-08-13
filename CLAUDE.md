@@ -55,9 +55,11 @@ Beyond the 17 numbered phases: a follow-up initiative proposed in response to "l
 | C4 | Offline saved articles: wifi-gated content prefetch on bookmark + on Saved-screen load | Merged (#62), logged as D55 | — |
 | C5 | Feed read-ahead content prefetch, extending C4/D55 from explicit bookmarks to scroll position, + a fix so prefetch actually covers in-body figures, + a 50-entry eviction cap (D61) | Code complete | Maintainer: commit, push, open a PR from the branch's compare link and merge. No on-device Expo Go pass possible in this environment (same constraint as every prior mobile phase) |
 
-### Going public and paid (2026-08-10, D67–D74, phases 19–22)
+### Going public and paid (2026-08-10, D67–D75, phases 19–23)
 
 The project's posture changes here: D1's "me + friends" and §1's "Play Store publication" non-goal are both retired. TechTok becomes a **publicly listed Play app with a €2.99/mo · €24.99/yr subscription**.
+
+**Execution order is 19 → 20 → 23 → 21 → 22** (D75, 2026-08-13). Phase 23 is numbered last but runs third: the launch is **free-first**, so the store listing, legal surface and the 14-day tester clock all start against code that already exists, instead of queueing behind unwritten billing code. Phase 23 is also what finally *closes* phases 19 and 20 — both are code-complete with zero verified acceptance criteria between them.
 
 | Phase | Topic | Status | What's left |
 |---|---|---|---|
@@ -65,8 +67,9 @@ The project's posture changes here: D1's "me + friends" and §1's "Play Store pu
 | 20 | Entitlements & quota (D69/D70) | Code complete | Maintainer-only, all live/on-device: (1) `pnpm exec sst deploy --stage dev` to actually deploy the new `GET /v1/me/entitlement` route + the quota/entitlement fields on `Users`; (2) `pnpm grant-entitlement -- --stage dev --user-id <userId> --plan plus` against a real account to exercise the paid path (script is written, reuses phase 19's `wipeUsers.ts` table-discovery pattern, unverified against live AWS in this session); (3) a real device/emulator pass — quota exhaustion, the paywall, and both locale/color-scheme combinations were only verified at the unit-test/typecheck level, not visually |
 | 21 | Play Billing (D67/D71) | Planned | **Stripe is not usable** — Play policy requires Play Billing for in-app digital subscriptions. Verify-on-app-open via the Play Developer API, no GCP Pub/Sub. Needs `PlayServiceAccountKey` secret |
 | 22 | Extended compact, paid (D72/D73) | Planned | ~1,500-word on-demand condensation, the **4th** LLM path, fair-use capped at 100/subscriber/month |
+| 23 | Public Play launch, free (D75) — **runs before 21–22** | Planned | Deploy + verify 19/20 for real; upload keystore; AAB build path (`eas.json`'s `production` profile is APK today, and the raw-Gradle path ships no OTA channel binding); privacy-policy + account-deletion pages on `apps/site`; Play listing; 14-day closed test. ~3–4 d of work, ~4–6 weeks elapsed — the two are not the same number |
 
-**Release gate (parallel, maintainer-side):** rights review for a public *paid* app built on third-party condensations (the review assumption #4/D23/§11 have deferred since day one — now due); Play Console account + subscription products; privacy policy/terms/Data Safety/account-deletion URL; and **12 testers opted in for 14 continuous days** before production access — the longest-lead item in the stage.
+**Release gate (parallel, maintainer-side; re-scoped by D75).** *Blocks the free launch:* rights review at free-launch scope (assumption #4/D23/§11, deferred since day one — now due); Play Console account (personal, $25, so **no exemption** from the 12-testers-for-14-continuous-days gate); privacy policy + Data Safety + a **public web** account-deletion URL (the in-app `DELETE /v1/me` alone does not satisfy Play). *Blocks monetization only:* subscription products, terms of service, and the paid-scope half of the rights review. The tester window is the longest-lead item in the project — start it the day phase 23 produces an uploadable AAB.
 
 **Two permanent changes land in phase 19:** the **Expo Go loop ends** (native modules for sign-in and billing; D18's committed `android/` is what makes it survivable), and the app **stores personal data for the first time** (email/name), which pulls GDPR, Data Safety and account deletion into scope.
 

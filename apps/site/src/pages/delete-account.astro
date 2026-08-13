@@ -1,0 +1,87 @@
+---
+import Document from '../layouts/Document.astro';
+import { CONTACT_EMAIL } from '../lib/legal';
+import { withBase } from '../lib/locale';
+
+const title = 'Delete your TechTok account';
+const description =
+  'How to delete your TechTok account and reading history, what gets removed, and what happens if you have already uninstalled the app.';
+---
+
+<Document title={title} description={description} subpath="delete-account/">
+  <p>
+    You can delete your TechTok account and everything stored with it at any time. You do not need
+    to ask permission, and you do not need to give a reason.
+  </p>
+
+  <h2>If you still have the app installed</h2>
+
+  <p>This is the fastest route, and it takes effect immediately.</p>
+
+  <ul>
+    <li>Open <strong>TechTok</strong>.</li>
+    <li>Go to <strong>Settings</strong>, then <strong>Account</strong>.</li>
+    <li>Tap <strong>Delete account</strong> and confirm.</li>
+  </ul>
+
+  <p>
+    You will be signed out as soon as it finishes. There is no waiting period and no recovery
+    window — the data is gone at that point, so make sure you mean it.
+  </p>
+
+  <h2>If you have already uninstalled the app</h2>
+
+  <p>
+    Email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> from
+    <strong>the same address you used to sign in with Google</strong>, and ask for your account to be
+    deleted. Sending it from that address is what proves the account is yours; a request from any
+    other address cannot be honoured, because there would be no way to tell whose account it is.
+  </p>
+
+  <p>Requests are handled within 30 days, and normally much sooner.</p>
+
+  <h2>What gets deleted</h2>
+
+  <p>Everything TechTok holds about you, specifically:</p>
+
+  <ul>
+    <li>Your account record — Google account identifier, email address, display name, and time zone.</li>
+    <li>Your entire reading history.</li>
+    <li>All of your bookmarks.</li>
+    <li>Your preferences — language, followed topics, and muted sources.</li>
+    <li>Your topic-affinity counts and daily usage counters.</li>
+  </ul>
+
+  <p>
+    Deleting your account inside the app also clears the copies held on your phone. If you delete by
+    email after uninstalling, the app is already gone from the device, and with it the local cache.
+  </p>
+
+  <h2>What is not deleted</h2>
+
+  <p>
+    News articles, their summaries and their translations stay in the service. These are not personal
+    data and are not specific to you — every reader sees the same summaries, and they are produced
+    when an article is published, not when you read it. Nothing linking any article to you survives
+    the deletion.
+  </p>
+
+  <p>
+    Server logs may retain ordinary technical records, such as request timestamps, for a short
+    operational period. These are not used to reconstruct a deleted account.
+  </p>
+
+  <h2>Deleting your account elsewhere</h2>
+
+  <p>
+    Deleting your TechTok account does not touch your Google account, which is managed by Google. If
+    you want to remove TechTok's access to your Google profile as well, you can do that from your
+    Google account's third-party access settings.
+  </p>
+
+  <p>
+    For anything else, including a copy of your data before you delete it, see the
+    <a href={withBase('privacy/')}>privacy policy</a> or email
+    <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+  </p>
+</Document>

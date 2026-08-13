@@ -1,0 +1,180 @@
+---
+import { SITE_COPY } from '../lib/copy';
+import { LEGAL_LAST_UPDATED } from '../lib/legal';
+import { localeHref, withBase } from '../lib/locale';
+import Footer from '../components/Footer.astro';
+import OrbitMark from '../components/OrbitMark.astro';
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description: string;
+  /** This page's sub-path relative to the site base, e.g. `privacy/`. */
+  subpath: string;
+}
+
+const { title, description, subpath } = Astro.props;
+
+// Legal pages are English-only by design (see src/lib/legal.ts), so the
+// footer takes the English strings rather than a per-locale set.
+const copy = SITE_COPY.en;
+const siteOrigin = Astro.site ?? new URL(withBase(''), Astro.url).origin;
+const canonicalUrl = new URL(withBase(subpath), siteOrigin).href;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title} · TechTok</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalUrl} />
+    <link rel="icon" href={withBase('favicon.svg')} type="image/svg+xml" />
+    <link rel="icon" href={withBase('favicon.png')} type="image/png" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content={`${title} · TechTok`} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalUrl} />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href={localeHref('en')}>
+        <OrbitMark size={28} />
+        <span>TechTok</span>
+      </a>
+      <a class="doc-back" href={localeHref('en')}>← Back to TechTok</a>
+    </header>
+
+    <main class="container doc">
+      <h1>{title}</h1>
+      <p class="doc-updated">Last updated {LEGAL_LAST_UPDATED}</p>
+      <slot />
+    </main>
+
+    <Footer copy={copy} />
+  </body>
+</html>
+
+<style>
+  .doc {
+    max-width: 44rem;
+    padding-top: var(--space-6);
+    padding-bottom: var(--space-6);
+  }
+
+  .doc-back {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.9375rem;
+  }
+
+  .doc-back:hover,
+  .doc-back:focus-visible {
+    color: var(--amber);
+  }
+
+  .doc h1 {
+    font-size: clamp(1.75rem, 5vw, 2.5rem);
+    line-height: 1.15;
+    margin: 0 0 var(--space-2);
+    text-wrap: balance;
+  }
+
+  .doc-updated {
+    color: var(--text-muted);
+    font-size: 0.9375rem;
+    margin: 0 0 var(--space-5);
+  }
+
+  /* Prose styles apply to slotted page content, so they cannot be scoped
+     to this component's own elements — Astro's `is:global` inside a scoped
+     block is the supported escape hatch for exactly this case. */
+</style>
+
+<style is:global>
+  .doc h2 {
+    font-size: 1.375rem;
+    line-height: 1.25;
+    margin: var(--space-6) 0 var(--space-3);
+    text-wrap: balance;
+  }
+
+  .doc h3 {
+    font-size: 1.0625rem;
+    margin: var(--space-5) 0 var(--space-2);
+    color: var(--amber-soft);
+  }
+
+  .doc p,
+  .doc li {
+    color: var(--text-secondary);
+    line-height: 1.7;
+  }
+
+  .doc p {
+    margin: 0 0 var(--space-3);
+  }
+
+  .doc ul {
+    margin: 0 0 var(--space-3);
+    padding-left: var(--space-4);
+  }
+
+  .doc li {
+    margin-bottom: var(--space-2);
+  }
+
+  .doc a {
+    color: var(--amber);
+    text-underline-offset: 3px;
+  }
+
+  .doc strong {
+    color: var(--text);
+  }
+
+  .doc table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0 0 var(--space-4);
+    font-size: 0.9375rem;
+  }
+
+  .doc-table-wrap {
+    overflow-x: auto;
+    margin-bottom: var(--space-4);
+  }
+
+  .doc th {
+    text-align: left;
+    font-weight: 600;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    padding: var(--space-2) var(--space-3) var(--space-2) 0;
+  }
+
+  .doc td {
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+    padding: var(--space-3) var(--space-3) var(--space-3) 0;
+    vertical-align: top;
+    line-height: 1.6;
+  }
+
+  .doc tr:last-child td {
+    border-bottom: none;
+  }
+
+  .doc .callout {
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--amber);
+    border-radius: var(--radius);
+    background: var(--navy-elevated);
+    padding: var(--space-4);
+    margin: 0 0 var(--space-4);
+  }
+
+  .doc .callout p:last-child {
+    margin-bottom: 0;
+  }
+</style>

@@ -56,6 +56,10 @@ export interface SiteStrings {
     tagline: string;
     sourceCode: string;
     license: string;
+    /** Link labels are localized; the legal pages themselves are English-only
+     * by design — see src/lib/legal.ts. */
+    privacy: string;
+    deleteAccount: string;
   };
 }
 
@@ -150,6 +154,8 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       tagline: 'TechTok — tech & science news, swiped.',
       sourceCode: 'Source code',
       license: 'MIT licensed',
+      privacy: 'Privacy',
+      deleteAccount: 'Delete account',
     },
   },
   ru: {
@@ -240,6 +246,8 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       tagline: 'TechTok — новости технологий и науки одним движением.',
       sourceCode: 'Исходный код',
       license: 'Лицензия MIT',
+      privacy: 'Конфиденциальность',
+      deleteAccount: 'Удаление аккаунта',
     },
   },
   uk: {
@@ -332,6 +340,8 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       tagline: 'TechTok — новини технологій і науки одним рухом.',
       sourceCode: 'Початковий код',
       license: 'Ліцензія MIT',
+      privacy: 'Конфіденційність',
+      deleteAccount: 'Видалення облікового запису',
     },
   },
   pl: {
@@ -422,6 +432,8 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       tagline: 'TechTok — wiadomości technologiczne i naukowe w jednym geście.',
       sourceCode: 'Kod źródłowy',
       license: 'Licencja MIT',
+      privacy: 'Prywatność',
+      deleteAccount: 'Usuwanie konta',
     },
   },
 };

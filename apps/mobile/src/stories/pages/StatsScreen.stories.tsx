@@ -1,12 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
 import type { HistoryItem } from '@techtok/shared';
 import StatsScreen from '@/app/stats';
+import { ONE_DAY_MS } from '@/constants/time';
 import { withSeededQuery } from '../withSeededQuery';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 function daysAgo(days: number): string {
-  return new Date(Date.now() - days * DAY_MS).toISOString();
+  return new Date(Date.now() - days * ONE_DAY_MS).toISOString();
 }
 
 const SOURCES = ['TechCrunch', 'The Verge', 'Ars Technica'];

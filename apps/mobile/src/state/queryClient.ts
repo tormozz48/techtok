@@ -1,6 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-
-const ONE_DAY_MS = 1000 * 60 * 60 * 24;
+import { ONE_DAY_MS } from '@/constants/time';
 
 /** Single app-wide QueryClient, split out of _layout.tsx so non-component
  * code (readQueue.ts, api/client.ts) can invalidate cached queries — e.g.

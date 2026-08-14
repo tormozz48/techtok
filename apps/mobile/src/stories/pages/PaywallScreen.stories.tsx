@@ -7,9 +7,9 @@ const AVAILABLE: EntitlementResponse = {
   plan: 'free',
   quota: {
     cardReads: 12,
-    cardReadsLimit: 50,
+    cardReadsLimit: 100,
     readerOpens: 3,
-    readerOpensLimit: 10,
+    readerOpensLimit: 20,
     resetsAt: new Date(Date.now() + 8 * 3_600_000).toISOString(),
   },
 };
@@ -17,10 +17,10 @@ const AVAILABLE: EntitlementResponse = {
 const EXHAUSTED: EntitlementResponse = {
   plan: 'free',
   quota: {
-    cardReads: 50,
-    cardReadsLimit: 50,
+    cardReads: 100,
+    cardReadsLimit: 100,
     readerOpens: 4,
-    readerOpensLimit: 10,
+    readerOpensLimit: 20,
     resetsAt: new Date(Date.now() + 3 * 3_600_000).toISOString(),
   },
 };

@@ -24,8 +24,8 @@ export default function PaywallScreen() {
   const entitlementQuery = useEntitlementQuery();
   const entitlement = entitlementQuery.data;
 
-  const cardReadsLimit = entitlement?.quota.cardReadsLimit ?? 50;
-  const readerOpensLimit = entitlement?.quota.readerOpensLimit ?? 10;
+  const cardReadsLimit = entitlement?.quota.cardReadsLimit ?? 100;
+  const readerOpensLimit = entitlement?.quota.readerOpensLimit ?? 20;
   const isExhausted =
     entitlement?.plan === 'free' &&
     (entitlement.quota.cardReads >= entitlement.quota.cardReadsLimit ||

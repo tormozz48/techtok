@@ -1,4 +1,10 @@
-import { countTopicReads, isPlus, selectCardVariant } from '@techtok/core';
+import {
+  countTopicReads,
+  effectiveQuota,
+  FREE_CARD_READS_PER_DAY,
+  isPlus,
+  selectCardVariant,
+} from '@techtok/core';
 import { readsRequestSchema } from '@techtok/shared';
 import { getPostsRepo, getUserActivityRepo, getUsersRepo } from '../../repos';
 import { noContent, parseJsonBody, withAuth } from '../lib/http';
@@ -47,12 +53,17 @@ export const handler = withAuth(async (event, auth) => {
     await getUsersRepo().addTopicReads(auth.userId, topicCounts);
   }
   if (newlyReadCount > 0 && !isPlus(user)) {
-    await getUsersRepo().incrementQuota(
-      auth.userId,
-      'cardReads',
-      user.timezone ?? 'UTC',
-      newlyReadCount,
-    );
+    const timezone = user.timezone ?? 'UTC';
+    const quota = effectiveQuota(user.quota, timezone);
+    // Clamp: a single batch can carry more newly-read posts than the user
+    // has quota left (the feed page that produced them was already served
+    // before this request), so cap the increment at the remaining allowance
+    // instead of letting the counter overshoot past FREE_CARD_READS_PER_DAY.
+    const remaining = Math.max(0, FREE_CARD_READS_PER_DAY - quota.cardReads);
+    const chargeCount = Math.min(newlyReadCount, remaining);
+    if (chargeCount > 0) {
+      await getUsersRepo().incrementQuota(auth.userId, 'cardReads', timezone, chargeCount);
+    }
   }
 
   return noContent();

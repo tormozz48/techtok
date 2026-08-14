@@ -93,6 +93,7 @@ export default function SettingsScreen() {
         rowSelectedStyle={styles.rowSelected}
         rowTextStyle={styles.rowText}
         checkIconColor={colors.text}
+        testIDPrefix="settings-theme"
       />
       <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>
         {strings.settings.languageSectionTitle}
@@ -112,6 +113,7 @@ export default function SettingsScreen() {
           titleStyle={styles.rowText}
           style={StyleSheet.flatten([styles.row, styles.sectionTitleSpaced])}
           right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.text} />}
+          testID="settings-stats-link"
         />
       </Link>
       <Link href="/account" asChild>
@@ -120,6 +122,7 @@ export default function SettingsScreen() {
           titleStyle={styles.rowText}
           style={styles.row}
           right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.text} />}
+          testID="settings-account-link"
         />
       </Link>
       <Link href="/paywall" asChild>
@@ -130,6 +133,7 @@ export default function SettingsScreen() {
           descriptionStyle={styles.rowDescription}
           style={styles.row}
           right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.text} />}
+          testID="settings-paywall-link"
         />
       </Link>
       <Text style={styles.hint}>
@@ -147,6 +151,7 @@ export default function SettingsScreen() {
         rowSelectedStyle={styles.rowSelected}
         rowTextStyle={styles.rowText}
         checkIconColor={colors.text}
+        testIDPrefix="settings-topic"
       />
       {sourcesQuery.data ? (
         <>
@@ -167,6 +172,7 @@ export default function SettingsScreen() {
             rowSelectedStyle={styles.rowSelected}
             rowTextStyle={styles.rowText}
             checkIconColor={colors.text}
+            testIDPrefix="settings-source"
           />
         </>
       ) : null}

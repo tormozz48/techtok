@@ -56,6 +56,7 @@ export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps)
               postId={activeCard.id}
               isBookmarked={activeCard.isBookmarked}
               style={styles.icon}
+              testID="action-bar-bookmark"
               snapshot={{
                 cardTitle: activeCard.title,
                 sourceName: activeCard.sourceName,
@@ -114,6 +115,7 @@ export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps)
           style={styles.icon}
           onPress={onRefresh}
           accessibilityLabel="Refresh feed"
+          testID="action-bar-refresh"
         />
         <Link href="/saved" asChild>
           <IconButton
@@ -122,6 +124,7 @@ export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps)
             size={20}
             style={styles.icon}
             accessibilityLabel={strings.a11y.openSaved}
+            testID="action-bar-saved"
           />
         </Link>
         <Link href="/history" asChild>
@@ -131,6 +134,7 @@ export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps)
             size={20}
             style={styles.icon}
             accessibilityLabel={strings.a11y.openHistory}
+            testID="action-bar-history"
           />
         </Link>
         <Link href="/settings" asChild>
@@ -140,6 +144,7 @@ export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps)
             size={20}
             style={styles.icon}
             accessibilityLabel={strings.a11y.openSettings}
+            testID="action-bar-settings"
           />
         </Link>
       </View>

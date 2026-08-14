@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Button } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,6 +7,7 @@ import { Radius, Spacing, type ThemeColors, Typography } from '@/constants/theme
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { useAuthStore } from '@/state/authStore';
+import { isE2eAuthEnabled } from '@/state/e2eAuth';
 
 /**
  * Sign-in gate (D68) — rendered by `_layout.tsx`'s `Stack.Protected` for
@@ -18,8 +20,18 @@ export default function AuthScreen() {
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const signIn = useAuthStore((state) => state.signIn);
+  const signInWithIdToken = useAuthStore((state) => state.signInWithIdToken);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [hasError, setHasError] = useState(false);
+
+  // E2E-only entry point (see state/e2eAuth.ts): the Maestro suite deep-links
+  // to `techtok://auth?idToken=<a real Google ID token>` to skip a consent UI
+  // that cannot be automated. Inert in every shipping build — the param is
+  // simply ignored, and `signInWithIdToken` no-ops on top of that.
+  const { idToken } = useLocalSearchParams<{ idToken?: string }>();
+  useEffect(() => {
+    if (isE2eAuthEnabled() && idToken) signInWithIdToken(idToken);
+  }, [idToken, signInWithIdToken]);
 
   const handleSignIn = async () => {
     setHasError(false);
@@ -34,7 +46,7 @@ export default function AuthScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="auth-screen">
       <View style={styles.content}>
         <Text style={styles.title}>{strings.auth.title}</Text>
         <Text style={styles.subtitle}>{strings.auth.subtitle}</Text>

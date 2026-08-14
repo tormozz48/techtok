@@ -114,7 +114,11 @@ export default function PostScreen() {
   const isViewingTranslation = content.lang !== 'en';
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      testID="reader-screen"
+    >
       <TouchableRipple
         style={styles.header}
         onLongPress={
@@ -152,6 +156,7 @@ export default function PostScreen() {
           postId={id}
           isBookmarked={isBookmarked === 'true'}
           iconColor={colors.text}
+          testID="reader-bookmark"
           snapshot={title && sourceName ? { cardTitle: title, sourceName, url } : undefined}
         />
         <IconButton

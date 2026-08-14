@@ -16,6 +16,9 @@ export interface BookmarkButtonProps {
   isBookmarked?: boolean;
   iconColor?: string;
   style?: StyleProp<ViewStyle>;
+  /** Stable E2E selector — the rendered accessibilityLabel is localized *and*
+   * flips with the bookmarked state, so it can't serve as one. */
+  testID?: string;
   /** Card data needed to show this bookmark in Saved immediately on create —
    * see patchBookmarksListOnCreate. Omit only where unavailable (a stale
    * Saved-list entry will still self-correct on the next invalidation). */
@@ -113,6 +116,7 @@ export function BookmarkButton({
   isBookmarked,
   iconColor = Colors.overlay.text,
   style,
+  testID,
   snapshot,
 }: BookmarkButtonProps) {
   const queryClient = useQueryClient();
@@ -161,6 +165,7 @@ export function BookmarkButton({
       iconColor={iconColor}
       size={20}
       style={style}
+      testID={testID}
       onPress={toggle}
       accessibilityLabel={bookmarked ? strings.a11y.bookmarkRemove : strings.a11y.bookmarkAdd}
     />

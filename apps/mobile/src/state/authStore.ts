@@ -4,6 +4,7 @@ import {
   isSuccessResponse,
 } from '@react-native-google-signin/google-signin';
 import { create } from 'zustand';
+import { isE2eAuthEnabled } from './e2eAuth';
 
 export interface AuthUser {
   readonly idToken: string;
@@ -21,6 +22,10 @@ interface AuthState {
   restore: () => Promise<void>;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
+  /** Installs an externally-supplied Google ID token as the active session.
+   * No-ops unless the app was built with `EXPO_PUBLIC_E2E_AUTH=1` — see
+   * `e2eAuth.ts` for why this exists and why it grants nothing extra. */
+  signInWithIdToken: (idToken: string) => void;
   /** Re-authenticates silently to obtain a fresh ID token — Google ID tokens
    * expire in ~1h (D68), so the API client calls this once on a 401 before
    * retrying. Returns null if the silent refresh itself fails, in which case
@@ -71,11 +76,19 @@ function toAuthUser(
   return { idToken, email: user.email, name: user.name };
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   status: 'loading',
   user: null,
 
   restore: async () => {
+    // An E2E build has no Google session to restore and must never touch the
+    // Google SDK at all — it has no webClientId configured, and calling into
+    // Play Services would be one more thing to fail on an emulator. Landing on
+    // `signedOut` is what renders `/auth`, where the injected token arrives.
+    if (isE2eAuthEnabled()) {
+      set({ status: 'signedOut', user: null });
+      return;
+    }
     try {
       ensureConfigured();
       if (!GoogleSignin.hasPreviousSignIn()) {
@@ -101,13 +114,30 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ status: 'signedIn', user: toAuthUser(response.data.idToken, response.data.user) });
   },
 
+  signInWithIdToken: (idToken: string) => {
+    if (!isE2eAuthEnabled()) return;
+    set({
+      status: 'signedIn',
+      user: { idToken, email: null, name: null },
+    });
+  },
+
   signOut: async () => {
+    if (isE2eAuthEnabled()) {
+      set({ status: 'signedOut', user: null });
+      return;
+    }
     ensureConfigured();
     await GoogleSignin.signOut();
     set({ status: 'signedOut', user: null });
   },
 
   refreshToken: async () => {
+    // The injected token is the only one an E2E build will ever have; a silent
+    // Google re-sign-in would fail and sign the run out mid-flow. Google ID
+    // tokens live ~1h, comfortably longer than a suite run, and the harness
+    // mints a fresh one per run.
+    if (isE2eAuthEnabled()) return get().user?.idToken ?? null;
     ensureConfigured();
     try {
       const response = await GoogleSignin.signInSilently();

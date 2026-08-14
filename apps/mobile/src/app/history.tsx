@@ -35,6 +35,7 @@ export default function HistoryScreen() {
         onSubmitEditing={() => setSubmittedQuery(searchText.trim())}
         onClearIconPress={() => setSubmittedQuery('')}
         style={styles.searchbar}
+        testID="history-search"
       />
       {isLoading ? (
         <View style={styles.center}>
@@ -53,6 +54,7 @@ export default function HistoryScreen() {
       ) : (
         <FlatList
           style={styles.list}
+          testID="history-list"
           data={items}
           keyExtractor={(item) => item.postId}
           onEndReached={() => {
@@ -78,6 +80,7 @@ export default function HistoryScreen() {
                 })
               }
               style={styles.row}
+              testID={`history-row-${item.postId}`}
             />
           )}
         />

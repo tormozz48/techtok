@@ -77,9 +77,10 @@ export default function OnboardingScreen() {
           rowSelectedStyle={styles.rowSelected}
           rowTextStyle={styles.rowText}
           checkIconColor={colors.text}
+          testIDPrefix="onboarding-topic"
         />
       </ScrollView>
-      <Button mode="contained" onPress={getStarted} style={styles.cta}>
+      <Button mode="contained" onPress={getStarted} style={styles.cta} testID="onboarding-cta">
         {strings.onboarding.cta}
       </Button>
     </View>

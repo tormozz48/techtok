@@ -169,23 +169,34 @@ jobs:
           echo "::add-mask::$ID_TOKEN"
           echo "ID_TOKEN=$ID_TOKEN" >> "$GITHUB_ENV"
 
+      # restore/save is deliberately split (not the combined actions/cache@v4)
+      # for all three caches in this job: the combined action's save only
+      # fires from a "post" cleanup hook that GitHub skips once ANY later
+      # step in the job fails — confirmed the hard way, a run whose Maestro
+      # step failed left "Post Cache E2E APK"/"Post Cache Gradle"/"Post Cache
+      # AVD" all skipped, so nothing was ever actually cached despite every
+      # run reporting a normal restore. The explicit `save` steps near the
+      # end of this job carry `if: always()` so they persist the cache
+      # regardless of what a later step (Maestro flows, most likely) does.
+      #
       # Keyed on every input that changes what the APK contains: app source,
       # the native android/ project, the shared package (bundled into the JS),
       # the lockfile, and the API endpoint it's built pointing at. A cache hit
       # skips the build step entirely below.
-      - name: Cache Gradle
+      - name: Restore Gradle cache
         if: steps.creds.outputs.skip == 'false'
-        uses: actions/cache@v4
+        id: gradle-cache
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
           key: gradle-${{ runner.os }}-${{ hashFiles('apps/mobile/android/**/*.gradle*', 'apps/mobile/android/gradle/wrapper/gradle-wrapper.properties') }}
 
-      - name: Cache E2E APK
+      - name: Restore E2E APK cache
         if: steps.creds.outputs.skip == 'false'
         id: apk-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
           key: mobile-e2e-apk-${{ hashFiles('apps/mobile/src/**', 'apps/mobile/android/**', 'packages/shared/src/**', 'pnpm-lock.yaml') }}-${{ steps.api.outputs.url }}
@@ -215,9 +226,9 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Cache AVD
+      - name: Restore AVD cache
         if: steps.creds.outputs.skip == 'false'
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         id: avd-cache
         with:
           path: |
@@ -262,3 +273,31 @@ jobs:
           script: |
             adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
             maestro test packages/e2e/maestro/flows -e APP_ID=com.tormozz48dev.techtok -e ID_TOKEN="$ID_TOKEN"
+
+      # `if: always()` is the point of splitting these out — see the restore
+      # steps' comment above. `cache-hit != 'true'` skips a redundant upload
+      # when the restore already matched this exact key.
+      - name: Save AVD cache
+        if: always() && steps.creds.outputs.skip == 'false' && steps.avd-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: ${{ steps.avd-cache.outputs.cache-primary-key }}
+
+      - name: Save Gradle cache
+        if: always() && steps.creds.outputs.skip == 'false' && steps.gradle-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ steps.gradle-cache.outputs.cache-primary-key }}
+
+      - name: Save E2E APK cache
+        if: always() && steps.creds.outputs.skip == 'false' && steps.apk-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          key: ${{ steps.apk-cache.outputs.cache-primary-key }}

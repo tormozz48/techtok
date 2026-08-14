@@ -1,3 +1,4 @@
+import { Link } from 'expo-router';
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ActivityIndicator, Button } from 'react-native-paper';
@@ -71,6 +72,10 @@ export default function PaywallScreen() {
       <Button mode="contained" disabled style={styles.cta}>
         {strings.paywall.comingSoonCta}
       </Button>
+
+      <Link href="/settings" style={styles.settingsLink}>
+        <Text style={styles.settingsLinkText}>{strings.settings.title}</Text>
+      </Link>
     </ScrollView>
   );
 }
@@ -151,6 +156,16 @@ function createStyles(colors: ThemeColors) {
     },
     cta: {
       borderRadius: Radius.md,
+    },
+    settingsLink: {
+      marginTop: Spacing.four,
+      alignSelf: 'center',
+    },
+    settingsLinkText: {
+      color: colors.textSecondary,
+      ...Typography.base,
+      fontWeight: '600',
+      textDecorationLine: 'underline',
     },
   });
 }

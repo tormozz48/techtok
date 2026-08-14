@@ -5,7 +5,7 @@ import {
   UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
 import type { CompactFigure, Language, Topic } from '@techtok/shared';
-import { batchGetChunked, conditionalWrite } from '../clients/dynamoClient';
+import { batchGetChunked, conditionalWrite, DYNAMO_BATCH_GET_LIMIT } from '../clients/dynamoClient';
 import type {
   NewPost,
   PostRecord,
@@ -16,7 +16,6 @@ import type {
 
 const POST_TTL_SECONDS = 90 * 24 * 60 * 60;
 const BY_TIME_PARTITION = 'POST';
-const BATCH_GET_CHUNK_SIZE = 100;
 
 export interface QueryOpts {
   readonly before?: string;
@@ -84,7 +83,7 @@ export class PostsRepo {
       this.tableName,
       postIds,
       (postId) => ({ postId }),
-      BATCH_GET_CHUNK_SIZE,
+      DYNAMO_BATCH_GET_LIMIT,
     );
   }
 

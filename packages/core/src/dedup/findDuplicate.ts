@@ -1,11 +1,10 @@
 import type { Topic } from '@techtok/shared';
+import { MS_PER_HOUR } from '../util/time';
 import { DEFAULT_SIMILARITY_THRESHOLD, isLikelyDuplicateTitle } from './titleSimilarity';
 
 /** Default cross-source dedup window — a story published within ±48h of a
  * candidate, from a different source, with a similar title counts as a match. */
 export const DEFAULT_WINDOW_HOURS = 48;
-
-const MS_PER_HOUR = 60 * 60 * 1000;
 
 export interface DuplicateCandidate {
   readonly postId: string;

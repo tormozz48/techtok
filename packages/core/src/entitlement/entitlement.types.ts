@@ -25,5 +25,5 @@ export interface Quota {
   readonly readerOpens: number;
 }
 
-export const FREE_CARD_READS_PER_DAY = 50;
-export const FREE_READER_OPENS_PER_DAY = 10;
+export const FREE_CARD_READS_PER_DAY = 100;
+export const FREE_READER_OPENS_PER_DAY = 20;

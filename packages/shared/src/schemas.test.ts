@@ -236,8 +236,15 @@ describe('compactBlockSchema', () => {
 });
 
 describe('contentQuerySchema', () => {
-  it('defaults lang to en', () => {
-    expect(contentQuerySchema.parse({})).toEqual({ lang: 'en' });
+  it('defaults lang to en and intent to read', () => {
+    expect(contentQuerySchema.parse({})).toEqual({ lang: 'en', intent: 'read' });
+  });
+
+  it('accepts intent=prefetch', () => {
+    expect(contentQuerySchema.parse({ intent: 'prefetch' })).toEqual({
+      lang: 'en',
+      intent: 'prefetch',
+    });
   });
 });
 

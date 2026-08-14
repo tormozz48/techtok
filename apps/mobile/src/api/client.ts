@@ -20,6 +20,7 @@ import {
 } from '@techtok/shared';
 import { useAuthStore } from '@/state/authStore';
 import { detectDeviceLanguage, detectDeviceTimezone } from '@/state/deviceLanguage';
+import { queryClient } from '@/state/queryClient';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -148,6 +149,10 @@ export async function postReads(postIds: string[]): Promise<void> {
     method: 'POST',
     body: JSON.stringify({ postIds }),
   });
+  // A newly-read post burns the D69 cardReads quota server-side — invalidate
+  // so the feed's QuotaBadge/paywall reflect it without waiting on staleTime
+  // + an unrelated focus/mount trigger to happen to fire.
+  queryClient.invalidateQueries({ queryKey: ['entitlement'] });
 }
 
 export interface FetchHistoryPageParams {
@@ -207,13 +212,26 @@ export async function deleteBookmark(postId: string): Promise<void> {
 }
 
 /** Reads a compact article (D23; eager generation as of D36) — a plain cache
- * read, no job ids or polling. */
-export async function fetchPostContent(postId: string, lang: Language): Promise<ContentResponse> {
+ * read, no job ids or polling. `intent: 'prefetch'` (D61's read-ahead /
+ * bookmark wifi-prefetch) tells the server this is speculative background
+ * cache-warming, not a genuine reader open — it skips the D69 reader-opens
+ * quota gate/increment there, and skips invalidating `['entitlement']` here
+ * since nothing server-side actually changed. */
+export async function fetchPostContent(
+  postId: string,
+  lang: Language,
+  intent: 'read' | 'prefetch' = 'read',
+): Promise<ContentResponse> {
   const url = apiUrl(`/v1/posts/${encodeURIComponent(postId)}/content`);
   url.searchParams.set('lang', lang);
+  if (intent === 'prefetch') url.searchParams.set('intent', intent);
 
   const response = await apiFetch(url);
-  return contentResponseSchema.parse(await response.json());
+  const parsed = contentResponseSchema.parse(await response.json());
+  if (intent === 'read') {
+    queryClient.invalidateQueries({ queryKey: ['entitlement'] });
+  }
+  return parsed;
 }
 
 /** Deletes the signed-in user's account and all their data (D68) — required

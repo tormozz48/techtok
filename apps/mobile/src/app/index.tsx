@@ -65,12 +65,13 @@ export default function FeedScreen() {
 
   if (isError) {
     return (
-      <View style={styles.root}>
+      <View style={styles.root} testID="feed-error">
         <ScreenState
           message={strings.feed.error}
           messageColor={colors.error}
           retryLabel={strings.feed.retry}
           onRetry={() => refetch()}
+          retryTestID="feed-retry"
         />
         <BottomActionBar
           activeCard={undefined}
@@ -82,7 +83,7 @@ export default function FeedScreen() {
 
   if (cards.length === 0) {
     return (
-      <View style={styles.root}>
+      <View style={styles.root} testID="feed-empty">
         <ScreenState message={strings.feed.empty} />
         <BottomActionBar
           activeCard={undefined}
@@ -93,7 +94,7 @@ export default function FeedScreen() {
   }
 
   return (
-    <View style={styles.root}>
+    <View style={styles.root} testID="feed-screen">
       {/* The feed itself is always a full-bleed dark photo overlay (Card.tsx,
        * scheme-independent) with light text, so it needs light status-bar
        * icons regardless of the device's theme — unlike the plain chrome
@@ -119,7 +120,7 @@ export default function FeedScreen() {
         </View>
       ) : null}
       {entitlementQuery.data?.plan === 'free' ? (
-        <View style={styles.quotaBadge} pointerEvents="none">
+        <View style={styles.quotaBadge} pointerEvents="none" testID="quota-badge">
           <QuotaBadge
             used={entitlementQuery.data.quota.cardReads}
             limit={entitlementQuery.data.quota.cardReadsLimit}

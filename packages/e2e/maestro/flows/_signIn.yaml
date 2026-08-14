@@ -1,0 +1,38 @@
+# Shared subflow, included via `runFlow` at the top of every other flow in
+# this directory. Not a runnable test on its own (leading underscore keeps
+# `maestro test flows/` from picking it up as a top-level flow).
+#
+# Reinstalling is out of scope here — this only clears the app's own storage
+# (`clearState`) and re-signs-in, so every flow starts from a deterministic
+# fresh-install-shaped state: signed in, onboarding not yet seen. See
+# apps/mobile/src/state/e2eAuth.ts for why a deep link can sign the app in at
+# all, and _layout.tsx/onboarding.tsx for why onboarding is what follows.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+# `launchApp` returning only means the Activity is resumed, not that the RN
+# bridge has finished bootstrapping — firing the deep link too early gets it
+# silently dropped ("Tried to access onNewIntent while context is not ready",
+# confirmed via device logcat on a real run). Waiting for the JS-rendered
+# auth screen proves the bridge is actually up before the link fires.
+- assertVisible:
+    id: "auth-screen"
+- openLink: "techtok://auth?idToken=${ID_TOKEN}"
+# Only asserts that sign-in itself succeeded (left the auth gate) — not which
+# screen follows. What comes next legitimately varies: a real token lands on
+# onboarding or the feed depending on `hasSeenOnboarding`, while an invalid
+# token (e.g. a smoke test with no real Google credentials) reaches the feed
+# but then shows `feed-error`, never `feed-screen`. Each flow asserts its own
+# expected next screen; this only confirms the bypass itself worked.
+#
+# Note: a fresh sign-in is expected to land on onboarding
+# (`hasSeenOnboarding` is false), but a confirmed real-device bug currently
+# skips straight to the feed instead regardless — Stack.Protected's
+# guard-flip doesn't actually apply `initialRouteName` (React Navigation only
+# honors it on a screen group's first mount, and the signed-in group's
+# screens don't exist yet at that point), so it defaults to whichever screen
+# is declared first ('index'). See each flow for how it handles onboarding
+# being reachable or not.
+- assertNotVisible:
+    id: "auth-screen"

@@ -12,6 +12,7 @@ export interface ScreenStateProps {
   readonly messageColor?: string;
   readonly retryLabel?: string;
   readonly onRetry?: () => void;
+  readonly retryTestID?: string;
 }
 
 /** Centered loading/error/empty state — a spinner, an optional caption below
@@ -25,6 +26,7 @@ export function ScreenState({
   messageColor,
   retryLabel,
   onRetry,
+  retryTestID,
 }: ScreenStateProps) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -46,7 +48,7 @@ export function ScreenState({
         </Text>
       ) : null}
       {hasRetry ? (
-        <Button mode="contained" onPress={onRetry}>
+        <Button mode="contained" onPress={onRetry} testID={retryTestID}>
           {retryLabel}
         </Button>
       ) : null}

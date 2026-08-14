@@ -12,6 +12,8 @@ export interface TopicPickerProps {
   readonly hintAll: string;
   readonly hintSome: (selected: number, total: number) => string;
   readonly onChange: (next: Topic[]) => void;
+  /** Forwarded to the underlying SelectableList — see its own testIDPrefix doc. */
+  readonly testIDPrefix?: string;
 }
 
 /** Hint text + toggleable topic list — shared by the settings and onboarding
@@ -23,6 +25,7 @@ export function TopicPicker({
   hintAll,
   hintSome,
   onChange,
+  testIDPrefix,
 }: TopicPickerProps) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -47,6 +50,7 @@ export function TopicPicker({
         rowSelectedStyle={styles.rowSelected}
         rowTextStyle={styles.rowText}
         checkIconColor={colors.text}
+        testIDPrefix={testIDPrefix}
       />
     </>
   );

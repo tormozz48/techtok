@@ -45,12 +45,14 @@ export default function OnboardingScreen() {
           hintAll={strings.onboarding.hintAll}
           hintSome={strings.onboarding.hintSome}
           onChange={setTopics}
+          testIDPrefix="onboarding-topic"
         />
       </ScrollView>
       <Button
         mode="contained"
         onPress={getStarted}
         style={[styles.cta, { marginBottom: Spacing.four + insets.bottom }]}
+        testID="onboarding-cta"
       >
         {strings.onboarding.cta}
       </Button>

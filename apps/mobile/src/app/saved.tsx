@@ -74,6 +74,7 @@ export default function SavedScreen() {
         onSubmitEditing={() => setSubmittedQuery(searchText.trim())}
         onClearIconPress={() => setSubmittedQuery('')}
         style={styles.searchbar}
+        testID="saved-search"
       />
       {isLoading ? (
         <ScreenState loading />
@@ -84,6 +85,7 @@ export default function SavedScreen() {
       ) : (
         <FlatList
           style={styles.list}
+          testID="saved-list"
           data={items}
           keyExtractor={(item) => item.postId}
           onEndReached={() => {
@@ -111,6 +113,7 @@ export default function SavedScreen() {
                   })
                 }
                 style={styles.rowContent}
+                testID={`saved-row-${item.postId}`}
               />
               <IconButton
                 icon="close"
@@ -118,6 +121,7 @@ export default function SavedScreen() {
                 iconColor={colors.textSecondary}
                 onPress={() => removeBookmark(item.postId)}
                 accessibilityLabel={strings.a11y.removeSaved}
+                testID={`saved-remove-${item.postId}`}
               />
             </View>
           )}

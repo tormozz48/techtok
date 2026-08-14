@@ -52,6 +52,7 @@ export function Card({ card }: CardProps) {
 
       <TouchableRipple
         style={styles.content}
+        testID="feed-card"
         onPress={() => {
           if (longPressedRef.current) {
             longPressedRef.current = false;
@@ -98,7 +99,9 @@ export function Card({ card }: CardProps) {
               {strings.card.translatedBadge}
             </Chip>
           ) : null}
-          <Text style={styles.title}>{card.title}</Text>
+          <Text style={styles.title} testID="feed-card-title">
+            {card.title}
+          </Text>
           <Text style={styles.summary} numberOfLines={4}>
             {card.summary}
           </Text>

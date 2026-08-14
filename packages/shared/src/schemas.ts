@@ -232,6 +232,10 @@ export type CompactFigure = z.infer<typeof compactFigureSchema>;
 
 export const contentQuerySchema = z.object({
   lang: languageSchema.default('en'),
+  // 'prefetch' (D61's read-ahead / bookmark wifi-prefetch) must not burn the
+  // free tier's D69 reader-opens quota — only a genuine reader open ('read',
+  // the default) counts against it.
+  intent: z.enum(['read', 'prefetch']).default('read'),
 });
 export type ContentQuery = z.infer<typeof contentQuerySchema>;
 

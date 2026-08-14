@@ -423,10 +423,19 @@
           "uk",
           "pl"
         ]
+      },
+      "intent": {
+        "default": "read",
+        "type": "string",
+        "enum": [
+          "read",
+          "prefetch"
+        ]
       }
     },
     "required": [
-      "lang"
+      "lang",
+      "intent"
     ],
     "additionalProperties": false
   },

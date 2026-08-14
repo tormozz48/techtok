@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import { focusManager, QueryClient } from '@tanstack/react-query';
+import { focusManager } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -19,16 +19,13 @@ import { useAuthStore } from '@/state/authStore';
 import { useLanguageStore } from '@/state/languageStore';
 import { startNetworkMonitoring } from '@/state/network';
 import { hasSeenOnboarding } from '@/state/onboardingStore';
+import { queryClient } from '@/state/queryClient';
 import { startReadQueueFlushing } from '@/state/readQueue';
 import { ready } from '@/state/storage';
 import { useThemeStore } from '@/state/themeStore';
 import { useTopicsStore } from '@/state/topicsStore';
 
 const ONE_DAY_MS = 1000 * 60 * 60 * 24;
-
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { gcTime: ONE_DAY_MS } },
-});
 
 // A direct AsyncStorage adapter — the persister's own async-get/set shape
 // doesn't fit state/storage.ts's sync-read cache, so this is a deliberate,

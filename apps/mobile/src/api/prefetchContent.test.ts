@@ -50,13 +50,15 @@ describe('prefetchPostContent', () => {
     expect(queryClient.getQueryData(['content', 'abc123', 'en'])).toEqual(response);
   });
 
-  it('fetches with the given postId and language', async () => {
+  it('fetches with the given postId and language, tagged as a prefetch', async () => {
     const response: ContentResponse = { available: true, lang: 'ru', blocks: [], figures: [] };
     fetchPostContentMock.mockResolvedValue(response);
 
     await prefetchPostContent(queryClient, 'xyz789', 'ru');
 
-    expect(fetchPostContentMock).toHaveBeenCalledWith('xyz789', 'ru');
+    // 'prefetch' intent tells the server this isn't a genuine reader open —
+    // it must not burn the D69 reader-opens quota (see client.ts/content.ts).
+    expect(fetchPostContentMock).toHaveBeenCalledWith('xyz789', 'ru', 'prefetch');
   });
 
   it('resolves without throwing when the fetch itself fails', async () => {

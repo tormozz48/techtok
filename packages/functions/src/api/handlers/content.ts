@@ -29,6 +29,12 @@ const getContentStore = lazy(
  * moment the request is allowed through, regardless of whether the content
  * turns out to be cached, not-ready, or compact-disabled — the user still
  * spent one of their daily opens tapping into the reader.
+ *
+ * `intent=prefetch` (D61's read-ahead / bookmark wifi-prefetch, mobile's
+ * prefetchPostContent) skips the gate and the increment entirely — those
+ * calls are speculative background cache-warming the user never sees, not a
+ * reader open, and must not silently exhaust the daily allowance before the
+ * user has opened anything.
  */
 export const handler = withAuth(async (event, auth) => {
   const postId = event.pathParameters?.postId;
@@ -38,11 +44,12 @@ export const handler = withAuth(async (event, auth) => {
 
   const query = parseQuery(event, contentQuerySchema);
   if (!query.ok) return query.response;
-  const { lang } = query.data;
+  const { lang, intent } = query.data;
+  const isPrefetch = intent === 'prefetch';
 
   const user = await getUsersRepo().touch(auth.userId, { email: auth.email, name: auth.name });
   const timezone = user.timezone ?? 'UTC';
-  if (!isPlus(user)) {
+  if (!isPrefetch && !isPlus(user)) {
     const quota = effectiveQuota(user.quota, timezone);
     if (quota.readerOpens >= FREE_READER_OPENS_PER_DAY) {
       return errorResponse(402, 'quota_exceeded', 'Daily reader-open limit reached.');
@@ -54,7 +61,7 @@ export const handler = withAuth(async (event, auth) => {
     return errorResponse(404, 'not_found', `post ${postId} not found`);
   }
 
-  if (!isPlus(user)) {
+  if (!isPrefetch && !isPlus(user)) {
     await getUsersRepo().incrementQuota(auth.userId, 'readerOpens', timezone);
   }
 

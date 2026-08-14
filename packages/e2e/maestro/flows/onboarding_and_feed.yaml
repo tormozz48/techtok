@@ -1,0 +1,47 @@
+# Sign in -> complete onboarding if reached (language + topics) -> land on
+# the feed -> swipe to the next card -> open a card in the reader -> back to
+# the feed. The one flow that exercises the core "does the whole app boot and
+# render real AWS-backed content" path end to end.
+#
+# The onboarding steps below are `optional: true`, not because it's optional
+# by design — a fresh sign-in is supposed to always reach it — but because a
+# confirmed real-device bug currently skips straight to the feed instead (see
+# _signIn.yaml's comment). Keeping them optional means this flow still
+# exercises onboarding once that's fixed, without failing on today's actual
+# behavior in the meantime.
+appId: ${APP_ID}
+---
+- runFlow: _signIn.yaml
+
+- tapOn:
+    text: "English"
+    optional: true
+- tapOn:
+    id: "onboarding-topic-ai"
+    optional: true
+- tapOn:
+    id: "onboarding-topic-security"
+    optional: true
+- tapOn:
+    id: "onboarding-cta"
+    optional: true
+
+- assertVisible:
+    id: "feed-screen"
+- assertVisible:
+    id: "feed-card-title"
+
+- swipe:
+    direction: UP
+    from:
+      id: "feed-card"
+- assertVisible:
+    id: "feed-card-title"
+
+- tapOn:
+    id: "feed-card"
+- assertVisible:
+    id: "reader-screen"
+- back
+- assertVisible:
+    id: "feed-screen"

@@ -84,3 +84,163 @@ jobs:
           GOOGLE_OAUTH_WEB_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_WEB_CLIENT_ID }}
           GOOGLE_OAUTH_WEB_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_WEB_CLIENT_SECRET }}
         run: pnpm --filter @techtok/e2e run api-contract
+
+  # Drives the actual mobile app (not just its API) on an Android emulator via
+  # Maestro (packages/e2e/maestro), using the same sign-in bypass build flag
+  # as a local run (apps/mobile/src/state/e2eAuth.ts). Deliberately excluded
+  # from ci.yml's production-deploy gate: `if` below evaluates false when this
+  # workflow is invoked via workflow_call (github.event_name reports
+  # `workflow_call` in that case, per GitHub's reusable-workflow docs), so this
+  # job only ever runs on e2e.yml's own schedule/workflow_dispatch triggers —
+  # UI-level flows are inherently more flake-prone (cold boot, animation
+  # timing) than the HTTP-contract job above, and a flaky assertion here
+  # shouldn't be able to block a production release.
+  #
+  # Uses the same GOOGLE_TEST_REFRESH_TOKEN/GOOGLE_OAUTH_WEB_CLIENT_ID/
+  # GOOGLE_OAUTH_WEB_CLIENT_SECRET secrets as api-contract above (no new
+  # secrets needed) — skips cleanly with a summary note, not a failure, until
+  # those are provisioned (see packages/e2e/src/googleTestAuth.ts).
+  mobile-emulator:
+    if: github.event_name != 'workflow_call'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_E2E_ROLE_ARN }}
+          aws-region: eu-central-1
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check Google test credentials are provisioned
+        id: creds
+        run: |
+          if [ -z "${{ secrets.GOOGLE_TEST_REFRESH_TOKEN }}" ]; then
+            echo "GOOGLE_TEST_REFRESH_TOKEN is not set — skipping the mobile emulator suite (see packages/e2e/src/googleTestAuth.ts)." >> "$GITHUB_STEP_SUMMARY"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Discover dev API endpoint
+        if: steps.creds.outputs.skip == 'false'
+        id: api
+        run: echo "url=$(pnpm exec tsx packages/e2e/scripts/discoverApiUrl.ts dev)" >> "$GITHUB_OUTPUT"
+
+      - name: Mint a Google ID token for the E2E test account
+        if: steps.creds.outputs.skip == 'false'
+        env:
+          GOOGLE_TEST_REFRESH_TOKEN: ${{ secrets.GOOGLE_TEST_REFRESH_TOKEN }}
+          GOOGLE_OAUTH_WEB_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_WEB_CLIENT_ID }}
+          GOOGLE_OAUTH_WEB_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_WEB_CLIENT_SECRET }}
+        run: |
+          ID_TOKEN="$(pnpm exec tsx packages/e2e/scripts/mintIdToken.ts)"
+          echo "::add-mask::$ID_TOKEN"
+          echo "ID_TOKEN=$ID_TOKEN" >> "$GITHUB_ENV"
+
+      # Keyed on every input that changes what the APK contains: app source,
+      # the native android/ project, the shared package (bundled into the JS),
+      # the lockfile, and the API endpoint it's built pointing at. A cache hit
+      # skips the build step entirely below.
+      - name: Cache Gradle
+        if: steps.creds.outputs.skip == 'false'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('apps/mobile/android/**/*.gradle*', 'apps/mobile/android/gradle/wrapper/gradle-wrapper.properties') }}
+
+      - name: Cache E2E APK
+        if: steps.creds.outputs.skip == 'false'
+        id: apk-cache
+        uses: actions/cache@v4
+        with:
+          path: apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          key: mobile-e2e-apk-${{ hashFiles('apps/mobile/src/**', 'apps/mobile/android/**', 'packages/shared/src/**', 'pnpm-lock.yaml') }}-${{ steps.api.outputs.url }}
+
+      - name: Build E2E APK
+        if: steps.creds.outputs.skip == 'false' && steps.apk-cache.outputs.cache-hit != 'true'
+        env:
+          TECHTOK_E2E_API_URL: ${{ steps.api.outputs.url }}
+          TECHTOK_E2E_ARCH: x86_64
+        run: pnpm --filter @techtok/e2e run build-mobile-e2e-apk
+
+      - name: Upload APK artifact
+        if: steps.creds.outputs.skip == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-e2e-debug-apk
+          path: apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
+
+      # https://github.com/ReactiveCircus/android-emulator-runner#usage — GitHub
+      # Actions' ubuntu-latest runners support KVM, but /dev/kvm isn't
+      # world-writable by default; this grants the runner user access.
+      - name: Enable KVM
+        if: steps.creds.outputs.skip == 'false'
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Cache AVD
+        if: steps.creds.outputs.skip == 'false'
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-34-google_apis-x86_64
+
+      - name: Create AVD snapshot (cache miss only)
+        if: steps.creds.outputs.skip == 'false' && steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: false
+          script: echo "Generated AVD snapshot."
+
+      - name: Install Maestro
+        if: steps.creds.outputs.skip == 'false'
+        run: curl -Ls "https://get.maestro.mobile.dev" | bash
+
+      - name: Run Maestro flows on emulator
+        if: steps.creds.outputs.skip == 'false'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: |
+            adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+            export PATH="$PATH:$HOME/.maestro/bin"
+            maestro test packages/e2e/maestro/flows -e APP_ID=com.tormozz48dev.techtok -e ID_TOKEN="$ID_TOKEN"

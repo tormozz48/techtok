@@ -52,7 +52,12 @@ export default function AccountScreen() {
         <Text style={styles.email}>{strings.account.signedInAs(user.email)}</Text>
       ) : null}
 
-      <Button mode="outlined" onPress={() => signOut()} style={styles.button}>
+      <Button
+        mode="outlined"
+        onPress={() => signOut()}
+        style={styles.button}
+        testID="account-sign-out"
+      >
         {strings.account.signOut}
       </Button>
 
@@ -63,6 +68,7 @@ export default function AccountScreen() {
         loading={isDeleting}
         disabled={isDeleting}
         style={styles.button}
+        testID="account-delete"
       >
         {strings.account.deleteAccount}
       </Button>

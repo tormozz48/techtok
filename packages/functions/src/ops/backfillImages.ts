@@ -2,6 +2,7 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import {
   createS3Client,
   errorMessage,
+  DEFAULT_TIMEOUT_MS as FETCH_TIMEOUT_MS,
   fetchBytesWithCap,
   ImageStore,
   RawArticleStore,
@@ -9,13 +10,10 @@ import {
 } from '@techtok/core';
 import { requireEnv } from '../env';
 import { lazy } from '../lazy';
+import { BACKFILL_PAGE_SIZE, MAX_IMAGE_BYTES } from '../limits';
 import { getPostsRepo } from '../repos';
 
 const logger = new Logger({ serviceName: 'backfillImages' });
-
-const PAGE_SIZE = 100;
-const FETCH_TIMEOUT_MS = 10_000;
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 const getS3Client = lazy(createS3Client);
 const getRawArticleStore = lazy(
@@ -46,7 +44,7 @@ async function mirrorImage(postId: string, imageUrl: string): Promise<string | u
 }
 
 async function nextCandidates(before: string | undefined) {
-  const page = await getPostsRepo().queryRecent({ limit: PAGE_SIZE, before });
+  const page = await getPostsRepo().queryRecent({ limit: BACKFILL_PAGE_SIZE, before });
   if (page.length === 0) return { candidates: [], nextBefore: undefined };
 
   const candidates = page.flatMap((post) => {

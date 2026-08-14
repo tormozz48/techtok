@@ -1,10 +1,8 @@
-import { searchActivity } from '@techtok/core';
+import { SEARCH_FETCH_PAGE_SIZE, searchActivity } from '@techtok/core';
 import { historyQuerySchema, historyResponseSchema } from '@techtok/shared';
 import { getUserActivityRepo } from '../../repos';
 import { jsonResponse, parseQuery, withAuth } from '../lib/http';
 import { toHistoryItem } from '../transformers/toHistoryItem';
-
-const SEARCH_PAGE_SIZE = 100;
 
 export const handler = withAuth(async (event, auth) => {
   const query = parseQuery(event, historyQuerySchema);
@@ -13,7 +11,7 @@ export const handler = withAuth(async (event, auth) => {
   const activity = getUserActivityRepo();
   const page = query.data.q
     ? await searchActivity(
-        (cursor) => activity.queryHistory(auth.userId, { limit: SEARCH_PAGE_SIZE, cursor }),
+        (cursor) => activity.queryHistory(auth.userId, { limit: SEARCH_FETCH_PAGE_SIZE, cursor }),
         { q: query.data.q, limit: query.data.limit },
       )
     : await activity.queryHistory(auth.userId, query.data);

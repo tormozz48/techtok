@@ -12,7 +12,7 @@ export interface FetchWithCapOptions {
   readonly userAgent?: string;
 }
 
-const DEFAULT_TIMEOUT_MS = 10_000;
+export const DEFAULT_TIMEOUT_MS = 10_000;
 
 /**
  * Fetches `url` with a request timeout and a streamed byte cap — shared by

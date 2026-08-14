@@ -11,6 +11,7 @@ import { router } from 'expo-router';
 import { useEffect, useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LanguageFlagRow } from '@/components/LanguageFlagRow';
 import { SelectableList } from '@/components/SelectableList';
 import { Radius, Spacing, type ThemeColors, Typography } from '@/constants/theme';
@@ -25,6 +26,7 @@ export default function OnboardingScreen() {
   const { language, load: loadLanguage, setLanguage } = useLanguageStore();
   const strings = useStrings();
   const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   useEffect(() => {
@@ -80,7 +82,12 @@ export default function OnboardingScreen() {
           testIDPrefix="onboarding-topic"
         />
       </ScrollView>
-      <Button mode="contained" onPress={getStarted} style={styles.cta} testID="onboarding-cta">
+      <Button
+        mode="contained"
+        onPress={getStarted}
+        style={[styles.cta, { marginBottom: Spacing.four + insets.bottom }]}
+        testID="onboarding-cta"
+      >
         {strings.onboarding.cta}
       </Button>
     </View>
@@ -138,7 +145,7 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.backgroundSelected,
     },
     cta: {
-      margin: Spacing.four,
+      marginHorizontal: Spacing.four,
       marginTop: 0,
     },
   });

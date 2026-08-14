@@ -7,6 +7,7 @@ import {
   createS3Client,
   type ExtractedFigure,
   errorMessage,
+  DEFAULT_TIMEOUT_MS as FETCH_TIMEOUT_MS,
   fetchBytesWithCap,
   fetchTextWithCap,
   generateContentArticle,
@@ -19,13 +20,10 @@ import { type CompactFigure, isLanguage, type Language } from '@techtok/shared';
 import type { SQSBatchResponse, SQSEvent, SQSHandler } from 'aws-lambda';
 import { requireEnv } from '../env';
 import { lazy } from '../lazy';
+import { MAX_ARTICLE_BYTES, MAX_IMAGE_BYTES } from '../limits';
 import { getPostsRepo, getSourcesRepo } from '../repos';
 
 const logger = new Logger({ serviceName: 'content' });
-
-const FETCH_TIMEOUT_MS = 10_000;
-const MAX_BYTES = 2 * 1024 * 1024;
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 const getS3Client = lazy(createS3Client);
 const getRawArticleStore = lazy(
@@ -41,7 +39,7 @@ function fetchBytes(url: string, maxBytes: number) {
   return fetchBytesWithCap(url, { maxBytes, timeoutMs: FETCH_TIMEOUT_MS });
 }
 
-function fetchText(url: string, maxBytes = MAX_BYTES) {
+function fetchText(url: string, maxBytes = MAX_ARTICLE_BYTES) {
   return fetchTextWithCap(url, { maxBytes, timeoutMs: FETCH_TIMEOUT_MS });
 }
 

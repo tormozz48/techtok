@@ -5,11 +5,10 @@ import {
   PutCommand,
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
-import { batchGetChunked } from '../clients/dynamoClient';
+import { batchGetChunked, DYNAMO_BATCH_GET_LIMIT } from '../clients/dynamoClient';
 import type { ActivityRecord, BookmarkRecord, ReadSnapshot } from '../history.types';
 import { chunk } from '../util/chunk';
 
-const BATCH_GET_CHUNK_SIZE = 100;
 /** DynamoDB's BatchWriteItem hard cap. */
 const BATCH_WRITE_CHUNK_SIZE = 25;
 
@@ -161,7 +160,7 @@ export class UserActivityRepo {
       this.tableName,
       postIds,
       (postId) => ({ userId, sk: sortKey(postId) }),
-      BATCH_GET_CHUNK_SIZE,
+      DYNAMO_BATCH_GET_LIMIT,
     );
     return new Set(items.map((item) => item.postId));
   }

@@ -1,10 +1,10 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { createSqsClient, TransformQueue } from '@techtok/core';
 import { requireEnv } from '../env';
+import { BACKFILL_PAGE_SIZE } from '../limits';
 import { getPostsRepo } from '../repos';
 
 const logger = new Logger({ serviceName: 'backfillLlm' });
-const PAGE_SIZE = 100;
 
 /**
  * One-shot backfill (IMPLEMENTATION_PLAN.md phase 3 task 7): re-enqueues
@@ -25,7 +25,7 @@ export async function handler(): Promise<void> {
   let enqueued = 0;
 
   for (;;) {
-    const page = await repo.queryRecent({ limit: PAGE_SIZE, before });
+    const page = await repo.queryRecent({ limit: BACKFILL_PAGE_SIZE, before });
     if (page.length === 0) break;
 
     scanned += page.length;

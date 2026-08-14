@@ -4,7 +4,7 @@ import type { StyleProp, ViewStyle } from 'react-native';
 import { IconButton } from 'react-native-paper';
 import { createBookmark, deleteBookmark } from '@/api/client';
 import { prefetchPostContent } from '@/api/prefetchContent';
-import { Colors } from '@/constants/theme';
+import { ActionIconSize, Colors } from '@/constants/theme';
 import { useStrings } from '@/i18n/useStrings';
 import { useBookmarksOverlay } from '@/state/bookmarksOverlay';
 import { useLanguageStore } from '@/state/languageStore';
@@ -163,7 +163,7 @@ export function BookmarkButton({
     <IconButton
       icon={bookmarked ? 'bookmark' : 'bookmark-outline'}
       iconColor={iconColor}
-      size={20}
+      size={ActionIconSize}
       style={style}
       testID={testID}
       onPress={toggle}

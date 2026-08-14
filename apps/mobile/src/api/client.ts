@@ -24,6 +24,9 @@ import { queryClient } from '@/state/queryClient';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
+/** Default page size shared by fetchHistoryPage and fetchBookmarksPage. */
+const DEFAULT_PAGE_LIMIT = 50;
+
 /** Carries the response status/error code through a failed request so
  * callers can distinguish "quota exceeded" (402, D69) from any other
  * failure — e.g. the reader routes to `/paywall` on 402 instead of showing
@@ -165,7 +168,7 @@ export interface FetchHistoryPageParams {
 
 export async function fetchHistoryPage({
   cursor,
-  limit = 50,
+  limit = DEFAULT_PAGE_LIMIT,
   q,
 }: FetchHistoryPageParams = {}): Promise<HistoryResponse> {
   const url = apiUrl('/v1/history');
@@ -186,7 +189,7 @@ export interface FetchBookmarksPageParams {
 
 export async function fetchBookmarksPage({
   cursor,
-  limit = 50,
+  limit = DEFAULT_PAGE_LIMIT,
   q,
 }: FetchBookmarksPageParams = {}): Promise<BookmarksResponse> {
   const url = apiUrl('/v1/bookmarks');

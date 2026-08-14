@@ -1,5 +1,6 @@
 import type { Topic } from '@techtok/shared';
 import type { PostRecord } from '../posts.types';
+import { MS_PER_HOUR } from '../util/time';
 
 /** Hours for a post's recency score to halve. Tunable — this is explicitly a phase-4 experiment. */
 export const RECENCY_HALF_LIFE_HOURS = 6;
@@ -19,8 +20,6 @@ export const AFFINITY_GAIN = 0.5;
  * recency — a maximally-boosted post can leapfrog at most that much age, so
  * recency keeps dominating for anything meaningfully older. */
 export const MAX_AFFINITY_BOOST = 1.5;
-
-const MS_PER_HOUR = 60 * 60 * 1000;
 
 /** Exponential recency decay: 1 at age 0, 0.5 at one half-life, 0.25 at two, etc. */
 export function recencyDecay(publishedAt: string, now: Date = new Date()): number {

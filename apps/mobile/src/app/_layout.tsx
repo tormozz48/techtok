@@ -14,6 +14,7 @@ import {
   techtokNavigationDarkTheme,
   techtokNavigationLightTheme,
 } from '@/constants/paperTheme';
+import { ONE_DAY_MS } from '@/constants/time';
 import { useStrings } from '@/i18n/useStrings';
 import { useAuthStore } from '@/state/authStore';
 import { useLanguageStore } from '@/state/languageStore';
@@ -24,8 +25,6 @@ import { startReadQueueFlushing } from '@/state/readQueue';
 import { ready } from '@/state/storage';
 import { useThemeStore } from '@/state/themeStore';
 import { useTopicsStore } from '@/state/topicsStore';
-
-const ONE_DAY_MS = 1000 * 60 * 60 * 24;
 
 // A direct AsyncStorage adapter — the persister's own async-get/set shape
 // doesn't fit state/storage.ts's sync-read cache, so this is a deliberate,

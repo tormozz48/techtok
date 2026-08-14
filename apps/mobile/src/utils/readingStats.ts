@@ -1,4 +1,5 @@
 import type { HistoryItem, Topic } from '@techtok/shared';
+import { ONE_DAY_MS } from '@/constants/time';
 
 export interface ReadingStats {
   readonly readsThisWeek: number;
@@ -9,7 +10,6 @@ export interface ReadingStats {
 }
 
 const TOP_N = 3;
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 function dayKey(iso: string): string {
   return iso.slice(0, 10);
@@ -45,8 +45,8 @@ function computeStreak(readDays: ReadonlySet<string>): number {
  * existed (D48 affinity work); such rows simply don't contribute to
  * `topTopics`, degrading gracefully rather than erroring. */
 export function computeReadingStats(items: HistoryItem[], now: Date = new Date()): ReadingStats {
-  const weekAgoMs = now.getTime() - 7 * MS_PER_DAY;
-  const monthAgoMs = now.getTime() - 30 * MS_PER_DAY;
+  const weekAgoMs = now.getTime() - 7 * ONE_DAY_MS;
+  const monthAgoMs = now.getTime() - 30 * ONE_DAY_MS;
 
   let readsThisWeek = 0;
   let readsThisMonth = 0;

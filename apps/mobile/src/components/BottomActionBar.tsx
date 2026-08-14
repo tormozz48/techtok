@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { Platform, Share, StyleSheet, View } from 'react-native';
 import { IconButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, Spacing } from '@/constants/theme';
+import { ActionIconSize, Colors, Spacing } from '@/constants/theme';
 import { useStrings } from '@/i18n/useStrings';
 import { useSpeechStore } from '@/state/speechStore';
 import { BookmarkButton } from './BookmarkButton';
@@ -66,7 +66,7 @@ export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps)
             <IconButton
               icon="share-variant"
               iconColor={Colors.overlay.text}
-              size={20}
+              size={ActionIconSize}
               style={styles.icon}
               onPress={() =>
                 Share.share({
@@ -84,7 +84,7 @@ export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps)
               <IconButton
                 icon={isSpeakingThisCard ? 'volume-off' : 'volume-high'}
                 iconColor={Colors.overlay.text}
-                size={20}
+                size={ActionIconSize}
                 style={styles.icon}
                 accessibilityLabel={
                   isSpeakingThisCard ? strings.speech.stopListening : strings.speech.listen
@@ -110,7 +110,7 @@ export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps)
         <IconButton
           icon="refresh"
           iconColor={Colors.overlay.text}
-          size={20}
+          size={ActionIconSize}
           style={styles.icon}
           onPress={onRefresh}
           accessibilityLabel="Refresh feed"
@@ -119,7 +119,7 @@ export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps)
           <IconButton
             icon="bookmark-multiple-outline"
             iconColor={Colors.overlay.text}
-            size={20}
+            size={ActionIconSize}
             style={styles.icon}
             accessibilityLabel={strings.a11y.openSaved}
           />
@@ -128,7 +128,7 @@ export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps)
           <IconButton
             icon="history"
             iconColor={Colors.overlay.text}
-            size={20}
+            size={ActionIconSize}
             style={styles.icon}
             accessibilityLabel={strings.a11y.openHistory}
           />
@@ -137,7 +137,7 @@ export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps)
           <IconButton
             icon="cog-outline"
             iconColor={Colors.overlay.text}
-            size={20}
+            size={ActionIconSize}
             style={styles.icon}
             accessibilityLabel={strings.a11y.openSettings}
           />

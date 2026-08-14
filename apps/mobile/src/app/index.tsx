@@ -14,6 +14,7 @@ import { QuotaBadge } from '@/components/QuotaBadge';
 import { Colors, Spacing, type ThemeColors } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
+import { logError } from '@/state/eventsQueue';
 
 export default function FeedScreen() {
   const { data, isLoading, isError, refetch, fetchNextPage, isFetchingNextPage } = useFeedQuery();
@@ -42,6 +43,10 @@ export default function FeedScreen() {
       router.replace('/paywall');
     }
   }, [isQuotaExhausted, cards.length]);
+
+  useEffect(() => {
+    if (isError) logError('feed fetch failed');
+  }, [isError]);
 
   // Keeps the action bar's per-card actions in sync with the visible card
   // without waiting for a swipe: seeds activeCard on first load, and

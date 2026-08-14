@@ -538,10 +538,10 @@ new aws.resourcegroups.Group('AppResourceGroup', {
   },
 });
 
-// Hobby budget ceiling (D11/§10).
+// Infrastructure-drift signal, not an enforced ceiling (D74, amending D11).
 new aws.budgets.Budget('MonthlyCostBudget', {
   budgetType: 'COST',
-  limitAmount: '10',
+  limitAmount: '25',
   limitUnit: 'USD',
   timeUnit: 'MONTHLY',
   notifications: [

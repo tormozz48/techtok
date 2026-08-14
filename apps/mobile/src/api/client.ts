@@ -1,6 +1,7 @@
 import {
   type BookmarksResponse,
   bookmarksResponseSchema,
+  type ClientRecord,
   type ContentResponse,
   contentResponseSchema,
   DEVICE_LANGUAGE_HEADER,
@@ -156,6 +157,15 @@ export async function postReads(postIds: string[]): Promise<void> {
   // so the feed's QuotaBadge/paywall reflect it without waiting on staleTime
   // + an unrelated focus/mount trigger to happen to fire.
   queryClient.invalidateQueries({ queryKey: ['entitlement'] });
+}
+
+/** Client-batched logs + product analytics (D76) — fire-and-forget from the
+ * caller's perspective; `eventsQueue.ts` owns retry-on-failure. */
+export async function postEvents(records: ClientRecord[]): Promise<void> {
+  await apiFetch(apiUrl('/v1/events'), {
+    method: 'POST',
+    body: JSON.stringify({ records }),
+  });
 }
 
 export interface FetchHistoryPageParams {

@@ -9,6 +9,7 @@ import {
   contentQuerySchema,
   contentResponseSchema,
   entitlementResponseSchema,
+  eventsRequestSchema,
   feedQuerySchema,
   feedResponseSchema,
   historyQuerySchema,
@@ -171,6 +172,49 @@ describe('readsRequestSchema', () => {
   it('rejects more than 100 postIds', () => {
     const postIds = Array.from({ length: 101 }, (_, i) => `post${i}`);
     expect(() => readsRequestSchema.parse({ postIds })).toThrow();
+  });
+});
+
+describe('eventsRequestSchema', () => {
+  it('accepts a log record and an event record in the same batch', () => {
+    const records = [
+      {
+        kind: 'log',
+        level: 'error',
+        message: 'feed fetch failed',
+        context: { status: 500 },
+        occurredAt: '2026-08-15T12:00:00.000Z',
+      },
+      {
+        kind: 'event',
+        name: 'card_settled',
+        props: { postId: 'abc123' },
+        occurredAt: '2026-08-15T12:00:01.000Z',
+      },
+    ];
+    expect(eventsRequestSchema.parse({ records })).toEqual({ records });
+  });
+
+  it('rejects an empty records array', () => {
+    expect(() => eventsRequestSchema.parse({ records: [] })).toThrow();
+  });
+
+  it('rejects more than 50 records', () => {
+    const records = Array.from({ length: 51 }, (_, i) => ({
+      kind: 'event',
+      name: 'card_settled',
+      occurredAt: '2026-08-15T12:00:00.000Z',
+      props: { i },
+    }));
+    expect(() => eventsRequestSchema.parse({ records })).toThrow();
+  });
+
+  it('rejects a record whose kind matches neither log nor event', () => {
+    expect(() =>
+      eventsRequestSchema.parse({
+        records: [{ kind: 'crash', message: 'oops', occurredAt: '2026-08-15T12:00:00.000Z' }],
+      }),
+    ).toThrow();
   });
 });
 

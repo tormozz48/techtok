@@ -2,11 +2,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { focusManager } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import { Stack, ThemeProvider } from 'expo-router';
+import { Stack, ThemeProvider, useNavigationContainerRef } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { AppState, Platform, useColorScheme } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
+import { CrashFallback } from '@/components/CrashFallback';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import {
   techtokDarkTheme,
@@ -23,6 +24,7 @@ import { startNetworkMonitoring } from '@/state/network';
 import { hasSeenOnboarding } from '@/state/onboardingStore';
 import { queryClient } from '@/state/queryClient';
 import { startReadQueueFlushing } from '@/state/readQueue';
+import { navigationIntegration, Sentry } from '@/state/sentry';
 import { ready } from '@/state/storage';
 import { useThemeStore } from '@/state/themeStore';
 import { useTopicsStore } from '@/state/topicsStore';
@@ -35,7 +37,7 @@ const persister = createAsyncStoragePersister({
   key: 'techtok.queryCache',
 });
 
-export default function RootLayout() {
+function RootLayout() {
   const systemScheme = useColorScheme();
   const themeMode = useThemeStore((state) => state.mode);
   const colorScheme = themeMode === 'system' ? systemScheme : themeMode;
@@ -43,6 +45,11 @@ export default function RootLayout() {
   const authStatus = useAuthStore((state) => state.status);
   const [isHydrated, setIsHydrated] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const navigationRef = useNavigationContainerRef();
+
+  useEffect(() => {
+    navigationIntegration.registerNavigationContainer(navigationRef);
+  }, [navigationRef]);
 
   useEffect(() => {
     ready().then(async () => {
@@ -169,3 +176,13 @@ export default function RootLayout() {
     </PersistQueryClientProvider>
   );
 }
+
+function AppRoot() {
+  return (
+    <Sentry.ErrorBoundary fallback={CrashFallback}>
+      <RootLayout />
+    </Sentry.ErrorBoundary>
+  );
+}
+
+export default Sentry.wrap(AppRoot);

@@ -121,6 +121,11 @@ export interface ChromeStrings {
     openSettings: string;
     removeSaved: string;
   };
+  crash: {
+    title: string;
+    message: string;
+    retry: string;
+  };
 }
 
 // Hand-written chrome copy (D20) — no i18n framework dependency. Keep every
@@ -250,6 +255,11 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       openSettings: 'Open settings',
       removeSaved: 'Remove from saved',
     },
+    crash: {
+      title: 'Something went wrong',
+      message: 'The app hit an unexpected error. Restarting the screen should fix it.',
+      retry: 'Try again',
+    },
   },
   ru: {
     feed: {
@@ -372,6 +382,11 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       openHistory: 'Открыть историю',
       openSettings: 'Открыть настройки',
       removeSaved: 'Убрать из сохранённого',
+    },
+    crash: {
+      title: 'Что-то пошло не так',
+      message: 'Приложение столкнулось с неожиданной ошибкой. Перезапуск экрана должен помочь.',
+      retry: 'Повторить',
     },
   },
   uk: {
@@ -496,6 +511,11 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       openSettings: 'Відкрити налаштування',
       removeSaved: 'Прибрати зі збереженого',
     },
+    crash: {
+      title: 'Щось пішло не так',
+      message: 'Додаток зіткнувся з неочікуваною помилкою. Перезапуск екрана має допомогти.',
+      retry: 'Спробувати ще раз',
+    },
   },
   pl: {
     feed: {
@@ -618,6 +638,11 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       openHistory: 'Otwórz historię',
       openSettings: 'Otwórz ustawienia',
       removeSaved: 'Usuń z zapisanych',
+    },
+    crash: {
+      title: 'Coś poszło nie tak',
+      message: 'Aplikacja napotkała nieoczekiwany błąd. Ponowne uruchomienie ekranu powinno pomóc.',
+      retry: 'Spróbuj ponownie',
     },
   },
 };

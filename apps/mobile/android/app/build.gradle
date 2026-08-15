@@ -1,6 +1,16 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+apply from: "../../node_modules/@sentry/react-native/sentry.gradle"
+apply plugin: "io.sentry.android.gradle"
+
+sentry {
+    uploadNativeSymbols = true
+    includeNativeSources = true
+    autoInstallation {
+        enabled = false
+    }
+}
 
 // Release signing credentials — loaded from android/keystore.properties (gitignored).
 // Absent on CI / fresh checkouts, in which case release builds fall back to the debug key.

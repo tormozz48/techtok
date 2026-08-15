@@ -3,17 +3,18 @@ import type { Card as CardData } from '@techtok/shared';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { Button } from 'react-native-paper';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useEntitlementQuery } from '@/api/useEntitlementQuery';
 import { useFeedQuery } from '@/api/useFeedQuery';
 import { BottomActionBar } from '@/components/BottomActionBar';
 import { FeedPager } from '@/components/FeedPager';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { QuotaBadge } from '@/components/QuotaBadge';
-import { Colors, Spacing, type ThemeColors } from '@/constants/theme';
+import { ScreenState } from '@/components/ScreenState';
+import { Colors, Spacing } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
+import { logError } from '@/state/eventsQueue';
 
 export default function FeedScreen() {
   const { data, isLoading, isError, refetch, fetchNextPage, isFetchingNextPage } = useFeedQuery();
@@ -23,7 +24,6 @@ export default function FeedScreen() {
   const strings = useStrings();
   const queryClient = useQueryClient();
   const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
   // Guards against re-navigating to /paywall on every subsequent onNearEnd
   // call while the user keeps swiping through already-cached cards.
   const hasPromptedPaywall = useRef(false);
@@ -42,6 +42,10 @@ export default function FeedScreen() {
       router.replace('/paywall');
     }
   }, [isQuotaExhausted, cards.length]);
+
+  useEffect(() => {
+    if (isError) logError('feed fetch failed');
+  }, [isError]);
 
   // Keeps the action bar's per-card actions in sync with the visible card
   // without waiting for a swipe: seeds activeCard on first load, and
@@ -67,17 +71,13 @@ export default function FeedScreen() {
   if (isError) {
     return (
       <View style={styles.root} testID="feed-error">
-        <View style={styles.center}>
-          <Text style={styles.errorText}>{strings.feed.error}</Text>
-          <Button
-            mode="contained"
-            onPress={() => refetch()}
-            style={styles.retryButton}
-            testID="feed-retry"
-          >
-            {strings.feed.retry}
-          </Button>
-        </View>
+        <ScreenState
+          message={strings.feed.error}
+          messageColor={colors.error}
+          retryLabel={strings.feed.retry}
+          onRetry={() => refetch()}
+          retryTestID="feed-retry"
+        />
         <BottomActionBar
           activeCard={undefined}
           onRefresh={() => queryClient.resetQueries({ queryKey: ['feed'], exact: true })}
@@ -89,9 +89,7 @@ export default function FeedScreen() {
   if (cards.length === 0) {
     return (
       <View style={styles.root} testID="feed-empty">
-        <View style={styles.center}>
-          <Text style={styles.emptyText}>{strings.feed.empty}</Text>
-        </View>
+        <ScreenState message={strings.feed.empty} />
         <BottomActionBar
           activeCard={undefined}
           onRefresh={() => queryClient.resetQueries({ queryKey: ['feed'], exact: true })}
@@ -142,40 +140,18 @@ export default function FeedScreen() {
   );
 }
 
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-    center: {
-      flex: 1,
-      backgroundColor: colors.background,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 24,
-    },
-    errorText: {
-      color: colors.error,
-      textAlign: 'center',
-      fontSize: 16,
-    },
-    retryButton: {
-      marginTop: Spacing.four,
-    },
-    emptyText: {
-      color: colors.textSecondary,
-      textAlign: 'center',
-      fontSize: 16,
-    },
-    root: {
-      flex: 1,
-    },
-    fetchingIndicator: {
-      position: 'absolute',
-      top: Spacing.six,
-      alignSelf: 'center',
-    },
-    quotaBadge: {
-      position: 'absolute',
-      top: Spacing.six,
-      right: Spacing.three,
-    },
-  });
-}
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  fetchingIndicator: {
+    position: 'absolute',
+    top: Spacing.six,
+    alignSelf: 'center',
+  },
+  quotaBadge: {
+    position: 'absolute',
+    top: Spacing.six,
+    right: Spacing.three,
+  },
+});

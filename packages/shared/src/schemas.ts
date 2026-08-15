@@ -150,6 +150,38 @@ export const readsRequestSchema = z.object({
 });
 export type ReadsRequest = z.infer<typeof readsRequestSchema>;
 
+/** `POST /v1/events` (D76) — client-batched, non-crash logs + product
+ * analytics, sharing one endpoint/schema via a `kind` discriminant. Crash
+ * reporting stays a separate, still-deferred decision (§12) and does not
+ * go through this schema. */
+export const clientLogSchema = z.object({
+  kind: z.literal('log'),
+  level: z.enum(['error', 'warn', 'info']),
+  message: z.string().min(1).max(500),
+  context: z.record(z.string(), z.unknown()).optional(),
+  occurredAt: z.iso.datetime(),
+});
+export type ClientLog = z.infer<typeof clientLogSchema>;
+
+export const clientAnalyticsEventSchema = z.object({
+  kind: z.literal('event'),
+  name: z.string().min(1).max(100),
+  props: z.record(z.string(), z.unknown()).optional(),
+  occurredAt: z.iso.datetime(),
+});
+export type ClientAnalyticsEvent = z.infer<typeof clientAnalyticsEventSchema>;
+
+export const clientRecordSchema = z.discriminatedUnion('kind', [
+  clientLogSchema,
+  clientAnalyticsEventSchema,
+]);
+export type ClientRecord = z.infer<typeof clientRecordSchema>;
+
+export const eventsRequestSchema = z.object({
+  records: z.array(clientRecordSchema).min(1).max(50),
+});
+export type EventsRequest = z.infer<typeof eventsRequestSchema>;
+
 export const historyItemSchema = z.object({
   postId: z.string(),
   readAt: z.iso.datetime(),

@@ -19,5 +19,7 @@ appId: ${APP_ID}
 - tapOn:
     id: "account-sign-out"
 
-- assertVisible:
-    id: "auth-screen"
+- extendedWaitUntil:
+    visible:
+      id: "auth-screen"
+    timeout: 10000

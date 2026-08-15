@@ -1,9 +1,10 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 import { List, Searchbar } from 'react-native-paper';
 import { fetchHistoryPage } from '@/api/client';
+import { ScreenState } from '@/components/ScreenState';
 import { Spacing, type ThemeColors } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
@@ -38,19 +39,11 @@ export default function HistoryScreen() {
         testID="history-search"
       />
       {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.textSecondary} />
-        </View>
+        <ScreenState loading />
       ) : isError ? (
-        <View style={styles.center}>
-          <Text style={styles.emptyText}>{strings.history.error}</Text>
-        </View>
+        <ScreenState message={strings.history.error} />
       ) : items.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.emptyText}>
-            {isSearching ? strings.history.noResults : strings.history.empty}
-          </Text>
-        </View>
+        <ScreenState message={isSearching ? strings.history.noResults : strings.history.empty} />
       ) : (
         <FlatList
           style={styles.list}
@@ -102,18 +95,6 @@ function createStyles(colors: ThemeColors) {
     list: {
       flex: 1,
       backgroundColor: colors.background,
-    },
-    center: {
-      flex: 1,
-      backgroundColor: colors.background,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: Spacing.four,
-    },
-    emptyText: {
-      color: colors.textSecondary,
-      textAlign: 'center',
-      fontSize: 16,
     },
     row: {
       borderBottomColor: colors.backgroundElement,

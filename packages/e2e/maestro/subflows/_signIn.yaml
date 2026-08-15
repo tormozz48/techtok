@@ -19,14 +19,14 @@ appId: ${APP_ID}
 # silently dropped ("Tried to access onNewIntent while context is not ready",
 # confirmed via device logcat). extendedWaitUntil (not a plain assertVisible,
 # which uses Maestro's short default timeout) gives this real slack on CI's
-# 2-vCPU, software-rendered emulator — measurably slower than local hardware,
-# and the same standalone run of this exact file passed in 7s while two
-# flows invoking it via runFlow failed here, pointing at a load-dependent
-# timing race rather than a logic bug.
+# 2-vCPU, software-rendered emulator — measurably slower than local hardware:
+# the same standalone run of this exact file passed in 7s while two flows
+# invoking it via runFlow failed here, and CI has separately been observed
+# timing out at ~18s, hence the 20s budget below.
 - extendedWaitUntil:
     visible:
       id: "auth-screen"
-    timeout: 15000
+    timeout: 20000
 - openLink: "techtok://auth?idToken=${ID_TOKEN}"
 # Only asserts that sign-in itself succeeded (left the auth gate) — not which
 # screen follows. What comes next legitimately varies: a real token lands on

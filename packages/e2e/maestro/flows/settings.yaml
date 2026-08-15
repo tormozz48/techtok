@@ -19,6 +19,12 @@ appId: ${APP_ID}
 
 - tapOn:
     id: "settings-theme-dark"
+# Theming re-renders the whole screen tree; a plain tapOn can fire mid
+# re-render and miss the element (observed as "Element not found" in CI).
+- extendedWaitUntil:
+    visible:
+      id: "settings-topic-ai"
+    timeout: 10000
 - tapOn:
     id: "settings-topic-ai"
 

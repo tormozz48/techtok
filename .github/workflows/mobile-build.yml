@@ -178,11 +178,18 @@ jobs:
       # sensitive (an OAuth client ID is public by design) but is wired the
       # same way as the deploy workflows' GOOGLE_OAUTH_WEB_CLIENT_ID — without
       # it, Google Sign-In fails to configure in every APK this workflow ships.
+      # SENTRY_AUTH_TOKEN authenticates the sentry-android-gradle-plugin's
+      # source-map/native-symbol upload (android/app/build.gradle's `sentry {}`
+      # block); SENTRY_ORG/SENTRY_PROJECT are its non-secret org/project slugs.
+      # Without the token the build still succeeds, it just skips the upload.
       - name: Build Android APK (eas build --local)
         working-directory: apps/mobile
         env:
           EXPO_PUBLIC_API_URL: ${{ inputs.api_url }}
           EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_WEB_CLIENT_ID }}
+          SENTRY_ORG: tormozz48
+          SENTRY_PROJECT: react-native
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: eas build --platform android --profile preview --local --non-interactive --output "${{ github.workspace }}/techtok.apk"
 
       # D60: publishes this build's JS/asset bundle to the "preview" EAS

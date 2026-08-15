@@ -17,6 +17,7 @@ import {
 import { ONE_DAY_MS } from '@/constants/time';
 import { useStrings } from '@/i18n/useStrings';
 import { useAuthStore } from '@/state/authStore';
+import { startEventsQueueFlushing } from '@/state/eventsQueue';
 import { useLanguageStore } from '@/state/languageStore';
 import { startNetworkMonitoring } from '@/state/network';
 import { hasSeenOnboarding } from '@/state/onboardingStore';
@@ -46,6 +47,7 @@ export default function RootLayout() {
   useEffect(() => {
     ready().then(async () => {
       startReadQueueFlushing();
+      startEventsQueueFlushing();
       startNetworkMonitoring();
       useTopicsStore.getState().load();
       useLanguageStore.getState().load();

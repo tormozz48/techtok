@@ -71,6 +71,18 @@ api.route('GET /v1/sources', {
   runtime: 'nodejs22.x',
 });
 
+// Client-batched logs + product analytics (D76) — log-only, no DynamoDB
+// table, so no `link`/`environment` beyond the default Lambda execution
+// role's built-in CloudWatch Logs write access.
+api.route(
+  'POST /v1/events',
+  {
+    handler: 'packages/functions/src/api/handlers/events.handler',
+    runtime: 'nodejs22.x',
+  },
+  googleAuth,
+);
+
 api.route(
   'POST /v1/reads',
   {

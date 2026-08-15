@@ -3,7 +3,7 @@
 # (_layout.tsx) rather than leaving a stale authenticated screen on screen.
 appId: ${APP_ID}
 ---
-- runFlow: _signIn.yaml
+- runFlow: ../subflows/_signIn.yaml
 # Skips onboarding when reached (see _signIn.yaml's comment on the confirmed
 # real-device bug that currently bypasses it on every fresh sign-in anyway).
 - tapOn:

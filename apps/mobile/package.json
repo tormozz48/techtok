@@ -43,6 +43,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@sentry/cli": "2.58.4",
     "@storybook/react-native-web-vite": "^10.5.5",
     "@testing-library/react-native": "^14.0.1",
     "@types/jest": "29.5.14",

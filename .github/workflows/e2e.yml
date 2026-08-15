@@ -234,7 +234,11 @@ jobs:
           path: |
             ~/.android/avd/*
             ~/.android/adb*
-          key: avd-34-google_apis-x86_64
+          # Cache key includes the profile (bumped along with adding one
+          # below) so a previously-cached small-default-profile AVD isn't
+          # silently reused — force-avd-creation stays false, so without a
+          # key bump the stale AVD would win over the new profile input.
+          key: avd-34-google_apis-x86_64-pixel_6
 
       - name: Create AVD snapshot (cache miss only)
         if: steps.creds.outputs.skip == 'false' && steps.avd-cache.outputs.cache-hit != 'true'
@@ -243,6 +247,12 @@ jobs:
           api-level: 34
           target: google_apis
           arch: x86_64
+          # A real device profile, not the action's tiny default (320x640,
+          # confirmed via a real run's boot log) — the settings flow's
+          # tapOn(settings-topic-ai) failed because that content was
+          # genuinely off-screen and unreachable by Maestro's bounded
+          # auto-scroll on a screen that small.
+          profile: pixel_6
           force-avd-creation: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: false
@@ -267,6 +277,7 @@ jobs:
           api-level: 34
           target: google_apis
           arch: x86_64
+          profile: pixel_6
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true

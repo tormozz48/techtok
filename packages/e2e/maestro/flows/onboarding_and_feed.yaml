@@ -11,7 +11,7 @@
 # behavior in the meantime.
 appId: ${APP_ID}
 ---
-- runFlow: _signIn.yaml
+- runFlow: ../subflows/_signIn.yaml
 
 - tapOn:
     text: "English"

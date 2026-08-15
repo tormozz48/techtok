@@ -14,7 +14,8 @@
     "dev": "sst dev --stage dev",
     "deploy:dev": "sst deploy --stage dev",
     "wipe-users": "tsx scripts/wipeUsers.ts",
-    "grant-entitlement": "tsx scripts/grantEntitlement.ts"
+    "grant-entitlement": "tsx scripts/grantEntitlement.ts",
+    "check-api-url": "tsx scripts/checkProductionApiUrl.ts"
   },
   "devDependencies": {
     "@aws-sdk/client-dynamodb": "3.1090.0",

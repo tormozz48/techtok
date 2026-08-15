@@ -15,9 +15,13 @@ appId: ${APP_ID}
 # bridge has finished bootstrapping — firing the deep link too early gets it
 # silently dropped ("Tried to access onNewIntent while context is not ready",
 # confirmed via device logcat on a real run). Waiting for the JS-rendered
-# auth screen proves the bridge is actually up before the link fires.
-- assertVisible:
-    id: "auth-screen"
+# auth screen proves the bridge is actually up before the link fires. A plain
+# assertVisible races the bridge on a cold/CI emulator boot (observed timing
+# out at ~18s in CI); extendedWaitUntil polls instead of asserting once.
+- extendedWaitUntil:
+    visible:
+      id: "auth-screen"
+    timeout: 20000
 - openLink: "techtok://auth?idToken=${ID_TOKEN}"
 # Only asserts that sign-in itself succeeded (left the auth gate) — not which
 # screen follows. What comes next legitimately varies: a real token lands on

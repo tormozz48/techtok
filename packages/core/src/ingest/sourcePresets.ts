@@ -95,3 +95,33 @@ export const FULL_SOURCE_PRESETS: SourceRecord[] = PRESETS.map((preset) => ({
   enabled: true,
   failCount: 0,
 }));
+
+/**
+ * The only sources enabled outside `production`. A cost audit (2026-08-15)
+ * found `dev` holding a post volume within 5% of production's — and therefore
+ * paying ~96% of its eager per-post LLM fan-out (1 card + 3 translations + 4
+ * compact articles, D31/D36) — for a stage with no readers. Cadence wasn't the
+ * cause: `dev` already polls every 6 hours to production's 60 minutes (D-note
+ * in `infra/pipeline.ts`). `arxiv-ai` and `hn` are simply firehoses, and they
+ * were 2 of the 4 feeds `dev` had enabled.
+ *
+ * These two are moderate-volume feeds with *different* `defaultTopic`s, so a
+ * dev stage still exercises every pipeline path end-to-end — including the
+ * primaryTopic GSI, which a single-source stage would leave with only one
+ * partition to read from.
+ */
+export const NON_PRODUCTION_SOURCE_IDS = ['verge', 'quanta'];
+
+/**
+ * Presets for a given stage. Every stage is seeded with all ~11 rows; only
+ * `enabled` differs, so a source can still be switched on later by editing the
+ * table directly — no deploy, and no divergence in what rows exist.
+ */
+export function sourcePresetsForStage(stage: string): SourceRecord[] {
+  if (stage === 'production') return FULL_SOURCE_PRESETS;
+
+  return FULL_SOURCE_PRESETS.map((source) => ({
+    ...source,
+    enabled: NON_PRODUCTION_SOURCE_IDS.includes(source.sourceId),
+  }));
+}

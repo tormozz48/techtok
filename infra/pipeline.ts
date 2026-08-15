@@ -52,7 +52,10 @@ const bedrockInvokePermission = {
 export const seedSourcesFn = new sst.aws.Function('SeedSources', {
   handler: 'packages/functions/src/ops/seedSources.handler',
   link: [sourcesTable],
-  environment: { SOURCES_TABLE_NAME: sourcesTable.name },
+  // `STAGE` decides which presets seed as enabled — non-production stages get
+  // a small subset (`sourcePresetsForStage`), since a dev stage was paying the
+  // full eager per-post LLM fan-out on production-scale volume for no readers.
+  environment: { SOURCES_TABLE_NAME: sourcesTable.name, STAGE: $app.stage },
   runtime: 'nodejs22.x',
   timeout: '30 seconds',
 });

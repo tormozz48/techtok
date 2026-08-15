@@ -1,0 +1,43 @@
+# Sign in -> skip onboarding -> open a card (enqueues a read) -> back to the
+# feed -> open History -> the read shows up (readQueue.ts flushes every 5s,
+# so this polls rather than asserting immediately) -> search narrows the
+# list, clearing the query restores it.
+appId: ${APP_ID}
+---
+- runFlow: _signIn.yaml
+# Skips onboarding when reached (see _signIn.yaml's comment on the confirmed
+# real-device bug that currently bypasses it on every fresh sign-in anyway).
+- tapOn:
+    id: "onboarding-cta"
+    optional: true
+- assertVisible:
+    id: "feed-screen"
+
+- tapOn:
+    id: "feed-card"
+- assertVisible:
+    id: "reader-screen"
+- back
+- assertVisible:
+    id: "feed-screen"
+
+- tapOn:
+    id: "action-bar-history"
+- extendedWaitUntil:
+    visible:
+      id: "history-row-.*"
+    timeout: 15000
+
+- tapOn:
+    id: "history-search"
+- inputText: "zzz-no-such-article-zzz"
+- pressKey: Enter
+- assertNotVisible:
+    id: "history-row-.*"
+
+- tapOn:
+    id: "history-search"
+- eraseText
+- pressKey: Enter
+- assertVisible:
+    id: "history-row-.*"

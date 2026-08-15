@@ -28,6 +28,17 @@ react {
     cliFile = new File(["node", "--print", "require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })"].execute(null, rootDir).text.trim())
     bundleCommand = "export:embed"
 
+    // Default (unset): the plugin's own default of ['debug'] — day-to-day
+    // `installDebug`/`expo run:android` keeps loading JS from Metro, unchanged.
+    // The Maestro mobile E2E build (packages/e2e/scripts/buildE2eApk.sh) passes
+    // -Pandroid.debuggableVariants= (empty) so its debug APK gets the JS bundle
+    // embedded too — self-contained, no Metro process needed for the whole
+    // suite run, at debug's build speed instead of a full release build.
+    def debuggableVariantsProperty = findProperty('android.debuggableVariants')
+    if (debuggableVariantsProperty != null) {
+        debuggableVariants = debuggableVariantsProperty.toString().split(',').findAll { !it.isEmpty() }
+    }
+
     /* Folders */
      //   The root of your project, i.e. where "package.json" lives. Default is '../..'
     // root = file("../../")
@@ -100,8 +111,8 @@ android {
         applicationId 'com.tormozz48dev.techtok'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 34
-        versionName "0.19.0"
+        versionCode 35
+        versionName "0.20.0"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }

@@ -6,7 +6,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "backend-pipeline": "vitest run src/backendPipeline.test.ts",
-    "api-contract": "vitest run src/apiContract.test.ts"
+    "api-contract": "vitest run src/apiContract.test.ts",
+    "build-mobile-e2e-apk": "bash scripts/buildE2eApk.sh",
+    "mobile-e2e": "bash scripts/runMobileE2e.sh"
   },
   "dependencies": {
     "@aws-sdk/client-apigatewayv2": "3.1090.0",

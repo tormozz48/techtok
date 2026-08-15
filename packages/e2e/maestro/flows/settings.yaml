@@ -1,0 +1,30 @@
+# Sign in -> skip onboarding -> open Settings -> toggle the theme, toggle a
+# topic, mute a source. Exercises PUT /v1/me/topics (again, via the settings
+# path this time), PUT /v1/me/muted-sources, and the local-only theme store.
+appId: ${APP_ID}
+---
+- runFlow: _signIn.yaml
+# Skips onboarding when reached (see _signIn.yaml's comment on the confirmed
+# real-device bug that currently bypasses it on every fresh sign-in anyway).
+- tapOn:
+    id: "onboarding-cta"
+    optional: true
+- assertVisible:
+    id: "feed-screen"
+
+- tapOn:
+    id: "action-bar-settings"
+- assertVisible:
+    id: "settings-theme-dark"
+
+- tapOn:
+    id: "settings-theme-dark"
+- tapOn:
+    id: "settings-topic-ai"
+
+- extendedWaitUntil:
+    visible:
+      id: "settings-source-.*"
+    timeout: 10000
+- tapOn:
+    id: "settings-source-.*"

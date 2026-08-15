@@ -29,7 +29,7 @@ const testCredentials = readTestCredentials();
  * stage, don't see this). Retrying a handful of times with a short backoff
  * absorbs that without masking a real, persistent failure.
  */
-async function fetchWithRetry(url: string, init?: RequestInit, attempts = 3): Promise<Response> {
+async function fetchWithRetry(url: string, init?: RequestInit, attempts = 5): Promise<Response> {
   let res: Response;
   for (let attempt = 0; ; attempt++) {
     res = await fetch(url, init);
@@ -163,6 +163,7 @@ describe.skipIf(!testCredentials)('API mutation E2E', () => {
     expect(putBody.topics.slice().sort()).toEqual(topics.slice().sort());
 
     const meRes = await fetchWithRetry(`${apiEndpoint}/v1/me`, { headers });
+    expect(meRes.status).toBe(200);
     const meBody = meResponseSchema.parse(await meRes.json());
     expect(meBody.topics.slice().sort()).toEqual(topics.slice().sort());
   });
@@ -178,6 +179,7 @@ describe.skipIf(!testCredentials)('API mutation E2E', () => {
     expect(putBody.language).toBe('ru');
 
     const meRes = await fetchWithRetry(`${apiEndpoint}/v1/me`, { headers });
+    expect(meRes.status).toBe(200);
     const meBody = meResponseSchema.parse(await meRes.json());
     expect(meBody.language).toBe('ru');
   });
@@ -195,6 +197,7 @@ describe.skipIf(!testCredentials)('API mutation E2E', () => {
     expect(putBody.mutedSources).toEqual(sourceIds);
 
     const meRes = await fetchWithRetry(`${apiEndpoint}/v1/me`, { headers });
+    expect(meRes.status).toBe(200);
     const meBody = meResponseSchema.parse(await meRes.json());
     expect(meBody.mutedSources).toEqual(sourceIds);
   });

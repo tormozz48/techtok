@@ -11,6 +11,9 @@ export interface SelectableListProps<T extends string> {
   readonly rowSelectedStyle: StyleProp<ViewStyle>;
   readonly rowTextStyle: StyleProp<TextStyle>;
   readonly checkIconColor: string;
+  /** When set, each row gets a stable `${testIDPrefix}-${item}` testID — the
+   * rendered title is localized, so it can't serve as an E2E selector. */
+  readonly testIDPrefix?: string;
 }
 
 /** A list of toggleable rows with a checkmark on the selected one(s) — shared
@@ -25,6 +28,7 @@ export function SelectableList<T extends string>({
   rowSelectedStyle,
   rowTextStyle,
   checkIconColor,
+  testIDPrefix,
 }: SelectableListProps<T>) {
   return (
     <>
@@ -38,6 +42,7 @@ export function SelectableList<T extends string>({
             disabled={disabled}
             style={[rowStyle, selected && rowSelectedStyle]}
             titleStyle={rowTextStyle}
+            testID={testIDPrefix ? `${testIDPrefix}-${item}` : undefined}
             right={
               selected
                 ? (props) => <List.Icon {...props} icon="check" color={checkIconColor} />

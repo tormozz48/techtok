@@ -5,9 +5,10 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useMemo, useState } from 'react';
 import { Linking, Platform, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
-import { ActivityIndicator, Button, IconButton, TouchableRipple } from 'react-native-paper';
+import { Button, IconButton, TouchableRipple } from 'react-native-paper';
 import { ApiError, fetchPostContent } from '@/api/client';
 import { BookmarkButton } from '@/components/BookmarkButton';
+import { ScreenState } from '@/components/ScreenState';
 import { Radius, Spacing, type ThemeColors, Typography } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
@@ -91,22 +92,16 @@ export default function PostScreen() {
     });
 
   if (contentQuery.isPending || content?.available === false || isQuotaExceeded) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.primary} />
-        <Text style={styles.stageText}>{strings.reader.loading}</Text>
-      </View>
-    );
+    return <ScreenState loading spinnerColor={colors.primary} caption={strings.reader.loading} />;
   }
 
   if (!content || contentQuery.isError || content.available !== true) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>{strings.reader.error}</Text>
-        <Button mode="contained" onPress={openOriginal}>
-          {strings.reader.readOriginal}
-        </Button>
-      </View>
+      <ScreenState
+        message={strings.reader.error}
+        retryLabel={strings.reader.readOriginal}
+        onRetry={openOriginal}
+      />
     );
   }
 
@@ -114,7 +109,11 @@ export default function PostScreen() {
   const isViewingTranslation = content.lang !== 'en';
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      testID="reader-screen"
+    >
       <TouchableRipple
         style={styles.header}
         onLongPress={
@@ -152,6 +151,7 @@ export default function PostScreen() {
           postId={id}
           isBookmarked={isBookmarked === 'true'}
           iconColor={colors.text}
+          testID="reader-bookmark"
           snapshot={title && sourceName ? { cardTitle: title, sourceName, url } : undefined}
         />
         <IconButton
@@ -231,24 +231,6 @@ function createStyles(colors: ThemeColors) {
     content: {
       padding: Spacing.four,
       paddingBottom: Spacing.six,
-    },
-    center: {
-      flex: 1,
-      backgroundColor: colors.background,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: Spacing.four,
-    },
-    errorText: {
-      color: colors.textSecondary,
-      ...Typography.md,
-      textAlign: 'center',
-      marginBottom: Spacing.four,
-    },
-    stageText: {
-      color: colors.textSecondary,
-      ...Typography.sm,
-      marginTop: Spacing.three,
     },
     header: {
       flexDirection: 'row',

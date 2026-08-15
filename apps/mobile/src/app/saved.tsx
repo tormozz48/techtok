@@ -1,10 +1,11 @@
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 import { IconButton, List, Searchbar } from 'react-native-paper';
 import { deleteBookmark, fetchBookmarksPage } from '@/api/client';
 import { prefetchPostContent } from '@/api/prefetchContent';
+import { ScreenState } from '@/components/ScreenState';
 import { Spacing, type ThemeColors } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
@@ -76,19 +77,11 @@ export default function SavedScreen() {
         testID="saved-search"
       />
       {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.textSecondary} />
-        </View>
+        <ScreenState loading />
       ) : isError ? (
-        <View style={styles.center}>
-          <Text style={styles.emptyText}>{strings.saved.error}</Text>
-        </View>
+        <ScreenState message={strings.saved.error} />
       ) : items.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.emptyText}>
-            {isSearching ? strings.saved.noResults : strings.saved.empty}
-          </Text>
-        </View>
+        <ScreenState message={isSearching ? strings.saved.noResults : strings.saved.empty} />
       ) : (
         <FlatList
           style={styles.list}
@@ -151,18 +144,6 @@ function createStyles(colors: ThemeColors) {
     list: {
       flex: 1,
       backgroundColor: colors.background,
-    },
-    center: {
-      flex: 1,
-      backgroundColor: colors.background,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: Spacing.four,
-    },
-    emptyText: {
-      color: colors.textSecondary,
-      textAlign: 'center',
-      fontSize: 16,
     },
     row: {
       flexDirection: 'row',

@@ -2,8 +2,9 @@ import { useQuery } from '@tanstack/react-query';
 import { getTopicLabel, type HistoryItem } from '@techtok/shared';
 import type { ReactNode } from 'react';
 import { useMemo } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { fetchHistoryPage } from '@/api/client';
+import { ScreenState } from '@/components/ScreenState';
 import { Spacing, type ThemeColors, Typography } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
@@ -42,27 +43,15 @@ export default function StatsScreen() {
   });
 
   if (isLoading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.textSecondary} />
-      </View>
-    );
+    return <ScreenState loading />;
   }
 
   if (isError || !data) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.emptyText}>{strings.stats.error}</Text>
-      </View>
-    );
+    return <ScreenState message={strings.stats.error} />;
   }
 
   if (data.length === 0) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.emptyText}>{strings.stats.empty}</Text>
-      </View>
-    );
+    return <ScreenState message={strings.stats.empty} />;
   }
 
   const stats = computeReadingStats(data);
@@ -150,18 +139,6 @@ function createStyles(colors: ThemeColors) {
     },
     content: {
       padding: Spacing.four,
-    },
-    center: {
-      flex: 1,
-      backgroundColor: colors.background,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: Spacing.four,
-    },
-    emptyText: {
-      color: colors.textSecondary,
-      textAlign: 'center',
-      fontSize: 16,
     },
     tileRow: {
       flexDirection: 'row',

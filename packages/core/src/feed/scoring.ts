@@ -61,20 +61,17 @@ export function scorePost(
   return recencyDecay(post.publishedAt, now) * weight * boost;
 }
 
-/**
- * Round-robin by `primaryTopic`, preserving each topic's internal (score) order.
- * Keeps a single topic from dominating consecutive slots when several topics
- * are in play, without discarding any candidate.
- */
-export function interleaveByTopic(sorted: PostRecord[]): PostRecord[] {
+/** Round-robin `sorted` by `keyOf`, preserving each key's internal order. */
+function interleaveByKey(sorted: PostRecord[], keyOf: (post: PostRecord) => string): PostRecord[] {
   const queues = new Map<string, PostRecord[]>();
-  const topicOrder: string[] = [];
+  const keyOrder: string[] = [];
   for (const post of sorted) {
-    let queue = queues.get(post.primaryTopic);
+    const key = keyOf(post);
+    let queue = queues.get(key);
     if (!queue) {
       queue = [];
-      queues.set(post.primaryTopic, queue);
-      topicOrder.push(post.primaryTopic);
+      queues.set(key, queue);
+      keyOrder.push(key);
     }
     queue.push(post);
   }
@@ -82,8 +79,8 @@ export function interleaveByTopic(sorted: PostRecord[]): PostRecord[] {
   const result: PostRecord[] = [];
   let remaining = sorted.length;
   while (remaining > 0) {
-    for (const topic of topicOrder) {
-      const queue = queues.get(topic);
+    for (const key of keyOrder) {
+      const queue = queues.get(key);
       const next = queue?.shift();
       if (next) {
         result.push(next);
@@ -94,8 +91,27 @@ export function interleaveByTopic(sorted: PostRecord[]): PostRecord[] {
   return result;
 }
 
+/**
+ * Round-robin by `primaryTopic`, preserving each topic's internal (score) order.
+ * Keeps a single topic from dominating consecutive slots when several topics
+ * are in play, without discarding any candidate.
+ */
+export function interleaveByTopic(sorted: PostRecord[]): PostRecord[] {
+  return interleaveByKey(sorted, (post) => post.primaryTopic);
+}
+
+/**
+ * Round-robin by `sourceId`, preserving each source's internal (score/topic) order.
+ * Keeps a single source from dominating consecutive slots when several sources
+ * are in play, without discarding any candidate.
+ */
+export function interleaveBySource(sorted: PostRecord[]): PostRecord[] {
+  return interleaveByKey(sorted, (post) => post.sourceId);
+}
+
 /** Scores candidates by recency x source weight x topic affinity, then
- * interleaves by topic. */
+ * interleaves by topic and then by source, so neither a single topic nor a
+ * single source can crowd out consecutive slots. */
 export function rankCandidates(
   candidates: PostRecord[],
   sourceWeights: Map<string, number>,
@@ -106,5 +122,5 @@ export function rankCandidates(
     .map((post) => ({ post, score: scorePost(post, sourceWeights, now, affinityBoosts) }))
     .sort((a, b) => b.score - a.score)
     .map(({ post }) => post);
-  return interleaveByTopic(scored);
+  return interleaveBySource(interleaveByTopic(scored));
 }

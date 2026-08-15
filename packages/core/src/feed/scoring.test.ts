@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { PostRecord } from '../posts.types';
 import {
   DEFAULT_SOURCE_WEIGHT,
+  interleaveBySource,
   interleaveByTopic,
   MAX_AFFINITY_BOOST,
   MIN_AFFINITY_READS,
@@ -163,5 +164,42 @@ describe('interleaveByTopic', () => {
 
     expect(result).toHaveLength(4);
     expect(result.map((p) => p.postId)).toEqual(['ai1', 'dev1', 'ai2', 'ai3']);
+  });
+});
+
+describe('interleaveBySource', () => {
+  it('round-robins across sources without dropping any post', () => {
+    const sorted = [
+      post('a1', 'ai', NOW.toISOString(), 'sourceA'),
+      post('a2', 'ai', NOW.toISOString(), 'sourceA'),
+      post('b1', 'ai', NOW.toISOString(), 'sourceB'),
+    ];
+
+    const result = interleaveBySource(sorted);
+
+    expect(result.map((p) => p.postId)).toEqual(['a1', 'b1', 'a2']);
+  });
+
+  it('preserves order within a single source (no other sources to interleave with)', () => {
+    const sorted = [
+      post('a', 'ai', NOW.toISOString(), 'sourceA'),
+      post('b', 'ai', NOW.toISOString(), 'sourceA'),
+    ];
+
+    expect(interleaveBySource(sorted).map((p) => p.postId)).toEqual(['a', 'b']);
+  });
+
+  it('exhausts a shorter source queue without leaving gaps', () => {
+    const sorted = [
+      post('a1', 'ai', NOW.toISOString(), 'sourceA'),
+      post('b1', 'ai', NOW.toISOString(), 'sourceB'),
+      post('a2', 'ai', NOW.toISOString(), 'sourceA'),
+      post('a3', 'ai', NOW.toISOString(), 'sourceA'),
+    ];
+
+    const result = interleaveBySource(sorted);
+
+    expect(result).toHaveLength(4);
+    expect(result.map((p) => p.postId)).toEqual(['a1', 'b1', 'a2', 'a3']);
   });
 });

@@ -15,12 +15,15 @@ import {
   type Language,
   type MeResponse,
   meResponseSchema,
+  REQUEST_ID_HEADER,
   type SourcesResponse,
   sourcesResponseSchema,
   type Topic,
 } from '@techtok/shared';
+import * as Crypto from 'expo-crypto';
 import { useAuthStore } from '@/state/authStore';
 import { detectDeviceLanguage, detectDeviceTimezone } from '@/state/deviceLanguage';
+import { logError } from '@/state/logStore';
 import { queryClient } from '@/state/queryClient';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
@@ -52,12 +55,13 @@ function apiUrl(path: string): URL {
   return new URL(path, API_URL);
 }
 
-function buildHeaders(init: RequestInit): HeadersInit {
+function buildHeaders(init: RequestInit, requestId: string): HeadersInit {
   const idToken = useAuthStore.getState().user?.idToken;
   return {
     ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
     [DEVICE_LANGUAGE_HEADER]: detectDeviceLanguage() ?? 'en',
     [DEVICE_TIMEZONE_HEADER]: detectDeviceTimezone() ?? 'UTC',
+    [REQUEST_ID_HEADER]: requestId,
     ...(init.body ? { 'content-type': 'application/json' } : {}),
     ...init.headers,
   };
@@ -69,20 +73,38 @@ function buildHeaders(init: RequestInit): HeadersInit {
  * transient-auth-failure retry, not a sign-out loop. `GET /v1/topics` and
  * `GET /v1/sources` never 401 (no authorizer attached, DESIGN §5), so this
  * only ever fires for the authenticated routes.
+ *
+ * Every call carries a client-generated `REQUEST_ID_HEADER` (kept across the
+ * 401 retry, since it's still logically the same request) so a failure
+ * logged here and the matching backend log line (`packages/functions/src/api/lib/http.ts`)
+ * can be correlated in CloudWatch Logs Insights.
  */
 async function apiFetch(url: URL, init: RequestInit = {}): Promise<Response> {
-  let response = await fetch(url.toString(), { ...init, headers: buildHeaders(init) });
+  const requestId = Crypto.randomUUID();
+  const method = init.method ?? 'GET';
+  let response: Response;
+  try {
+    response = await fetch(url.toString(), { ...init, headers: buildHeaders(init, requestId) });
+  } catch (err) {
+    logError('api network request failed', {
+      requestId,
+      method,
+      path: url.pathname,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    throw err;
+  }
 
   if (response.status === 401) {
     const refreshedIdToken = await useAuthStore.getState().refreshToken();
     if (refreshedIdToken) {
-      response = await fetch(url.toString(), { ...init, headers: buildHeaders(init) });
+      response = await fetch(url.toString(), { ...init, headers: buildHeaders(init, requestId) });
     }
   }
 
   if (!response.ok) {
     let code: string | undefined;
-    let message = `${init.method ?? 'GET'} ${url.pathname} failed with status ${response.status}`;
+    let message = `${method} ${url.pathname} failed with status ${response.status}`;
     try {
       const body = (await response.json()) as { error?: { code?: string; message?: string } };
       code = body.error?.code;
@@ -90,6 +112,13 @@ async function apiFetch(url: URL, init: RequestInit = {}): Promise<Response> {
     } catch {
       // Non-JSON error body (e.g. an API Gateway-level rejection) — keep the generic message.
     }
+    logError('api request failed', {
+      requestId,
+      method,
+      path: url.pathname,
+      status: response.status,
+      code,
+    });
     throw new ApiError(response.status, code, message);
   }
   return response;

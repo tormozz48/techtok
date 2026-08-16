@@ -290,6 +290,33 @@ describe('buildFeed', () => {
     expect(page.items.map((p) => p.postId)).toEqual(['a']);
   });
 
+  it("excludes posts missing the requested language's compact article when lang is given", async () => {
+    const ready = { ...post('a', 'ai', '2026-07-19T02:00:00.000Z'), compactLangs: ['en', 'ru'] };
+    const stuck = { ...post('b', 'ai', '2026-07-19T01:00:00.000Z'), compactLangs: [] };
+    const queryByTopic = vi.fn().mockResolvedValue([ready, stuck]);
+    const getReadSet = vi.fn().mockResolvedValue(new Set());
+
+    const page = await buildFeed(
+      { queryByTopic, getReadSet, getSourceWeights: noWeights() },
+      { userTopics: ['ai'], limit: 20, lang: 'en' },
+    );
+
+    expect(page.items.map((p) => p.postId)).toEqual(['a']);
+  });
+
+  it('does not filter on compactLangs when lang is omitted', async () => {
+    const stuck = { ...post('a', 'ai', '2026-07-19T02:00:00.000Z'), compactLangs: [] };
+    const queryByTopic = vi.fn().mockResolvedValue([stuck]);
+    const getReadSet = vi.fn().mockResolvedValue(new Set());
+
+    const page = await buildFeed(
+      { queryByTopic, getReadSet, getSourceWeights: noWeights() },
+      { userTopics: ['ai'], limit: 20 },
+    );
+
+    expect(page.items.map((p) => p.postId)).toEqual(['a']);
+  });
+
   it('excludes posts that are not yet ready (discovered or failed)', async () => {
     const ready = post('a', 'ai', '2026-07-19T02:00:00.000Z');
     const discovered = {

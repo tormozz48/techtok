@@ -128,6 +128,47 @@ describe('BookmarkButton', () => {
     await waitFor(() => expect(screen.getByLabelText(a11y.bookmarkAdd)).toBeTruthy());
   });
 
+  // A caller whose own `isBookmarked` prop can't re-derive from a live query
+  // cache (PostScreen's frozen route param) needs this callback to keep its
+  // own display in sync once the overlay clears — see onToggled's doc comment.
+  it('calls onToggled with the confirmed state once the create request resolves', async () => {
+    const onToggled = jest.fn();
+    await renderWithQueryClient(
+      <BookmarkButton postId="p1" isBookmarked={false} onToggled={onToggled} />,
+      queryClient,
+    );
+
+    await fireEvent.press(screen.getByLabelText(a11y.bookmarkAdd));
+
+    expect(onToggled).toHaveBeenCalledWith(true);
+  });
+
+  it('calls onToggled with the confirmed state once the delete request resolves', async () => {
+    const onToggled = jest.fn();
+    await renderWithQueryClient(
+      <BookmarkButton postId="p1" isBookmarked={true} onToggled={onToggled} />,
+      queryClient,
+    );
+
+    await fireEvent.press(screen.getByLabelText(a11y.bookmarkRemove));
+
+    expect(onToggled).toHaveBeenCalledWith(false);
+  });
+
+  it('does not call onToggled when the request fails', async () => {
+    createBookmarkMock.mockRejectedValue(new Error('network down'));
+    const onToggled = jest.fn();
+    await renderWithQueryClient(
+      <BookmarkButton postId="p1" isBookmarked={false} onToggled={onToggled} />,
+      queryClient,
+    );
+
+    await fireEvent.press(screen.getByLabelText(a11y.bookmarkAdd));
+
+    await waitFor(() => expect(screen.getByLabelText(a11y.bookmarkAdd)).toBeTruthy());
+    expect(onToggled).not.toHaveBeenCalled();
+  });
+
   it('prefetches post content over wifi when a new bookmark is created', async () => {
     getIsWifiMock.mockReturnValue(true);
     await renderWithQueryClient(<BookmarkButton postId="p1" isBookmarked={false} />, queryClient);

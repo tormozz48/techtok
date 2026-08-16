@@ -28,6 +28,13 @@ export interface BookmarkButtonProps {
     url: string;
     primaryTopic?: Topic;
   };
+  /** Fires with the new bookmarked state once a toggle is confirmed by the
+   * server — for a caller whose own `isBookmarked` prop can't re-derive
+   * itself from a live query cache (e.g. PostScreen's frozen route param,
+   * unlike the feed's BottomActionBar, which re-reads the patched `['feed']`
+   * cache on every render). Not called on the optimistic set or on revert;
+   * only once the request actually confirms. */
+  onToggled?: (isBookmarked: boolean) => void;
 }
 
 const DEFAULT_BOOKMARKS_QUERY_KEY = ['bookmarks', ''];
@@ -99,7 +106,11 @@ function patchFeedBookmarkState(
   postId: string,
   isBookmarked: boolean,
 ): void {
-  queryClient.setQueryData<InfiniteData<FeedResponse>>(['feed'], (current) => {
+  // ['feed'] is now keyed by language (useFeedQuery.ts) — an exact-key patch
+  // has to name the language segment too, or this silently writes into a
+  // cache slot nothing reads.
+  const language = useLanguageStore.getState().language;
+  queryClient.setQueryData<InfiniteData<FeedResponse>>(['feed', language], (current) => {
     if (!current) return current;
     return {
       ...current,
@@ -118,6 +129,7 @@ export function BookmarkButton({
   style,
   testID,
   snapshot,
+  onToggled,
 }: BookmarkButtonProps) {
   const queryClient = useQueryClient();
   const strings = useStrings();
@@ -153,6 +165,7 @@ export function BookmarkButton({
       // interaction, so it can just invalidate and refetch normally.
       patchFeedBookmarkState(queryClient, postId, next);
       queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
+      onToggled?.(next);
       clearOptimistic(postId);
     } catch {
       setOptimistic(postId, bookmarked);

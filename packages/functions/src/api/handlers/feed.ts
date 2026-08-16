@@ -63,6 +63,7 @@ export const handler = withAuth(async (event, auth) => {
       limit,
       topicReads: user.topicReads,
       mutedSourceIds: new Set(user.mutedSources ?? []),
+      lang,
     },
   );
 

@@ -57,7 +57,6 @@ function RootLayout() {
       startEventsQueueFlushing();
       startNetworkMonitoring();
       useTopicsStore.getState().load();
-      useLanguageStore.getState().load();
       useThemeStore.getState().load();
       setShowOnboarding(!hasSeenOnboarding());
       // Held inside the same hydration gate as everything else (D68): a
@@ -68,6 +67,20 @@ function RootLayout() {
       setIsHydrated(true);
     });
   }, []);
+
+  // languageStore's own load() reconciles the persisted language with the
+  // server's Users.language — deferred until sign-in is confirmed (unlike
+  // topicsStore/themeStore above) since it used to fire inside the block
+  // above, before `restore()` resolved, sending an unauthenticated GET /v1/me
+  // that depended on winning a race against a silent re-sign-in retry to
+  // ever recover. Re-runs on every future sign-in too (a first-ever sign-in
+  // via /auth, or a re-sign-in after a sign-out), not just the first cold
+  // start.
+  useEffect(() => {
+    if (authStatus === 'signedIn') {
+      useLanguageStore.getState().load();
+    }
+  }, [authStatus]);
 
   // Foregrounding the app counts as a TanStack Query "focus" event, so a feed
   // left stale (see FEED_STALE_TIME_MS) refetches on return instead of only

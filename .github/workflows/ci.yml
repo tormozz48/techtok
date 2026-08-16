@@ -220,11 +220,6 @@ jobs:
     needs: deploy-dev
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     uses: ./.github/workflows/e2e.yml
-    with:
-      # UI-level Maestro flows are more flake-prone than the HTTP-contract
-      # suites — see e2e.yml's `skip_mobile_emulator` input comment for why a
-      # flaky assertion there shouldn't be able to block this deploy chain.
-      skip_mobile_emulator: true
     permissions:
       id-token: write
       contents: read

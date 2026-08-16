@@ -5,6 +5,7 @@ import {
   UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
 import type { CompactFigure, Language, Topic } from '@techtok/shared';
+import { getUnixTime } from 'date-fns';
 import { batchGetChunked, conditionalWrite, DYNAMO_BATCH_GET_LIMIT } from '../clients/dynamoClient';
 import type {
   NewPost,
@@ -52,7 +53,7 @@ export class PostsRepo {
     const record: PostRecord & { gsi1pk: string } = {
       ...post,
       ingestedAt: now.toISOString(),
-      ttl: Math.floor(now.getTime() / 1000) + POST_TTL_SECONDS,
+      ttl: getUnixTime(now) + POST_TTL_SECONDS,
       gsi1pk: BY_TIME_PARTITION,
       i18n: {},
       compactLangs: [],

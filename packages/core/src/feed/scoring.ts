@@ -1,4 +1,5 @@
 import type { Topic } from '@techtok/shared';
+import { differenceInMilliseconds, parseISO } from 'date-fns';
 import type { PostRecord } from '../posts.types';
 import { MS_PER_HOUR } from '../util/time';
 
@@ -23,7 +24,7 @@ export const MAX_AFFINITY_BOOST = 1.5;
 
 /** Exponential recency decay: 1 at age 0, 0.5 at one half-life, 0.25 at two, etc. */
 function recencyDecay(publishedAt: string, now: Date = new Date()): number {
-  const ageHours = Math.max(0, now.getTime() - new Date(publishedAt).getTime()) / MS_PER_HOUR;
+  const ageHours = Math.max(0, differenceInMilliseconds(now, parseISO(publishedAt))) / MS_PER_HOUR;
   return 2 ** (-ageHours / RECENCY_HALF_LIFE_HOURS);
 }
 

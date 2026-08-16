@@ -14,7 +14,6 @@ import { ScreenState } from '@/components/ScreenState';
 import { Colors, Spacing } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
-import { logError } from '@/state/eventsQueue';
 import { useLanguageStore } from '@/state/languageStore';
 
 export default function FeedScreen() {
@@ -43,10 +42,6 @@ export default function FeedScreen() {
       router.replace('/paywall');
     }
   }, [isQuotaExhausted, cards.length]);
-
-  useEffect(() => {
-    if (isError) logError('feed fetch failed');
-  }, [isError]);
 
   // D79: the server is the source of truth for the account's language
   // (Users.language) — this is the one reconciliation channel that can't be

@@ -220,11 +220,6 @@ jobs:
     needs: deploy-dev
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     uses: ./.github/workflows/e2e.yml
-    with:
-      # UI-level Maestro flows are more flake-prone than the HTTP-contract
-      # suites — see e2e.yml's `skip_mobile_emulator` input comment for why a
-      # flaky assertion there shouldn't be able to block this deploy chain.
-      skip_mobile_emulator: true
     permissions:
       id-token: write
       contents: read
@@ -248,18 +243,32 @@ jobs:
   # releases/latest currently serves", not "did this one merge touch mobile".
   # That accumulates correctly across skipped runs: three backend merges then
   # one mobile merge still produces exactly one build, containing all four.
+  # should_build only fires on changes that need a native rebuild (the
+  # ~10min `eas build --local` cost): apps/mobile/android, app.json, the
+  # mobile package.json/eas.json, pnpm-lock.yaml (a native dep version bump),
+  # or this workflow's own build definition. should_ota fires on the
+  # complementary case — apps/mobile/src, apps/mobile/app (expo-router
+  # routes) or packages/shared changed but nothing native-relevant did — and
+  # triggers a lightweight `eas update` OTA publish instead. This is a path
+  # heuristic, not a real fingerprint (D60 already notes runtimeVersion is
+  # hand-maintained, not auto-computed): it can't detect e.g. a pure-JS
+  # dependency bump inside pnpm-lock.yaml being misclassified as native-relevant,
+  # but that only costs an unnecessary full rebuild, never an unsafe OTA.
   mobile-changes:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     outputs:
       should_build: ${{ steps.check.outputs.should_build }}
+      should_ota: ${{ steps.check.outputs.should_ota }}
     steps:
-      # fetch-depth: 0 for the tags and the commit range below.
+      # fetch-depth: 0 for the tags and the commit ranges below.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - id: check
+        env:
+          PUSH_BEFORE: ${{ github.event.before }}
         run: |
           set -euo pipefail
           # Same ordering scripts/bumpMobileVersion.ts uses to pick its own
@@ -270,23 +279,49 @@ jobs:
           if [ -z "$BASE" ]; then
             echo "No mobile-v* tag exists yet — building (fail open)."
             echo "should_build=true" >> "$GITHUB_OUTPUT"
+            echo "should_ota=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           # packages/shared ships inside the app; pnpm-lock.yaml covers a
           # dependency bump that changes the bundle without touching app code.
-          CHANGED=$(git diff --name-only "$BASE"..HEAD -- \
-            apps/mobile \
-            packages/shared \
+          NATIVE_CHANGED=$(git diff --name-only "$BASE"..HEAD -- \
+            apps/mobile/android \
+            apps/mobile/app.json \
+            apps/mobile/package.json \
+            apps/mobile/eas.json \
             pnpm-lock.yaml \
             .github/workflows/mobile-build.yml)
-          if [ -n "$CHANGED" ]; then
-            echo "Mobile-relevant changes since $BASE:"
-            echo "$CHANGED" | sed 's/^/  /'
+          if [ -n "$NATIVE_CHANGED" ]; then
+            echo "Native-relevant mobile changes since $BASE:"
+            echo "$NATIVE_CHANGED" | sed 's/^/  /'
             echo "should_build=true" >> "$GITHUB_OUTPUT"
+            echo "should_ota=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Nothing native-relevant since $BASE — skipping the APK build."
+          echo "releases/latest keeps serving the APK built for $BASE."
+          echo "should_build=false" >> "$GITHUB_OUTPUT"
+
+          # JS-only OTA check is scoped to just this push (not since the last
+          # tag): every relevant push should publish, since each publish
+          # simply supersedes the previous one on the channel — there's no
+          # accumulation semantics to preserve the way there is for the APK.
+          if [ -z "${PUSH_BEFORE:-}" ] || [ "$PUSH_BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            echo "No usable push 'before' SHA (workflow_dispatch or first push) — publishing OTA (fail open)."
+            echo "should_ota=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          JS_CHANGED=$(git diff --name-only "$PUSH_BEFORE"..HEAD -- \
+            apps/mobile/src \
+            apps/mobile/app \
+            packages/shared)
+          if [ -n "$JS_CHANGED" ]; then
+            echo "JS-only mobile changes this push:"
+            echo "$JS_CHANGED" | sed 's/^/  /'
+            echo "should_ota=true" >> "$GITHUB_OUTPUT"
           else
-            echo "Nothing mobile-relevant since $BASE — skipping the APK build."
-            echo "releases/latest keeps serving the APK built for $BASE."
-            echo "should_build=false" >> "$GITHUB_OUTPUT"
+            echo "No JS-only mobile changes this push — nothing to publish."
+            echo "should_ota=false" >> "$GITHUB_OUTPUT"
           fi
 
   mobile-build:
@@ -298,6 +333,45 @@ jobs:
     with:
       api_url: ${{ needs.deploy-production.outputs.api_url }}
     secrets: inherit
+
+  # Mutually exclusive with mobile-build (mobile-changes.should_build/should_ota
+  # are never both true — see that job's comment): publishes just the JS
+  # bundle to the existing "preview" channel/runtimeVersion instead of paying
+  # for a full native rebuild. No version bump, no GitHub Release, no tag —
+  # those are all tied to the APK's own identity, and this ships no new APK.
+  mobile-ota-update:
+    needs: [deploy-production, mobile-changes]
+    if: >-
+      github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+      && needs.mobile-changes.outputs.should_build == 'false'
+      && needs.mobile-changes.outputs.should_ota == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Publish OTA update (eas update)
+        working-directory: apps/mobile
+        env:
+          EXPO_PUBLIC_API_URL: ${{ needs.deploy-production.outputs.api_url }}
+          EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_WEB_CLIENT_ID }}
+        run: |
+          VERSION=$(node -e "console.log(require('./app.json').expo.version)")
+          eas update --channel preview --platform android --non-interactive --message "v$VERSION (JS-only: ${{ github.sha }})"
 
   # Must still publish when mobile-build was skipped, so it can't just `needs`
   # it — a skipped dependency skips the dependent job unless a status-check

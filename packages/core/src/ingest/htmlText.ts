@@ -5,7 +5,7 @@ const { decode } = he;
 const TAG_RE = /<[^>]*>/g;
 const IMG_SRC_RE = /<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/i;
 
-export function stripHtml(html: string): string {
+function stripHtml(html: string): string {
   return decode(html.replace(TAG_RE, ' '));
 }
 

@@ -4,6 +4,7 @@ import {
   createConfiguredLlmProvider,
   createS3Client,
   errorMessage,
+  DEFAULT_TIMEOUT_MS as FETCH_TIMEOUT_MS,
   fetchBytesWithCap,
   fetchTextWithCap,
   generateCard as generateCardViaLlm,
@@ -17,13 +18,11 @@ import { LANGUAGES } from '@techtok/shared';
 import type { SQSBatchResponse, SQSEvent, SQSHandler } from 'aws-lambda';
 import { requireEnv } from '../env';
 import { lazy } from '../lazy';
+import { MAX_ARTICLE_BYTES, MAX_IMAGE_BYTES } from '../limits';
 import { getContentQueue, getPostsRepo, getSourcesRepo, getTranslateQueue } from '../repos';
 
 const logger = new Logger({ serviceName: 'transform' });
 
-const FETCH_TIMEOUT_MS = 10_000;
-const MAX_BYTES = 2 * 1024 * 1024;
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 // Eager translation (D27): every post gets a job queued for every language
 // but the one it was already produced in.
 const NON_ENGLISH_LANGUAGES = LANGUAGES.filter((lang) => lang !== 'en');
@@ -43,7 +42,7 @@ function fetchBytes(url: string, maxBytes: number) {
   return fetchBytesWithCap(url, { maxBytes, timeoutMs: FETCH_TIMEOUT_MS });
 }
 
-function fetchText(url: string, maxBytes = MAX_BYTES) {
+function fetchText(url: string, maxBytes = MAX_ARTICLE_BYTES) {
   return fetchTextWithCap(url, { maxBytes, timeoutMs: FETCH_TIMEOUT_MS });
 }
 

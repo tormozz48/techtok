@@ -1,11 +1,11 @@
 import type { Topic } from '@techtok/shared';
+import { differenceInMilliseconds, parseISO } from 'date-fns';
+import { MS_PER_HOUR } from '../util/time';
 import { DEFAULT_SIMILARITY_THRESHOLD, isLikelyDuplicateTitle } from './titleSimilarity';
 
 /** Default cross-source dedup window — a story published within ±48h of a
  * candidate, from a different source, with a similar title counts as a match. */
 export const DEFAULT_WINDOW_HOURS = 48;
-
-const MS_PER_HOUR = 60 * 60 * 1000;
 
 export interface DuplicateCandidate {
   readonly postId: string;
@@ -44,14 +44,15 @@ export async function findDuplicateOf(
   const windowHours = opts.windowHours ?? DEFAULT_WINDOW_HOURS;
   const threshold = opts.threshold ?? DEFAULT_SIMILARITY_THRESHOLD;
   const windowMs = windowHours * MS_PER_HOUR;
-  const candidateTime = new Date(candidate.publishedAt).getTime();
+  const candidateTime = parseISO(candidate.publishedAt);
 
   const recent = await deps.queryRecentByTopic(candidate.primaryTopic);
 
   for (const post of recent) {
     if (post.postId === candidate.postId) continue;
     if (post.sourceId === candidate.sourceId) continue;
-    if (Math.abs(new Date(post.publishedAt).getTime() - candidateTime) > windowMs) continue;
+    if (Math.abs(differenceInMilliseconds(parseISO(post.publishedAt), candidateTime)) > windowMs)
+      continue;
     if (isLikelyDuplicateTitle(candidate.origTitle, post.origTitle, threshold)) {
       // `post` may itself already be a duplicate of an earlier post in the
       // same story cluster — resolve straight to that root so every

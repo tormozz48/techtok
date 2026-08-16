@@ -5,11 +5,10 @@ import {
   PutCommand,
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
-import { batchGetChunked } from '../clients/dynamoClient';
+import { batchGetChunked, DYNAMO_BATCH_GET_LIMIT } from '../clients/dynamoClient';
 import type { ActivityRecord, BookmarkRecord, ReadSnapshot } from '../history.types';
 import { chunk } from '../util/chunk';
 
-const BATCH_GET_CHUNK_SIZE = 100;
 /** DynamoDB's BatchWriteItem hard cap. */
 const BATCH_WRITE_CHUNK_SIZE = 25;
 
@@ -23,11 +22,11 @@ export interface BookmarksPage {
   readonly nextCursor: string | null;
 }
 
-export function encodeHistoryCursor(key: Record<string, unknown>): string {
+function encodeHistoryCursor(key: Record<string, unknown>): string {
   return Buffer.from(JSON.stringify(key), 'utf8').toString('base64url');
 }
 
-export function decodeHistoryCursor(cursor: string): Record<string, unknown> {
+function decodeHistoryCursor(cursor: string): Record<string, unknown> {
   return JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
 }
 
@@ -161,7 +160,7 @@ export class UserActivityRepo {
       this.tableName,
       postIds,
       (postId) => ({ userId, sk: sortKey(postId) }),
-      BATCH_GET_CHUNK_SIZE,
+      DYNAMO_BATCH_GET_LIMIT,
     );
     return new Set(items.map((item) => item.postId));
   }

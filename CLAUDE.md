@@ -112,6 +112,7 @@ Definition of done for any change: lint + typecheck + tests green, then exercise
 - Keep `apps/mobile` Storybook in sync with real components/screens: every file in `apps/mobile/src/components/*.tsx` needs a matching `*.stories.tsx` in the same directory, and every route in `apps/mobile/src/app/` needs a page story in `apps/mobile/src/stories/pages/` that imports the real screen via `@/app/<route>` (not a re-implementation). When you add a component/screen, add its story in the same change; when you change a component's props/variants or a screen's states, update its story to match — a PostToolUse hook flags missing coverage on Edit/Write, but it can't catch stale prop shapes, only missing files.
 - Conventional commits: `feat:` / `fix:` / `docs:` / `chore:` / `test:` / `refactor:`. *(Mobile app versioning is manual, not commit-driven — DESIGN §2 D41 retired D35's automated semver bump.)*
 - Every request/response shape change to `packages/shared`'s zod schemas gets checked against the committed schema snapshot before merge (DESIGN §2 D34) — a removed field, narrowed/changed type, or removed enum value fails CI unless the snapshot is regenerated deliberately.
+- Don't export a function solely so a test can import it. If nothing outside the test file calls it, keep it internal (unexported) and either test it through the real exported function that uses it, or drop the export and inline the check. Tests should exercise the exports that other modules actually consume, not test-only surface area.
 
 ## AWS
 

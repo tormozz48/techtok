@@ -81,7 +81,7 @@ flowchart LR
 | `ContentQueue` → Content Lambda | Eager compact-article generation + once-per-post figure mirroring, for all 4 languages (D23/D36). |
 | DynamoDB: `Sources` / `Posts` / `Users` / `UserActivity` | Source registry, post + i18n/compact data, user prefs, read/bookmark activity. |
 | S3 + CloudFront | Private raw-HTML archive (90-day lifecycle); public mirrored images + compact-article JSON behind one `Router`. |
-| LLM provider | OpenRouter (`anthropic/claude-haiku-4.5`) primary; AWS Bedrock kept wired as a dormant, env-switchable fallback (`LLM_PROVIDER`). |
+| LLM provider | OpenRouter (`google/gemini-3.1-flash-lite`, D38) primary; AWS Bedrock kept wired as a dormant, env-switchable fallback (`LLM_PROVIDER`). |
 | CloudWatch + SNS + AWS Budget | DLQ/failure/5xx alarms to one email-subscribed SNS topic; $10/mo budget as a monitoring-only spend signal. |
 
 ### Repository layout

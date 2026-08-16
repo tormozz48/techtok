@@ -1,12 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import { focusManager, QueryClient } from '@tanstack/react-query';
+import { focusManager } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import { Stack, ThemeProvider } from 'expo-router';
+import { Stack, ThemeProvider, useNavigationContainerRef } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { AppState, Platform, useColorScheme } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
+import { CrashFallback } from '@/components/CrashFallback';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import {
   techtokDarkTheme,
@@ -14,21 +15,19 @@ import {
   techtokNavigationDarkTheme,
   techtokNavigationLightTheme,
 } from '@/constants/paperTheme';
+import { ONE_DAY_MS } from '@/constants/time';
 import { useStrings } from '@/i18n/useStrings';
 import { useAuthStore } from '@/state/authStore';
+import { startEventsQueueFlushing } from '@/state/eventsQueue';
 import { useLanguageStore } from '@/state/languageStore';
 import { startNetworkMonitoring } from '@/state/network';
 import { hasSeenOnboarding } from '@/state/onboardingStore';
+import { queryClient } from '@/state/queryClient';
 import { startReadQueueFlushing } from '@/state/readQueue';
+import { navigationIntegration, Sentry } from '@/state/sentry';
 import { ready } from '@/state/storage';
 import { useThemeStore } from '@/state/themeStore';
 import { useTopicsStore } from '@/state/topicsStore';
-
-const ONE_DAY_MS = 1000 * 60 * 60 * 24;
-
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { gcTime: ONE_DAY_MS } },
-});
 
 // A direct AsyncStorage adapter — the persister's own async-get/set shape
 // doesn't fit state/storage.ts's sync-read cache, so this is a deliberate,
@@ -38,7 +37,7 @@ const persister = createAsyncStoragePersister({
   key: 'techtok.queryCache',
 });
 
-export default function RootLayout() {
+function RootLayout() {
   const systemScheme = useColorScheme();
   const themeMode = useThemeStore((state) => state.mode);
   const colorScheme = themeMode === 'system' ? systemScheme : themeMode;
@@ -46,10 +45,16 @@ export default function RootLayout() {
   const authStatus = useAuthStore((state) => state.status);
   const [isHydrated, setIsHydrated] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const navigationRef = useNavigationContainerRef();
+
+  useEffect(() => {
+    navigationIntegration.registerNavigationContainer(navigationRef);
+  }, [navigationRef]);
 
   useEffect(() => {
     ready().then(async () => {
       startReadQueueFlushing();
+      startEventsQueueFlushing();
       startNetworkMonitoring();
       useTopicsStore.getState().load();
       useLanguageStore.getState().load();
@@ -171,3 +176,13 @@ export default function RootLayout() {
     </PersistQueryClientProvider>
   );
 }
+
+function AppRoot() {
+  return (
+    <Sentry.ErrorBoundary fallback={CrashFallback}>
+      <RootLayout />
+    </Sentry.ErrorBoundary>
+  );
+}
+
+export default Sentry.wrap(AppRoot);

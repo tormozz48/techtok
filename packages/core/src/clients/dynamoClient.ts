@@ -2,6 +2,10 @@ import { ConditionalCheckFailedException, DynamoDBClient } from '@aws-sdk/client
 import { BatchGetCommand, DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { chunk } from '../util/chunk';
 
+/** DynamoDB's BatchGetItem hard cap — the largest `chunkSize` batchGetChunked
+ * can be usefully called with. */
+export const DYNAMO_BATCH_GET_LIMIT = 100;
+
 export function createDynamoClient(): DynamoDBDocumentClient {
   const client = new DynamoDBClient({});
   return DynamoDBDocumentClient.from(client, {

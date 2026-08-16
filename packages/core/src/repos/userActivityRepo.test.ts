@@ -8,7 +8,7 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import { mockClient } from 'aws-sdk-client-mock';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { decodeHistoryCursor, encodeHistoryCursor, UserActivityRepo } from './userActivityRepo';
+import { UserActivityRepo } from './userActivityRepo';
 
 const ddbMock = mockClient(DynamoDBDocumentClient);
 const client = ddbMock as unknown as DynamoDBDocumentClient;
@@ -104,20 +104,16 @@ describe('userActivityRepo.queryHistory', () => {
     const lastKey = { userId: 'device-1', sk: 'read#abc123', gsi1sk: 'x#abc123' };
     ddbMock.on(QueryCommand).resolves({ Items: [], LastEvaluatedKey: lastKey });
     const repo = new UserActivityRepo(client, 'UserActivity');
-    const cursor = encodeHistoryCursor({ userId: 'device-1', sk: 'read#prev', gsi1sk: 'y#prev' });
+    const priorKey = { userId: 'device-1', sk: 'read#prev', gsi1sk: 'y#prev' };
+    const cursor = Buffer.from(JSON.stringify(priorKey), 'utf8').toString('base64url');
 
     const page = await repo.queryHistory('device-1', { cursor });
 
     const input = ddbMock.commandCalls(QueryCommand)[0]?.args[0]?.input;
-    expect(input?.ExclusiveStartKey).toEqual(decodeHistoryCursor(cursor));
-    expect(page.nextCursor).toBe(encodeHistoryCursor(lastKey));
-  });
-});
-
-describe('history cursor encode/decode', () => {
-  it('round-trips a key through base64url', () => {
-    const key = { userId: 'device-1', sk: 'read#abc123', gsi1sk: '2026-07-18#abc123' };
-    expect(decodeHistoryCursor(encodeHistoryCursor(key))).toEqual(key);
+    expect(input?.ExclusiveStartKey).toEqual(priorKey);
+    expect(page.nextCursor).toBe(
+      Buffer.from(JSON.stringify(lastKey), 'utf8').toString('base64url'),
+    );
   });
 });
 

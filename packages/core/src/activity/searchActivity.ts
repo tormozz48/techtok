@@ -18,6 +18,10 @@ export interface SearchActivityOpts {
 
 const DEFAULT_MAX_SCANNED = 500;
 
+/** DynamoDB query page size for the underlying `fetchPage` calls searchActivity
+ * drives — shared by every handler that searches a user's own activity. */
+export const SEARCH_FETCH_PAGE_SIZE = 100;
+
 /**
  * Client-side substring search over a user's own activity (history or
  * bookmarks) — a single-partition Query per page (allowed; the no-scan rule

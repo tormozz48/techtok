@@ -61,7 +61,3 @@ export const TOPIC_LABELS: Record<Language, Record<Topic, string>> = {
 export function getTopicLabel(topic: Topic, lang: Language): string {
   return TOPIC_LABELS[lang][topic];
 }
-
-export function isTopic(value: string): value is Topic {
-  return (TOPICS as readonly string[]).includes(value);
-}

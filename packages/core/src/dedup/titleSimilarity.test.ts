@@ -1,43 +1,41 @@
 import { describe, expect, it } from 'vitest';
-import {
-  DEFAULT_SIMILARITY_THRESHOLD,
-  isLikelyDuplicateTitle,
-  normalizeTitle,
-  tokenSetJaccard,
-} from './titleSimilarity';
+import { DEFAULT_SIMILARITY_THRESHOLD, isLikelyDuplicateTitle } from './titleSimilarity';
 
-describe('normalizeTitle', () => {
-  it('lowercases, strips punctuation, and collapses whitespace', () => {
-    expect(normalizeTitle('  Hello,   World!!  ')).toBe('hello world');
-  });
-});
-
-describe('tokenSetJaccard', () => {
-  it('is 1 for identical titles', () => {
-    expect(tokenSetJaccard('Big Tech Layoffs Hit Again', 'big tech layoffs hit again')).toBe(1);
+describe('isLikelyDuplicateTitle', () => {
+  it('normalizes case, punctuation, and whitespace before comparing', () => {
+    expect(isLikelyDuplicateTitle('  Hello,   World!!  ', 'hello world', 1)).toBe(true);
   });
 
-  it('is 0 for completely unrelated titles', () => {
-    expect(tokenSetJaccard('Scientists discover new exoplanet', 'Local bakery wins award')).toBe(0);
+  it('is a full match for identical titles regardless of case', () => {
+    expect(
+      isLikelyDuplicateTitle('Big Tech Layoffs Hit Again', 'big tech layoffs hit again', 1),
+    ).toBe(true);
+  });
+
+  it('is not a match for completely unrelated titles', () => {
+    expect(
+      isLikelyDuplicateTitle(
+        'Scientists discover new exoplanet',
+        'Local bakery wins award',
+        0.0001,
+      ),
+    ).toBe(false);
   });
 
   it('scores partial overlap between differently-worded headlines for the same story', () => {
     // normalized tokens: 8 in the first title, 9 in the second, 8 shared
     // (the second just adds "new") -> intersection 8 / union 9 = 0.888...
-    const score = tokenSetJaccard(
-      'Company X raises 50 million in funding round',
-      'Company X raises 50 million in new funding round',
-    );
-    expect(score).toBeCloseTo(8 / 9);
+    const a = 'Company X raises 50 million in funding round';
+    const b = 'Company X raises 50 million in new funding round';
+    expect(isLikelyDuplicateTitle(a, b, 8 / 9)).toBe(true);
+    expect(isLikelyDuplicateTitle(a, b, 8 / 9 + 0.01)).toBe(false);
   });
 
-  it('is 0 when either title is empty after normalization', () => {
-    expect(tokenSetJaccard('', 'Something')).toBe(0);
-    expect(tokenSetJaccard('!!!', 'Something')).toBe(0);
+  it('is not a match when either title is empty after normalization', () => {
+    expect(isLikelyDuplicateTitle('', 'Something', 0.0001)).toBe(false);
+    expect(isLikelyDuplicateTitle('!!!', 'Something', 0.0001)).toBe(false);
   });
-});
 
-describe('isLikelyDuplicateTitle', () => {
   it('uses the default threshold', () => {
     expect(isLikelyDuplicateTitle('Big Tech Layoffs Hit Again', 'big tech layoffs hit again')).toBe(
       true,
@@ -48,7 +46,8 @@ describe('isLikelyDuplicateTitle', () => {
   });
 
   it('honors a custom threshold at the boundary', () => {
-    const score = tokenSetJaccard('a b c d', 'a b x y');
+    // 'a b c d' vs 'a b x y': shared tokens {a, b} = 2, union = 4 + 4 - 2 = 6 -> score 1/3
+    const score = 1 / 3;
     expect(isLikelyDuplicateTitle('a b c d', 'a b x y', score)).toBe(true);
     expect(isLikelyDuplicateTitle('a b c d', 'a b x y', score + 0.01)).toBe(false);
   });

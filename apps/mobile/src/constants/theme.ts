@@ -57,6 +57,10 @@ export const Radius = {
   md: 12,
 } as const;
 
+/** Icon size shared by BottomActionBar's own IconButtons and the
+ * BookmarkButton it embeds, so the action-bar row stays visually uniform. */
+export const ActionIconSize = 20;
+
 export const Typography = {
   xs: { fontSize: 11, lineHeight: 14 },
   sm: { fontSize: 13, lineHeight: 18 },

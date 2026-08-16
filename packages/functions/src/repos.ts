@@ -18,7 +18,7 @@ import { lazy } from './lazy';
  * name only when first used — so a Lambda that lacks an env var it never
  * touches keeps working.
  */
-export const getDynamoClient = lazy(createDynamoClient);
+const getDynamoClient = lazy(createDynamoClient);
 
 export const getPostsRepo = lazy(
   () => new PostsRepo(getDynamoClient(), requireEnv('POSTS_TABLE_NAME')),

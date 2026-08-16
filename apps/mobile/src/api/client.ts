@@ -1,6 +1,7 @@
 import {
   type BookmarksResponse,
   bookmarksResponseSchema,
+  type ClientRecord,
   type ContentResponse,
   contentResponseSchema,
   DEVICE_LANGUAGE_HEADER,
@@ -20,8 +21,12 @@ import {
 } from '@techtok/shared';
 import { useAuthStore } from '@/state/authStore';
 import { detectDeviceLanguage, detectDeviceTimezone } from '@/state/deviceLanguage';
+import { queryClient } from '@/state/queryClient';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
+
+/** Default page size shared by fetchHistoryPage and fetchBookmarksPage. */
+const DEFAULT_PAGE_LIMIT = 50;
 
 /** Carries the response status/error code through a failed request so
  * callers can distinguish "quota exceeded" (402, D69) from any other
@@ -148,6 +153,19 @@ export async function postReads(postIds: string[]): Promise<void> {
     method: 'POST',
     body: JSON.stringify({ postIds }),
   });
+  // A newly-read post burns the D69 cardReads quota server-side — invalidate
+  // so the feed's QuotaBadge/paywall reflect it without waiting on staleTime
+  // + an unrelated focus/mount trigger to happen to fire.
+  queryClient.invalidateQueries({ queryKey: ['entitlement'] });
+}
+
+/** Client-batched logs + product analytics (D76) — fire-and-forget from the
+ * caller's perspective; `eventsQueue.ts` owns retry-on-failure. */
+export async function postEvents(records: ClientRecord[]): Promise<void> {
+  await apiFetch(apiUrl('/v1/events'), {
+    method: 'POST',
+    body: JSON.stringify({ records }),
+  });
 }
 
 export interface FetchHistoryPageParams {
@@ -160,7 +178,7 @@ export interface FetchHistoryPageParams {
 
 export async function fetchHistoryPage({
   cursor,
-  limit = 50,
+  limit = DEFAULT_PAGE_LIMIT,
   q,
 }: FetchHistoryPageParams = {}): Promise<HistoryResponse> {
   const url = apiUrl('/v1/history');
@@ -181,7 +199,7 @@ export interface FetchBookmarksPageParams {
 
 export async function fetchBookmarksPage({
   cursor,
-  limit = 50,
+  limit = DEFAULT_PAGE_LIMIT,
   q,
 }: FetchBookmarksPageParams = {}): Promise<BookmarksResponse> {
   const url = apiUrl('/v1/bookmarks');
@@ -207,13 +225,26 @@ export async function deleteBookmark(postId: string): Promise<void> {
 }
 
 /** Reads a compact article (D23; eager generation as of D36) — a plain cache
- * read, no job ids or polling. */
-export async function fetchPostContent(postId: string, lang: Language): Promise<ContentResponse> {
+ * read, no job ids or polling. `intent: 'prefetch'` (D61's read-ahead /
+ * bookmark wifi-prefetch) tells the server this is speculative background
+ * cache-warming, not a genuine reader open — it skips the D69 reader-opens
+ * quota gate/increment there, and skips invalidating `['entitlement']` here
+ * since nothing server-side actually changed. */
+export async function fetchPostContent(
+  postId: string,
+  lang: Language,
+  intent: 'read' | 'prefetch' = 'read',
+): Promise<ContentResponse> {
   const url = apiUrl(`/v1/posts/${encodeURIComponent(postId)}/content`);
   url.searchParams.set('lang', lang);
+  if (intent === 'prefetch') url.searchParams.set('intent', intent);
 
   const response = await apiFetch(url);
-  return contentResponseSchema.parse(await response.json());
+  const parsed = contentResponseSchema.parse(await response.json());
+  if (intent === 'read') {
+    queryClient.invalidateQueries({ queryKey: ['entitlement'] });
+  }
+  return parsed;
 }
 
 /** Deletes the signed-in user's account and all their data (D68) — required

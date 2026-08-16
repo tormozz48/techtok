@@ -1,4 +1,5 @@
 import type { Topic } from '@techtok/shared';
+import { isBefore, parseISO } from 'date-fns';
 import { describe, expect, it, vi } from 'vitest';
 import type { PostRecord } from '../posts.types';
 import { buildFeed } from './buildFeed';
@@ -334,8 +335,8 @@ describe('buildFeed', () => {
     // `stuck` sat inside the window just paginated past. This is the
     // documented, accepted skip: it self-heals only on a fresh feed load.
     expect(page.nextBefore).toBe(readyPosts[0]?.publishedAt);
-    expect(new Date(page.nextBefore as string).getTime()).toBeLessThan(
-      new Date(stuckDiscovered.publishedAt).getTime(),
-    );
+    expect(
+      isBefore(parseISO(page.nextBefore as string), parseISO(stuckDiscovered.publishedAt)),
+    ).toBe(true);
   });
 });

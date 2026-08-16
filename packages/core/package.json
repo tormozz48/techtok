@@ -21,6 +21,8 @@
     "@extractus/article-extractor": "8.1.0",
     "@techtok/shared": "workspace:*",
     "cheerio": "1.2.0",
+    "date-fns": "^4.4.0",
+    "date-fns-tz": "^3.2.0",
     "he": "1.2.0",
     "image-size": "2.0.2",
     "robots-parser": "3.0.1",

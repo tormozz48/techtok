@@ -1,3 +1,4 @@
+import { isAfter, parseISO } from 'date-fns';
 import type { Entitlement } from './entitlement.types';
 
 /**
@@ -14,5 +15,5 @@ export function isPlus(
   const entitlement = user.entitlement;
   if (!entitlement || entitlement.plan !== 'plus') return false;
   if (!entitlement.expiresAt) return true;
-  return new Date(entitlement.expiresAt).getTime() > now.getTime();
+  return isAfter(parseISO(entitlement.expiresAt), now);
 }

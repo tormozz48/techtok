@@ -48,6 +48,14 @@ export const feedResponseSchema = z.object({
    * (not `false`) on every ordinary response, including for Plus users. */
   quotaExhausted: z.literal(true).optional(),
   resetsAt: z.iso.datetime().optional(),
+  /** The account language the server actually rendered this page's cards in
+   * (`Users.language`, D21) — distinct from a card's own `servedLang`, which
+   * is a per-post fallback outcome when a translation is missing. The client
+   * adopts this so chrome/reader/prefetch can never drift from what the feed
+   * is showing (D79). Optional: EAS OTA ships JS independently of `sst
+   * deploy`, so a bundle expecting this field must still parse a response
+   * from an API that predates it. */
+  language: languageSchema.optional(),
 });
 export type FeedResponse = z.infer<typeof feedResponseSchema>;
 

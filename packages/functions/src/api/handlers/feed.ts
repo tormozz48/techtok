@@ -45,6 +45,7 @@ export const handler = withAuth(async (event, auth) => {
           nextBefore: null,
           quotaExhausted: true,
           resetsAt: nextLocalMidnightUtc(timezone).toISOString(),
+          language: lang,
         }),
       );
     }
@@ -75,6 +76,7 @@ export const handler = withAuth(async (event, auth) => {
   const body = feedResponseSchema.parse({
     items: page.items.map((post) => toCard(post, bookmarkedIds.has(post.postId), lang)),
     nextBefore: page.nextBefore,
+    language: lang,
   });
 
   return jsonResponse(200, body);

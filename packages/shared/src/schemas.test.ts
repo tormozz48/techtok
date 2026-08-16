@@ -330,6 +330,11 @@ describe('feedResponseSchema', () => {
       feedResponseSchema.parse({ items: [], nextBefore: null, quotaExhausted: false }),
     ).toThrow();
   });
+
+  it('parses the language the server rendered the page in (D79)', () => {
+    const response = { items: [], nextBefore: null, language: 'ru' };
+    expect(feedResponseSchema.parse(response)).toEqual(response);
+  });
 });
 
 describe('entitlementResponseSchema', () => {

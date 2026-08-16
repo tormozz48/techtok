@@ -15,6 +15,7 @@ import { Colors, Spacing } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { logError } from '@/state/eventsQueue';
+import { useLanguageStore } from '@/state/languageStore';
 
 export default function FeedScreen() {
   const { data, isLoading, isError, refetch, fetchNextPage, isFetchingNextPage } = useFeedQuery();
@@ -46,6 +47,17 @@ export default function FeedScreen() {
   useEffect(() => {
     if (isError) logError('feed fetch failed');
   }, [isError]);
+
+  // D79: the server is the source of truth for the account's language
+  // (Users.language) — this is the one reconciliation channel that can't be
+  // skipped, since the feed fetches on every launch, unlike languageStore's
+  // own load() (a separate GET /v1/me a warm app resume never re-runs).
+  // Reads the *last* page like isQuotaExhausted above, for the same reason:
+  // it's the freshest read of what the server just rendered.
+  const serverLanguage = data?.pages.at(-1)?.language;
+  useEffect(() => {
+    if (serverLanguage) useLanguageStore.getState().adoptServerLanguage(serverLanguage);
+  }, [serverLanguage]);
 
   // Keeps the action bar's per-card actions in sync with the visible card
   // without waiting for a swipe: seeds activeCard on first load, and
@@ -130,6 +142,14 @@ export default function FeedScreen() {
             used={entitlementQuery.data.quota.cardReads}
             limit={entitlementQuery.data.quota.cardReadsLimit}
           />
+          {/* Surfaced alongside cardReads (D69) so the reader-opens cap is
+           * visible before it's hit, instead of only discovered as a 402
+           * mid-tap — reuses the same free-plan gate. */}
+          <QuotaBadge
+            used={entitlementQuery.data.quota.readerOpens}
+            limit={entitlementQuery.data.quota.readerOpensLimit}
+            label={strings.quota.readerOpensLabel}
+          />
         </View>
       ) : null}
       <BottomActionBar
@@ -153,5 +173,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: Spacing.six,
     right: Spacing.three,
+    gap: Spacing.half,
+    alignItems: 'flex-end',
   },
 });

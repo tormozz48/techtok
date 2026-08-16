@@ -33,6 +33,16 @@ expoAutolinking.useExpoModules()
 
 rootProject.name = 'TechTok'
 
+// Bounds the local build-cache's growth (CI restores/saves this under
+// ~/.gradle/caches — see the Mobile build workflow's "Cache Gradle" step).
+// Without a removal policy the cache only grows, and CI has a per-repo cache
+// storage budget shared with the pnpm store cache.
+buildCache {
+  local {
+    removeUnusedEntriesAfterDays = 7
+  }
+}
+
 expoAutolinking.useExpoVersionCatalog()
 
 include ':app'

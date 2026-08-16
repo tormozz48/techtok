@@ -1,4 +1,6 @@
-import type { ErrorResponse } from '@techtok/shared';
+import { Logger } from '@aws-lambda-powertools/logger';
+import { errorMessage } from '@techtok/core';
+import { type ErrorResponse, REQUEST_ID_HEADER } from '@techtok/shared';
 import type {
   APIGatewayProxyEventV2,
   APIGatewayProxyHandlerV2,
@@ -7,6 +9,8 @@ import type {
 } from 'aws-lambda';
 import type { z } from 'zod';
 import { type AuthContext, extractAuthContext } from './auth';
+
+const logger = new Logger({ serviceName: 'api' });
 
 export function jsonResponse(statusCode: number, body: unknown): APIGatewayProxyStructuredResultV2 {
   return {
@@ -60,6 +64,41 @@ export function parseJsonBody<S extends z.ZodType>(
   return { ok: true, data: parsed.data };
 }
 
+function requestContext(event: APIGatewayProxyEventV2): Record<string, unknown> {
+  return {
+    requestId: event.requestContext.requestId,
+    clientRequestId: event.headers[REQUEST_ID_HEADER],
+    route: event.routeKey,
+  };
+}
+
+async function runWithLogging(
+  context: Record<string, unknown>,
+  handle: () => Promise<APIGatewayProxyResultV2>,
+): Promise<APIGatewayProxyResultV2> {
+  const start = Date.now();
+  try {
+    const result = await handle();
+    logger.info('request completed', { ...context, durationMs: Date.now() - start });
+    return result;
+  } catch (err) {
+    logger.error('request failed', {
+      ...context,
+      durationMs: Date.now() - start,
+      error: errorMessage(err),
+    });
+    throw err;
+  }
+}
+
+/** Wraps a route that skips `withAuth` (`GET /v1/topics`, `GET /v1/sources`)
+ * so every route gets the same request/error logging. */
+export function withPublic(
+  handle: (event: APIGatewayProxyEventV2) => Promise<APIGatewayProxyResultV2>,
+): APIGatewayProxyHandlerV2 {
+  return async (event) => runWithLogging(requestContext(event), () => handle(event));
+}
+
 /**
  * Google-identity middleware (DESIGN §5, D68): every route wired to the API
  * Gateway JWT authorizer only ever reaches its handler with an
@@ -71,10 +110,12 @@ export function withAuth(
   handle: (event: APIGatewayProxyEventV2, auth: AuthContext) => Promise<APIGatewayProxyResultV2>,
 ): APIGatewayProxyHandlerV2 {
   return async (event) => {
+    const context = requestContext(event);
     const auth = extractAuthContext(event);
     if (!auth) {
+      logger.warn('unauthorized request', context);
       return errorResponse(401, 'unauthorized', 'A valid Google ID token is required');
     }
-    return handle(event, auth);
+    return runWithLogging({ ...context, userId: auth.userId }, () => handle(event, auth));
   };
 }

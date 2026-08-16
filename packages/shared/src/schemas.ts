@@ -98,6 +98,10 @@ export const DEVICE_LANGUAGE_HEADER = 'x-device-language';
  * (D69's local-midnight quota reset) the same way `DEVICE_LANGUAGE_HEADER`
  * seeds `language` — first-touch only, never overwritten afterward. */
 export const DEVICE_TIMEZONE_HEADER = 'x-device-timezone';
+/** A per-request id the client generates and sends on every call, so a client
+ * log entry (D76) and the exact backend Lambda invocation it triggered can be
+ * correlated in CloudWatch Logs Insights. */
+export const REQUEST_ID_HEADER = 'x-techtok-request-id';
 
 export const meResponseSchema = z.object({
   userId: z.string(),

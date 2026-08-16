@@ -22,11 +22,11 @@ export interface BookmarksPage {
   readonly nextCursor: string | null;
 }
 
-export function encodeHistoryCursor(key: Record<string, unknown>): string {
+function encodeHistoryCursor(key: Record<string, unknown>): string {
   return Buffer.from(JSON.stringify(key), 'utf8').toString('base64url');
 }
 
-export function decodeHistoryCursor(cursor: string): Record<string, unknown> {
+function decodeHistoryCursor(cursor: string): Record<string, unknown> {
   return JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
 }
 

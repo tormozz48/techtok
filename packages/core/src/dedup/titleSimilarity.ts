@@ -1,7 +1,7 @@
 export const DEFAULT_SIMILARITY_THRESHOLD = 0.6;
 
 /** Lowercases, strips punctuation, and collapses whitespace. */
-export function normalizeTitle(title: string): string {
+function normalizeTitle(title: string): string {
   return title
     .toLowerCase()
     .replace(/[^\p{L}\p{N}\s]/gu, ' ')
@@ -11,7 +11,7 @@ export function normalizeTitle(title: string): string {
 }
 
 /** Token-set (unordered) overlap between two titles, 0..1. */
-export function tokenSetJaccard(a: string, b: string): number {
+function tokenSetJaccard(a: string, b: string): number {
   const setA = new Set(normalizeTitle(a).split(' ').filter(Boolean));
   const setB = new Set(normalizeTitle(b).split(' ').filter(Boolean));
   if (setA.size === 0 || setB.size === 0) return 0;

@@ -22,7 +22,7 @@ export const AFFINITY_GAIN = 0.5;
 export const MAX_AFFINITY_BOOST = 1.5;
 
 /** Exponential recency decay: 1 at age 0, 0.5 at one half-life, 0.25 at two, etc. */
-export function recencyDecay(publishedAt: string, now: Date = new Date()): number {
+function recencyDecay(publishedAt: string, now: Date = new Date()): number {
   const ageHours = Math.max(0, now.getTime() - new Date(publishedAt).getTime()) / MS_PER_HOUR;
   return 2 ** (-ageHours / RECENCY_HALF_LIFE_HOURS);
 }
@@ -50,7 +50,7 @@ export function topicAffinityBoosts(
   );
 }
 
-export function scorePost(
+function scorePost(
   post: Pick<PostRecord, 'publishedAt' | 'sourceId' | 'primaryTopic'>,
   sourceWeights: Map<string, number>,
   now: Date = new Date(),
@@ -96,7 +96,7 @@ function interleaveByKey(sorted: PostRecord[], keyOf: (post: PostRecord) => stri
  * Keeps a single topic from dominating consecutive slots when several topics
  * are in play, without discarding any candidate.
  */
-export function interleaveByTopic(sorted: PostRecord[]): PostRecord[] {
+function interleaveByTopic(sorted: PostRecord[]): PostRecord[] {
   return interleaveByKey(sorted, (post) => post.primaryTopic);
 }
 
@@ -105,7 +105,7 @@ export function interleaveByTopic(sorted: PostRecord[]): PostRecord[] {
  * Keeps a single source from dominating consecutive slots when several sources
  * are in play, without discarding any candidate.
  */
-export function interleaveBySource(sorted: PostRecord[]): PostRecord[] {
+function interleaveBySource(sorted: PostRecord[]): PostRecord[] {
   return interleaveByKey(sorted, (post) => post.sourceId);
 }
 

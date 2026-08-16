@@ -1,15 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { firstImageSrc, stripHtml, toExcerpt } from './htmlText';
-
-describe('stripHtml', () => {
-  it('replaces tags with a space and decodes entities', () => {
-    expect(stripHtml('<p>Tom &amp; Jerry&#8217;s <b>show</b></p>')).toBe(' Tom & Jerry’s  show  ');
-  });
-});
+import { firstImageSrc, toExcerpt } from './htmlText';
 
 describe('toExcerpt', () => {
   it('returns an empty string for missing input', () => {
     expect(toExcerpt(undefined)).toBe('');
+  });
+
+  it('strips tags and decodes entities', () => {
+    expect(toExcerpt('<p>Tom &amp; Jerry&#8217;s <b>show</b></p>')).toBe('Tom & Jerry’s show');
   });
 
   it('collapses whitespace from multi-line HTML', () => {

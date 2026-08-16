@@ -18,7 +18,13 @@ import { blocksToUtterances } from '@/utils/blocksToUtterances';
 import { translationFeedbackMailto } from '@/utils/feedback';
 
 export default function PostScreen() {
-  const { id, title, sourceName, url, isBookmarked } = useLocalSearchParams<{
+  const {
+    id,
+    title,
+    sourceName,
+    url,
+    isBookmarked: initialIsBookmarked,
+  } = useLocalSearchParams<{
     id: string;
     title?: string;
     sourceName?: string;
@@ -30,6 +36,12 @@ export default function PostScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const language = useLanguageStore((state) => state.language);
   const [viewLang, setViewLang] = useState<Language>(language);
+  // Route params are a one-time navigation snapshot (D25) — they never
+  // update, so a confirmed bookmark toggle would otherwise revert once
+  // BookmarkButton clears its transient optimistic overlay and display falls
+  // back to this stale value. The feed's BottomActionBar doesn't need this:
+  // its `isBookmarked` comes from the live, patched `['feed']` query cache.
+  const [isBookmarked, setIsBookmarked] = useState(initialIsBookmarked === 'true');
 
   const contentQuery = useQuery({
     queryKey: ['content', id, viewLang],
@@ -149,10 +161,11 @@ export default function PostScreen() {
         </Button>
         <BookmarkButton
           postId={id}
-          isBookmarked={isBookmarked === 'true'}
+          isBookmarked={isBookmarked}
           iconColor={colors.text}
           testID="reader-bookmark"
           snapshot={title && sourceName ? { cardTitle: title, sourceName, url } : undefined}
+          onToggled={setIsBookmarked}
         />
         <IconButton
           icon="share-variant"

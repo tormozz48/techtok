@@ -51,7 +51,7 @@ type Story = StoryObj<typeof FeedScreen>;
 export const Populated: Story = {
   decorators: [
     withSeededQueries([
-      { queryKey: ['feed'], data: infinitePage({ items: buildCards(6), nextBefore: null }) },
+      { queryKey: ['feed', 'en'], data: infinitePage({ items: buildCards(6), nextBefore: null }) },
       { queryKey: ['entitlement'], data: FREE_ENTITLEMENT },
     ]),
   ],
@@ -60,7 +60,7 @@ export const Populated: Story = {
 export const Empty: Story = {
   decorators: [
     withSeededQueries([
-      { queryKey: ['feed'], data: infinitePage({ items: [], nextBefore: null }) },
+      { queryKey: ['feed', 'en'], data: infinitePage({ items: [], nextBefore: null }) },
       { queryKey: ['entitlement'], data: FREE_ENTITLEMENT },
     ]),
   ],

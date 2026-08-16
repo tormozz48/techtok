@@ -26,6 +26,13 @@ export const useLanguageStore = create<LanguageState>((set) => ({
   isLoading: false,
 
   load: async () => {
+    // Re-read now that state/storage.ts's ready() has resolved — the
+    // module-level initial value above runs at import time, before
+    // AsyncStorage is hydrated, so it's always the 'en' fallback (same fix
+    // as themeStore.ts's loadCachedThemeMode() re-read). Without this, a
+    // persisted language choice only ever came back via the network call
+    // below, which _layout.tsx used to fire before auth had restored.
+    set({ language: loadCachedLanguage() });
     set({ isLoading: true });
     try {
       const me = await fetchMe();

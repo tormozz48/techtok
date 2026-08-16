@@ -75,7 +75,7 @@ export default function FeedScreen() {
         />
         <BottomActionBar
           activeCard={undefined}
-          onRefresh={() => queryClient.resetQueries({ queryKey: ['feed'], exact: true })}
+          onRefresh={() => queryClient.resetQueries({ queryKey: ['feed'] })}
         />
       </View>
     );
@@ -87,7 +87,7 @@ export default function FeedScreen() {
         <ScreenState message={strings.feed.empty} />
         <BottomActionBar
           activeCard={undefined}
-          onRefresh={() => queryClient.resetQueries({ queryKey: ['feed'], exact: true })}
+          onRefresh={() => queryClient.resetQueries({ queryKey: ['feed'] })}
         />
       </View>
     );
@@ -129,7 +129,7 @@ export default function FeedScreen() {
       ) : null}
       <BottomActionBar
         activeCard={activeCard ?? cards[0]}
-        onRefresh={() => queryClient.resetQueries({ queryKey: ['feed'], exact: true })}
+        onRefresh={() => queryClient.resetQueries({ queryKey: ['feed'] })}
       />
     </View>
   );

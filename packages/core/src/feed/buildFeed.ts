@@ -1,4 +1,4 @@
-import { TOPICS, type Topic } from '@techtok/shared';
+import { type Language, TOPICS, type Topic } from '@techtok/shared';
 import type { PostRecord } from '../posts.types';
 import { rankCandidates, topicAffinityBoosts } from './scoring';
 
@@ -30,6 +30,13 @@ export interface BuildFeedParams {
   /** Implicit per-topic read-affinity counters (Users.topicReads) — feeds a
    * bounded ranking boost, see scoring.ts's topicAffinityBoosts. */
   readonly topicReads?: Partial<Record<Topic, number>>;
+  /** The language the reader will actually request content in — when set, a
+   * post whose eager compact article hasn't landed for this language yet
+   * (`compactLangs` missing it) is excluded from the feed, the same
+   * accepted-tradeoff class as `duplicateOf`/muted/compact-disabled below.
+   * Optional so existing callers/tests without this concern default to no
+   * filtering, same precedent as `mutedSourceIds`. */
+  readonly lang?: Language;
 }
 
 export interface FeedPage {
@@ -50,12 +57,19 @@ export interface FeedPage {
  *
  * Posts flagged `duplicateOf` (phase-4 cross-source dedup experiment),
  * posts from a muted source, posts from a source with the compact-reader
- * kill switch off (D23 — they can never have a short version), and posts not
- * yet `status: 'ready'` (pre-transform `discovered`, or `failed`) are filtered
- * out here rather than at the DynamoDB layer — an accepted over-fetch tradeoff
- * (a page with many duplicates, muted-source, compact-disabled, or non-ready
- * posts may return fewer than `limit` items) rather than adding a GSI just for
- * this.
+ * kill switch off (D23 — they can never have a short version), posts not
+ * yet `status: 'ready'` (pre-transform `discovered`, or `failed`), and posts
+ * whose eager compact article hasn't landed yet for `params.lang` (D36's own
+ * documented revisit trigger — confirmed happening in practice: a live dev
+ * preflight of the newest 300 posts found ~2% permanently stuck at
+ * `compactLangs: []` well past the ingest cadence, not mid-generation, and
+ * they skew toward the freshest/highest-ranked slot since recency dominates
+ * scoring — exactly the "first card opens the browser instead of the reader"
+ * report this filter closes) are filtered out here rather than at the
+ * DynamoDB layer — an accepted over-fetch tradeoff (a page with many
+ * duplicates, muted-source, compact-disabled, non-ready, or not-yet-compact
+ * posts may return fewer than `limit` items) rather than adding a GSI just
+ * for this.
  *
  * The `status` filter has the same watermark-cursor tradeoff as
  * `duplicateOf`: within one continuous pagination session, a post that is
@@ -85,7 +99,8 @@ export async function buildFeed(deps: BuildFeedDeps, params: BuildFeedParams): P
         !post.duplicateOf &&
         post.status === 'ready' &&
         !params.mutedSourceIds?.has(post.sourceId) &&
-        !compactDisabledSourceIds.has(post.sourceId),
+        !compactDisabledSourceIds.has(post.sourceId) &&
+        (!params.lang || (post.compactLangs ?? []).includes(params.lang)),
     )
     .sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : a.publishedAt > b.publishedAt ? -1 : 0))
     .slice(0, MAX_CANDIDATES);

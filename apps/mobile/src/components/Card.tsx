@@ -3,7 +3,7 @@ import { getTopicLabel } from '@techtok/shared';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Linking, StyleSheet, Text, View } from 'react-native';
 import { Chip, TouchableRipple } from 'react-native-paper';
 import { Colors, Spacing, Typography } from '@/constants/theme';
@@ -23,7 +23,6 @@ export function Card({ card }: CardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const strings = useStrings();
   const language = useLanguageStore((state) => state.language);
-  const longPressedRef = useRef(false);
 
   return (
     <View style={styles.container}>
@@ -54,10 +53,6 @@ export function Card({ card }: CardProps) {
         style={styles.content}
         testID="feed-card"
         onPress={() => {
-          if (longPressedRef.current) {
-            longPressedRef.current = false;
-            return;
-          }
           enqueueRead(card.id);
           router.push({
             pathname: '/post/[id]',
@@ -73,8 +68,15 @@ export function Card({ card }: CardProps) {
         onLongPress={
           card.isTranslated
             ? () => {
-                longPressedRef.current = true;
-                Linking.openURL(translationFeedbackMailto(card.id, card.servedLang));
+                // RN's Pressability already suppresses onPress after a
+                // long-press gesture (there's no config hook to make it fire
+                // anyway), so there's no next tap to guard against here — a
+                // previous guard here was actively harmful, swallowing the
+                // *following* genuine tap instead. Swallow a rejection (e.g.
+                // no mail app installed) rather than an unhandled promise.
+                Linking.openURL(translationFeedbackMailto(card.id, card.servedLang)).catch(
+                  () => {},
+                );
               }
             : undefined
         }

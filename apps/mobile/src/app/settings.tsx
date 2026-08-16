@@ -12,6 +12,7 @@ import { TopicPicker } from '@/components/TopicPicker';
 import { Spacing, type ThemeColors } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
+import { logError } from '@/state/eventsQueue';
 import { useLanguageStore } from '@/state/languageStore';
 import { useMutedSourcesStore } from '@/state/mutedSourcesStore';
 import { type ThemeMode, useThemeStore } from '@/state/themeStore';
@@ -54,8 +55,15 @@ export default function SettingsScreen() {
   };
 
   const applyLanguage = async (next: Language) => {
-    await setLanguage(next);
-    queryClient.invalidateQueries({ queryKey: ['feed'] });
+    try {
+      await setLanguage(next);
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+    } catch (error) {
+      // setLanguage already rolled the store back on a genuine failure (see
+      // languageStore.ts) — this just stops the rejection from going
+      // unhandled and leaves a trace of why the picker reverted.
+      logError('applyLanguage failed', { message: String(error) });
+    }
   };
 
   const toggleMutedSource = async (sourceId: string) => {

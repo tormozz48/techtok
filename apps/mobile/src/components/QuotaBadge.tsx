@@ -5,6 +5,10 @@ import { useStrings } from '@/i18n/useStrings';
 export interface QuotaBadgeProps {
   readonly used: number;
   readonly limit: number;
+  /** Optional prefix (e.g. strings.quota.readerOpensLabel) distinguishing
+   * this badge from another quota badge shown alongside it — omit when only
+   * one quota is on screen. */
+  readonly label?: string;
 }
 
 /**
@@ -13,11 +17,14 @@ export interface QuotaBadgeProps {
  * that, this component just renders whatever numbers it's given). Reuses
  * the overlay chip palette Card.tsx's topic chip already established.
  */
-export function QuotaBadge({ used, limit }: QuotaBadgeProps) {
+export function QuotaBadge({ used, limit, label }: QuotaBadgeProps) {
   const strings = useStrings();
   return (
     <View style={styles.badge}>
-      <Text style={styles.text}>{strings.quota.remaining(used, limit)}</Text>
+      <Text style={styles.text}>
+        {label ? `${label} ` : ''}
+        {strings.quota.remaining(used, limit)}
+      </Text>
     </View>
   );
 }

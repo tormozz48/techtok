@@ -95,6 +95,38 @@ describe('languageStore', () => {
     });
   });
 
+  describe('hydrate', () => {
+    it('picks up a language persisted after import time, when the store still holds the pre-hydration fallback', () => {
+      // The store's initial value is computed at module import, before
+      // state/storage.ts's cache is populated, so it is always 'en' — this is
+      // the read _layout.tsx's ready() gate performs before the first render,
+      // and what keeps the feed's language-keyed query from mounting under
+      // 'en' and being refetched under the real language a second later.
+      storage.set('techtok.language', 'ru');
+
+      useLanguageStore.getState().hydrate();
+
+      expect(useLanguageStore.getState().language).toBe('ru');
+    });
+
+    it('falls back to en when nothing valid is persisted', () => {
+      storage.set('techtok.language', 'klingon');
+
+      useLanguageStore.getState().hydrate();
+
+      expect(useLanguageStore.getState().language).toBe('en');
+    });
+
+    it('makes no network call, so it is safe before auth has restored', () => {
+      storage.set('techtok.language', 'pl');
+
+      useLanguageStore.getState().hydrate();
+
+      expect(fetchMeMock).not.toHaveBeenCalled();
+      expect(useLanguageStore.getState().language).toBe('pl');
+    });
+  });
+
   describe('load', () => {
     it('reconciles to the server language on success', async () => {
       fetchMeMock.mockResolvedValue({ language: 'ru' });

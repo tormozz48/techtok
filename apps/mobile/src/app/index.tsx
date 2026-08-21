@@ -17,7 +17,16 @@ import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
 
 export default function FeedScreen() {
-  const { data, isLoading, isError, refetch, fetchNextPage, isFetchingNextPage } = useFeedQuery();
+  const {
+    data,
+    dataUpdatedAt,
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+    fetchNextPage,
+    isFetchingNextPage,
+  } = useFeedQuery();
   const entitlementQuery = useEntitlementQuery();
   const isRestoring = useIsRestoring();
   const [activeCard, setActiveCard] = useState<CardData | undefined>(undefined);
@@ -27,6 +36,11 @@ export default function FeedScreen() {
   // Guards against re-navigating to /paywall on every subsequent onNearEnd
   // call while the user keeps swiping through already-cached cards.
   const hasPromptedPaywall = useRef(false);
+  // Distinguishes cards this mount actually fetched from cards restored out
+  // of the persisted query cache (_layout.tsx dehydrates ['feed'] for
+  // offline use), whose dataUpdatedAt predates the mount — see the gate
+  // below. Lazy initializer so it's the mount time, not the last render's.
+  const [mountedAt] = useState(() => Date.now());
 
   const cards = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data]);
   // D69: the *last* fetched page, not any page, since only the newest tells
@@ -71,7 +85,23 @@ export default function FeedScreen() {
     });
   }, [cards]);
 
-  if (isLoading || isRestoring) {
+  // A cold start restores the persisted feed and paints it instantly, then —
+  // the restored pages being older than FEED_STALE_TIME_MS — replaces every
+  // card once the mount refetch lands a round-trip later. Card is keyed by
+  // card.id, so a wholesale replacement unmounts the touchable the user is
+  // mid-press on, and Pressability cancels a press whose target unmounts:
+  // the tap is silently swallowed, which is the "first posts aren't
+  // clickable until you swipe a few times" report (D80). So hold the
+  // existing LoadingScreen until the cards on screen are ones this mount
+  // fetched, and paint exactly one card set.
+  //
+  // Scoped to pre-first-fetch data on purpose: once a fetch from this mount
+  // has landed, dataUpdatedAt stays ahead of mountedAt, so later fetches
+  // (fetchNextPage, A1's focus refetch) never blank the feed. And a *failed*
+  // refetch clears isFetching without advancing dataUpdatedAt, so an offline
+  // cold start falls through to the restored cards instead of hanging here.
+  const isShowingPreMountData = dataUpdatedAt < mountedAt;
+  if (isLoading || isRestoring || (isShowingPreMountData && isFetching)) {
     return <LoadingScreen />;
   }
 

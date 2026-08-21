@@ -58,6 +58,15 @@ function RootLayout() {
       startNetworkMonitoring();
       useTopicsStore.getState().load();
       useThemeStore.getState().load();
+      // Storage-only, network-free (unlike languageStore.load() below, which
+      // needs auth): the feed's query key is keyed by language, so the first
+      // render has to already know the persisted one. Without this the feed
+      // mounted under 'en', then swapped to the real language a second later
+      // — replacing every card in the pager, which cancels any tap already
+      // in flight on the first card (confirmed in production access logs:
+      // four GET /v1/feed calls and two read-ahead prefetch bursts with
+      // different post ids inside 1.6s of every launch).
+      useLanguageStore.getState().hydrate();
       setShowOnboarding(!hasSeenOnboarding());
       // Held inside the same hydration gate as everything else (D68): a
       // silent-restore attempt (Google Sign-In's own persisted session, not

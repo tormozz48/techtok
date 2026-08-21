@@ -1,7 +1,6 @@
 import type { Card as CardData } from '@techtok/shared';
 
 export const PREFETCH_IMAGE_COUNT = 3;
-export const PREFETCH_CONTENT_COUNT = 3;
 
 export function selectImagesToPrefetch(
   cards: CardData[],
@@ -14,12 +13,4 @@ export function selectImagesToPrefetch(
     if (url) urls.push(url);
   }
   return urls;
-}
-
-export function selectContentToPrefetch(
-  cards: CardData[],
-  position: number,
-  count = PREFETCH_CONTENT_COUNT,
-): string[] {
-  return cards.slice(position + 1, position + 1 + count).map((card) => card.id);
 }

@@ -2,10 +2,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Language, Topic } from '@techtok/shared';
 import { Link } from 'expo-router';
 import { useEffect, useMemo } from 'react';
-import { ScrollView, StyleSheet, Text } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { List } from 'react-native-paper';
 import { fetchSources } from '@/api/client';
 import { useEntitlementQuery } from '@/api/useEntitlementQuery';
+import { BuildInfo } from '@/components/BuildInfo';
 import { LanguagePicker } from '@/components/LanguagePicker';
 import { SelectableList } from '@/components/SelectableList';
 import { TopicPicker } from '@/components/TopicPicker';
@@ -157,6 +158,9 @@ export default function SettingsScreen() {
           />
         </>
       ) : null}
+      <View style={styles.sectionTitleSpaced}>
+        <BuildInfo />
+      </View>
     </ScrollView>
   );
 }

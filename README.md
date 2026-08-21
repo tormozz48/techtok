@@ -15,7 +15,7 @@ This README covers running, developing, and deploying the project day to day. Fo
 - **Localized** — `en` · `ru` · `uk` · `pl`, for both card content (LLM-translated) and the app's own chrome.
 - **History, bookmarks & search** — everything you've read or saved, searchable via `?q=` on both list endpoints.
 - **Listen mode** — `expo-speech` TTS in the feed action bar and the reader.
-- **Offline** — bookmarked and read-ahead articles prefetch their content over wifi (50-entry cap).
+- **Offline** — feed, bookmarks and already-opened article content persist for a day, so a cold start reads without a network hit. Images (not article content) read ahead 3 cards on wifi.
 - **Stats** — reading streak plus top topics/sources, computed client-side from history pages.
 - **Plans** — Free and Plus (€2.99/mo · €24.99/yr, D73). Free is capped server-side at 100 card reads and 20 reader opens per local day; Plus lifts both. Entitlement is provider-agnostic (D70), so it can be granted by hand today — Play Billing arrives in phase 21.
 
@@ -210,6 +210,22 @@ pnpm --filter mobile prebuild:android    # regenerate android/ after app.json / 
 Release signing reads a gitignored `apps/mobile/android/keystore.properties` (falls back to the debug key when absent). Keystore creation, Google Play publishing, and the bare-workflow caveats are documented in [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md).
 
 Note that `eas.json`'s `production` profile still builds an **APK**; the Play launch needs an AAB path (phase 23).
+
+### Verifying an OTA update landed
+
+`Mobile build` publishes the JS bundle to the `preview` EAS Update channel, and `AndroidManifest.xml` sets `EXPO_UPDATES_CHECK_ON_LAUNCH=ALWAYS` with a 0 ms wait — so a device fetches a new bundle in the background on one launch and runs it on the **next** one.
+
+**Settings → Build** is the on-device marker. It reads `expo-updates` and shows whether the running JS came over the air or shipped inside the APK, plus the short update id, publish time, channel, and runtime version:
+
+| Row | Embedded launch | After an OTA update |
+|---|---|---|
+| Running | Bundle shipped with the app | Over-the-air update |
+| Update ID | `—` | first 8 chars of the EAS update id |
+| Published | `—` | publish time, UTC |
+
+To confirm: relaunch the app twice, then match the update id against `eas update:list --channel preview` (or the EAS dashboard). In Expo Go every field except the bundle version reads `—`, since there is no update runtime.
+
+An OTA push only reaches devices whose installed APK has the same `runtimeVersion` (`apps/mobile/app.json`, hand-maintained) — a native-affecting change needs that bumped and a fresh APK, not an OTA.
 
 ## Ops scripts
 

@@ -16,12 +16,6 @@ jest.mock('@/api/client', () => ({
   fetchMe: jest.fn(),
   putLanguage: jest.fn(),
 }));
-jest.mock('@/api/prefetchContent', () => ({
-  prefetchPostContent: jest.fn(),
-}));
-jest.mock('@/state/network', () => ({
-  getIsWifi: jest.fn(() => false),
-}));
 jest.mock(
   'react-native-safe-area-context',
   () => require('react-native-safe-area-context/jest/mock').default,

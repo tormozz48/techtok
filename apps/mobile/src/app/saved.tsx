@@ -1,16 +1,13 @@
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { IconButton, List, Searchbar } from 'react-native-paper';
 import { deleteBookmark, fetchBookmarksPage } from '@/api/client';
-import { prefetchPostContent } from '@/api/prefetchContent';
 import { ScreenState } from '@/components/ScreenState';
 import { Spacing, type ThemeColors } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
-import { useLanguageStore } from '@/state/languageStore';
-import { getIsWifi } from '@/state/network';
 import { timeAgo } from '@/utils/timeAgo';
 
 export default function SavedScreen() {
@@ -30,16 +27,6 @@ export default function SavedScreen() {
 
   const items = data?.pages.flatMap((page) => page.items) ?? [];
   const isSearching = submittedQuery.length > 0;
-
-  useEffect(() => {
-    if (!getIsWifi() || !data) return;
-    const language = useLanguageStore.getState().language;
-    for (const page of data.pages) {
-      for (const item of page.items) {
-        prefetchPostContent(queryClient, item.postId, language);
-      }
-    }
-  }, [data, queryClient]);
 
   const removeBookmark = async (postId: string) => {
     queryClient.setQueryData(['bookmarks', submittedQuery], (current: typeof data) => {

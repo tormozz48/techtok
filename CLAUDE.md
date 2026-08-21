@@ -4,7 +4,7 @@ TikTok-style swipe feed for tech & science news: Expo/React Native Android app +
 
 The two documents that govern this repo:
 
-- [docs/DESIGN.md](docs/DESIGN.md) — architecture, API, data model. §2 is the **decision log** (D1–D82), §12 the deferred defaults.
+- [docs/DESIGN.md](docs/DESIGN.md) — architecture, API, data model. §2 is the **decision log** (D1–D83), §12 the deferred defaults.
 - [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) — 23 phases (0–22), each gated by acceptance criteria.
 
 Never re-decide something already in the decision log. If a decision must change, update the log entry with the reason (`/log-decision`), then implement.
@@ -52,8 +52,8 @@ Beyond the 17 numbered phases: a follow-up initiative proposed in response to "l
 | C1 | Search over history & bookmarks (`?q=` on the existing list endpoints) | Merged (#58) | — |
 | C2 | Reading stats screen (streak, top topics/sources — client-computed from history pages) | Merged (#59), logged as D62 | — |
 | C3 | Listen mode: `expo-speech` TTS in the feed action bar and the compact reader | Merged (#61) | Maintainer: on-device voice-availability check for ru/uk/pl |
-| C4 | Offline saved articles: wifi-gated content prefetch on bookmark + on Saved-screen load | Merged (#62), logged as D55 | — |
-| C5 | Feed read-ahead content prefetch, extending C4/D55 from explicit bookmarks to scroll position, + a fix so prefetch actually covers in-body figures, + a 50-entry eviction cap (D61) | Code complete | Maintainer: commit, push, open a PR from the branch's compare link and merge. No on-device Expo Go pass possible in this environment (same constraint as every prior mobile phase) |
+| C4 | Offline saved articles: wifi-gated content prefetch on bookmark + on Saved-screen load | Merged (#62), logged as D55 — **removed again by D82** (2026-08-21) | — |
+| C5 | Feed read-ahead content prefetch, extending C4/D55 from explicit bookmarks to scroll position, + a fix so prefetch actually covers in-body figures, + a 50-entry eviction cap (D61) | Merged, then **removed by D82** (2026-08-21) — only the image read-ahead remains | — |
 
 ### Going public and paid (2026-08-10, D67–D75, phases 19–23)
 

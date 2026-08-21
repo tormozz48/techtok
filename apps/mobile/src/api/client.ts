@@ -225,20 +225,13 @@ export async function deleteBookmark(postId: string): Promise<void> {
   });
 }
 
-export async function fetchPostContent(
-  postId: string,
-  lang: Language,
-  intent: 'read' | 'prefetch' = 'read',
-): Promise<ContentResponse> {
+export async function fetchPostContent(postId: string, lang: Language): Promise<ContentResponse> {
   const url = apiUrl(`/v1/posts/${encodeURIComponent(postId)}/content`);
   url.searchParams.set('lang', lang);
-  if (intent === 'prefetch') url.searchParams.set('intent', intent);
 
   const response = await apiFetch(url);
   const parsed = contentResponseSchema.parse(await response.json());
-  if (intent === 'read') {
-    queryClient.invalidateQueries({ queryKey: ['entitlement'] });
-  }
+  queryClient.invalidateQueries({ queryKey: ['entitlement'] });
   return parsed;
 }
 

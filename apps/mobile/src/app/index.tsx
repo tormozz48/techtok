@@ -12,6 +12,7 @@ import { LoadingScreen } from '@/components/LoadingScreen';
 import { QuotaBadge } from '@/components/QuotaBadge';
 import { ScreenState } from '@/components/ScreenState';
 import { Colors, Spacing } from '@/constants/theme';
+import { useQuotaReset } from '@/hooks/useQuotaReset';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
@@ -36,12 +37,33 @@ export default function FeedScreen() {
   // A brand-new fetch (no cards cached yet — e.g. a fresh install already at
   // the daily limit from another device) has nothing to swipe through at
   // all, so go straight to the paywall instead of showing an empty feed.
+  // `push`, not `replace`: the paywall must always have the feed underneath
+  // it (the same invariant the reader's own 402 path keeps) or there is no
+  // route back at all, and the only escape is relaunching the app.
   useEffect(() => {
     if (isQuotaExhausted && cards.length === 0 && !hasPromptedPaywall.current) {
       hasPromptedPaywall.current = true;
-      router.replace('/paywall');
+      router.push('/paywall');
     }
   }, [isQuotaExhausted, cards.length]);
+
+  // Re-arm once the quota recovers, so a later exhaustion prompts again
+  // instead of silently dead-ending `onNearEnd` for the rest of this mount.
+  useEffect(() => {
+    if (!isQuotaExhausted) hasPromptedPaywall.current = false;
+  }, [isQuotaExhausted]);
+
+  // D69's counters roll over server-side at the user's local midnight, but
+  // both of this screen's views of them are pre-boundary snapshots: the
+  // cached feed page's `quotaExhausted` flag, and the badge's entitlement
+  // counts. Drop them at the boundary instead of waiting for a foreground
+  // event or a relaunch to happen to refetch.
+  useQuotaReset(entitlementQuery.data?.quota.resetsAt, () => {
+    entitlementQuery.refetch();
+    // Only an exhausted page needs dropping — resetting an otherwise healthy
+    // feed would flash a loading screen at midnight for someone mid-swipe.
+    if (isQuotaExhausted) queryClient.resetQueries({ queryKey: ['feed'] });
+  });
 
   // D79: the server is the source of truth for the account's language
   // (Users.language) — this is the one reconciliation channel that can't be

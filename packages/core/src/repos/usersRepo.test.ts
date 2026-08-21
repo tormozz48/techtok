@@ -12,11 +12,6 @@ beforeEach(() => {
 });
 
 describe('usersRepo.touch', () => {
-  // `language`/`timezone` are DynamoDB reserved keywords (confirmed live
-  // against real DynamoDB — aws-sdk-client-mock does not simulate this
-  // validation, so it slips past a mocked test unless the alias is asserted
-  // explicitly; see CLAUDE.md's status log for this exact bug class hitting
-  // multiple times before).
   it('upserts createdAt/topics only if absent and always bumps lastSeenAt', async () => {
     ddbMock.on(UpdateCommand).resolves({
       Attributes: { userId: 'device-1', topics: [], createdAt: 'x', lastSeenAt: 'y' },
@@ -56,8 +51,6 @@ describe('usersRepo.touch', () => {
     });
   });
 
-  // D68: email/name come from the Google ID token and are kept fresh on
-  // every touch, unlike language/timezone's if_not_exists seed-once shape.
   it('sets email/name unconditionally (not if_not_exists) when given', async () => {
     ddbMock.on(UpdateCommand).resolves({ Attributes: { userId: 'device-1' } });
     const repo = new UsersRepo(client, 'Users');
@@ -131,10 +124,6 @@ describe('usersRepo.updateLanguage', () => {
     expect(input?.ExpressionAttributeValues).toMatchObject({ ':language': 'pl' });
   });
 
-  // A device that never hit touch() first (GET /v1/me, GET /v1/feed, ...)
-  // otherwise gets a row with no `topics` at all — UserRecord.topics and
-  // meResponseSchema both treat it as required, so the response 500s. This
-  // was caught live by the e2e mutation suite against a brand-new device.
   it('seeds topics to an empty array if_not_exists, same as touch()', async () => {
     ddbMock.on(UpdateCommand).resolves({ Attributes: { userId: 'device-1', language: 'pl' } });
     const repo = new UsersRepo(client, 'Users');
@@ -175,7 +164,6 @@ describe('usersRepo.updateMutedSources', () => {
     expect(input?.ExpressionAttributeValues).toMatchObject({ ':mutedSources': [] });
   });
 
-  // Same rationale as updateLanguage's — see that test's comment.
   it('seeds topics to an empty array if_not_exists, same as touch()', async () => {
     ddbMock.on(UpdateCommand).resolves({
       Attributes: { userId: 'device-1', mutedSources: ['hn'], createdAt: 'x', lastSeenAt: 'y' },
@@ -219,9 +207,6 @@ describe('usersRepo.addTopicReads', () => {
 
     const incrementInput = calls[1]?.args[0]?.input;
     expect(incrementInput?.Key).toEqual({ userId: 'device-1' });
-    // Reserved-word-alias convention: every topic name is aliased, not
-    // interpolated raw, even though topic names like "ai"/"dev" aren't
-    // themselves reserved words.
     expect(incrementInput?.ExpressionAttributeNames).toEqual({
       '#topicReads': 'topicReads',
       '#t0': 'ai',

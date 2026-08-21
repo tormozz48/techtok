@@ -21,9 +21,6 @@ const getRawArticleStore = lazy(
 );
 const getImageStore = lazy(() => new ImageStore(getS3Client(), requireEnv('IMAGES_BUCKET_NAME')));
 
-// This Lambda still needs one live fetch per backfilled post (the og:image
-// itself was never archived, only the article page was), just not a live
-// refetch of the page.
 function fetchImageBytes(url: string) {
   return fetchBytesWithCap(url, { maxBytes: MAX_IMAGE_BYTES, timeoutMs: FETCH_TIMEOUT_MS });
 }
@@ -56,13 +53,6 @@ async function nextCandidates(before: string | undefined) {
   return { candidates, nextBefore: last?.publishedAt };
 }
 
-/**
- * One-shot backfill (IMPLEMENTATION_PLAN.md phase 7 task 3): for posts
- * lacking any image but holding an archived raw HTML page, mines the page's
- * og:image and mirrors it to the CDN — no LLM, no live article refetch. Safe
- * to invoke repeatedly. Not wired to any schedule/route — invoke manually:
- *   aws lambda invoke --function-name <fn> out.json
- */
 export async function handler(): Promise<void> {
   const rawStore = getRawArticleStore();
 

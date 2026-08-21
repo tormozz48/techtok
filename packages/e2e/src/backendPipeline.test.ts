@@ -52,13 +52,6 @@ async function waitForQueueDrain(
   }
 }
 
-/**
- * Triggers a real `IngestPipeline` execution against the deployed `dev`
- * stage and asserts the real DynamoDB/SQS state transitions it should cause:
- * the execution itself succeeds, every source's `Sources` row picks up a
- * fresh `lastFetchAt`, and the queues the run feeds (Transform → Translate)
- * fully drain afterward. Never run against `production` (DESIGN §2 D34).
- */
 describe('backend pipeline E2E', () => {
   it(
     'runs a real IngestPipeline execution and drains the Transform/Translate queues',

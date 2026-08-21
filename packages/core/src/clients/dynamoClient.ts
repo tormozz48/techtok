@@ -2,8 +2,6 @@ import { ConditionalCheckFailedException, DynamoDBClient } from '@aws-sdk/client
 import { BatchGetCommand, DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { chunk } from '../util/chunk';
 
-/** DynamoDB's BatchGetItem hard cap — the largest `chunkSize` batchGetChunked
- * can be usefully called with. */
 export const DYNAMO_BATCH_GET_LIMIT = 100;
 
 export function createDynamoClient(): DynamoDBDocumentClient {
@@ -13,11 +11,6 @@ export function createDynamoClient(): DynamoDBDocumentClient {
   });
 }
 
-/**
- * BatchGets `inputs` from `tableName` in chunks of `chunkSize` (DynamoDB's
- * BatchGetItem caps at 100 keys per call), deriving each request key via
- * `toKey`. Shared by every repo that resolves a list of ids into records.
- */
 export async function batchGetChunked<TInput, TItem>(
   client: DynamoDBDocumentClient,
   tableName: string,
@@ -37,11 +30,6 @@ export async function batchGetChunked<TInput, TItem>(
   return items;
 }
 
-/**
- * Runs a conditional DynamoDB write and reports whether the condition held:
- * `true` when the write applied, `false` when DynamoDB rejected it with a
- * ConditionalCheckFailedException. Any other error is rethrown.
- */
 export async function conditionalWrite(send: () => Promise<unknown>): Promise<boolean> {
   try {
     await send();

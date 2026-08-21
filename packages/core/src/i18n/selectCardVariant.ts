@@ -9,10 +9,6 @@ export interface CardVariant {
   readonly isTranslated: boolean;
 }
 
-/**
- * Picks the display variant for a post (D21): the requested language's
- * translation when present, else the English fields.
- */
 export function selectCardVariant(post: PostRecord, lang: Language): CardVariant {
   const translation = lang === 'en' ? undefined : post.i18n[lang];
   if (translation) {

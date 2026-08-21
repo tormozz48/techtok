@@ -1,10 +1,6 @@
 import { act, create } from 'react-test-renderer';
 import { gradientForPostId, hashToIndex, ImageStub } from './ImageStub';
 
-// react-test-renderer's `create` schedules the initial render as a regular
-// React update; without `act(...)` it commits asynchronously (after this
-// test has already finished), so `.toJSON()` sees an empty tree. Wrapping in
-// `act` forces the render to flush synchronously before we inspect it.
 function renderStub(props: Parameters<typeof ImageStub>[0]) {
   let tree: ReturnType<typeof create> | undefined;
   act(() => {

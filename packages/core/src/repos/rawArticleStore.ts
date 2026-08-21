@@ -17,10 +17,6 @@ export class RawArticleStore {
     );
   }
 
-  /** Reads back a previously-archived page (image backfill, phase 7 task 3).
-   * Throws on any failure (missing key, past its 90-day lifecycle, S3
-   * outage) — the caller decides how to degrade, same as every other S3/DDB
-   * call in this repo layer. */
   async getRaw(key: string): Promise<string> {
     const result = await this.client.send(
       new GetObjectCommand({ Bucket: this.bucketName, Key: key }),

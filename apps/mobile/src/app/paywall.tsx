@@ -10,13 +10,6 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { formatResetTime } from '@/utils/formatResetTime';
 
-/**
- * Plan comparison + upgrade entry point (D69/D70/D73). No purchase flow yet
- * (phase 21) — the CTA is deliberately disabled so this screen can ship,
- * and be reached from every quota-exhaustion path, well before Play Billing
- * exists. Reachable from: settings' quota row, the feed once daily
- * card-reads run out, and the reader on a 402 (reader-opens exhausted).
- */
 export default function PaywallScreen() {
   const strings = useStrings();
   const colors = useThemeColors();
@@ -32,22 +25,11 @@ export default function PaywallScreen() {
     (entitlement.quota.cardReads >= entitlement.quota.cardReadsLimit ||
       entitlement.quota.readerOpens >= entitlement.quota.readerOpensLimit);
 
-  // This screen is both the blocking wall (reached from the feed, or from a
-  // reader 402) and a plain plan comparison (reached from settings' quota
-  // row). Only the blocking case may refresh and leave on its own, so both
-  // behaviours hang off this "arrived here exhausted" latch.
   const wasExhausted = useRef(false);
   useEffect(() => {
     if (isExhausted) wasExhausted.current = true;
   }, [isExhausted]);
 
-  // Nothing else re-reads the quota while this screen sits open in the
-  // foreground — the entitlement query's staleTime only makes a refetch
-  // *possible*, and its focus trigger needs an app background/foreground
-  // round trip that never happens if the user simply waits here. So pull
-  // fresh counters the moment the reset instant passes, and drop the cached
-  // feed page whose `quotaExhausted` flag would otherwise bounce them
-  // straight back.
   useQuotaReset(entitlement?.quota.resetsAt, () => {
     entitlementQuery.refetch();
     if (wasExhausted.current) queryClient.resetQueries({ queryKey: ['feed'] });
@@ -55,9 +37,6 @@ export default function PaywallScreen() {
 
   useEffect(() => {
     if (!wasExhausted.current || !entitlement || isExhausted) return;
-    // Pushed over the feed on every real entry path; the forward navigation
-    // is a fallback so a paywall that somehow ended up as the only route
-    // still isn't a trap.
     if (router.canGoBack()) router.back();
     else router.replace('/');
   }, [entitlement, isExhausted]);

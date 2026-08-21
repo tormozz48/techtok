@@ -22,8 +22,6 @@ export const Colors = {
     primary: dark.primary,
     error: dark.error,
   },
-  // Scheme-independent palette for the full-bleed photo-card overlay (Card.tsx),
-  // which always renders dark scrim + light text regardless of system theme.
   overlay: {
     text: '#ffffff',
     textMuted: '#E0E1E6',
@@ -39,8 +37,6 @@ export const Colors = {
   },
 } as const;
 
-/** The scheme-dependent half of the palette — Colors.light and Colors.dark
- * share this exact shape (see useThemeColors). */
 export type ThemeColors = typeof Colors.dark;
 
 export const Spacing = {
@@ -57,8 +53,6 @@ export const Radius = {
   md: 12,
 } as const;
 
-/** Icon size shared by BottomActionBar's own IconButtons and the
- * BookmarkButton it embeds, so the action-bar row stays visually uniform. */
 export const ActionIconSize = 20;
 
 export const Typography = {

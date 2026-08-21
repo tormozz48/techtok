@@ -56,16 +56,11 @@ export interface SiteStrings {
     tagline: string;
     sourceCode: string;
     license: string;
-    /** Link labels are localized; the legal pages themselves are English-only
-     * by design — see src/lib/legal.ts. */
     privacy: string;
     deleteAccount: string;
   };
 }
 
-// One file, all four languages (mirrors apps/mobile/src/i18n/strings.ts's D20
-// discipline) — every language's key set must stay identical, no runtime
-// fallback, so a missing key is a type error rather than a silent blank.
 export const SITE_COPY: Record<Language, SiteStrings> = {
   en: {
     meta: {

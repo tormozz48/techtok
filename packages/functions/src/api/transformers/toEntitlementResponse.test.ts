@@ -87,7 +87,6 @@ describe('toEntitlementResponse', () => {
 
     const response = toEntitlementResponse(user, NOW);
 
-    // Local midnight of Aug 13 in New York (UTC-4 in August) is 04:00 UTC on Aug 13.
     expect(response.quota.resetsAt).toBe('2026-08-13T04:00:00.000Z');
   });
 });

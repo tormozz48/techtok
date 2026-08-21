@@ -20,9 +20,6 @@ interface ThemeState {
   setMode: (mode: ThemeMode) => void;
 }
 
-// Purely local preference (no server sync, unlike languageStore/topicsStore) —
-// `load` just re-reads storage once it's hydrated (see state/storage.ts's
-// `ready()`), since the module-level initial value above may run before that.
 export const useThemeStore = create<ThemeState>((set) => ({
   mode: loadCachedThemeMode(),
 

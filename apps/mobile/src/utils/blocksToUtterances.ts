@@ -1,9 +1,5 @@
 import type { CompactBlock, CompactFigure } from '@techtok/shared';
 
-/** Flattens a compact-article block list into an ordered list of strings to
- * speak. List items become their own utterance each (so the pause between
- * them matches the pause between paragraphs); image blocks are skipped
- * unless they have a caption, since there's nothing else to read aloud. */
 export function blocksToUtterances(blocks: CompactBlock[], figures: CompactFigure[]): string[] {
   const utterances: string[] = [];
 

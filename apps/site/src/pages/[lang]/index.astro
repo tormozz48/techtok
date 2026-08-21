@@ -3,10 +3,6 @@ import { LANGUAGES } from '@techtok/shared';
 import type { Language } from '@techtok/shared';
 import Landing from '../../layouts/Landing.astro';
 
-// 'en' is served unprefixed from src/pages/index.astro (astro.config.ts sets
-// prefixDefaultLocale: false) — this dynamic route only covers the other
-// three app languages. getStaticPaths runs in an isolated scope that can only
-// see imports (not a sibling top-level const), so the filter happens inline.
 export function getStaticPaths() {
   return LANGUAGES.filter((lang) => lang !== 'en').map((lang) => ({ params: { lang } }));
 }

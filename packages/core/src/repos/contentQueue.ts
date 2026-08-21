@@ -7,8 +7,6 @@ export interface ContentJob {
   readonly lang: Language;
 }
 
-/** Eager per-language compact-article generation jobs (D36) — enqueued by
- * `transformArticle` for every post. */
 export class ContentQueue {
   constructor(
     private readonly client: SQSClient,

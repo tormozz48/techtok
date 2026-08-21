@@ -1,13 +1,3 @@
-// Golden fixtures for the translate stage (D21/D22). Each fixture pairs a
-// realistic English card with a hand-curated JSON translation shaped exactly
-// as Bedrock would return it (self-critique-in-call, one final JSON object).
-// Recording real Converse output requires live model access not available in
-// this environment (same constraint as `cardFixtures.ts`) — these fixtures
-// pin the prompt/schema contract in the same golden-file shape so a real
-// recorded transcript can drop in later without changing the test harness.
-// CI never calls Bedrock — every translateCard test runs against a fake
-// LlmProvider returning these fixed strings.
-
 import type { Language } from '@techtok/shared';
 
 export interface TranslationFixture {

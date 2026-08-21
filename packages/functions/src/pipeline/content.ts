@@ -68,9 +68,6 @@ async function mirrorFigures(postId: string, figures: ExtractedFigure[]): Promis
   return mirrored.filter((figure): figure is CompactFigure => figure !== undefined);
 }
 
-/** Archive-first (D23): the archived raw HTML this post's transform already
- * saved, one live fetch attempt (robots-respecting, same caps as transform)
- * only when the archive is missing or unreadable. */
 async function loadArticleHtml(post: { s3RawKey?: string; url: string }): Promise<string> {
   if (post.s3RawKey) {
     try {
@@ -103,16 +100,6 @@ function parseMessageBody(body: string): MessageBody {
   return { postId: parsed.postId, lang: parsed.lang };
 }
 
-/**
- * Consumes eager per-language compact-generation messages enqueued by
- * `transformArticle` (D36) — one per language, for every post. On the first
- * message it processes for a given post (`Posts.mirroredFigures` absent), it
- * extracts + mirrors that post's in-body figures once and persists them;
- * every other language reuses the stored list. Two language jobs racing on a
- * brand-new post's first message may both see `mirroredFigures` absent and
- * both mirror — last-write-wins, an accepted narrow-race tradeoff (D36), not
- * guarded against.
- */
 export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
   const postsRepo = getPostsRepo();
   const contentStore = getContentStore();

@@ -91,21 +91,12 @@ async function runWithLogging(
   }
 }
 
-/** Wraps a route that skips `withAuth` (`GET /v1/topics`, `GET /v1/sources`)
- * so every route gets the same request/error logging. */
 export function withPublic(
   handle: (event: APIGatewayProxyEventV2) => Promise<APIGatewayProxyResultV2>,
 ): APIGatewayProxyHandlerV2 {
   return async (event) => runWithLogging(requestContext(event), () => handle(event));
 }
 
-/**
- * Google-identity middleware (DESIGN §5, D68): every route wired to the API
- * Gateway JWT authorizer only ever reaches its handler with an
- * already-verified token, so this just reads the resulting claims. The 401
- * branch is defensive (unit tests / a route accidentally left off the
- * authorizer) rather than a real code path in production.
- */
 export function withAuth(
   handle: (event: APIGatewayProxyEventV2, auth: AuthContext) => Promise<APIGatewayProxyResultV2>,
 ): APIGatewayProxyHandlerV2 {

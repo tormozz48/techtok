@@ -23,8 +23,6 @@ describe('isLikelyDuplicateTitle', () => {
   });
 
   it('scores partial overlap between differently-worded headlines for the same story', () => {
-    // normalized tokens: 8 in the first title, 9 in the second, 8 shared
-    // (the second just adds "new") -> intersection 8 / union 9 = 0.888...
     const a = 'Company X raises 50 million in funding round';
     const b = 'Company X raises 50 million in new funding round';
     expect(isLikelyDuplicateTitle(a, b, 8 / 9)).toBe(true);
@@ -46,7 +44,6 @@ describe('isLikelyDuplicateTitle', () => {
   });
 
   it('honors a custom threshold at the boundary', () => {
-    // 'a b c d' vs 'a b x y': shared tokens {a, b} = 2, union = 4 + 4 - 2 = 6 -> score 1/3
     const score = 1 / 3;
     expect(isLikelyDuplicateTitle('a b c d', 'a b x y', score)).toBe(true);
     expect(isLikelyDuplicateTitle('a b c d', 'a b x y', score + 0.01)).toBe(false);

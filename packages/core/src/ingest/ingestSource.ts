@@ -13,8 +13,6 @@ export interface FetchFeedResult {
   readonly lastModified?: string;
 }
 
-// Cross-source duplicate collapse (phase 4 experiment) — a one-line toggle
-// to disable it entirely without touching the call site below.
 export const DEDUP_ENABLED = true;
 
 export interface IngestDeps {
@@ -22,21 +20,8 @@ export interface IngestDeps {
   readonly putIfNew: (post: NewPost) => Promise<boolean>;
   readonly enqueueNew: (posts: NewPost[]) => Promise<void>;
   readonly recordFetchResult: (sourceId: string, outcome: FetchOutcome) => Promise<void>;
-  /** Looks for a likely cross-source duplicate of this post (phase 4
-   * experiment). Content-level: a lookup failure is caught by the caller and
-   * never blocks ingestion of an otherwise-good post. Only called for posts
-   * `putIfNew` already confirmed are genuinely new — an RSS feed re-serves
-   * its same last N entries on every poll, and running this expensive
-   * cross-source GSI lookup against every one of them (rather than just the
-   * rare genuinely-new post) was a real, measured DynamoDB cost driver. */
   readonly findDuplicate: (post: NewPost) => Promise<string | undefined>;
-  /** Patches `duplicateOf` onto the post `putIfNew` already wrote, once the
-   * (necessarily later) dedup lookup resolves. Content-level, like
-   * `findDuplicate` — a failure here never blocks ingestion. */
   readonly markDuplicate: (postId: string, duplicateOf: string) => Promise<void>;
-  /** Increments the original post's "covered by N sources" counter when a
-   * new duplicate is created. Content-level, like `findDuplicate` — a
-   * failure here never blocks ingestion of the (already-created) duplicate. */
   readonly recordDuplicate: (originalPostId: string) => Promise<void>;
 }
 
@@ -47,17 +32,6 @@ export interface IngestResult {
   readonly errors: string[];
 }
 
-/**
- * Discovers new posts for a single source and enqueues them for transform.
- * Content-level failures (unreachable/malformed feed, a single bad write)
- * are caught and recorded in `errors` — and reflected on the source's
- * `lastStatus`/`failCount` — rather than thrown, so one broken source never
- * stops the others in the same Map fan-out (DESIGN §7.2). `enqueueNew` and
- * the success-path `recordFetchResult` are infra calls (SQS/DDB) and are
- * deliberately left unguarded: if they throw, this function throws too, so
- * the Step Functions Map's own retry/catch handles genuine infra failures
- * separately from content ones.
- */
 export async function ingestSource(source: SourceRecord, deps: IngestDeps): Promise<IngestResult> {
   const errors: string[] = [];
   let seen = 0;
@@ -98,9 +72,6 @@ export async function ingestSource(source: SourceRecord, deps: IngestDeps): Prom
       created += 1;
       let enqueuedPost = post;
 
-      // Dedup only ever runs here, on a post `putIfNew` just confirmed is
-      // genuinely new — never against the (much larger) set of already-seen
-      // entries a feed re-serves on every poll. See findDuplicate's own doc.
       if (DEDUP_ENABLED) {
         try {
           const duplicateOf = await deps.findDuplicate(post);
@@ -152,17 +123,6 @@ function createParser(): Parser<unknown, FeedEntry> {
   });
 }
 
-/**
- * Parses a feed strictly, falling back once to a repaired copy of the body.
- *
- * `sax` aborts the entire document on a single malformed attribute, so an
- * upstream glitch costs us every item in that poll rather than just the one
- * bad element — Nature's feed does exactly this a few times a week (see
- * `xmlRepair.ts`). The strict parse is always tried first, so a well-formed
- * feed is never rewritten; only a feed that has *already* failed is repaired.
- * If the repaired copy fails too, the original error is thrown, since it
- * describes the real defect rather than an artifact of our rewriting.
- */
 async function parseFeed(body: string): Promise<{ items: FeedEntry[] }> {
   try {
     return await createParser().parseString(body);

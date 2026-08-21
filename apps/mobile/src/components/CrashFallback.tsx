@@ -7,9 +7,6 @@ interface CrashFallbackProps {
   resetError: () => void;
 }
 
-// Sentry.ErrorBoundary's fallback (wraps RootLayout, DESIGN §2) — rendered in
-// place of the whole app on an uncaught render error, so it can't depend on
-// PaperProvider/PersistQueryClientProvider context from the tree it replaces.
 export function CrashFallback({ resetError }: CrashFallbackProps) {
   const colors = useThemeColors();
   const strings = useStrings();

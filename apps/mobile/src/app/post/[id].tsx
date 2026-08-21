@@ -36,18 +36,11 @@ export default function PostScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const language = useLanguageStore((state) => state.language);
   const [viewLang, setViewLang] = useState<Language>(language);
-  // Route params are a one-time navigation snapshot (D25) — they never
-  // update, so a confirmed bookmark toggle would otherwise revert once
-  // BookmarkButton clears its transient optimistic overlay and display falls
-  // back to this stale value. The feed's BottomActionBar doesn't need this:
-  // its `isBookmarked` comes from the live, patched `['feed']` query cache.
   const [isBookmarked, setIsBookmarked] = useState(initialIsBookmarked === 'true');
 
   const contentQuery = useQuery({
     queryKey: ['content', id, viewLang],
     queryFn: () => fetchPostContent(id, viewLang),
-    // A 402 (D69's reader-opens quota) means "go to the paywall", not a
-    // transient failure worth TanStack Query's default retry.
     retry: (failureCount, error) =>
       !(error instanceof ApiError && error.status === 402) && failureCount < 3,
   });
@@ -64,19 +57,11 @@ export default function PostScreen() {
     useSpeechStore.getState().checkVoiceAvailability();
   }, []);
 
-  // The displayed text just changed out from under any in-flight speech —
-  // stop rather than keep reading the language the user just switched away
-  // from. viewLang is a deliberate trigger-only dependency: the effect
-  // re-runs on every toggle even though its body doesn't read the value.
   // biome-ignore lint/correctness/useExhaustiveDependencies: see above.
   useEffect(() => {
     useSpeechStore.getState().stop();
   }, [viewLang]);
 
-  // Kill switch / content-level generation failures (D23), and the rare case
-  // a just-ingested post's eager compact job hasn't finished yet (D36), all
-  // come back as `available: false` — this reads as "routes straight to the
-  // browser" from the user's perspective.
   useEffect(() => {
     if (content && content.available === false) {
       WebBrowser.openBrowserAsync(url);
@@ -84,9 +69,6 @@ export default function PostScreen() {
     }
   }, [content, url]);
 
-  // D69: reader-opens quota exhausted (402) routes to the paywall instead of
-  // the generic error state — `replace`, not `push`, so the paywall's own
-  // back button returns to the feed, not to this now-unusable reader.
   useEffect(() => {
     if (isQuotaExceeded) {
       router.replace('/paywall');
@@ -94,8 +76,6 @@ export default function PostScreen() {
   }, [isQuotaExceeded]);
 
   const openOriginal = () => WebBrowser.openBrowserAsync(url);
-  // Android ignores `url` (iOS-only field), so the link must ride in `message`
-  // or the share intent goes out empty (see BottomActionBar).
   const share = () =>
     Share.share({
       title,

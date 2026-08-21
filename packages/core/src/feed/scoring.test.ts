@@ -136,12 +136,11 @@ describe('topicAffinityBoosts', () => {
   });
 
   it('boosts every topic present once the total reaches the threshold, proportional to share', () => {
-    // 8 ai + 2 dev = 10 total (meets the threshold exactly).
     const boosts = topicAffinityBoosts({ ai: 8, dev: 2 });
 
-    expect(boosts.get('ai')).toBeCloseTo(1 + 0.5 * 0.8); // share 0.8
-    expect(boosts.get('dev')).toBeCloseTo(1 + 0.5 * 0.2); // share 0.2
-    expect(boosts.has('science')).toBe(false); // never read -> no entry, not a penalty
+    expect(boosts.get('ai')).toBeCloseTo(1 + 0.5 * 0.8);
+    expect(boosts.get('dev')).toBeCloseTo(1 + 0.5 * 0.2);
+    expect(boosts.has('science')).toBe(false);
   });
 
   it(`clamps the boost at ${MAX_AFFINITY_BOOST} even at 100% share`, () => {

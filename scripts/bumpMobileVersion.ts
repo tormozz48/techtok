@@ -17,9 +17,6 @@ const BREAKING_FOOTER_RE = /^BREAKING CHANGE:/m;
 const HEADER_RE = /^(\w+)(?:\([^)]*\))?(!)?:/;
 const BUMP_RANK: Record<BumpType, number> = { none: 0, patch: 1, minor: 2, major: 3 };
 
-/** Conventional-commit bump classification (CLAUDE.md's existing commit
- * types): a `BREAKING CHANGE:` footer or a `!` after the type/scope is
- * major, `feat` is minor, `fix` is patch, anything else doesn't bump. */
 export function classifyCommit(message: string): BumpType {
   if (BREAKING_FOOTER_RE.test(message)) return 'major';
   const header = message.split('\n')[0] ?? '';
@@ -32,7 +29,6 @@ export function classifyCommit(message: string): BumpType {
   return 'none';
 }
 
-/** The highest-ranked bump across every commit message in the range. */
 export function highestBump(messages: string[]): BumpType {
   let highest: BumpType = 'none';
   for (const message of messages) {
@@ -108,9 +104,6 @@ function writeBuildGradle(version: string, versionCode: number): void {
   writeFileSync(BUILD_GRADLE_PATH, gradle);
 }
 
-/** Most recent `mobile-v*` tag reachable from HEAD (D42 creates one on every
- * mobile-build run), or null if none exists yet. Sorted by semver descending
- * so this picks the true latest even if tags weren't created in commit order. */
 function latestVersionTag(): string | null {
   const output = execFileSync('git', ['tag', '--list', 'mobile-v*', '--sort=-v:refname'], {
     cwd: ROOT,
@@ -120,13 +113,6 @@ function latestVersionTag(): string | null {
   return output.split('\n')[0] ?? null;
 }
 
-/** Post-merge bump on `main` (D44, amends D41/D42/D43): baselines against the
- * last `mobile-v*` tag rather than a PR's base branch, since this now runs
- * after merge, not on a PR branch. A manual bump already landed since that
- * tag always wins over automation. Writes the three files only — the
- * commit/push (with retry against a concurrent merge) is the caller's job in
- * CI, so this stays a pure, testable, no-git-write operation beyond the
- * version files themselves. */
 export function main(): void {
   const tag = latestVersionTag();
   if (!tag) {

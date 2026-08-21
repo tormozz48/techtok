@@ -16,10 +16,6 @@ export interface ScreenStateProps {
   readonly retryTestID?: string;
 }
 
-/** Centered loading/error/empty state — a spinner, an optional caption below
- * it, an optional emphasized title, an optional message, and an optional
- * retry button. Shared by the feed, reader, history, saved and stats
- * screens. */
 export function ScreenState({
   loading,
   spinnerColor,

@@ -2,9 +2,6 @@ import { sourcesResponseSchema } from '@techtok/shared';
 import { getSourcesRepo } from '../../repos';
 import { jsonResponse, withPublic } from '../lib/http';
 
-/** Public catalog, no device id required (like GET /v1/topics) — this is
- * source metadata, not user-specific state. Lets the app populate a mute
- * picker without hardcoding the source list. */
 export const handler = withPublic(async () => {
   const enabled = await getSourcesRepo().listEnabled();
   const sources = enabled

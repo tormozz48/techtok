@@ -15,9 +15,7 @@ export async function flushEventsQueue(): Promise<void> {
   try {
     await postEvents(batch);
     saveQueue(loadQueue().slice(batch.length));
-  } catch {
-    // Network hiccup — leave the queue in place, the next timer tick retries.
-  }
+  } catch {}
 }
 
 let started = false;

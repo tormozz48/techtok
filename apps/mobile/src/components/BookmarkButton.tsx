@@ -3,48 +3,28 @@ import type { BookmarksResponse, FeedResponse, Topic } from '@techtok/shared';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { IconButton } from 'react-native-paper';
 import { createBookmark, deleteBookmark } from '@/api/client';
-import { prefetchPostContent } from '@/api/prefetchContent';
 import { ActionIconSize, Colors } from '@/constants/theme';
 import { useStrings } from '@/i18n/useStrings';
 import { useBookmarksOverlay } from '@/state/bookmarksOverlay';
 import { useLanguageStore } from '@/state/languageStore';
-import { getIsWifi } from '@/state/network';
-import { forgetPrefetch } from '@/state/prefetchLedger';
 
 export interface BookmarkButtonProps {
   postId: string;
   isBookmarked?: boolean;
   iconColor?: string;
   style?: StyleProp<ViewStyle>;
-  /** Stable E2E selector — the rendered accessibilityLabel is localized *and*
-   * flips with the bookmarked state, so it can't serve as one. */
   testID?: string;
-  /** Card data needed to show this bookmark in Saved immediately on create —
-   * see patchBookmarksListOnCreate. Omit only where unavailable (a stale
-   * Saved-list entry will still self-correct on the next invalidation). */
   snapshot?: {
     cardTitle: string;
     sourceName: string;
     url: string;
     primaryTopic?: Topic;
   };
-  /** Fires with the new bookmarked state once a toggle is confirmed by the
-   * server — for a caller whose own `isBookmarked` prop can't re-derive
-   * itself from a live query cache (e.g. PostScreen's frozen route param,
-   * unlike the feed's BottomActionBar, which re-reads the patched `['feed']`
-   * cache on every render). Not called on the optimistic set or on revert;
-   * only once the request actually confirms. */
   onToggled?: (isBookmarked: boolean) => void;
 }
 
 const DEFAULT_BOOKMARKS_QUERY_KEY = ['bookmarks', ''];
 
-// GET /v1/bookmarks reads a DynamoDB GSI (byBookmarkedAt), which is only
-// eventually consistent — invalidateQueries's refetch can race the write and
-// come back without the item just created, leaving it missing from Saved
-// until something else happens to invalidate the list again. Patching the
-// cache directly (same approach as patchFeedBookmarkState below) makes the
-// new bookmark show up immediately regardless of that replication lag.
 function patchBookmarksListOnCreate(
   queryClient: QueryClient,
   postId: string,
@@ -96,19 +76,11 @@ function patchBookmarksListOnRemove(queryClient: QueryClient, postId: string): v
   );
 }
 
-// Patches the one affected card's isBookmarked flag directly in the cached
-// feed pages instead of invalidating ['feed'] and letting it refetch — a
-// refetch reflows the whole `cards` array (fresh pagination/ranking from the
-// server), and FeedPager's PagerView is index-based, so the user's current
-// position would end up pointing at a different card mid-toggle.
 function patchFeedBookmarkState(
   queryClient: QueryClient,
   postId: string,
   isBookmarked: boolean,
 ): void {
-  // ['feed'] is now keyed by language (useFeedQuery.ts) — an exact-key patch
-  // has to name the language segment too, or this silently writes into a
-  // cache slot nothing reads.
   const language = useLanguageStore.getState().language;
   queryClient.setQueryData<InfiniteData<FeedResponse>>(['feed', language], (current) => {
     if (!current) return current;
@@ -145,24 +117,11 @@ export function BookmarkButton({
     try {
       if (next) {
         await createBookmark(postId);
-        // An explicit save always outranks scroll-driven read-ahead (D61) —
-        // drop any speculative ledger entry so this postId is never evicted.
-        forgetPrefetch(postId);
-        // Wifi-gated best-effort offline prep — a failure here shouldn't
-        // affect the bookmark toggle itself, so no try/catch is needed:
-        // prefetchQuery already swallows its own queryFn errors internally.
-        if (getIsWifi()) {
-          prefetchPostContent(queryClient, postId, useLanguageStore.getState().language);
-        }
         if (snapshot) patchBookmarksListOnCreate(queryClient, postId, snapshot);
       } else {
         await deleteBookmark(postId);
         patchBookmarksListOnRemove(queryClient, postId);
       }
-      // Patch the feed cache synchronously (see patchFeedBookmarkState) so
-      // this card's `isBookmarked` prop is already correct once the overlay
-      // clears below — no need to wait on it. Saved/[bookmarks] isn't mid-
-      // interaction, so it can just invalidate and refetch normally.
       patchFeedBookmarkState(queryClient, postId, next);
       queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
       onToggled?.(next);

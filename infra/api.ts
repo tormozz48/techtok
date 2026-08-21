@@ -2,20 +2,8 @@ import { GOOGLE_OAUTH_WEB_CLIENT_ID } from './auth';
 import { contentBucket, postsTable, sourcesTable, userActivityTable, usersTable } from './storage';
 
 export const api = new sst.aws.ApiGatewayV2('Api', {
-  // This is a mobile-only API with no browser client, so CORS is pointless
-  // attack surface: native apps send no `Origin` and are not subject to CORS,
-  // while permissive CORS would let any website's JS call the API from a
-  // browser. `cors: false` disables it entirely — note that omitting the
-  // property (or `cors: true`) defaults to allow-all `*`, so this must be an
-  // explicit `false`. CORS only constrains browsers, not scripts/curl; it's a
-  // free reduction of casual web-based abuse, not an auth boundary (DESIGN §5).
   cors: false,
   transform: {
-    // Phase 5 rate-limit sanity check (IMPLEMENTATION_PLAN.md phase 5 task
-    // 2): the account default (5000 req/s steady-state, 10000 burst) is far
-    // above friends-scale usage. This is a sanity ceiling against a client
-    // retry-storm bug, not per-device abuse prevention — that's explicitly
-    // out of scope at this trust level (DESIGN §5).
     stage: {
       defaultRouteSettings: {
         throttlingRateLimit: 50,
@@ -25,11 +13,6 @@ export const api = new sst.aws.ApiGatewayV2('Api', {
   },
 });
 
-// Google Sign-In JWT authorizer (D68). Every route below except the two
-// public catalogs (GET /v1/topics, GET /v1/sources) requires this — a
-// request with no valid Google ID token never reaches its Lambda at all,
-// which is why `packages/functions/src/api/lib/http.ts`'s `withAuth` only
-// needs to *read* claims, not verify a signature itself.
 const googleAuthorizer = api.addAuthorizer({
   name: 'GoogleJwt',
   jwt: {
@@ -62,8 +45,6 @@ api.route('GET /v1/topics', {
   runtime: 'nodejs22.x',
 });
 
-// Public catalog, like GET /v1/topics — lets the app render a mute picker
-// without hardcoding the source list.
 api.route('GET /v1/sources', {
   handler: 'packages/functions/src/api/handlers/sources.handler',
   link: [sourcesTable],
@@ -71,9 +52,6 @@ api.route('GET /v1/sources', {
   runtime: 'nodejs22.x',
 });
 
-// Client-batched logs + product analytics (D76) — log-only, no DynamoDB
-// table, so no `link`/`environment` beyond the default Lambda execution
-// role's built-in CloudWatch Logs write access.
 api.route(
   'POST /v1/events',
   {
@@ -109,7 +87,6 @@ api.route(
   googleAuth,
 );
 
-// Required by Google Play policy for any app with accounts (D68).
 api.route(
   'DELETE /v1/me',
   {
@@ -205,11 +182,6 @@ api.route(
   googleAuth,
 );
 
-// Compact-article reader (D23; eager generation as of D36): a plain S3 cache
-// read — generation already happened during ingest (infra/pipeline.ts's
-// `contentQueue`), so this route never calls the LLM on the request path.
-// usersTable is linked as of D69: this route now also gates/increments the
-// free tier's daily reader-opens quota.
 api.route(
   'GET /v1/posts/{postId}/content',
   {
@@ -226,7 +198,6 @@ api.route(
   googleAuth,
 );
 
-// D69/D70: the single source every paywall surface reads from.
 api.route(
   'GET /v1/me/entitlement',
   {

@@ -35,10 +35,6 @@ export interface TransformUpdateFields {
   readonly topics?: Topic[];
   readonly lang?: string;
   readonly mirroredImageUrl?: string;
-  /** D28: clears the ingest-time `imageUrl` when every image candidate
-   * (ingest-time image, transform-time og:image) fails the minimum-dimension
-   * quality gate — a plain `SET` omission leaves the existing stored value
-   * untouched, so removing it needs its own `REMOVE` clause. */
   readonly clearImageUrl?: boolean;
 }
 
@@ -89,9 +85,6 @@ export class PostsRepo {
   }
 
   async updateTransform(postId: string, fields: TransformUpdateFields): Promise<void> {
-    // Every attribute name is aliased via ExpressionAttributeNames, so
-    // DynamoDB reserved words (status, transform, ...) can never break the
-    // expression — this class of bug already bit twice (see CLAUDE.md).
     const { status, transform, clearImageUrl, ...optional } = fields;
     const assigned: Record<string, unknown> = { status, transform };
     for (const [name, value] of Object.entries(optional)) {
@@ -118,12 +111,6 @@ export class PostsRepo {
     );
   }
 
-  /** Narrow update used only by the image backfill (phase 7 task 3) — unlike
-   * `updateTransform`, this never touches `status`/`transform`, since the
-   * backfill mines an image out of an already-`ready` post's archive without
-   * re-running its transform. Attribute name is aliased for consistency with
-   * `updateTransform`'s own hard-won lesson, even though `mirroredImageUrl`
-   * isn't itself a reserved word. */
   async updateMirroredImage(postId: string, mirroredImageUrl: string): Promise<void> {
     await this.client.send(
       new UpdateCommand({
@@ -136,7 +123,6 @@ export class PostsRepo {
     );
   }
 
-  /** Writes a translation (D21/D27). */
   async writeTranslation(postId: string, lang: Language, fields: TranslatedFields): Promise<void> {
     await this.client.send(
       new UpdateCommand({
@@ -152,14 +138,6 @@ export class PostsRepo {
     );
   }
 
-  /** Appends one language to the compact-article variant list (D23), atomic
-   * and race-safe under D36's eager per-language fan-out (up to 4 concurrent
-   * writers per post): the append happens server-side in a single
-   * `UpdateItem` call rather than a client-side read-merge-overwrite, so
-   * concurrent writers for different languages can never clobber each
-   * other. The `contains` condition makes a duplicate append (the same
-   * language processed twice, e.g. a re-transformed post) a harmless no-op
-   * instead of a double entry. */
   async appendCompactLang(postId: string, lang: Language): Promise<void> {
     await conditionalWrite(() =>
       this.client.send(
@@ -177,10 +155,6 @@ export class PostsRepo {
     );
   }
 
-  /** Sets a post's mirrored figure list the first time a content job
-   * processes it (D36) — a plain overwrite. Two language jobs racing on a
-   * brand-new post's first message may both mirror and both write here;
-   * harmless, just wasted work, per the phase's own accepted tradeoff. */
   async setMirroredFigures(postId: string, figures: CompactFigure[]): Promise<void> {
     await this.client.send(
       new UpdateCommand({
@@ -193,10 +167,6 @@ export class PostsRepo {
     );
   }
 
-  /** Patches `duplicateOf` onto a post already written by `putIfNew` — the
-   * cross-source dedup lookup (findDuplicateOf) only runs after a post is
-   * confirmed genuinely new, so this always follows a prior `putIfNew`,
-   * never replaces it. */
   async setDuplicateOf(postId: string, duplicateOf: string): Promise<void> {
     await this.client.send(
       new UpdateCommand({
@@ -209,10 +179,6 @@ export class PostsRepo {
     );
   }
 
-  /** Increments the "covered by N sources" counter on an original post when
-   * ingest marks a newer entry as its duplicate — top-level numeric `ADD` is
-   * atomic and race-safe under concurrent ingests. Called only on the root
-   * post, never on the duplicate itself. */
   async incrementDupCount(postId: string): Promise<void> {
     await this.client.send(
       new UpdateCommand({

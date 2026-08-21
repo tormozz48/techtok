@@ -137,15 +137,12 @@ describe('ingestSource', () => {
     const result = await ingestSource(source, deps);
 
     expect(result.created).toBe(3);
-    // putIfNew writes before dedup resolves, so it never sees duplicateOf —
-    // markDuplicate patches it on afterward instead.
     for (const [post] of deps.putIfNew.mock.calls) {
       expect(post.duplicateOf).toBeUndefined();
     }
     const flaggedPost = deps.enqueueNew.mock.calls[0]?.[0][0];
     expect(flaggedPost).toMatchObject({ duplicateOf: 'existing-post-id' });
     expect(deps.markDuplicate).toHaveBeenCalledWith(flaggedPost?.postId, 'existing-post-id');
-    // Only the one entry findDuplicate flagged should bump the original's count.
     expect(deps.recordDuplicate).toHaveBeenCalledTimes(1);
     expect(deps.recordDuplicate).toHaveBeenCalledWith('existing-post-id');
   });
@@ -170,13 +167,11 @@ describe('ingestSource', () => {
   it('skips the dedup lookup entirely for a post putIfNew says is not new', async () => {
     const xml = await readFile(HN_FIXTURE, 'utf8');
     const deps = fakeDeps(xml);
-    deps.putIfNew.mockResolvedValueOnce(false); // pretend this entry was already seen
+    deps.putIfNew.mockResolvedValueOnce(false);
 
     const result = await ingestSource(source, deps);
 
     expect(result.created).toBe(2);
-    // The core fix: findDuplicate must never run for an already-known entry —
-    // only for the 2 genuinely new ones, not all 3 seen.
     expect(deps.findDuplicate).toHaveBeenCalledTimes(2);
     expect(deps.markDuplicate).not.toHaveBeenCalled();
     expect(deps.recordDuplicate).not.toHaveBeenCalled();
@@ -190,8 +185,6 @@ describe('ingestSource', () => {
 
     const result = await ingestSource(source, deps);
 
-    // The duplicate post itself was still created and enqueued — only the
-    // counter bump on the original failed.
     expect(result.created).toBe(3);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]).toContain('recordDuplicate failed for existing-post-id');
@@ -209,8 +202,6 @@ describe('ingestSource', () => {
 
     const result = await ingestSource(source, deps);
 
-    // The post is still enqueued with duplicateOf, and recordDuplicate still
-    // runs — the counter bump doesn't depend on the patch write succeeding.
     expect(result.created).toBe(3);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]).toContain('markDuplicate failed for');
@@ -221,9 +212,6 @@ describe('ingestSource', () => {
   });
 
   it('recovers every entry from a feed with a valueless attribute instead of dropping the poll', async () => {
-    // Nature intermittently emits `<prism:issn rdf:resource\n    />`, which
-    // sax rejects outright — before the repair fallback this cost us all 75
-    // items in the poll, with nothing but a log line to show for it.
     const xml = await readFile(NATURE_MALFORMED_FIXTURE, 'utf8');
     const deps = fakeDeps(xml);
 

@@ -11,8 +11,6 @@ import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
 import { computeReadingStats } from '@/utils/readingStats';
 
-// Same bound as the history/bookmarks search (C1) — an honest "based on
-// your most recent ~500 reads" contract instead of paging to exhaustion.
 const MAX_ITEMS = 500;
 const PAGE_SIZE = 100;
 

@@ -8,8 +8,6 @@ export interface ImageStubProps {
   topic: Topic;
 }
 
-/** Fixed, hand-picked palette — deliberately muted/cool tones so the mascot
- * and the card's text overlay both stay legible on top of any of them. */
 const GRADIENT_PAIRS: ReadonlyArray<readonly [string, string]> = [
   ['#3A1C71', '#6C3483'],
   ['#134E5E', '#71B280'],
@@ -21,9 +19,6 @@ const GRADIENT_PAIRS: ReadonlyArray<readonly [string, string]> = [
   ['#16222A', '#3A6073'],
 ];
 
-/** Cheap deterministic string hash (not cryptographic) — only needs to
- * spread postIds evenly across a small fixed palette, the same way every
- * time, on every device, with no network call. */
 export function hashToIndex(value: string, modulus: number): number {
   let hash = 0;
   for (let i = 0; i < value.length; i += 1) {
@@ -36,12 +31,6 @@ export function gradientForPostId(postId: string): readonly [string, string] {
   return GRADIENT_PAIRS[hashToIndex(postId, GRADIENT_PAIRS.length)];
 }
 
-/**
- * Client-side stand-in for posts with no image at all (DESIGN §2 D24):
- * zero assets, zero backend calls, works offline. The gradient is seeded by
- * postId so the same post always looks the same across renders/devices; the
- * mascot identifies its topic.
- */
 export function ImageStub({ postId, topic }: ImageStubProps) {
   const [start, end] = gradientForPostId(postId);
 

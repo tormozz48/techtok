@@ -18,9 +18,6 @@ interface MoleculeProps {
   scale?: number;
 }
 
-/** The floating dot-and-line "molecule" cluster from the source drawing,
- * reused across every topic (tinted to the topic's accent) as the mascot's
- * consistent secondary motif. */
 function Molecule({ cx, cy, color, scale = 1 }: MoleculeProps) {
   const d = 9 * scale;
   const r = 4 * scale;
@@ -38,7 +35,6 @@ function Molecule({ cx, cy, color, scale = 1 }: MoleculeProps) {
   );
 }
 
-/** Chip/circuit board — held by the AI mascot. */
 function AiProp({ accent }: { accent: string }) {
   return (
     <G>
@@ -72,7 +68,6 @@ function AiProp({ accent }: { accent: string }) {
   );
 }
 
-/** Laptop showing a code tag — held by the dev mascot. */
 function DevProp({ accent }: { accent: string }) {
   return (
     <G>
@@ -100,7 +95,6 @@ function DevProp({ accent }: { accent: string }) {
   );
 }
 
-/** Phone/tablet — held by the gadgets mascot (closest to the source drawing's own device). */
 function GadgetsProp({ accent }: { accent: string }) {
   return (
     <G>
@@ -127,7 +121,6 @@ function GadgetsProp({ accent }: { accent: string }) {
   );
 }
 
-/** Rocket — held by the startups mascot. */
 function StartupsProp({ accent }: { accent: string }) {
   return (
     <G transform="translate(172,128) rotate(35)">
@@ -143,7 +136,6 @@ function StartupsProp({ accent }: { accent: string }) {
   );
 }
 
-/** Padlock — held by the security mascot. */
 function SecurityProp({ accent }: { accent: string }) {
   return (
     <G>
@@ -168,7 +160,6 @@ function SecurityProp({ accent }: { accent: string }) {
   );
 }
 
-/** Flask — held by the science mascot. */
 function ScienceProp({ accent }: { accent: string }) {
   return (
     <G>
@@ -190,7 +181,6 @@ function ScienceProp({ accent }: { accent: string }) {
   );
 }
 
-/** Ringed planet — held by the space mascot. */
 function SpaceProp({ accent }: { accent: string }) {
   return (
     <G>
@@ -209,7 +199,6 @@ function SpaceProp({ accent }: { accent: string }) {
   );
 }
 
-/** DNA double helix — held by the bio mascot. */
 function BioProp({ accent }: { accent: string }) {
   return (
     <G>
@@ -250,13 +239,6 @@ const TOPIC_CONFIG: Record<Topic, TopicConfig> = {
   bio: { accent: '#16A085', Prop: BioProp },
 };
 
-/**
- * Vector mascot adapted from the hand-drawn "Buddy" character: a round
- * one-eyed head on a cone body, antennae, and a small prop wired to its
- * side. The body shape and molecule motif stay constant across topics
- * (brand identity); the accent color and held prop change per topic,
- * replacing the plain emoji glyph the stub previously used.
- */
 export function TopicMascot({ topic, size = 200, opacity = 0.5 }: TopicMascotProps) {
   const { accent, Prop } = TOPIC_CONFIG[topic];
 
@@ -264,7 +246,6 @@ export function TopicMascot({ topic, size = 200, opacity = 0.5 }: TopicMascotPro
     <Svg width={size} height={size * 1.1} viewBox="0 0 200 220" opacity={opacity}>
       <Ellipse cx={100} cy={204} rx={34} ry={7} fill="#000" opacity={0.25} />
 
-      {/* body */}
       <Path
         d="M 78 132 C 74 160, 68 185, 62 198 C 80 206, 120 206, 138 198 C 132 185, 126 160, 122 132 Z"
         fill="#D8CEEA"
@@ -275,7 +256,6 @@ export function TopicMascot({ topic, size = 200, opacity = 0.5 }: TopicMascotPro
         opacity={0.55}
       />
 
-      {/* antennae */}
       <Path
         d={`M ${HEAD_CX - 18} ${HEAD_CY - 40} C ${HEAD_CX - 34} ${HEAD_CY - 58}, ${HEAD_CX - 30} ${HEAD_CY - 72}, ${HEAD_CX - 40} ${HEAD_CY - 80}`}
         fill="none"
@@ -293,7 +273,6 @@ export function TopicMascot({ topic, size = 200, opacity = 0.5 }: TopicMascotPro
       />
       <Circle cx={HEAD_CX + 34} cy={HEAD_CY - 76} r={6} fill={accent} />
 
-      {/* head/eye */}
       <Circle cx={HEAD_CX} cy={HEAD_CY} r={HEAD_R} fill="#CFC2E8" />
       <Path
         d={`M ${HEAD_CX - 30} ${HEAD_CY - 38} C ${HEAD_CX - 48} ${HEAD_CY - 14}, ${HEAD_CX - 48} ${HEAD_CY + 14}, ${HEAD_CX - 30} ${HEAD_CY + 38} C ${HEAD_CX - 40} ${HEAD_CY + 20}, ${HEAD_CX - 40} ${HEAD_CY - 20}, ${HEAD_CX - 30} ${HEAD_CY - 38} Z`}
@@ -303,7 +282,6 @@ export function TopicMascot({ topic, size = 200, opacity = 0.5 }: TopicMascotPro
       <Circle cx={HEAD_CX + 10} cy={HEAD_CY} r={18} fill="#16213E" />
       <Circle cx={HEAD_CX + 16} cy={HEAD_CY - 6} r={5} fill="#fff" opacity={0.85} />
 
-      {/* prop, wired to the body */}
       <Path
         d="M 132 158 C 148 154, 156 148, 160 138"
         fill="none"

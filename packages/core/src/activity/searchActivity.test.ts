@@ -78,7 +78,7 @@ describe('searchActivity', () => {
     const fetchPage = singlePage([
       item('a', 'Bakeries'),
       item('b', 'Gardening'),
-      item('c', 'Rust news'), // would match, but falls past the 2-row scan cap
+      item('c', 'Rust news'),
     ]);
 
     const result = await searchActivity(fetchPage, { q: 'rust', limit: 20, maxScanned: 2 });

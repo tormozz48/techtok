@@ -213,7 +213,9 @@ Note that `eas.json`'s `production` profile still builds an **APK**; the Play la
 
 ### Verifying an OTA update landed
 
-`Mobile build` publishes the JS bundle to the `preview` EAS Update channel, and `AndroidManifest.xml` sets `EXPO_UPDATES_CHECK_ON_LAUNCH=ALWAYS` with a 0 ms wait — so a device fetches a new bundle in the background on one launch and runs it on the **next** one.
+`Mobile build` (or, for a JS-only merge, CI's `mobile-ota-update` job) publishes the JS bundle to the `preview` EAS Update channel.
+
+`AndroidManifest.xml` sets `EXPO_UPDATES_CHECK_ON_LAUNCH=ALWAYS` with a 0 ms wait, so the native side never blocks startup on a download — on its own that means a new bundle is fetched on one launch and only runs on the **next** one. `state/updates.ts` closes that gap (D84): it fetches on launch too, then applies the downloaded bundle by calling `Updates.reloadAsync()` the next time the app returns to the foreground after **5 minutes or more** in the background. Shorter excursions never reload, so a Google sign-in hand-off or an article opened in the in-app browser is never interrupted; a signed-out session never reloads either.
 
 **Settings → Build** is the on-device marker. It reads `expo-updates` and shows whether the running JS came over the air or shipped inside the APK, plus the short update id, publish time, channel, and runtime version:
 
@@ -223,7 +225,7 @@ Note that `eas.json`'s `production` profile still builds an **APK**; the Play la
 | Update ID | `—` | first 8 chars of the EAS update id |
 | Published | `—` | publish time, UTC |
 
-To confirm: relaunch the app twice, then match the update id against `eas update:list --channel preview` (or the EAS dashboard). In Expo Go every field except the bundle version reads `—`, since there is no update runtime.
+To confirm: background the app for 5 minutes and reopen it (or relaunch twice, which the native check-on-launch still covers), then match the update id against `eas update:list --channel preview` (or the EAS dashboard). In Expo Go every field except the bundle version reads `—`, since there is no update runtime.
 
 An OTA push only reaches devices whose installed APK has the same `runtimeVersion` (`apps/mobile/app.json`, hand-maintained) — a native-affecting change needs that bumped and a fresh APK, not an OTA.
 
@@ -286,7 +288,7 @@ Seven GitHub Actions workflows. `CI` is the entry point; the six others are reus
 - **`Deploy dev`** ([deploy-dev.yml](.github/workflows/deploy-dev.yml)) — deliberately has **no** `needs`, so it races the check jobs instead of queueing behind them (D52); `dev` is throwaway. Uses its own least-privilege OIDC role.
 - **`E2E`** ([e2e.yml](.github/workflows/e2e.yml)) — daily schedule, manual dispatch, and step 3 of the main-branch pipeline. Exercises the real `dev` stage via a narrowly-scoped, read/invoke-only OIDC role (D34). Its Maestro `mobile-emulator` job is **skipped** in the release pipeline (`skip_mobile_emulator: true`) — UI flake shouldn't block a production deploy.
 - **`Deploy production`** ([deploy-production.yml](.github/workflows/deploy-production.yml)) — gated on E2E *and* all six checks. Emits the real API URL from its own `.sst/outputs.json` so the mobile build never needs a committed URL.
-- **`Mobile build`** ([mobile-build.yml](.github/workflows/mobile-build.yml)) — builds an Android APK with `eas build --local` (on the GitHub runner, so it consumes **no** EAS cloud-build credits), publishes the JS bundle to the `preview` EAS Update channel (D60), and attaches the APK to a GitHub Release with conventional-commit release notes (D58). It also owns mobile versioning (D42/D44): it computes a conventional-commit semver bump baselined against the last `mobile-v*` tag, pushes it straight to `main` with `[skip ci]` and a rebase-retry loop, then tags the release. A preceding `mobile-changes` job skips the whole build when nothing mobile-relevant landed since that tag (D53).
+- **`Mobile build`** ([mobile-build.yml](.github/workflows/mobile-build.yml)) — builds an Android APK with `eas build --local` (on the GitHub runner, so it consumes **no** EAS cloud-build credits), publishes the JS bundle to the `preview` EAS Update channel (D60), and attaches the APK to a GitHub Release with conventional-commit release notes (D58). It also owns mobile versioning (D42/D44): it computes a conventional-commit semver bump baselined against the last `mobile-v*` tag, pushes it straight to `main` with `[skip ci]` and a rebase-retry loop, then tags the release. A preceding `mobile-changes` job skips the whole build when nothing mobile-relevant landed since that tag (D53), routing a JS-only merge to the `mobile-ota-update` job instead — which publishes the bundle and then moves a `mobile-ota-latest` tag that `mobile-changes` reads as its baseline, so a cancelled run can't drop a publish (D84).
 - **`Deploy site`** ([deploy-site.yml](.github/workflows/deploy-site.yml)) — builds `apps/site` and publishes to GitHub Pages, checking out `main` at full depth so the version badge and release feed see the tag the mobile build just pushed.
 - **`Release cleanup`** ([release-cleanup.yml](.github/workflows/release-cleanup.yml)) — keeps only the 3 most recent `android-build-*` releases and `mobile-v*` tags (D57), since every merge would otherwise leave a full APK behind forever.
 

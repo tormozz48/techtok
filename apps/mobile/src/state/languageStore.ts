@@ -20,6 +20,15 @@ interface LanguageState {
   isLoading: boolean;
   load: () => Promise<void>;
   setLanguage: (language: Language) => Promise<void>;
+  /** Re-reads the persisted language into memory. Must run inside
+   * _layout.tsx's `ready()` hydration gate, before the first render: the
+   * store's initial value is computed at module-import time, when
+   * state/storage.ts's cache is still empty, so it is always the 'en'
+   * fallback. Without this, the feed's very first query key uses 'en' and is
+   * replaced moments later by the real language's key — see load(). Sync and
+   * network-free on purpose, unlike load(), so it can run before auth has
+   * restored. */
+  hydrate: () => void;
   /** Adopts the language the server says it actually rendered the feed with
    * (D79) — the reconciliation channel that can't be skipped, since the feed
    * request fires on every launch, unlike `load()`'s separate `GET /v1/me`
@@ -34,14 +43,18 @@ export const useLanguageStore = create<LanguageState>((set, get) => ({
   language: loadCachedLanguage(),
   isLoading: false,
 
+  hydrate: () => {
+    set({ language: loadCachedLanguage() });
+  },
+
   load: async () => {
     // Re-read now that state/storage.ts's ready() has resolved — the
     // module-level initial value above runs at import time, before
     // AsyncStorage is hydrated, so it's always the 'en' fallback (same fix
-    // as themeStore.ts's loadCachedThemeMode() re-read). Without this, a
-    // persisted language choice only ever came back via the network call
-    // below, which _layout.tsx used to fire before auth had restored.
-    set({ language: loadCachedLanguage() });
+    // as themeStore.ts's loadCachedThemeMode() re-read). Kept here as well
+    // as in _layout.tsx's hydration gate because load() also re-runs on a
+    // later sign-in, when the gate is long past.
+    get().hydrate();
     set({ isLoading: true });
     try {
       const me = await fetchMe();

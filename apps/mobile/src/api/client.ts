@@ -41,6 +41,10 @@ export class ApiError extends Error {
   }
 }
 
+function isReaderOpensCapReached(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 402;
+}
+
 function apiUrl(path: string): URL {
   if (!API_URL) {
     throw new Error(
@@ -120,7 +124,11 @@ export async function fetchFeedPage({
   if (before) url.searchParams.set('before', before);
 
   const response = await apiFetch(url);
-  return feedResponseSchema.parse(await response.json());
+  const parsed = feedResponseSchema.parse(await response.json());
+  if (parsed.quotaExhausted) {
+    queryClient.invalidateQueries({ queryKey: ['entitlement'] });
+  }
+  return parsed;
 }
 
 export async function fetchMe(): Promise<MeResponse> {
@@ -229,10 +237,17 @@ export async function fetchPostContent(postId: string, lang: Language): Promise<
   const url = apiUrl(`/v1/posts/${encodeURIComponent(postId)}/content`);
   url.searchParams.set('lang', lang);
 
-  const response = await apiFetch(url);
-  const parsed = contentResponseSchema.parse(await response.json());
-  queryClient.invalidateQueries({ queryKey: ['entitlement'] });
-  return parsed;
+  try {
+    const response = await apiFetch(url);
+    const parsed = contentResponseSchema.parse(await response.json());
+    queryClient.invalidateQueries({ queryKey: ['entitlement'] });
+    return parsed;
+  } catch (err) {
+    if (isReaderOpensCapReached(err)) {
+      queryClient.invalidateQueries({ queryKey: ['entitlement'] });
+    }
+    throw err;
+  }
 }
 
 export async function deleteAccount(): Promise<void> {

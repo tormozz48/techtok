@@ -29,6 +29,7 @@ import { navigationIntegration, Sentry } from '@/state/sentry';
 import { ready } from '@/state/storage';
 import { useThemeStore } from '@/state/themeStore';
 import { useTopicsStore } from '@/state/topicsStore';
+import { startOtaUpdates } from '@/state/updates';
 
 const persister = createAsyncStoragePersister({
   storage: AsyncStorage,
@@ -60,6 +61,7 @@ function RootLayout() {
       await useAuthStore.getState().restore();
       startReadQueueFlushing();
       startEventsQueueFlushing();
+      startOtaUpdates();
       setIsHydrated(true);
     });
   }, []);

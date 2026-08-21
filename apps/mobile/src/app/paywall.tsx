@@ -1,9 +1,11 @@
-import { Link } from 'expo-router';
-import { useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Link, router } from 'expo-router';
+import { useEffect, useMemo, useRef } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ActivityIndicator, Button } from 'react-native-paper';
 import { useEntitlementQuery } from '@/api/useEntitlementQuery';
 import { Radius, Spacing, type ThemeColors, Typography } from '@/constants/theme';
+import { useQuotaReset } from '@/hooks/useQuotaReset';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 
@@ -23,6 +25,7 @@ export default function PaywallScreen() {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const entitlementQuery = useEntitlementQuery();
+  const queryClient = useQueryClient();
   const entitlement = entitlementQuery.data;
 
   const cardReadsLimit = entitlement?.quota.cardReadsLimit ?? 100;
@@ -31,6 +34,36 @@ export default function PaywallScreen() {
     entitlement?.plan === 'free' &&
     (entitlement.quota.cardReads >= entitlement.quota.cardReadsLimit ||
       entitlement.quota.readerOpens >= entitlement.quota.readerOpensLimit);
+
+  // This screen is both the blocking wall (reached from the feed, or from a
+  // reader 402) and a plain plan comparison (reached from settings' quota
+  // row). Only the blocking case may refresh and leave on its own, so both
+  // behaviours hang off this "arrived here exhausted" latch.
+  const wasExhausted = useRef(false);
+  useEffect(() => {
+    if (isExhausted) wasExhausted.current = true;
+  }, [isExhausted]);
+
+  // Nothing else re-reads the quota while this screen sits open in the
+  // foreground — the entitlement query's staleTime only makes a refetch
+  // *possible*, and its focus trigger needs an app background/foreground
+  // round trip that never happens if the user simply waits here. So pull
+  // fresh counters the moment the reset instant passes, and drop the cached
+  // feed page whose `quotaExhausted` flag would otherwise bounce them
+  // straight back.
+  useQuotaReset(entitlement?.quota.resetsAt, () => {
+    entitlementQuery.refetch();
+    if (wasExhausted.current) queryClient.resetQueries({ queryKey: ['feed'] });
+  });
+
+  useEffect(() => {
+    if (!wasExhausted.current || !entitlement || isExhausted) return;
+    // Pushed over the feed on every real entry path; the forward navigation
+    // is a fallback so a paywall that somehow ended up as the only route
+    // still isn't a trap.
+    if (router.canGoBack()) router.back();
+    else router.replace('/');
+  }, [entitlement, isExhausted]);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>

@@ -53,17 +53,34 @@ function RootLayout() {
 
   useEffect(() => {
     ready().then(async () => {
-      startReadQueueFlushing();
-      startEventsQueueFlushing();
       startNetworkMonitoring();
       useTopicsStore.getState().load();
       useThemeStore.getState().load();
+      // Storage-only, network-free (unlike languageStore.load() below, which
+      // needs auth): the feed's query key is keyed by language, so the first
+      // render has to already know the persisted one. Without this the feed
+      // mounted under 'en', then swapped to the real language a second later
+      // — replacing every card in the pager, which cancels any tap already
+      // in flight on the first card (confirmed in production access logs:
+      // four GET /v1/feed calls and two read-ahead prefetch bursts with
+      // different post ids inside 1.6s of every launch).
+      useLanguageStore.getState().hydrate();
       setShowOnboarding(!hasSeenOnboarding());
       // Held inside the same hydration gate as everything else (D68): a
       // silent-restore attempt (Google Sign-In's own persisted session, not
       // anything this app caches) resolves before the first Stack.Protected
       // guard evaluates, so a signed-in user never sees a flash of /auth.
       await useAuthStore.getState().restore();
+      // Started only after sign-in resolves, for the same reason
+      // languageStore.load() is deferred below. Both flushers POST to
+      // authenticated routes the instant they start, and starting them first
+      // fired those POSTs with no Authorization header at all — the 401 then
+      // kicked off a *second* silent sign-in concurrent with restore()'s own,
+      // and whichever lost wrote `signedOut` over the restored session. That
+      // is what showed a signed-in user /auth for a moment at launch, until
+      // the next 5s/15s flush tick 401'd again and recovered it.
+      startReadQueueFlushing();
+      startEventsQueueFlushing();
       setIsHydrated(true);
     });
   }, []);

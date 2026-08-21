@@ -76,6 +76,43 @@ function toAuthUser(
   return { idToken, email: user.email, name: user.name };
 }
 
+/**
+ * Google's own silent sign-in, de-duplicated across callers.
+ *
+ * `restore()` (app start) and `refreshToken()` (an API 401 retry) can both
+ * reach for it within the same few hundred milliseconds. Two concurrent Play
+ * Services calls means one of them fails, and because both write this same
+ * store, the loser's `signedOut` lands on top of the winner's restored
+ * session — which is what dropped an already-signed-in user onto `/auth` for
+ * a moment at launch, until the next queue-flush tick 401'd and recovered it.
+ *
+ * Resolves to null for "no session usable": a missing saved credential, a
+ * failed call, or an unusable configuration. Every caller treats those three
+ * identically.
+ */
+let silentSignInAttempt: Promise<AuthUser | null> | null = null;
+
+function silentSignIn(): Promise<AuthUser | null> {
+  // `.finally()` on the outside, not inside `attemptSilentSignIn` — a
+  // synchronous throw there (an unset webClientId) would otherwise clear the
+  // slot *before* `??=` assigns it, leaving a settled promise cached forever.
+  silentSignInAttempt ??= attemptSilentSignIn().finally(() => {
+    silentSignInAttempt = null;
+  });
+  return silentSignInAttempt;
+}
+
+async function attemptSilentSignIn(): Promise<AuthUser | null> {
+  try {
+    ensureConfigured();
+    const response = await GoogleSignin.signInSilently();
+    if (isNoSavedCredentialFoundResponse(response)) return null;
+    return toAuthUser(response.data.idToken, response.data.user);
+  } catch {
+    return null;
+  }
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   status: 'loading',
   user: null,
@@ -95,15 +132,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ status: 'signedOut', user: null });
         return;
       }
-      const response = await GoogleSignin.signInSilently();
-      if (isNoSavedCredentialFoundResponse(response)) {
-        set({ status: 'signedOut', user: null });
-        return;
-      }
-      set({ status: 'signedIn', user: toAuthUser(response.data.idToken, response.data.user) });
     } catch {
       set({ status: 'signedOut', user: null });
+      return;
     }
+    const user = await silentSignIn();
+    set(user ? { status: 'signedIn', user } : { status: 'signedOut', user: null });
   },
 
   signIn: async () => {
@@ -138,19 +172,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // tokens live ~1h, comfortably longer than a suite run, and the harness
     // mints a fresh one per run.
     if (isE2eAuthEnabled()) return get().user?.idToken ?? null;
-    ensureConfigured();
-    try {
-      const response = await GoogleSignin.signInSilently();
-      if (isNoSavedCredentialFoundResponse(response)) {
-        set({ status: 'signedOut', user: null });
-        return null;
-      }
-      const user = toAuthUser(response.data.idToken, response.data.user);
-      set({ status: 'signedIn', user });
-      return user.idToken;
-    } catch {
+    const user = await silentSignIn();
+    if (!user) {
       set({ status: 'signedOut', user: null });
       return null;
     }
+    set({ status: 'signedIn', user });
+    return user.idToken;
   },
 }));

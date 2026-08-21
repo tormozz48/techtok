@@ -15,11 +15,6 @@ function isTrackingParam(key: string): boolean {
   return lower.startsWith('utm_') || TRACKING_PARAMS.has(lower);
 }
 
-/**
- * Normalizes a URL for dedup purposes: strips tracking params and the
- * fragment, lowercases scheme/host, drops default ports and trailing
- * slashes, and sorts the remaining query params.
- */
 export function canonicalizeUrl(rawUrl: string): string {
   const url = new URL(rawUrl);
   url.hash = '';

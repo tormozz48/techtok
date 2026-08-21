@@ -23,7 +23,6 @@ describe('prefetchLedger', () => {
     for (let i = 0; i < PREFETCH_LEDGER_CAP; i++) {
       recordPrefetch(`post-${i}`, 'en');
     }
-    // post-0 is the oldest; touching it again should make post-1 the oldest instead.
     expect(recordPrefetch('post-0', 'en')).toEqual([]);
 
     expect(recordPrefetch('post-overflow', 'en')).toEqual([{ postId: 'post-1', language: 'en' }]);
@@ -32,12 +31,10 @@ describe('prefetchLedger', () => {
   it('tracks the same postId in different languages as separate entries', () => {
     recordPrefetch('a', 'en');
     recordPrefetch('a', 'ru');
-    // Fill to exactly the cap (2 + 48 = 50) with distinct posts — no eviction yet.
     for (let i = 0; i < PREFETCH_LEDGER_CAP - 2; i++) {
       expect(recordPrefetch(`post-${i}`, 'en')).toEqual([]);
     }
 
-    // The 51st entry evicts the true oldest, a/en — a/ru is untouched.
     expect(recordPrefetch('post-overflow', 'en')).toEqual([{ postId: 'a', language: 'en' }]);
   });
 

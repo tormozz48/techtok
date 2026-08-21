@@ -17,8 +17,6 @@ import { selectContentToPrefetch, selectImagesToPrefetch } from './prefetch';
 export interface FeedPagerProps {
   cards: CardData[];
   onNearEnd?: () => void;
-  /** Fires with the newly-active card on every page settle (D25) — drives
-   * the bottom action bar's per-card bookmark/share buttons. */
   onPageChange?: (card: CardData) => void;
 }
 
@@ -46,10 +44,6 @@ export function FeedPager({ cards, onNearEnd, onPageChange }: FeedPagerProps) {
             Image.prefetch(url);
           }
 
-          // Scroll-driven content read-ahead (D61) — reuses D55's bookmark
-          // prefetch helper over the same next-N window as the image
-          // prefetch above. Capped via prefetchLedger since this touches
-          // every card scrolled past, not just deliberate bookmarks.
           const language = useLanguageStore.getState().language;
           for (const postId of selectContentToPrefetch(cards, position)) {
             prefetchPostContent(queryClient, postId, language);

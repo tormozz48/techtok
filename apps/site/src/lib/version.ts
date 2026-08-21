@@ -11,6 +11,4 @@ interface ExpoAppConfig {
 
 const appConfig: ExpoAppConfig = JSON.parse(readFileSync(APP_JSON_PATH, 'utf-8'));
 
-/** Canonical source: apps/mobile/app.json's `expo.version` (D35), read at
- * build time so the site's version badge never drifts from the shipped APK. */
 export const APP_VERSION: string = appConfig.expo.version;

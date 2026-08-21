@@ -1,10 +1,6 @@
 import { load } from 'cheerio';
 import { isGenericImage } from './genericImageDenylist';
 
-// D23: "≤5, minimum dimensions, dedup against the lead image". No
-// pixel-decoding library is added for this — sub-200px figures are only
-// skipped when the markup already declares `width`/`height` attributes;
-// undeclared dimensions pass through and rely on the cap + dedup instead.
 const MIN_DIMENSION_PX = 200;
 const MAX_FIGURES = 5;
 
@@ -13,12 +9,6 @@ export interface ExtractedFigure {
   readonly caption?: string;
 }
 
-/**
- * Pulls candidate in-body figures out of an article's extracted HTML
- * (`@extractus/article-extractor`'s `content`, already scoped to the article
- * body rather than the whole page). Pure and synchronous — mirroring
- * (network I/O) happens separately, one layer up.
- */
 export function extractFigures(articleHtml: string, leadImageUrl?: string): ExtractedFigure[] {
   const $ = load(articleHtml);
   const figures: ExtractedFigure[] = [];

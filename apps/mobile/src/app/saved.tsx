@@ -31,12 +31,6 @@ export default function SavedScreen() {
   const items = data?.pages.flatMap((page) => page.items) ?? [];
   const isSearching = submittedQuery.length > 0;
 
-  // Best-effort offline prep for whatever's currently loaded on this screen
-  // (including further pages as the user scrolls). Reads straight from
-  // `data` rather than the derived `items` array so the effect's own
-  // dependency (`data`) matches what it actually reads — `items` is a fresh
-  // array reference on every render even when the underlying pages haven't
-  // changed, which would otherwise re-run this on every render too.
   useEffect(() => {
     if (!getIsWifi() || !data) return;
     const language = useLanguageStore.getState().language;

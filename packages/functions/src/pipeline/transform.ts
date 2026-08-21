@@ -23,8 +23,6 @@ import { getContentQueue, getPostsRepo, getSourcesRepo, getTranslateQueue } from
 
 const logger = new Logger({ serviceName: 'transform' });
 
-// Eager translation (D27): every post gets a job queued for every language
-// but the one it was already produced in.
 const NON_ENGLISH_LANGUAGES = LANGUAGES.filter((lang) => lang !== 'en');
 
 const getS3Client = lazy(createS3Client);
@@ -34,8 +32,6 @@ const getRawArticleStore = lazy(
 const getImageStore = lazy(() => new ImageStore(getS3Client(), requireEnv('IMAGES_BUCKET_NAME')));
 const getLlmProvider = lazy(() => createConfiguredLlmProvider(process.env));
 
-// Per-invocation only (not cross-invocation) — good enough at this batch
-// size (<=5 messages), avoids a repeat robots.txt fetch per host in a batch.
 const robotsCache = new Map<string, string | undefined>();
 
 function fetchBytes(url: string, maxBytes: number) {
@@ -53,11 +49,6 @@ async function fetchRobotsTxt(robotsUrl: string): Promise<string | undefined> {
   return text;
 }
 
-/** Content-level: an infra-level fetch/upload failure (`'failed'`) degrades to
- * the original hotlinked imageUrl at the Card DTO layer (toCard.ts) — never
- * blocks or retries the post. A quality-level rejection (`'rejected'`, D28)
- * is reported separately so `transformArticle`'s cascade can try the next
- * candidate instead of treating this the same as an infra failure. */
 async function mirrorImage(postId: string, imageUrl: string): Promise<MirrorImageResult> {
   try {
     const { body, contentType } = await fetchBytes(imageUrl, MAX_IMAGE_BYTES);
@@ -129,11 +120,6 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
               NON_ENGLISH_LANGUAGES.map((lang) => ({ postId: id, lang })),
             ),
           enqueueContentJobs: async (id) => {
-            // New checkpoint (D36): the compact-reader kill switch is
-            // checked here too, before the eager enqueue, so a disabled
-            // source's posts never get queued in the first place — the
-            // content consumer still checks it again per language (D23),
-            // in case the flag flips after this post was already enqueued.
             const source = await getSourcesRepo().getById(post.sourceId);
             if (!isCompactEnabled(source)) return;
             await getContentQueue().enqueuePending(LANGUAGES.map((lang) => ({ postId: id, lang })));

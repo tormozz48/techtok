@@ -4,7 +4,6 @@ export interface ReadSnapshot {
   readonly cardTitle: string;
   readonly sourceName: string;
   readonly url: string;
-  /** Absent on snapshots written before this field existed. */
   readonly primaryTopic?: Topic;
 }
 

@@ -31,8 +31,6 @@ export class SourcesRepo {
     return (result.Items ?? []) as SourceRecord[];
   }
 
-  /** Used by the content handler to read a source's compact-reader kill
-   * switch (D23). */
   async getById(sourceId: string): Promise<SourceRecord | undefined> {
     const result = await this.client.send(
       new GetCommand({ TableName: this.tableName, Key: { sourceId } }),

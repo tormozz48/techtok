@@ -17,25 +17,6 @@ const getContentStore = lazy(
   () => new ContentStore(getS3Client(), requireEnv('CONTENT_BUCKET_NAME')),
 );
 
-/**
- * Reads a compact article (D23; eager generation as of D36) — a plain S3
- * cache read, no job ids or polling. Generation already happened during
- * ingest (`transformArticle`'s eager per-language enqueue), so a miss here is
- * either a source with the compact-reader kill switch on, or the rare case a
- * just-ingested post's eager job hasn't finished yet. Never calls the LLM on
- * this request path.
- *
- * D69: also the free tier's reader-opens gate. Counts as an "open" the
- * moment the request is allowed through, regardless of whether the content
- * turns out to be cached, not-ready, or compact-disabled — the user still
- * spent one of their daily opens tapping into the reader.
- *
- * `intent=prefetch` (D61's read-ahead / bookmark wifi-prefetch, mobile's
- * prefetchPostContent) skips the gate and the increment entirely — those
- * calls are speculative background cache-warming the user never sees, not a
- * reader open, and must not silently exhaust the daily allowance before the
- * user has opened anything.
- */
 export const handler = withAuth(async (event, auth) => {
   const postId = event.pathParameters?.postId;
   if (!postId) {

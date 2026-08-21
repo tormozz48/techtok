@@ -1,7 +1,5 @@
 import type { SourceRecord } from '../sources.types';
 
-/** Preset rows carry only their identity; the operational fields all start
- * from the same defaults (weight 1, enabled, clean failCount) applied below. */
 type SourcePreset = Omit<SourceRecord, 'weight' | 'enabled' | 'failCount'>;
 
 const PRESETS: SourcePreset[] = [
@@ -84,11 +82,6 @@ const PRESETS: SourcePreset[] = [
   },
 ];
 
-/**
- * The full ~11-feed preset list from DESIGN.md §2, seeded into the `Sources`
- * table (Phase 2). Editable afterwards via the table itself — this is only
- * the initial data.
- */
 export const FULL_SOURCE_PRESETS: SourceRecord[] = PRESETS.map((preset) => ({
   ...preset,
   weight: 1,
@@ -96,27 +89,8 @@ export const FULL_SOURCE_PRESETS: SourceRecord[] = PRESETS.map((preset) => ({
   failCount: 0,
 }));
 
-/**
- * The only sources enabled outside `production`. A cost audit (2026-08-15)
- * found `dev` holding a post volume within 5% of production's — and therefore
- * paying ~96% of its eager per-post LLM fan-out (1 card + 3 translations + 4
- * compact articles, D31/D36) — for a stage with no readers. Cadence wasn't the
- * cause: `dev` already polls every 6 hours to production's 60 minutes (D-note
- * in `infra/pipeline.ts`). `arxiv-ai` and `hn` are simply firehoses, and they
- * were 2 of the 4 feeds `dev` had enabled.
- *
- * These two are moderate-volume feeds with *different* `defaultTopic`s, so a
- * dev stage still exercises every pipeline path end-to-end — including the
- * primaryTopic GSI, which a single-source stage would leave with only one
- * partition to read from.
- */
 export const NON_PRODUCTION_SOURCE_IDS = ['verge', 'quanta'];
 
-/**
- * Presets for a given stage. Every stage is seeded with all ~11 rows; only
- * `enabled` differs, so a source can still be switched on later by editing the
- * table directly — no deploy, and no divergence in what rows exist.
- */
 export function sourcePresetsForStage(stage: string): SourceRecord[] {
   if (stage === 'production') return FULL_SOURCE_PRESETS;
 

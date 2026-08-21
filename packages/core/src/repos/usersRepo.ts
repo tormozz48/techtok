@@ -8,17 +8,8 @@ import type { UserRecord } from '../users.types';
 type QuotaField = 'cardReads' | 'readerOpens';
 
 export interface TouchOptions {
-  /** Seeds `language` only on a brand-new user (D20's "device-locale default
-   * on first sight") — `if_not_exists` never overwrites a language the user
-   * already chose. */
   readonly deviceLanguage?: Language;
-  /** Seeds `timezone` only on a brand-new user, captured once at sign-in
-   * (D68/D69) — never re-derived from later requests. Falls back to UTC. */
   readonly timezone?: string;
-  /** From the Google ID token (D68). Kept fresh on every touch (a plain
-   * `SET`, not `if_not_exists`) since Google, not this app, is the source of
-   * truth for a user's current email/display name. Omitted (not sent as
-   * `undefined`) when the token didn't carry the claim. */
   readonly email?: string;
   readonly name?: string;
 }
@@ -29,10 +20,6 @@ export class UsersRepo {
     private readonly tableName: string,
   ) {}
 
-  /** `language`/`name`/`timezone` are all DynamoDB reserved keywords
-   * (confirmed live — the same class of bug this project has hit before, see
-   * CLAUDE.md), so all are aliased like every other attribute name in this
-   * repo, reserved or not. */
   async touch(userId: string, opts: TouchOptions = {}): Promise<UserRecord> {
     const now = new Date().toISOString();
     const setClauses = [
@@ -73,20 +60,10 @@ export class UsersRepo {
     return result.Attributes as UserRecord;
   }
 
-  /** Deletes the user's profile row (D68's `DELETE /v1/me`, required by Play
-   * policy). Deleting `UserActivity` rows is a separate call
-   * (`UserActivityRepo.deleteAllForUser`) — different table, different
-   * partition scheme. */
   async deleteUser(userId: string): Promise<void> {
     await this.client.send(new DeleteCommand({ TableName: this.tableName, Key: { userId } }));
   }
 
-  /** Full replace of the `entitlement` map (D70) — grant, revoke, or update
-   * in one write, called by both the manual ops-script path and (phase 21)
-   * Play's verify callback. `entitlement` isn't a known DynamoDB reserved
-   * word, but this file aliases every attribute it touches regardless — see
-   * CLAUDE.md's status log for this exact bug class hitting this codebase
-   * more than once, always past a mocked test. */
   async grantEntitlement(userId: string, entitlement: Entitlement): Promise<UserRecord> {
     const result = await this.client.send(
       new UpdateCommand({
@@ -101,15 +78,6 @@ export class UsersRepo {
     return result.Attributes as UserRecord;
   }
 
-  /** Atomic, day-aware quota increment (D69). Deliberately uses a `SET path
-   * = path + :by` arithmetic expression, never DynamoDB's `ADD` action on a
-   * nested map path — `addTopicReads` below already found live that `ADD`
-   * doesn't reach into a nested attribute the way it looks like it should.
-   * Two-step optimistic pattern: try the plain increment gated on "today's
-   * quota already exists"; a stale/absent quota fails that condition, so
-   * fall back to writing a fresh zero-based day; if *that* also loses a
-   * race (another request reset the day in between), the plain increment is
-   * retried once more, since the day now exists. */
   async incrementQuota(
     userId: string,
     field: QuotaField,
@@ -158,8 +126,6 @@ export class UsersRepo {
       return result.Attributes?.quota as Quota;
     } catch (err) {
       if (!(err instanceof ConditionalCheckFailedException)) throw err;
-      // A concurrent request reset the day between our two attempts above —
-      // quota now exists for today, so the plain increment will succeed.
       const result = await tryIncrement();
       return result.Attributes?.quota as Quota;
     }
@@ -180,12 +146,6 @@ export class UsersRepo {
     return result.Attributes as UserRecord;
   }
 
-  /** Seeds `topics` on first touch (`if_not_exists`), same as `touch()` —
-   * without it, a device that calls this before ever hitting `touch()`
-   * (`GET /v1/me`, `GET /v1/feed`, ...) gets a row with no `topics` at all,
-   * and `UserRecord.topics`/`meResponseSchema` both treat it as required, so
-   * the response fails schema validation and 500s (confirmed live via the
-   * e2e mutation suite hitting this route from a brand-new device). */
   async updateLanguage(userId: string, language: Language): Promise<UserRecord> {
     const now = new Date().toISOString();
     const result = await this.client.send(
@@ -202,7 +162,6 @@ export class UsersRepo {
     return result.Attributes as UserRecord;
   }
 
-  /** Seeds `topics` on first touch — see `updateLanguage`'s comment. */
   async updateMutedSources(userId: string, mutedSources: string[]): Promise<UserRecord> {
     const now = new Date().toISOString();
     const result = await this.client.send(
@@ -222,11 +181,6 @@ export class UsersRepo {
     return result.Attributes as UserRecord;
   }
 
-  /** Increments per-topic read counters (feed affinity signal, scoring.ts).
-   * `counts` maps topic -> number of newly-read posts in that topic from a
-   * single reads batch. Two sequential updates because DynamoDB's `ADD`
-   * cannot target a nested map path (`topicReads.ai`) — the first ensures
-   * the map exists, the second increments each topic's counter within it. */
   async addTopicReads(userId: string, counts: Partial<Record<Topic, number>>): Promise<void> {
     const entries = Object.entries(counts) as [Topic, number][];
     if (entries.length === 0) return;

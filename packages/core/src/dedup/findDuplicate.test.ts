@@ -63,7 +63,7 @@ describe('findDuplicateOf', () => {
       postId: 'existing1',
       sourceId: 'arstechnica',
       origTitle: 'FBI stops investigating ICE agents',
-      publishedAt: '2026-07-15T12:00:00.000Z', // 4 days before the candidate
+      publishedAt: '2026-07-15T12:00:00.000Z',
     });
     const queryRecentByTopic = vi.fn().mockResolvedValue([tooOld]);
 
@@ -87,9 +87,6 @@ describe('findDuplicateOf', () => {
   });
 
   it('resolves to the chain root when the matched post is itself already a duplicate', async () => {
-    // 'existing1' matched the new candidate's title, but it's already marked
-    // as a duplicate of 'root' — the new candidate should point at 'root'
-    // directly, not extend the chain to 'existing1'.
     const alreadyADuplicate = candidate({
       postId: 'existing1',
       sourceId: 'arstechnica',
@@ -109,7 +106,7 @@ describe('findDuplicateOf', () => {
       postId: 'existing1',
       sourceId: 'arstechnica',
       origTitle: 'FBI stops investigating ICE agents, report says',
-      publishedAt: '2026-07-17T12:00:00.000Z', // 48h before the candidate
+      publishedAt: '2026-07-17T12:00:00.000Z',
     });
     const queryRecentByTopic = vi.fn().mockResolvedValue([borderline]);
 

@@ -4,10 +4,4 @@ export const GITHUB_REPO_URL = REPO_URL;
 export const RELEASES_URL = `${REPO_URL}/releases`;
 export const AUTHOR_LINKEDIN_URL = 'https://www.linkedin.com/in/andrii-kuznietsov-877a824b/';
 
-/**
- * GitHub's `releases/latest` alias only ever resolves to the newest
- * *non-prerelease* release (.github/workflows/mobile-build.yml, D39) — so
- * this URL is permanent and never needs to change as new builds ship. Both
- * the download button and the QR code point at it directly.
- */
 export const APK_DOWNLOAD_URL = `${RELEASES_URL}/latest/download/techtok.apk`;

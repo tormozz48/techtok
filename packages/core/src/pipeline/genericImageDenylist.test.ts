@@ -14,10 +14,6 @@ describe('isGenericImage', () => {
     );
   });
 
-  // What @extractus/article-extractor actually resolves for arXiv posts in
-  // practice — a different URL, host, and path shape than the raw og:image
-  // tag above, confirmed by mirroring a live post (2026-07-22 dev-stage
-  // verification) and finding the arXiv wordmark, not a paper image.
   it('flags the twitter:image variant article-extractor actually resolves', () => {
     expect(
       isGenericImage('https://static.arxiv.org/icons/twitter/arxiv-logo-twitter-square.png'),

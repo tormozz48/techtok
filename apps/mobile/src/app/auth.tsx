@@ -9,11 +9,6 @@ import { useStrings } from '@/i18n/useStrings';
 import { useAuthStore } from '@/state/authStore';
 import { isE2eAuthEnabled } from '@/state/e2eAuth';
 
-/**
- * Sign-in gate (D68) — rendered by `_layout.tsx`'s `Stack.Protected` for
- * every signed-out user, before any other screen. There is no skip/guest
- * path: the whole app requires a Google account as of this stage.
- */
 export default function AuthScreen() {
   const strings = useStrings();
   const colors = useThemeColors();
@@ -24,10 +19,6 @@ export default function AuthScreen() {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [hasError, setHasError] = useState(false);
 
-  // E2E-only entry point (see state/e2eAuth.ts): the Maestro suite deep-links
-  // to `techtok://auth?idToken=<a real Google ID token>` to skip a consent UI
-  // that cannot be automated. Inert in every shipping build — the param is
-  // simply ignored, and `signInWithIdToken` no-ops on top of that.
   const { idToken } = useLocalSearchParams<{ idToken?: string }>();
   useEffect(() => {
     if (isE2eAuthEnabled() && idToken) signInWithIdToken(idToken);

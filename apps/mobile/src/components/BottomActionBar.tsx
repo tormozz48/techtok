@@ -9,25 +9,13 @@ import { useStrings } from '@/i18n/useStrings';
 import { useSpeechStore } from '@/state/speechStore';
 import { BookmarkButton } from './BookmarkButton';
 
-/** Base bar height, excluding the bottom safe-area inset (D25). */
 export const ACTION_BAR_HEIGHT = 56;
 
 export interface BottomActionBarProps {
-  /** The card currently in view in the feed pager — drives the per-card
-   * bookmark/share actions. Undefined only before the very first card has
-   * loaded (see FeedScreen). */
   activeCard: CardData | undefined;
-  /** Resets the feed back to the newest page (A1) — PagerView has no
-   * RefreshControl, so this is the only manual-refresh affordance. */
   onRefresh: () => void;
 }
 
-/**
- * Solid, layout-reserving bottom bar (DESIGN §2 D25) replacing the old
- * scattered overlay circle buttons: per-card actions (bookmark, share) for
- * whichever card is currently in view, plus global nav (saved, history,
- * settings) — all in one row.
- */
 export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps) {
   const insets = useSafeAreaInsets();
   const strings = useStrings();

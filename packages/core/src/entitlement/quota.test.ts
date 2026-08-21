@@ -7,7 +7,6 @@ describe('localDayKey', () => {
   });
 
   it('rolls over into the next calendar day for a positive-offset timezone', () => {
-    // Europe/Warsaw is UTC+2 in August (DST) -> 23:30 UTC is already 01:30 the next day locally.
     expect(localDayKey('Europe/Warsaw', new Date('2026-08-12T23:30:00.000Z'))).toBe('2026-08-13');
   });
 
@@ -24,13 +23,11 @@ describe('nextLocalMidnightUtc', () => {
 
   it('accounts for a positive DST offset (Europe/Warsaw, UTC+2 in August)', () => {
     const result = nextLocalMidnightUtc('Europe/Warsaw', new Date('2026-08-12T10:00:00.000Z'));
-    // Local midnight of Aug 13 in Warsaw (UTC+2) is 22:00 UTC on Aug 12.
     expect(result.toISOString()).toBe('2026-08-12T22:00:00.000Z');
   });
 
   it('accounts for a negative offset (America/New_York, UTC-4 in August)', () => {
     const result = nextLocalMidnightUtc('America/New_York', new Date('2026-08-12T10:00:00.000Z'));
-    // Local midnight of Aug 13 in New York (UTC-4) is 04:00 UTC on Aug 13.
     expect(result.toISOString()).toBe('2026-08-13T04:00:00.000Z');
   });
 });

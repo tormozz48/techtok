@@ -24,13 +24,6 @@ function save(entries: PrefetchLedgerEntry[]): void {
   storage.set(LEDGER_KEY, JSON.stringify(entries));
 }
 
-/**
- * Records a scroll-triggered (non-bookmark) content prefetch, oldest-first.
- * Re-touching an existing (postId, language) pair refreshes its recency
- * instead of duplicating it. Returns whatever falls off the front past
- * PREFETCH_LEDGER_CAP, so the caller can also drop it from the query cache —
- * this module has no QueryClient dependency of its own (D61).
- */
 export function recordPrefetch(postId: string, language: Language): PrefetchLedgerEntry[] {
   const entries = load().filter(
     (entry) => !(entry.postId === postId && entry.language === language),
@@ -45,9 +38,6 @@ export function recordPrefetch(postId: string, language: Language): PrefetchLedg
   return evicted;
 }
 
-/** Drops every ledger entry for postId (any language) — called when a card
- * is bookmarked, so it's never evicted by the speculative read-ahead cap; an
- * explicit save always outranks scroll-driven prefetch. */
 export function forgetPrefetch(postId: string): void {
   const entries = load();
   const next = entries.filter((entry) => entry.postId !== postId);

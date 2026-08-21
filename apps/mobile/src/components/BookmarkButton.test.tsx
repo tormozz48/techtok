@@ -59,11 +59,6 @@ describe('BookmarkButton', () => {
   });
 
   it('shows the bookmarked state immediately (optimistic), before the create request resolves', async () => {
-    // A permanently-pending mock hangs fireEvent.press itself (React's act()
-    // waits for the scheduled work it triggered to settle), so this uses a
-    // deferred promise: fire the press without awaiting it, assert the
-    // optimistic state via waitFor's independent polling, then resolve and
-    // let the press settle so the test itself completes cleanly.
     let resolveCreate: (() => void) | undefined;
     createBookmarkMock.mockReturnValue(
       new Promise<void>((resolve) => {
@@ -95,12 +90,6 @@ describe('BookmarkButton', () => {
     await pressPromise;
   });
 
-  // The overlay is deliberately transient (see bookmarksOverlay.ts): once a
-  // mutation confirms, it's cleared and display falls back to whatever
-  // isBookmarked prop says. A real screen re-renders that prop from the
-  // patched query cache; this isolated render never does, so it lands back
-  // on the original value -- the interesting assertion is that the request
-  // fired and the overlay didn't leak, not the visible end state.
   it('creates the bookmark and clears the optimistic overlay once the request confirms', async () => {
     await renderWithQueryClient(<BookmarkButton postId="p1" isBookmarked={false} />, queryClient);
 
@@ -128,9 +117,6 @@ describe('BookmarkButton', () => {
     await waitFor(() => expect(screen.getByLabelText(a11y.bookmarkAdd)).toBeTruthy());
   });
 
-  // A caller whose own `isBookmarked` prop can't re-derive from a live query
-  // cache (PostScreen's frozen route param) needs this callback to keep its
-  // own display in sync once the overlay clears — see onToggled's doc comment.
   it('calls onToggled with the confirmed state once the create request resolves', async () => {
     const onToggled = jest.fn();
     await renderWithQueryClient(

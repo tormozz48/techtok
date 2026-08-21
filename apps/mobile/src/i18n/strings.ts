@@ -128,10 +128,6 @@ export interface ChromeStrings {
   };
 }
 
-// Hand-written chrome copy (D20) — no i18n framework dependency. Keep every
-// language's key set identical; `useStrings` indexes this table directly by
-// the current language with no runtime fallback, so a missing key would be a
-// type error, not a silent blank.
 export const STRINGS: Record<Language, ChromeStrings> = {
   en: {
     feed: {

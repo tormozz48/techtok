@@ -15,11 +15,6 @@ jest.mock('expo-image', () => ({
 const fetchPostContentMock = fetchPostContent as jest.Mock;
 const imagePrefetchMock = Image.prefetch as jest.Mock;
 
-// retry: false is load-bearing, not just tidiness — without it, a rejected
-// mock (or a real bug leaving the mock unapplied) would retry with backoff
-// and make the test hang instead of failing fast. unmount() in afterEach
-// stops QueryClient's internal focus/online listeners, which otherwise keep
-// the process alive after the tests themselves finish.
 let queryClient: QueryClient;
 
 beforeEach(() => {
@@ -29,10 +24,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  // clear() cancels each cached query's pending garbage-collection timer
-  // (default gcTime is 5 minutes) — unmount() alone stops the client's own
-  // focus/online listeners but leaves those per-query timers scheduled,
-  // which is what was actually keeping the test process alive.
   queryClient.clear();
   queryClient.unmount();
 });
@@ -44,9 +35,6 @@ describe('prefetchPostContent', () => {
 
     await prefetchPostContent(queryClient, 'abc123', 'en');
 
-    // Must match post/[id].tsx's `queryKey: ['content', id, viewLang]` exactly
-    // — any drift here silently makes the whole prefetch feature a no-op,
-    // since the reader would just miss the cache and refetch anyway.
     expect(queryClient.getQueryData(['content', 'abc123', 'en'])).toEqual(response);
   });
 
@@ -56,8 +44,6 @@ describe('prefetchPostContent', () => {
 
     await prefetchPostContent(queryClient, 'xyz789', 'ru');
 
-    // 'prefetch' intent tells the server this isn't a genuine reader open —
-    // it must not burn the D69 reader-opens quota (see client.ts/content.ts).
     expect(fetchPostContentMock).toHaveBeenCalledWith('xyz789', 'ru', 'prefetch');
   });
 

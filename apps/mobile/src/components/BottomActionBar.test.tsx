@@ -141,9 +141,6 @@ describe('BottomActionBar', () => {
       expect.objectContaining({ language: 'en-US' }),
     );
 
-    // speak() itself calls Speech.stop() defensively before starting (see
-    // speechStore.test.ts) -- clear that call so this only asserts on what
-    // the second (stop) press itself triggers.
     stopMock.mockClear();
     const stopButton = await screen.findByLabelText(speechStrings.stopListening);
     await fireEvent.press(stopButton);

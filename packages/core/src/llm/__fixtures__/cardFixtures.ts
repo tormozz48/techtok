@@ -1,13 +1,3 @@
-// Golden fixtures for the LLM transform step (DESIGN §7.4). Each fixture
-// pairs a realistic article input with a hand-curated JSON response shaped
-// exactly as Bedrock would return it. Recording real Converse output requires
-// live model access (an account console step, see IMPLEMENTATION_PLAN.md
-// phase 3 task 1) that isn't available in this environment; these fixtures
-// pin the prompt/schema contract in the same golden-file shape so a real
-// recorded transcript can drop in later without changing the test harness.
-// CI never calls Bedrock — every generateCard test below runs against a fake
-// LlmProvider returning these fixed strings.
-
 export interface CardFixture {
   readonly name: string;
   readonly input: { readonly title: string; readonly sourceName: string; readonly text: string };

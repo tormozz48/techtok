@@ -5,7 +5,6 @@ import type { CompactArticleResult } from '../llm/compactArticle';
 import { errorMessage } from '../util/errors';
 import { type ExtractedFigure, extractFigures } from './figureExtraction';
 
-// ~8,000 chars of article text feeds the compact-article LLM call (DESIGN §7.4).
 const ARTICLE_TEXT_MAX_CHARS = 8000;
 
 export interface ContentInput {
@@ -14,39 +13,15 @@ export interface ContentInput {
   readonly title: string;
   readonly sourceName: string;
   readonly url: string;
-  /** The post's lead image (mirrored or original hotlink), used only to
-   * dedup in-body figures against it — never itself a figure candidate. */
   readonly leadImageUrl?: string;
-  /** This post's already-mirrored figure list (`Posts.mirroredFigures`), if
-   * an earlier language job for the same post already did the work (D36).
-   * Present → skip extraction/mirroring entirely and reuse this list;
-   * absent → this is the first language job for the post. */
   readonly mirroredFigures?: CompactFigure[];
 }
 
 export interface ContentDeps {
-  /** Per-source compact-reader kill switch (D23). Checked before any work —
-   * `false` means the source opted out, never generate for its posts. */
   readonly compactEnabled: () => Promise<boolean>;
-  /** Loads the article's HTML — archived raw HTML first, one live fetch
-   * attempt if unavailable (robots-respecting, same caps as transform). Any
-   * failure (S3 miss and fetch failure both) is a content-level failure the
-   * caller degrades from — never thrown further than here. */
   readonly loadArticleHtml: () => Promise<string>;
-  /** Mirrors candidate figures to our own CDN. A content-level concern, not
-   * infra: never throws — any per-figure fetch/upload failure is dropped
-   * from the returned list rather than failing the whole request. Only
-   * invoked when `ContentInput.mirroredFigures` was absent (D36: figure
-   * work happens once per post, not once per language). */
   readonly mirrorFigures: (figures: ExtractedFigure[]) => Promise<CompactFigure[]>;
-  /** Persists this post's figure list the first time it's mirrored (D36), so
-   * every other per-language job for the same post reuses it instead of
-   * re-extracting/re-mirroring. An infra call, deliberately unguarded for the
-   * same reason as `writeContent`. Only called when `mirrorFigures` ran. */
   readonly saveMirroredFigures: (figures: CompactFigure[]) => Promise<void>;
-  /** Derives the compact block list via the LLM (D23). Never expected to
-   * throw — an LLM refusal, invalid output, or a Bedrock hiccup is a
-   * content-level failure reported via `{ ok: false }`. */
   readonly generateCompact: (input: {
     lang: Language;
     title: string;
@@ -54,9 +29,6 @@ export interface ContentDeps {
     articleText: string;
     figures: { index: number; caption?: string }[];
   }) => Promise<CompactArticleResult>;
-  /** Persists the generated content (S3 JSON + `Posts.compactLangs`). An
-   * infra call, deliberately unguarded — a failure here should surface as a
-   * genuine 500 to the caller, not a silent degrade. */
   readonly writeContent: (blocks: CompactBlock[], figures: CompactFigure[]) => Promise<void>;
 }
 
@@ -64,17 +36,6 @@ export type ContentOutcome =
   | { readonly ok: true; readonly blocks: CompactBlock[]; readonly figures: CompactFigure[] }
   | { readonly ok: false; readonly reason: string };
 
-/**
- * Generates a compact in-app reader article for a post (D23): the kill
- * switch guardrail first, then archive-first article loading, figure
- * extraction + mirroring (skipped when this post's figures were already
- * mirrored by an earlier language job, D36), and a single-pass
- * compress+translate LLM call. Any content-level failure (kill switch,
- * article unavailable, extraction yielding nothing, LLM refusal/invalid
- * output) reports `{ ok: false }` — the caller degrades to the in-app
- * browser link-out, never a dead end. Only `writeContent`'s own infra
- * failure is left to throw.
- */
 export async function generateContentArticle(
   input: ContentInput,
   deps: ContentDeps,

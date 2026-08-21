@@ -209,6 +209,22 @@ Release signing reads a gitignored `apps/mobile/android/keystore.properties` (fa
 
 Note that `eas.json`'s `production` profile still builds an **APK**; the Play launch needs an AAB path (phase 23).
 
+### Verifying an OTA update landed
+
+`Mobile build` publishes the JS bundle to the `preview` EAS Update channel, and `AndroidManifest.xml` sets `EXPO_UPDATES_CHECK_ON_LAUNCH=ALWAYS` with a 0 ms wait — so a device fetches a new bundle in the background on one launch and runs it on the **next** one.
+
+**Settings → Build** is the on-device marker. It reads `expo-updates` and shows whether the running JS came over the air or shipped inside the APK, plus the short update id, publish time, channel, and runtime version:
+
+| Row | Embedded launch | After an OTA update |
+|---|---|---|
+| Running | Bundle shipped with the app | Over-the-air update |
+| Update ID | `—` | first 8 chars of the EAS update id |
+| Published | `—` | publish time, UTC |
+
+To confirm: relaunch the app twice, then match the update id against `eas update:list --channel preview` (or the EAS dashboard). In Expo Go every field except the bundle version reads `—`, since there is no update runtime.
+
+An OTA push only reaches devices whose installed APK has the same `runtimeVersion` (`apps/mobile/app.json`, hand-maintained) — a native-affecting change needs that bumped and a fresh APK, not an OTA.
+
 ## Ops scripts
 
 Both talk to live AWS and discover their target table by stage tag, so pass `--stage` explicitly.

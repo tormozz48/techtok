@@ -93,6 +93,28 @@ describe('FeedScreen quota gate (D69)', () => {
     expect(screen.queryByTestId('feed-empty')).toBeNull();
   });
 
+  it('stops blocking once a cached exhausted page outlives its own reset boundary', async () => {
+    await renderFeed({
+      items: [],
+      nextBefore: null,
+      quotaExhausted: true,
+      resetsAt: '2020-01-01T00:00:00.000Z',
+    });
+
+    expect(screen.queryByTestId('feed-quota-exhausted')).toBeNull();
+  });
+
+  it('keeps blocking on a cached exhausted page whose reset boundary is still ahead', async () => {
+    await renderFeed({
+      items: [],
+      nextBefore: null,
+      quotaExhausted: true,
+      resetsAt: '2099-01-01T00:00:00.000Z',
+    });
+
+    expect(screen.getByTestId('feed-quota-exhausted')).toBeTruthy();
+  });
+
   it('never blocks a plus subscriber', async () => {
     await renderFeed(
       { items: [card('a')], nextBefore: null },

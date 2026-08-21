@@ -1,4 +1,4 @@
-import { msUntilQuotaReset } from './quotaReset';
+import { hasQuotaResetPassed, msUntilQuotaReset } from './quotaReset';
 
 const NOW = new Date('2026-08-21T21:00:00.000Z').getTime();
 
@@ -21,5 +21,24 @@ describe('msUntilQuotaReset', () => {
 
   it('returns undefined for an unparseable boundary rather than scheduling on NaN', () => {
     expect(msUntilQuotaReset('not-a-date', NOW)).toBeUndefined();
+  });
+});
+
+describe('hasQuotaResetPassed', () => {
+  it('reports a boundary that is already behind us as passed', () => {
+    expect(hasQuotaResetPassed('2026-08-21T20:00:00.000Z', NOW)).toBe(true);
+  });
+
+  it('reports a boundary that is still ahead as not passed', () => {
+    expect(hasQuotaResetPassed('2026-08-21T22:00:00.000Z', NOW)).toBe(false);
+  });
+
+  it('treats a boundary inside the skew buffer as not passed', () => {
+    expect(hasQuotaResetPassed('2026-08-21T20:59:58.000Z', NOW)).toBe(false);
+  });
+
+  it('reports no boundary as not passed rather than expiring unknown state', () => {
+    expect(hasQuotaResetPassed(undefined, NOW)).toBe(false);
+    expect(hasQuotaResetPassed('not-a-date', NOW)).toBe(false);
   });
 });

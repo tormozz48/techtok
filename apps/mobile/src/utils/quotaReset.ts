@@ -9,3 +9,11 @@ export function msUntilQuotaReset(
   if (Number.isNaN(at)) return undefined;
   return at + SKEW_BUFFER_MS - now;
 }
+
+export function hasQuotaResetPassed(
+  resetsAt: string | undefined,
+  now: number = Date.now(),
+): boolean {
+  const remaining = msUntilQuotaReset(resetsAt, now);
+  return remaining !== undefined && remaining <= 0;
+}

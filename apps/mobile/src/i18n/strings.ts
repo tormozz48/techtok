@@ -32,6 +32,17 @@ export interface ChromeStrings {
     sourcesSectionTitle: string;
     sourcesHint: string;
   };
+  build: {
+    sectionTitle: string;
+    source: string;
+    sourceEmbedded: string;
+    sourceOta: string;
+    bundleVersion: string;
+    updateId: string;
+    publishedAt: string;
+    channel: string;
+    runtimeVersion: string;
+  };
   onboarding: {
     title: string;
     languageStepTitle: string;
@@ -165,6 +176,17 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       sourcesSectionTitle: 'Sources',
       sourcesHint: 'Tap a source to mute it — muted sources are hidden from your feed.',
     },
+    build: {
+      sectionTitle: 'Build',
+      source: 'Running',
+      sourceEmbedded: 'Bundle shipped with the app',
+      sourceOta: 'Over-the-air update',
+      bundleVersion: 'Bundle version',
+      updateId: 'Update ID',
+      publishedAt: 'Published (UTC)',
+      channel: 'Channel',
+      runtimeVersion: 'Runtime version',
+    },
     onboarding: {
       title: 'Welcome to TechTok',
       languageStepTitle: 'Choose your language',
@@ -292,6 +314,17 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       themeDark: 'Тёмная',
       sourcesSectionTitle: 'Источники',
       sourcesHint: 'Нажмите на источник, чтобы скрыть его из ленты.',
+    },
+    build: {
+      sectionTitle: 'Сборка',
+      source: 'Запущено из',
+      sourceEmbedded: 'Сборка из установленного приложения',
+      sourceOta: 'Обновление «по воздуху» (OTA)',
+      bundleVersion: 'Версия сборки',
+      updateId: 'ID обновления',
+      publishedAt: 'Опубликовано (UTC)',
+      channel: 'Канал',
+      runtimeVersion: 'Версия рантайма',
     },
     onboarding: {
       title: 'Добро пожаловать в TechTok',
@@ -421,6 +454,17 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       sourcesSectionTitle: 'Джерела',
       sourcesHint: 'Торкніться джерела, щоб приховати його зі стрічки.',
     },
+    build: {
+      sectionTitle: 'Збірка',
+      source: 'Запущено з',
+      sourceEmbedded: 'Збірка зі встановленого застосунку',
+      sourceOta: 'Оновлення «по повітрю» (OTA)',
+      bundleVersion: 'Версія збірки',
+      updateId: 'ID оновлення',
+      publishedAt: 'Опубліковано (UTC)',
+      channel: 'Канал',
+      runtimeVersion: 'Версія рантайму',
+    },
     onboarding: {
       title: 'Ласкаво просимо до TechTok',
       languageStepTitle: 'Оберіть мову',
@@ -548,6 +592,17 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       themeDark: 'Ciemny',
       sourcesSectionTitle: 'Źródła',
       sourcesHint: 'Dotknij źródła, aby ukryć je z kanału.',
+    },
+    build: {
+      sectionTitle: 'Kompilacja',
+      source: 'Uruchomiono z',
+      sourceEmbedded: 'Paczka dołączona do aplikacji',
+      sourceOta: 'Aktualizacja OTA',
+      bundleVersion: 'Wersja paczki',
+      updateId: 'ID aktualizacji',
+      publishedAt: 'Opublikowano (UTC)',
+      channel: 'Kanał',
+      runtimeVersion: 'Wersja środowiska',
     },
     onboarding: {
       title: 'Witaj w TechTok',

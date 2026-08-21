@@ -68,11 +68,11 @@ function buildHeaders(init: RequestInit, requestId: string): HeadersInit {
 }
 
 /**
- * Google ID tokens expire in ~1h (D68), so a 401 triggers exactly one silent
- * re-sign-in + retry before giving up — the same shape as any other
- * transient-auth-failure retry, not a sign-out loop. `GET /v1/topics` and
- * `GET /v1/sources` never 401 (no authorizer attached, DESIGN §5), so this
- * only ever fires for the authenticated routes.
+ * Google ID tokens expire in ~1h (D68), so a 401 on a request that carried a
+ * token triggers exactly one silent re-sign-in + retry before giving up — the
+ * same shape as any other transient-auth-failure retry, not a sign-out loop.
+ * `GET /v1/topics` and `GET /v1/sources` never 401 (no authorizer attached,
+ * DESIGN §5), so this only ever fires for the authenticated routes.
  *
  * Every call carries a client-generated `REQUEST_ID_HEADER` (kept across the
  * 401 retry, since it's still logically the same request) so a failure
@@ -82,6 +82,9 @@ function buildHeaders(init: RequestInit, requestId: string): HeadersInit {
 async function apiFetch(url: URL, init: RequestInit = {}): Promise<Response> {
   const requestId = Crypto.randomUUID();
   const method = init.method ?? 'GET';
+  // Read in the same synchronous step that builds the headers below, so it
+  // always describes the request actually sent.
+  const wasAuthenticated = useAuthStore.getState().user !== null;
   let response: Response;
   try {
     response = await fetch(url.toString(), { ...init, headers: buildHeaders(init, requestId) });
@@ -95,7 +98,11 @@ async function apiFetch(url: URL, init: RequestInit = {}): Promise<Response> {
     throw err;
   }
 
-  if (response.status === 401) {
+  // Only a request that carried a token can have an *expired* one. A 401 on a
+  // tokenless request just means it fired before sign-in resolved, and
+  // refreshing there would let unauthenticated traffic flip auth state out
+  // from under the /auth gate rather than surfacing the failure.
+  if (response.status === 401 && wasAuthenticated) {
     const refreshedIdToken = await useAuthStore.getState().refreshToken();
     if (refreshedIdToken) {
       response = await fetch(url.toString(), { ...init, headers: buildHeaders(init, requestId) });

@@ -126,9 +126,9 @@ function RootLayout() {
         maxAge: ONE_DAY_MS,
         // Feed, bookmarks, and compact-article content persist offline;
         // history/me stay cheap-refetch-only. Content is the one worth
-        // restoring without a network hit at all — it's what
-        // BookmarkButton/saved.tsx's wifi-gated prefetch is populating in
-        // the first place (offline saved articles).
+        // restoring without a network hit at all — since D82 dropped the
+        // wifi-gated prefetch, it holds articles the user actually opened,
+        // so a re-read offline still works.
         dehydrateOptions: {
           shouldDehydrateQuery: (query) =>
             query.queryKey[0] === 'feed' ||

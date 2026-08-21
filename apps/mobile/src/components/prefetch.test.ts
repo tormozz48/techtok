@@ -1,5 +1,5 @@
 import type { Card as CardData } from '@techtok/shared';
-import { selectContentToPrefetch, selectImagesToPrefetch } from './prefetch';
+import { selectImagesToPrefetch } from './prefetch';
 
 function card(id: string, imageUrl?: string): CardData {
   return {
@@ -41,25 +41,5 @@ describe('selectImagesToPrefetch', () => {
     const cards = [card('a', 'a.jpg'), card('b', 'b.jpg')];
 
     expect(selectImagesToPrefetch(cards, 1)).toEqual([]);
-  });
-});
-
-describe('selectContentToPrefetch', () => {
-  it('picks the next N card ids after position', () => {
-    const cards = [card('a'), card('b'), card('c'), card('d')];
-
-    expect(selectContentToPrefetch(cards, 0, 2)).toEqual(['b', 'c']);
-  });
-
-  it('stops at the end of the array without erroring', () => {
-    const cards = [card('a'), card('b')];
-
-    expect(selectContentToPrefetch(cards, 0, 5)).toEqual(['b']);
-  });
-
-  it('returns an empty array when already at the last card', () => {
-    const cards = [card('a'), card('b')];
-
-    expect(selectContentToPrefetch(cards, 1)).toEqual([]);
   });
 });

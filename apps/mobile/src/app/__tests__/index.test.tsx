@@ -11,7 +11,6 @@ import {
 
 jest.mock('@/state/readQueue', () => ({ enqueueRead: jest.fn() }));
 jest.mock('@/state/network', () => ({ getIsWifi: jest.fn(() => false) }));
-jest.mock('@/api/prefetchContent', () => ({ prefetchPostContent: jest.fn() }));
 
 function card(id: string): CardData {
   return {

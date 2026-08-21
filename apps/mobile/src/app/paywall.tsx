@@ -6,10 +6,7 @@ import { useEntitlementQuery } from '@/api/useEntitlementQuery';
 import { Radius, Spacing, type ThemeColors, Typography } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
-
-function formatResetTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
+import { formatResetTime } from '@/utils/formatResetTime';
 
 /**
  * Plan comparison + upgrade entry point (D69/D70/D73). No purchase flow yet

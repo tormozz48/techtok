@@ -65,3 +65,22 @@ export const Empty: Story = {
     ]),
   ],
 };
+
+/** D69's daily card-reads limit reached. Driven by the *entitlement* counters,
+ * not the feed page's `quotaExhausted` flag — the feed here still holds a full
+ * buffer of swipeable cards, which is exactly the case that used to slip
+ * through the old page-flag-only gate. */
+export const QuotaExhausted: Story = {
+  decorators: [
+    withSeededQueries([
+      { queryKey: ['feed', 'en'], data: infinitePage({ items: buildCards(6), nextBefore: null }) },
+      {
+        queryKey: ['entitlement'],
+        data: {
+          ...FREE_ENTITLEMENT,
+          quota: { ...FREE_ENTITLEMENT.quota, cardReads: 100 },
+        } satisfies EntitlementResponse,
+      },
+    ]),
+  ],
+};

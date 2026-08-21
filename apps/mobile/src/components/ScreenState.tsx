@@ -8,6 +8,7 @@ export interface ScreenStateProps {
   readonly loading?: boolean;
   readonly spinnerColor?: string;
   readonly caption?: string;
+  readonly title?: string;
   readonly message?: string;
   readonly messageColor?: string;
   readonly retryLabel?: string;
@@ -16,12 +17,14 @@ export interface ScreenStateProps {
 }
 
 /** Centered loading/error/empty state — a spinner, an optional caption below
- * it, an optional message, and an optional retry button. Shared by the feed,
- * reader, history, saved and stats screens. */
+ * it, an optional emphasized title, an optional message, and an optional
+ * retry button. Shared by the feed, reader, history, saved and stats
+ * screens. */
 export function ScreenState({
   loading,
   spinnerColor,
   caption,
+  title,
   message,
   messageColor,
   retryLabel,
@@ -36,6 +39,7 @@ export function ScreenState({
     <View style={styles.center}>
       {loading ? <ActivityIndicator color={spinnerColor ?? colors.textSecondary} /> : null}
       {caption ? <Text style={styles.caption}>{caption}</Text> : null}
+      {title ? <Text style={styles.title}>{title}</Text> : null}
       {message ? (
         <Text
           style={[
@@ -69,6 +73,13 @@ function createStyles(colors: ThemeColors) {
       color: colors.textSecondary,
       ...Typography.sm,
       marginTop: Spacing.three,
+    },
+    title: {
+      color: colors.text,
+      ...Typography.lg,
+      fontWeight: '700',
+      textAlign: 'center',
+      marginBottom: Spacing.two,
     },
     message: {
       ...Typography.md,

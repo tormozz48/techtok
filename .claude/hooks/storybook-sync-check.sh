@@ -22,6 +22,9 @@ case "$file" in
     fi
     ;;
   "$mobile_src"/app/*.tsx)
+    case "$file" in
+      *.test.tsx) exit 0 ;;
+    esac
     base=$(basename "$file")
     [ "$base" = "_layout.tsx" ] && exit 0
     route="${file#"$mobile_src"/app/}"

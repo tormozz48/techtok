@@ -2,7 +2,7 @@ import { useIsRestoring, useQueryClient } from '@tanstack/react-query';
 import type { Card as CardData } from '@techtok/shared';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useEntitlementQuery } from '@/api/useEntitlementQuery';
 import { useFeedQuery } from '@/api/useFeedQuery';
@@ -15,6 +15,7 @@ import { Colors, Spacing } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
+import { formatResetTime } from '@/utils/formatResetTime';
 
 export default function FeedScreen() {
   const { data, isLoading, isError, refetch, fetchNextPage, isFetchingNextPage } = useFeedQuery();
@@ -24,32 +25,36 @@ export default function FeedScreen() {
   const strings = useStrings();
   const queryClient = useQueryClient();
   const colors = useThemeColors();
-  // Guards against re-navigating to /paywall on every subsequent onNearEnd
-  // call while the user keeps swiping through already-cached cards.
-  const hasPromptedPaywall = useRef(false);
 
   const cards = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data]);
-  // D69: the *last* fetched page, not any page, since only the newest tells
-  // us today's cardReads quota is actually exhausted right now.
-  const isQuotaExhausted = data?.pages.at(-1)?.quotaExhausted === true;
-
-  // A brand-new fetch (no cards cached yet — e.g. a fresh install already at
-  // the daily limit from another device) has nothing to swipe through at
-  // all, so go straight to the paywall instead of showing an empty feed.
-  useEffect(() => {
-    if (isQuotaExhausted && cards.length === 0 && !hasPromptedPaywall.current) {
-      hasPromptedPaywall.current = true;
-      router.replace('/paywall');
-    }
-  }, [isQuotaExhausted, cards.length]);
+  // D69's client-side gate reads the *live* entitlement first, and only falls
+  // back to the feed page's own `quotaExhausted` flag. Reading that flag
+  // alone was the bug: it can only appear on a page fetched *after* the limit
+  // was hit, and pages are only fetched from `onNearEnd` (within
+  // NEAR_END_THRESHOLD of the buffer's end) — so a user who spent their last
+  // card mid-buffer kept swiping the whole remaining page, and the persisted
+  // ['feed'] cache (_layout.tsx) carried that buffer across restarts. The
+  // entitlement query is invalidated on every read flush (api/client.ts), so
+  // this flips within one flush interval of the read that spent the quota.
+  // The page flag still covers the cold-start window before ['entitlement']
+  // resolves, and offline (where neither query can refresh) remains D69's
+  // knowingly-accepted hole.
+  const entitlement = entitlementQuery.data;
+  const lastPage = data?.pages.at(-1);
+  const isQuotaExhausted =
+    (entitlement?.plan === 'free' &&
+      entitlement.quota.cardReads >= entitlement.quota.cardReadsLimit) ||
+    lastPage?.quotaExhausted === true;
+  const quotaResetsAt = entitlement?.quota.resetsAt ?? lastPage?.resetsAt;
 
   // D79: the server is the source of truth for the account's language
   // (Users.language) — this is the one reconciliation channel that can't be
   // skipped, since the feed fetches on every launch, unlike languageStore's
   // own load() (a separate GET /v1/me a warm app resume never re-runs).
-  // Reads the *last* page like isQuotaExhausted above, for the same reason:
-  // it's the freshest read of what the server just rendered.
-  const serverLanguage = data?.pages.at(-1)?.language;
+  // Reads the *last* page (the shared `lastPage` above) for the same reason
+  // the quota fallback does: it's the freshest read of what the server just
+  // rendered.
+  const serverLanguage = lastPage?.language;
   useEffect(() => {
     if (serverLanguage) useLanguageStore.getState().adoptServerLanguage(serverLanguage);
   }, [serverLanguage]);
@@ -73,6 +78,43 @@ export default function FeedScreen() {
 
   if (isLoading || isRestoring) {
     return <LoadingScreen />;
+  }
+
+  // Blocks in place rather than routing to /paywall (which is what this used
+  // to do): a pushed route leaves the feed mounted underneath, so one back
+  // press returned the user to a fully swipeable over-limit feed — and the
+  // old one-shot ref guarding that push never re-armed, so it stayed
+  // swipeable for the rest of the session. There is nothing to dismiss here,
+  // and it re-renders from the same gate after any remount. Checked before
+  // `isError`/`cards.length === 0` so an exhausted user sees the limit rather
+  // than a retry button or an empty-feed message. The action bar stays so
+  // saved/history/settings are still reachable.
+  if (isQuotaExhausted) {
+    return (
+      <View style={styles.root} testID="feed-quota-exhausted">
+        <ScreenState
+          title={strings.paywall.quotaExhaustedTitle}
+          message={
+            quotaResetsAt
+              ? strings.paywall.quotaExhaustedMessage(formatResetTime(quotaResetsAt))
+              : undefined
+          }
+          retryLabel={strings.quota.upgradeCta}
+          onRetry={() => router.push('/paywall')}
+          retryTestID="feed-quota-upgrade"
+        />
+        <BottomActionBar
+          activeCard={undefined}
+          // Also refreshes the entitlement, not just the feed — after a local
+          // midnight rollover that counter is the only thing standing between
+          // the user and a usable feed again.
+          onRefresh={() => {
+            queryClient.invalidateQueries({ queryKey: ['entitlement'] });
+            queryClient.resetQueries({ queryKey: ['feed'] });
+          }}
+        />
+      </View>
+    );
   }
 
   if (isError) {
@@ -115,14 +157,10 @@ export default function FeedScreen() {
       <FeedPager
         cards={cards}
         onPageChange={setActiveCard}
+        // No quota branch here any more — an exhausted quota never reaches
+        // this render path, and a `quotaExhausted` page reports
+        // `nextBefore: null`, so `fetchNextPage` is already a no-op.
         onNearEnd={() => {
-          if (isQuotaExhausted) {
-            if (!hasPromptedPaywall.current) {
-              hasPromptedPaywall.current = true;
-              router.push('/paywall');
-            }
-            return;
-          }
           if (!isFetchingNextPage) fetchNextPage();
         }}
       />

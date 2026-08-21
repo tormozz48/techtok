@@ -178,11 +178,6 @@ describe('postsRepo.getByIds', () => {
 });
 
 describe('postsRepo.updateTransform', () => {
-  // `status` and `transform` are reserved words in DynamoDB's expression
-  // grammar — using them unaliased fails with a real validation error that
-  // aws-sdk-client-mock does not simulate. The repo therefore aliases every
-  // written attribute name, so no field can ever hit that class of bug.
-  // Confirmed against live DynamoDB during phase 2 testing.
   it('aliases every written attribute name via ExpressionAttributeNames', async () => {
     ddbMock.on(UpdateCommand).resolves({});
     const repo = new PostsRepo(client, 'Posts');

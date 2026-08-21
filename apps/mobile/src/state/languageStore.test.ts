@@ -40,14 +40,13 @@ describe('languageStore', () => {
     });
 
     it('no-ops while a local setLanguage write is still in flight, so it never reverts a just-made choice', async () => {
-      putLanguageMock.mockImplementation(() => new Promise(() => {})); // never resolves
+      putLanguageMock.mockImplementation(() => new Promise(() => {}));
       const setPromise = useLanguageStore.getState().setLanguage('ru');
       expect(useLanguageStore.getState().isLoading).toBe(true);
 
       useLanguageStore.getState().adoptServerLanguage('en');
 
       expect(useLanguageStore.getState().language).toBe('ru');
-      // Avoid an unhandled-promise warning from the never-resolving mock.
       void setPromise;
     });
   });
@@ -97,11 +96,6 @@ describe('languageStore', () => {
 
   describe('hydrate', () => {
     it('picks up a language persisted after import time, when the store still holds the pre-hydration fallback', () => {
-      // The store's initial value is computed at module import, before
-      // state/storage.ts's cache is populated, so it is always 'en' — this is
-      // the read _layout.tsx's ready() gate performs before the first render,
-      // and what keeps the feed's language-keyed query from mounting under
-      // 'en' and being refetched under the real language a second later.
       storage.set('techtok.language', 'ru');
 
       useLanguageStore.getState().hydrate();

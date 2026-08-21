@@ -14,8 +14,6 @@ import { selectImagesToPrefetch } from './prefetch';
 export interface FeedPagerProps {
   cards: CardData[];
   onNearEnd?: () => void;
-  /** Fires with the newly-active card on every page settle (D25) — drives
-   * the bottom action bar's per-card bookmark/share buttons. */
   onPageChange?: (card: CardData) => void;
 }
 
@@ -37,10 +35,6 @@ export function FeedPager({ cards, onNearEnd, onPageChange }: FeedPagerProps) {
         const { position } = event.nativeEvent;
         if (position >= cards.length - NEAR_END_THRESHOLD) onNearEnd?.();
 
-        // Images only (D82) — the article-content read-ahead D61 ran here
-        // is gone: it never hit the network for anything the user asked for,
-        // and it landed in the reader's own query key, so an opened article
-        // painted from a cache entry the reader-opens counter never saw.
         if (getIsWifi()) {
           for (const url of selectImagesToPrefetch(cards, position)) {
             Image.prefetch(url);
@@ -53,9 +47,6 @@ export function FeedPager({ cards, onNearEnd, onPageChange }: FeedPagerProps) {
           settleTimer.current = setTimeout(() => {
             enqueueRead(card.id);
             logEvent('card_settled', { postId: card.id, primaryTopic: card.primaryTopic });
-            // Read at fire time, not render time, so flipping the settings
-            // switch takes effect on the very next settle without the pager
-            // having to re-render (and re-subscribe) first.
             if (useHapticsStore.getState().enabled) {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
             }

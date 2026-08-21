@@ -9,14 +9,11 @@ import '../styles/global.css';
 interface Props {
   title: string;
   description: string;
-  /** This page's sub-path relative to the site base, e.g. `privacy/`. */
   subpath: string;
 }
 
 const { title, description, subpath } = Astro.props;
 
-// Legal pages are English-only by design (see src/lib/legal.ts), so the
-// footer takes the English strings rather than a per-locale set.
 const copy = SITE_COPY.en;
 const siteOrigin = Astro.site ?? new URL(withBase(''), Astro.url).origin;
 const canonicalUrl = new URL(withBase(subpath), siteOrigin).href;
@@ -86,9 +83,6 @@ const canonicalUrl = new URL(withBase(subpath), siteOrigin).href;
     margin: 0 0 var(--space-5);
   }
 
-  /* Prose styles apply to slotted page content, so they cannot be scoped
-     to this component's own elements — Astro's `is:global` inside a scoped
-     block is the supported escape hatch for exactly this case. */
 </style>
 
 <style is:global>

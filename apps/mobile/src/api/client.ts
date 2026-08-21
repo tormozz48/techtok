@@ -28,13 +28,8 @@ import { queryClient } from '@/state/queryClient';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
-/** Default page size shared by fetchHistoryPage and fetchBookmarksPage. */
 const DEFAULT_PAGE_LIMIT = 50;
 
-/** Carries the response status/error code through a failed request so
- * callers can distinguish "quota exceeded" (402, D69) from any other
- * failure — e.g. the reader routes to `/paywall` on 402 instead of showing
- * its generic error state. */
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -67,23 +62,9 @@ function buildHeaders(init: RequestInit, requestId: string): HeadersInit {
   };
 }
 
-/**
- * Google ID tokens expire in ~1h (D68), so a 401 on a request that carried a
- * token triggers exactly one silent re-sign-in + retry before giving up — the
- * same shape as any other transient-auth-failure retry, not a sign-out loop.
- * `GET /v1/topics` and `GET /v1/sources` never 401 (no authorizer attached,
- * DESIGN §5), so this only ever fires for the authenticated routes.
- *
- * Every call carries a client-generated `REQUEST_ID_HEADER` (kept across the
- * 401 retry, since it's still logically the same request) so a failure
- * logged here and the matching backend log line (`packages/functions/src/api/lib/http.ts`)
- * can be correlated in CloudWatch Logs Insights.
- */
 async function apiFetch(url: URL, init: RequestInit = {}): Promise<Response> {
   const requestId = Crypto.randomUUID();
   const method = init.method ?? 'GET';
-  // Read in the same synchronous step that builds the headers below, so it
-  // always describes the request actually sent.
   const wasAuthenticated = useAuthStore.getState().user !== null;
   let response: Response;
   try {
@@ -98,10 +79,6 @@ async function apiFetch(url: URL, init: RequestInit = {}): Promise<Response> {
     throw err;
   }
 
-  // Only a request that carried a token can have an *expired* one. A 401 on a
-  // tokenless request just means it fired before sign-in resolved, and
-  // refreshing there would let unauthenticated traffic flip auth state out
-  // from under the /auth gate rather than surfacing the failure.
   if (response.status === 401 && wasAuthenticated) {
     const refreshedIdToken = await useAuthStore.getState().refreshToken();
     if (refreshedIdToken) {
@@ -116,9 +93,7 @@ async function apiFetch(url: URL, init: RequestInit = {}): Promise<Response> {
       const body = (await response.json()) as { error?: { code?: string; message?: string } };
       code = body.error?.code;
       message = body.error?.message ?? message;
-    } catch {
-      // Non-JSON error body (e.g. an API Gateway-level rejection) — keep the generic message.
-    }
+    } catch {}
     logError('api request failed', {
       requestId,
       method,
@@ -177,8 +152,6 @@ export async function putMutedSources(sourceIds: string[]): Promise<MeResponse> 
   return meResponseSchema.parse(await response.json());
 }
 
-/** Public source catalog (no device id needed) — lets the app render a mute
- * picker without hardcoding the source list. */
 export async function fetchSources(): Promise<SourcesResponse> {
   const response = await apiFetch(apiUrl('/v1/sources'));
   return sourcesResponseSchema.parse(await response.json());
@@ -189,14 +162,9 @@ export async function postReads(postIds: string[]): Promise<void> {
     method: 'POST',
     body: JSON.stringify({ postIds }),
   });
-  // A newly-read post burns the D69 cardReads quota server-side — invalidate
-  // so the feed's QuotaBadge/paywall reflect it without waiting on staleTime
-  // + an unrelated focus/mount trigger to happen to fire.
   queryClient.invalidateQueries({ queryKey: ['entitlement'] });
 }
 
-/** Client-batched logs + product analytics (D76) — fire-and-forget from the
- * caller's perspective; `eventsQueue.ts` owns retry-on-failure. */
 export async function postEvents(records: ClientRecord[]): Promise<void> {
   await apiFetch(apiUrl('/v1/events'), {
     method: 'POST',
@@ -207,8 +175,6 @@ export async function postEvents(records: ClientRecord[]): Promise<void> {
 export interface FetchHistoryPageParams {
   cursor?: string;
   limit?: number;
-  /** When set, searches cardTitle/sourceName instead of paginating — the
-   * response's nextCursor always comes back null. */
   q?: string;
 }
 
@@ -229,7 +195,6 @@ export async function fetchHistoryPage({
 export interface FetchBookmarksPageParams {
   cursor?: string;
   limit?: number;
-  /** Same search contract as fetchHistoryPage's q. */
   q?: string;
 }
 
@@ -260,13 +225,6 @@ export async function deleteBookmark(postId: string): Promise<void> {
   });
 }
 
-/** Reads a compact article (D23; eager generation as of D36) — a plain cache
- * read, no job ids or polling. Every call is a genuine reader open since D82
- * retired the speculative prefetch that used to share this path, so it always
- * burns one of the D69 reader-opens server-side and always invalidates
- * `['entitlement']` so the paywall surfaces see the new count. The server
- * still honours `?intent=prefetch` for already-installed builds; nothing here
- * sends it. */
 export async function fetchPostContent(postId: string, lang: Language): Promise<ContentResponse> {
   const url = apiUrl(`/v1/posts/${encodeURIComponent(postId)}/content`);
   url.searchParams.set('lang', lang);
@@ -277,15 +235,10 @@ export async function fetchPostContent(postId: string, lang: Language): Promise<
   return parsed;
 }
 
-/** Deletes the signed-in user's account and all their data (D68) — required
- * by Google Play policy for any app with accounts. Irreversible. */
 export async function deleteAccount(): Promise<void> {
   await apiFetch(apiUrl('/v1/me'), { method: 'DELETE' });
 }
 
-/** Current plan + today's quota usage/limits (D69/D70) — the single call
- * every paywall surface (the feed/reader exhaustion states, the paywall
- * screen itself, the settings quota row) reads from. */
 export async function fetchEntitlement(): Promise<EntitlementResponse> {
   const response = await apiFetch(apiUrl('/v1/me/entitlement'));
   return entitlementResponseSchema.parse(await response.json());

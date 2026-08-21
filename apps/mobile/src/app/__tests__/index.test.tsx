@@ -39,8 +39,6 @@ function freeQuota(overrides: Partial<EntitlementResponse['quota']> = {}) {
   };
 }
 
-// BottomActionBar reads useSafeAreaInsets(), which throws with no provider
-// above it -- fixed metrics rather than the device's, so insets never vary.
 const METRICS = {
   frame: { x: 0, y: 0, width: 390, height: 844 },
   insets: { top: 47, left: 0, right: 0, bottom: 34 },
@@ -75,10 +73,6 @@ describe('FeedScreen quota gate (D69)', () => {
     expect(screen.queryByTestId('feed-quota-exhausted')).toBeNull();
   });
 
-  // The regression this gate was rewritten for: the buffer is still full of
-  // swipeable cards and the page carries no `quotaExhausted` flag (it was
-  // fetched while still under the limit), so the old page-flag-only gate let
-  // the user keep swiping every cached card.
   it('blocks in place once the live entitlement says card-reads are spent', async () => {
     await renderFeed(
       { items: [card('a'), card('b')], nextBefore: null },

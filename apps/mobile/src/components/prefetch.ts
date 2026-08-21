@@ -2,8 +2,6 @@ import type { Card as CardData } from '@techtok/shared';
 
 export const PREFETCH_IMAGE_COUNT = 3;
 
-/** Picks the next `count` cards' image URLs after `position`, skipping any
- * imageless cards, for prefetching ahead of the reader. */
 export function selectImagesToPrefetch(
   cards: CardData[],
   position: number,

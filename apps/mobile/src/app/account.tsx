@@ -7,12 +7,6 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { useAuthStore } from '@/state/authStore';
 
-/**
- * Account screen (D68): email, sign out, and delete account. Delete is
- * irreversible and requires a native confirm dialog before it fires —
- * signing out afterward is the store's own reaction, not a manual step
- * here (Stack.Protected redirects to /auth once `status` flips).
- */
 export default function AccountScreen() {
   const strings = useStrings();
   const colors = useThemeColors();

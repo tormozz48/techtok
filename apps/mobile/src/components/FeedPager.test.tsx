@@ -14,9 +14,6 @@ jest.mock('@/state/readQueue', () => ({
 jest.mock('@/state/network', () => ({
   getIsWifi: jest.fn(() => false),
 }));
-// expo-haptics isn't part of jest-expo's default auto-mock set (unlike
-// expo-speech) -- impactAsync needs an explicit mock; ImpactFeedbackStyle
-// is kept real since it's just a plain enum-like object.
 jest.mock('expo-haptics', () => ({
   ...jest.requireActual('expo-haptics'),
   impactAsync: jest.fn(),
@@ -45,8 +42,6 @@ function card(id: string, overrides: Partial<CardData> = {}): CardData {
 }
 
 function selectPage(position: number) {
-  // screen.root is nullable in general, but a successful render always has
-  // one -- a missing root would already surface as a different failure.
   return fireEvent(screen.root as NonNullable<typeof screen.root>, 'pageSelected', {
     nativeEvent: { position },
   });

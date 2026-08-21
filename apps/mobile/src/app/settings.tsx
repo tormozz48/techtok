@@ -62,9 +62,6 @@ export default function SettingsScreen() {
       await setLanguage(next);
       queryClient.invalidateQueries({ queryKey: ['feed'] });
     } catch (error) {
-      // setLanguage already rolled the store back on a genuine failure (see
-      // languageStore.ts) — this just stops the rejection from going
-      // unhandled and leaves a trace of why the picker reverted.
       logError('applyLanguage failed', { message: String(error) });
     }
   };

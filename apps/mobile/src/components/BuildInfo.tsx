@@ -8,14 +8,11 @@ import { useStrings } from '@/i18n/useStrings';
 import { type BuildInfo as BuildInfoValue, describeBuild } from '@/utils/buildInfo';
 
 type Props = {
-  /** Injected by stories/tests; read from expo-updates otherwise. */
   value?: BuildInfoValue;
 };
 
 function readBuildInfo(): BuildInfoValue {
   return describeBuild({
-    // Resolved from the *running* bundle's manifest, so after an OTA update
-    // this is the pushed payload's app.json version, not the installed APK's.
     bundleVersion: Constants.expoConfig?.version,
     runtimeVersion: Updates.runtimeVersion,
     channel: Updates.channel,

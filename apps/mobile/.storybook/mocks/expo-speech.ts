@@ -1,10 +1,3 @@
-// Storybook renders on the web. expo-speech's JS wrapper calls
-// requireNativeModule('ExpoSpeech') at import time with no `.web` module
-// registered, which throws synchronously and would take down every story
-// that imports speechStore (same class of gap as expo-router, see
-// .storybook/mocks/expo-router.tsx). This mock covers only the exports
-// speechStore.ts actually touches.
-
 export interface SpeechOptions {
   language?: string;
   onStopped?: () => void;

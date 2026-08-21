@@ -15,17 +15,12 @@ export const handler = withAuth(async (event, auth) => {
 
   const readAt = new Date().toISOString();
 
-  // A postId can be missing (already TTL'd) — that's a content-level gap, not
-  // an infra failure, so it's skipped rather than thrown.
   const foundPosts = await getPostsRepo().getByIds(body.data.postIds);
   const activity = getUserActivityRepo();
   const user = await getUsersRepo().touch(auth.userId, { email: auth.email, name: auth.name });
   const lang = user.language ?? 'en';
   const results = await Promise.all(
     foundPosts.map(async (post) => {
-      // Snapshot the title in the user's language at read time (D21), same
-      // as the feed card — otherwise History always shows the English title
-      // regardless of the user's selected language.
       const { wasNew } = await activity.markRead(
         auth.userId,
         post.postId,
@@ -41,11 +36,6 @@ export const handler = withAuth(async (event, auth) => {
     }),
   );
 
-  // This endpoint is documented idempotent (a retried postId just overwrites
-  // readAt/snapshot), but the affinity counter it drives is not — only a
-  // post's first-ever read should count toward it. The D69 quota counter
-  // shares that same "first read only" contract for the identical reason:
-  // a retried postId must not burn a free user's daily allowance twice.
   const newlyReadCount = results.filter((r) => r.wasNew).length;
   const firstReadTopics = results.filter((r) => r.wasNew).map((r) => r.post.primaryTopic);
   const topicCounts = countTopicReads(firstReadTopics);
@@ -55,10 +45,6 @@ export const handler = withAuth(async (event, auth) => {
   if (newlyReadCount > 0 && !isPlus(user)) {
     const timezone = user.timezone ?? 'UTC';
     const quota = effectiveQuota(user.quota, timezone);
-    // Clamp: a single batch can carry more newly-read posts than the user
-    // has quota left (the feed page that produced them was already served
-    // before this request), so cap the increment at the remaining allowance
-    // instead of letting the counter overshoot past FREE_CARD_READS_PER_DAY.
     const remaining = Math.max(0, FREE_CARD_READS_PER_DAY - quota.cardReads);
     const chargeCount = Math.min(newlyReadCount, remaining);
     if (chargeCount > 0) {

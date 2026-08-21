@@ -7,7 +7,6 @@ export type CallWithRepairResult<T> = { ok: true; value: T } | { ok: false; reas
 type AttemptResult<T> = { ok: true; value: T } | { ok: false; reason: string; raw?: string };
 
 function extractJson(raw: string): string {
-  // Models sometimes wrap JSON in markdown fences despite instructions.
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
   return (fenced?.[1] ?? raw).trim();
 }
@@ -38,14 +37,6 @@ async function attempt<T>(
   return { ok: true, value: parsed.data };
 }
 
-/**
- * Calls the LLM, parses and zod-validates its response, and retries once
- * with a repair prompt on any failure (network error, non-JSON response,
- * schema mismatch). Never throws — the caller decides whether to degrade,
- * since an LLM refusal or a provider hiccup is a content-level failure
- * (DESIGN §7.2), shared across card generation, translation, and
- * compact-article generation.
- */
 export async function callLlmWithRepair<T>(
   provider: LlmProvider,
   prompt: string,

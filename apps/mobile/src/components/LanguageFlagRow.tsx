@@ -13,8 +13,6 @@ export interface LanguageFlagRowProps<T extends string> {
   readonly buttonSelectedStyle: StyleProp<ViewStyle>;
 }
 
-/** A single-line row of flag-only buttons — the language picker used by the
- * settings and onboarding screens. */
 export function LanguageFlagRow<T extends string>({
   items,
   isSelected,

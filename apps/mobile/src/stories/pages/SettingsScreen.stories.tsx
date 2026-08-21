@@ -30,9 +30,6 @@ const SEEDS = [
   { queryKey: ['entitlement'], data: ENTITLEMENT },
 ];
 
-/** The haptics preference lives in a module-global store, not in props, so
- * each story pins it explicitly — otherwise the switch a story renders is
- * whatever the previously-viewed story last left behind. */
 function withHaptics(enabled: boolean) {
   return (Story: () => ReactElement) => {
     useHapticsStore.setState({ enabled });

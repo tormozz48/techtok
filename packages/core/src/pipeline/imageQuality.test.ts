@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { checkImageQuality } from './imageQuality';
 
-/** A minimal but structurally valid PNG header: signature + IHDR chunk with
- * the given width/height. `image-size` only reads these fixed byte offsets
- * (no CRC or pixel-data validation), so this is enough to exercise the real
- * parsing path without committing a binary fixture. */
 function fakePng(width: number, height: number): Buffer {
   const buf = Buffer.alloc(24);
   buf.write('\x89PNG\r\n\x1a\n', 0, 'binary');

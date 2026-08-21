@@ -38,7 +38,7 @@ describe('computeReadingStats', () => {
     const items = [
       historyItem({ readAt: daysAgo(0) }),
       historyItem({ readAt: daysAgo(6) }),
-      historyItem({ readAt: daysAgo(8) }), // outside the week window
+      historyItem({ readAt: daysAgo(8) }),
     ];
 
     expect(computeReadingStats(items, NOW).readsThisWeek).toBe(2);
@@ -48,7 +48,7 @@ describe('computeReadingStats', () => {
     const items = [
       historyItem({ readAt: daysAgo(0) }),
       historyItem({ readAt: daysAgo(29) }),
-      historyItem({ readAt: daysAgo(31) }), // outside the month window
+      historyItem({ readAt: daysAgo(31) }),
     ];
 
     expect(computeReadingStats(items, NOW).readsThisMonth).toBe(2);
@@ -59,14 +59,13 @@ describe('computeReadingStats', () => {
       historyItem({ readAt: daysAgo(0) }),
       historyItem({ readAt: daysAgo(1) }),
       historyItem({ readAt: daysAgo(2) }),
-      historyItem({ readAt: daysAgo(4) }), // gap at day 3 breaks the streak
+      historyItem({ readAt: daysAgo(4) }),
     ];
 
     expect(computeReadingStats(items, NOW).streakDays).toBe(3);
   });
 
   it('anchors the streak to the last active day, not literally "today"', () => {
-    // No read today (day 0), but yesterday and the day before were read.
     const items = [historyItem({ readAt: daysAgo(1) }), historyItem({ readAt: daysAgo(2) })];
 
     expect(computeReadingStats(items, NOW).streakDays).toBe(2);

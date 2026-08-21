@@ -20,12 +20,6 @@ const LANGUAGE_NAMES: Record<Language, string> = {
   pl: 'Polish',
 };
 
-/**
- * Single-pass compress-and-translate (D23): one Bedrock call compresses the
- * article to ~400-600 words of structured blocks, self-critiquing in the same
- * call when the target language isn't English (mirrors the translate-card
- * prompt's self-critique instruction) — no second LLM call.
- */
 export function buildCompactArticlePrompt(input: CompactArticlePromptInput): string {
   const languageName = LANGUAGE_NAMES[input.lang];
   const figureList = input.figures.length

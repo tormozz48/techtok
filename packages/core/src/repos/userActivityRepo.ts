@@ -9,7 +9,6 @@ import { batchGetChunked, DYNAMO_BATCH_GET_LIMIT } from '../clients/dynamoClient
 import type { ActivityRecord, BookmarkRecord, ReadSnapshot } from '../history.types';
 import { chunk } from '../util/chunk';
 
-/** DynamoDB's BatchWriteItem hard cap. */
 const BATCH_WRITE_CHUNK_SIZE = 25;
 
 export interface HistoryPage {
@@ -44,11 +43,6 @@ export class UserActivityRepo {
     private readonly tableName: string,
   ) {}
 
-  /** `wasNew` is true only when no read-marker existed for this postId
-   * before this call — POST /v1/reads is documented idempotent (a retried
-   * or re-sent postId just overwrites readAt/snapshot), but the topic-read
-   * affinity counter it drives (usersRepo.addTopicReads) is not, so the
-   * handler uses this to count each post's first read exactly once. */
   async markRead(
     userId: string,
     postId: string,
@@ -117,12 +111,6 @@ export class UserActivityRepo {
     return this.queryNewestFirstPage<BookmarkRecord>('byBookmarkedAt', userId, opts);
   }
 
-  /** Deletes every row (reads and bookmarks alike — both live in this same
-   * base-table partition, `read#`/`bm#` sort-key prefixes) for a user. Used
-   * only by `DELETE /v1/me` (D68), a Play policy requirement — paginates the
-   * full partition via the base table's key (no GSI needed, since `userId`
-   * is already the partition key) and issues chunked `BatchWriteItem`
-   * deletes, 25 at a time. */
   async deleteAllForUser(userId: string): Promise<void> {
     let exclusiveStartKey: Record<string, unknown> | undefined;
     do {

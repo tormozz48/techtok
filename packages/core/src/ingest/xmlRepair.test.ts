@@ -53,8 +53,6 @@ describe('repairFeedXml', () => {
   it('makes the malformed Nature feed parseable without losing its items', async () => {
     const xml = await readFile(fixture('nature-malformed.xml'), 'utf8');
 
-    // Guards the fixture itself: it must still reproduce the exact sax error
-    // seen in production, otherwise this test proves nothing.
     await expect(new Parser().parseString(xml)).rejects.toThrow('Attribute without value');
 
     const feed = await new Parser().parseString(repairFeedXml(xml));

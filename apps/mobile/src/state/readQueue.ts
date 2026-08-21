@@ -39,9 +39,7 @@ export async function flushReadQueue(): Promise<void> {
     await postReads(queue.map((entry) => entry.postId));
     const sentIds = new Set(queue.map((entry) => entry.postId));
     saveQueue(loadQueue().filter((entry) => !sentIds.has(entry.postId)));
-  } catch {
-    // Network hiccup — leave the queue in place, the next timer tick retries.
-  }
+  } catch {}
 }
 
 let started = false;

@@ -1,14 +1,3 @@
-// Golden fixtures for the compact-article reader (D23). Each fixture pairs a
-// realistic compact-article request with a hand-curated JSON block list
-// shaped exactly as Bedrock would return it (single-pass compress+translate,
-// self-critique-in-call for non-English targets). Recording real Converse
-// output requires live model access not available in this environment (same
-// constraint as `cardFixtures.ts`/`translationFixtures.ts`) — these fixtures
-// pin the prompt/schema contract in the same golden-file shape so a real
-// recorded transcript can drop in later without changing the test harness.
-// CI never calls Bedrock — every compactArticle test runs against a fake
-// LlmProvider returning these fixed strings.
-
 import type { Language } from '@techtok/shared';
 
 export interface CompactFixture {

@@ -16,10 +16,6 @@ export class ContentStore {
     return `content/${postId}/${lang}.json`;
   }
 
-  /** Unlike `RawArticleStore.getRaw` (throws on any failure), a miss here is
-   * the expected default state — most (postId, lang) pairs simply haven't
-   * been generated yet — so any failure (missing key included) is reported
-   * as `undefined`, not thrown. */
   async getContent(postId: string, lang: Language): Promise<StoredContent | undefined> {
     try {
       const result = await this.client.send(

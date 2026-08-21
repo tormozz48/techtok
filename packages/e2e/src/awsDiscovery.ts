@@ -27,9 +27,6 @@ function dynamoTableNameFromArn(arn: string): string {
   return name;
 }
 
-/** Every resource this app deploys carries `app: techtok-<stage>` (DESIGN §2
- * D17) — this walks that same tag to find the handful of dev-stage resources
- * the E2E suites need, instead of guessing at generated physical names. */
 async function listTaggedArns(stage: string): Promise<string[]> {
   const client = new ResourceGroupsTaggingAPIClient({ region: REGION });
   const arns: string[] = [];
@@ -92,8 +89,6 @@ export async function discoverDevResources(stage = 'dev'): Promise<DevResources>
     (arn) => arn.startsWith('arn:aws:dynamodb:') && arn.includes('SourcesTable'),
     'Sources table',
   );
-  // The bare HTTP API ARN (`.../apis/{id}`) — not one of its per-stage
-  // children (`.../apis/{id}/stages/$default`), which carry the same tags.
   const apiArn = findArn(
     arns,
     (arn) => arn.startsWith('arn:aws:apigateway:') && /\/apis\/[^/]+$/.test(arn),

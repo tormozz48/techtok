@@ -8,11 +8,6 @@ import { buildMD3Colors } from '@/constants/materialTheme';
 
 const queryClient = new QueryClient();
 
-// Built directly from materialTheme.ts rather than importing
-// @/constants/paperTheme: that file also pulls in expo-router's nav theme
-// (for the app's real navigation stack, unused here), which drags in expo's
-// Metro-only dev-client bootstrapping code — it hangs under Vite instead of
-// Metro's bundler runtime it actually expects.
 const techtokLightTheme: MD3Theme = { ...MD3LightTheme, colors: buildMD3Colors('light') };
 const techtokDarkTheme: MD3Theme = { ...MD3DarkTheme, colors: buildMD3Colors('dark') };
 

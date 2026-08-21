@@ -19,10 +19,6 @@ function topN<K>(counts: Map<K, number>, n: number): [K, number][] {
   return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, n);
 }
 
-/** Longest current run of consecutive read-days, anchored to the most
- * recent day with any read — not to "today". A user who read every day
- * through yesterday but hasn't opened the app yet today still sees their
- * full streak, rather than it silently reading 0 until their next read. */
 function computeStreak(readDays: ReadonlySet<string>): number {
   if (readDays.size === 0) return 0;
 
@@ -39,11 +35,6 @@ function computeStreak(readDays: ReadonlySet<string>): number {
   return streak;
 }
 
-/** Client-computed from already-fetched history pages — no dedicated
- * backend endpoint (§12/plan: this is a pure derivation of data the app
- * already has). `primaryTopic` is absent on rows read before that field
- * existed (D48 affinity work); such rows simply don't contribute to
- * `topTopics`, degrading gracefully rather than erroring. */
 export function computeReadingStats(items: HistoryItem[], now: Date = new Date()): ReadingStats {
   const weekAgoMs = now.getTime() - 7 * ONE_DAY_MS;
   const monthAgoMs = now.getTime() - 30 * ONE_DAY_MS;

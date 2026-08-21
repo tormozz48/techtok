@@ -195,6 +195,8 @@ pnpm --filter mobile storybook   # http://localhost:6006
 
 Every `src/components/*.tsx` needs a sibling `*.stories.tsx`, and every `src/app/` route needs a page story under `src/stories/pages/` — a PostToolUse hook flags missing files.
 
+The repo also bans comments in code: no comments in `.ts`/`.tsx`/`.js`/`.jsx`/`.mjs`/`.cjs`/`.astro` apart from tool directives (`biome-ignore`, `/// <reference>`, `@ts-expect-error`, test-runner pragmas). `pnpm lint` enforces it via [scripts/checkNoComments.ts](scripts/checkNoComments.ts), and a PostToolUse hook blocks edits that introduce one. Rationale for a change belongs in [docs/DESIGN.md](docs/DESIGN.md)'s decision log and the commit message.
+
 ## Mobile builds (Android)
 
 The app ships a committed, bare `android/` project (Expo prebuild output — DESIGN §2 D18), so release artifacts build with the standard Gradle toolchain. Needs **JDK 17** + the **Android SDK** locally.
@@ -242,7 +244,8 @@ Operational playbooks — stuck DLQs, compact-generation failures, the per-sourc
 ## Quality gates
 
 ```bash
-pnpm lint        # Biome — no ESLint/Prettier in this repo (D7)
+pnpm lint        # Biome + the no-comments check — no ESLint/Prettier in this repo (D7)
+pnpm lint:comments  # just the no-comments check; accepts file paths to narrow it
 pnpm typecheck   # tsc --noEmit, every package + scripts + sst.config.ts/infra (the latter only after a first `pnpm dev`)
 pnpm test        # vitest (shared/core/functions) + jest (mobile)
 ```

@@ -68,12 +68,6 @@ export function Card({ card }: CardProps) {
         onLongPress={
           card.isTranslated
             ? () => {
-                // RN's Pressability already suppresses onPress after a
-                // long-press gesture (there's no config hook to make it fire
-                // anyway), so there's no next tap to guard against here — a
-                // previous guard here was actively harmful, swallowing the
-                // *following* genuine tap instead. Swallow a rejection (e.g.
-                // no mail app installed) rather than an unhandled promise.
                 Linking.openURL(translationFeedbackMailto(card.id, card.servedLang)).catch(
                   () => {},
                 );
@@ -127,11 +121,6 @@ export function Card({ card }: CardProps) {
 
 const styles = StyleSheet.create({
   container: {
-    // react-native-pager-view's own docs: `flex: 1` does not size a page's
-    // children correctly, use an explicit width/height instead — 100% then
-    // resolves against whatever height the pager itself is given by its
-    // parent (FeedScreen's layout, D25), so the pager shrinking for the
-    // bottom action bar "just works" without any bar-height arithmetic here.
     width: '100%',
     height: '100%',
     backgroundColor: Colors.overlay.surfaceBlack,

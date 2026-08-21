@@ -1,10 +1,8 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { createBookmark, deleteBookmark } from '@/api/client';
-import { prefetchPostContent } from '@/api/prefetchContent';
 import { STRINGS } from '@/i18n/strings';
 import { useBookmarksOverlay } from '@/state/bookmarksOverlay';
-import { getIsWifi } from '@/state/network';
 import {
   createTestQueryClient,
   renderWithQueryClient,
@@ -18,17 +16,9 @@ jest.mock('@/api/client', () => ({
   fetchMe: jest.fn(),
   putLanguage: jest.fn(),
 }));
-jest.mock('@/api/prefetchContent', () => ({
-  prefetchPostContent: jest.fn(),
-}));
-jest.mock('@/state/network', () => ({
-  getIsWifi: jest.fn(),
-}));
 
 const createBookmarkMock = createBookmark as jest.Mock;
 const deleteBookmarkMock = deleteBookmark as jest.Mock;
-const getIsWifiMock = getIsWifi as jest.Mock;
-const prefetchPostContentMock = prefetchPostContent as jest.Mock;
 const a11y = STRINGS.en.a11y;
 
 let queryClient: QueryClient;
@@ -37,8 +27,6 @@ beforeEach(() => {
   resetSharedStores();
   createBookmarkMock.mockReset().mockResolvedValue(undefined);
   deleteBookmarkMock.mockReset().mockResolvedValue(undefined);
-  getIsWifiMock.mockReset().mockReturnValue(false);
-  prefetchPostContentMock.mockReset();
   queryClient = createTestQueryClient();
 });
 
@@ -169,21 +157,12 @@ describe('BookmarkButton', () => {
     expect(onToggled).not.toHaveBeenCalled();
   });
 
-  it('prefetches post content over wifi when a new bookmark is created', async () => {
-    getIsWifiMock.mockReturnValue(true);
-    await renderWithQueryClient(<BookmarkButton postId="p1" isBookmarked={false} />, queryClient);
-
-    await fireEvent.press(screen.getByLabelText(a11y.bookmarkAdd));
-
-    await waitFor(() => expect(prefetchPostContent).toHaveBeenCalledWith(queryClient, 'p1', 'en'));
-  });
-
-  it('does not prefetch when off wifi', async () => {
+  it("never warms the reader's content cache when a bookmark is created (D82)", async () => {
     await renderWithQueryClient(<BookmarkButton postId="p1" isBookmarked={false} />, queryClient);
 
     await fireEvent.press(screen.getByLabelText(a11y.bookmarkAdd));
 
     await waitFor(() => expect(createBookmarkMock).toHaveBeenCalled());
-    expect(prefetchPostContent).not.toHaveBeenCalled();
+    expect(queryClient.getQueryCache().findAll({ queryKey: ['content'] })).toEqual([]);
   });
 });

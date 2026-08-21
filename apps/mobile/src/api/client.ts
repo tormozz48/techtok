@@ -261,25 +261,19 @@ export async function deleteBookmark(postId: string): Promise<void> {
 }
 
 /** Reads a compact article (D23; eager generation as of D36) — a plain cache
- * read, no job ids or polling. `intent: 'prefetch'` (D61's read-ahead /
- * bookmark wifi-prefetch) tells the server this is speculative background
- * cache-warming, not a genuine reader open — it skips the D69 reader-opens
- * quota gate/increment there, and skips invalidating `['entitlement']` here
- * since nothing server-side actually changed. */
-export async function fetchPostContent(
-  postId: string,
-  lang: Language,
-  intent: 'read' | 'prefetch' = 'read',
-): Promise<ContentResponse> {
+ * read, no job ids or polling. Every call is a genuine reader open since D82
+ * retired the speculative prefetch that used to share this path, so it always
+ * burns one of the D69 reader-opens server-side and always invalidates
+ * `['entitlement']` so the paywall surfaces see the new count. The server
+ * still honours `?intent=prefetch` for already-installed builds; nothing here
+ * sends it. */
+export async function fetchPostContent(postId: string, lang: Language): Promise<ContentResponse> {
   const url = apiUrl(`/v1/posts/${encodeURIComponent(postId)}/content`);
   url.searchParams.set('lang', lang);
-  if (intent === 'prefetch') url.searchParams.set('intent', intent);
 
   const response = await apiFetch(url);
   const parsed = contentResponseSchema.parse(await response.json());
-  if (intent === 'read') {
-    queryClient.invalidateQueries({ queryKey: ['entitlement'] });
-  }
+  queryClient.invalidateQueries({ queryKey: ['entitlement'] });
   return parsed;
 }
 

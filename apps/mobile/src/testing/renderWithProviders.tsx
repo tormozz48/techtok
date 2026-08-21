@@ -6,7 +6,7 @@ import { useLanguageStore } from '@/state/languageStore';
 import { useSpeechStore } from '@/state/speechStore';
 
 /** Fresh QueryClient per test -- retry:false so a rejected mock fails fast
- * instead of hanging on backoff retries (see prefetchContent.test.ts). */
+ * instead of hanging on backoff retries. */
 export function createTestQueryClient(): QueryClient {
   return new QueryClient({ defaultOptions: { queries: { retry: false } } });
 }

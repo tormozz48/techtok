@@ -15,7 +15,7 @@ This README covers running, developing, and deploying the project day to day. Fo
 - **Localized** — `en` · `ru` · `uk` · `pl`, for both card content (LLM-translated) and the app's own chrome.
 - **History, bookmarks & search** — everything you've read or saved, searchable via `?q=` on both list endpoints.
 - **Listen mode** — `expo-speech` TTS in the feed action bar and the reader.
-- **Offline** — bookmarked and read-ahead articles prefetch their content over wifi (50-entry cap).
+- **Offline** — feed, bookmarks and already-opened article content persist for a day, so a cold start reads without a network hit. Images (not article content) read ahead 3 cards on wifi.
 - **Stats** — reading streak plus top topics/sources, computed client-side from history pages.
 - **Plans** — Free and Plus (€2.99/mo · €24.99/yr, D73). Free is capped server-side at 100 card reads and 20 reader opens per local day; Plus lifts both. Entitlement is provider-agnostic (D70), so it can be granted by hand today — Play Billing arrives in phase 21.
 

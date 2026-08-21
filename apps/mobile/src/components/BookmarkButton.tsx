@@ -3,13 +3,10 @@ import type { BookmarksResponse, FeedResponse, Topic } from '@techtok/shared';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { IconButton } from 'react-native-paper';
 import { createBookmark, deleteBookmark } from '@/api/client';
-import { prefetchPostContent } from '@/api/prefetchContent';
 import { ActionIconSize, Colors } from '@/constants/theme';
 import { useStrings } from '@/i18n/useStrings';
 import { useBookmarksOverlay } from '@/state/bookmarksOverlay';
 import { useLanguageStore } from '@/state/languageStore';
-import { getIsWifi } from '@/state/network';
-import { forgetPrefetch } from '@/state/prefetchLedger';
 
 export interface BookmarkButtonProps {
   postId: string;
@@ -145,15 +142,6 @@ export function BookmarkButton({
     try {
       if (next) {
         await createBookmark(postId);
-        // An explicit save always outranks scroll-driven read-ahead (D61) —
-        // drop any speculative ledger entry so this postId is never evicted.
-        forgetPrefetch(postId);
-        // Wifi-gated best-effort offline prep — a failure here shouldn't
-        // affect the bookmark toggle itself, so no try/catch is needed:
-        // prefetchQuery already swallows its own queryFn errors internally.
-        if (getIsWifi()) {
-          prefetchPostContent(queryClient, postId, useLanguageStore.getState().language);
-        }
         if (snapshot) patchBookmarksListOnCreate(queryClient, postId, snapshot);
       } else {
         await deleteBookmark(postId);

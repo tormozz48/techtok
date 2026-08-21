@@ -1,18 +1,14 @@
-import { useQueryClient } from '@tanstack/react-query';
 import type { Card as CardData } from '@techtok/shared';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useRef } from 'react';
 import { StyleSheet } from 'react-native';
 import PagerView from 'react-native-pager-view';
-import { prefetchPostContent } from '@/api/prefetchContent';
 import { logEvent } from '@/state/eventsQueue';
-import { useLanguageStore } from '@/state/languageStore';
 import { getIsWifi } from '@/state/network';
-import { recordPrefetch } from '@/state/prefetchLedger';
 import { enqueueRead } from '@/state/readQueue';
 import { Card } from './Card';
-import { selectContentToPrefetch, selectImagesToPrefetch } from './prefetch';
+import { selectImagesToPrefetch } from './prefetch';
 
 export interface FeedPagerProps {
   cards: CardData[];
@@ -27,7 +23,6 @@ const SETTLE_DELAY_MS = 1500;
 
 export function FeedPager({ cards, onNearEnd, onPageChange }: FeedPagerProps) {
   const settleTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const queryClient = useQueryClient();
 
   return (
     <PagerView
@@ -41,23 +36,13 @@ export function FeedPager({ cards, onNearEnd, onPageChange }: FeedPagerProps) {
         const { position } = event.nativeEvent;
         if (position >= cards.length - NEAR_END_THRESHOLD) onNearEnd?.();
 
+        // Images only (D82) — the article-content read-ahead D61 ran here
+        // is gone: it never hit the network for anything the user asked for,
+        // and it landed in the reader's own query key, so an opened article
+        // painted from a cache entry the reader-opens counter never saw.
         if (getIsWifi()) {
           for (const url of selectImagesToPrefetch(cards, position)) {
             Image.prefetch(url);
-          }
-
-          // Scroll-driven content read-ahead (D61) — reuses D55's bookmark
-          // prefetch helper over the same next-N window as the image
-          // prefetch above. Capped via prefetchLedger since this touches
-          // every card scrolled past, not just deliberate bookmarks.
-          const language = useLanguageStore.getState().language;
-          for (const postId of selectContentToPrefetch(cards, position)) {
-            prefetchPostContent(queryClient, postId, language);
-            for (const evicted of recordPrefetch(postId, language)) {
-              queryClient.removeQueries({
-                queryKey: ['content', evicted.postId, evicted.language],
-              });
-            }
           }
         }
 

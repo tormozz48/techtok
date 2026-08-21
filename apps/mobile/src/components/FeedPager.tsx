@@ -5,6 +5,7 @@ import { useRef } from 'react';
 import { StyleSheet } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import { logEvent } from '@/state/eventsQueue';
+import { useHapticsStore } from '@/state/hapticsStore';
 import { getIsWifi } from '@/state/network';
 import { enqueueRead } from '@/state/readQueue';
 import { Card } from './Card';
@@ -46,7 +47,9 @@ export function FeedPager({ cards, onNearEnd, onPageChange }: FeedPagerProps) {
           settleTimer.current = setTimeout(() => {
             enqueueRead(card.id);
             logEvent('card_settled', { postId: card.id, primaryTopic: card.primaryTopic });
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+            if (useHapticsStore.getState().enabled) {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+            }
           }, SETTLE_DELAY_MS);
         }
       }}

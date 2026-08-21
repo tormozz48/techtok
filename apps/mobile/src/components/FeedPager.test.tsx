@@ -2,6 +2,7 @@ import type { Card as CardData } from '@techtok/shared';
 import { fireEvent, screen } from '@testing-library/react-native';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
+import { useHapticsStore } from '@/state/hapticsStore';
 import { getIsWifi } from '@/state/network';
 import { enqueueRead } from '@/state/readQueue';
 import { createTestQueryClient, renderWithQueryClient } from '@/testing/renderWithProviders';
@@ -51,6 +52,7 @@ beforeEach(() => {
   enqueueReadMock.mockReset();
   getIsWifiMock.mockReset().mockReturnValue(false);
   impactAsyncMock.mockReset().mockResolvedValue(undefined);
+  useHapticsStore.setState({ enabled: true });
   prefetchSpy.mockClear();
 });
 
@@ -85,6 +87,29 @@ describe('FeedPager', () => {
 
     expect(enqueueReadMock).toHaveBeenCalledWith('post-2');
     expect(impactAsyncMock).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Light);
+  });
+
+  it('skips the haptic but still enqueues the read when vibration is switched off', async () => {
+    useHapticsStore.setState({ enabled: false });
+    const cards = [card('post-1'), card('post-2')];
+    await renderWithQueryClient(<FeedPager cards={cards} />);
+
+    await selectPage(1);
+    await jest.advanceTimersByTimeAsync(1500);
+
+    expect(enqueueReadMock).toHaveBeenCalledWith('post-2');
+    expect(impactAsyncMock).not.toHaveBeenCalled();
+  });
+
+  it('picks up a mid-wait switch flip, since the setting is read when the timer fires', async () => {
+    const cards = [card('post-1'), card('post-2')];
+    await renderWithQueryClient(<FeedPager cards={cards} />);
+
+    await selectPage(1);
+    useHapticsStore.setState({ enabled: false });
+    await jest.advanceTimersByTimeAsync(1500);
+
+    expect(impactAsyncMock).not.toHaveBeenCalled();
   });
 
   it('cancels the pending settle when the page changes again before the delay elapses', async () => {

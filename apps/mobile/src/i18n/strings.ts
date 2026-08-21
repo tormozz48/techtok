@@ -29,6 +29,8 @@ export interface ChromeStrings {
     themeSystem: string;
     themeLight: string;
     themeDark: string;
+    hapticsLabel: string;
+    hapticsHint: string;
     sourcesSectionTitle: string;
     sourcesHint: string;
   };
@@ -169,6 +171,8 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       themeSystem: 'System',
       themeLight: 'Light',
       themeDark: 'Dark',
+      hapticsLabel: 'Vibration',
+      hapticsHint: 'Buzz when a card is marked read.',
       sourcesSectionTitle: 'Sources',
       sourcesHint: 'Tap a source to mute it — muted sources are hidden from your feed.',
     },
@@ -308,6 +312,8 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       themeSystem: 'Как в системе',
       themeLight: 'Светлая',
       themeDark: 'Тёмная',
+      hapticsLabel: 'Вибрация',
+      hapticsHint: 'Вибрировать, когда карточка отмечена прочитанной.',
       sourcesSectionTitle: 'Источники',
       sourcesHint: 'Нажмите на источник, чтобы скрыть его из ленты.',
     },
@@ -447,6 +453,8 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       themeSystem: 'Як у системі',
       themeLight: 'Світла',
       themeDark: 'Темна',
+      hapticsLabel: 'Вібрація',
+      hapticsHint: 'Вібрувати, коли картку позначено прочитаною.',
       sourcesSectionTitle: 'Джерела',
       sourcesHint: 'Торкніться джерела, щоб приховати його зі стрічки.',
     },
@@ -586,6 +594,8 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       themeSystem: 'Systemowy',
       themeLight: 'Jasny',
       themeDark: 'Ciemny',
+      hapticsLabel: 'Wibracje',
+      hapticsHint: 'Wibruj, gdy karta zostanie oznaczona jako przeczytana.',
       sourcesSectionTitle: 'Źródła',
       sourcesHint: 'Dotknij źródła, aby ukryć je z kanału.',
     },

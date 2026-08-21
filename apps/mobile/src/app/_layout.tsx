@@ -19,6 +19,7 @@ import { ONE_DAY_MS } from '@/constants/time';
 import { useStrings } from '@/i18n/useStrings';
 import { useAuthStore } from '@/state/authStore';
 import { startEventsQueueFlushing } from '@/state/eventsQueue';
+import { useHapticsStore } from '@/state/hapticsStore';
 import { useLanguageStore } from '@/state/languageStore';
 import { startNetworkMonitoring } from '@/state/network';
 import { hasSeenOnboarding } from '@/state/onboardingStore';
@@ -53,6 +54,7 @@ function RootLayout() {
       startNetworkMonitoring();
       useTopicsStore.getState().load();
       useThemeStore.getState().load();
+      useHapticsStore.getState().load();
       useLanguageStore.getState().hydrate();
       setShowOnboarding(!hasSeenOnboarding());
       await useAuthStore.getState().restore();

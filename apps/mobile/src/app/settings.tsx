@@ -3,7 +3,7 @@ import type { Language, Topic } from '@techtok/shared';
 import { Link } from 'expo-router';
 import { useEffect, useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { List } from 'react-native-paper';
+import { List, Switch } from 'react-native-paper';
 import { fetchSources } from '@/api/client';
 import { useEntitlementQuery } from '@/api/useEntitlementQuery';
 import { BuildInfo } from '@/components/BuildInfo';
@@ -14,6 +14,7 @@ import { Spacing, type ThemeColors } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { logError } from '@/state/eventsQueue';
+import { useHapticsStore } from '@/state/hapticsStore';
 import { useLanguageStore } from '@/state/languageStore';
 import { useMutedSourcesStore } from '@/state/mutedSourcesStore';
 import { type ThemeMode, useThemeStore } from '@/state/themeStore';
@@ -26,6 +27,7 @@ export default function SettingsScreen() {
   const { topics, isLoading, load, setTopics } = useTopicsStore();
   const { language, setLanguage } = useLanguageStore();
   const { mode, setMode } = useThemeStore();
+  const { enabled: hapticsEnabled, setEnabled: setHapticsEnabled } = useHapticsStore();
   const {
     mutedSources,
     isLoading: isMutedSourcesLoading,
@@ -100,11 +102,28 @@ export default function SettingsScreen() {
         {strings.settings.languageSectionTitle}
       </Text>
       <LanguagePicker language={language} onChange={applyLanguage} />
+      <List.Item
+        title={strings.settings.hapticsLabel}
+        description={strings.settings.hapticsHint}
+        titleStyle={styles.rowText}
+        descriptionStyle={styles.rowDescription}
+        style={StyleSheet.flatten([styles.row, styles.sectionTitleSpaced])}
+        onPress={() => setHapticsEnabled(!hapticsEnabled)}
+        right={() => (
+          <Switch
+            value={hapticsEnabled}
+            onValueChange={setHapticsEnabled}
+            accessibilityLabel={strings.settings.hapticsLabel}
+            testID="settings-haptics-switch"
+          />
+        )}
+        testID="settings-haptics-row"
+      />
       <Link href="/stats" asChild>
         <List.Item
           title={strings.stats.title}
           titleStyle={styles.rowText}
-          style={StyleSheet.flatten([styles.row, styles.sectionTitleSpaced])}
+          style={styles.row}
           right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.text} />}
           testID="settings-stats-link"
         />

@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
 import type { EntitlementResponse, SourcesResponse } from '@techtok/shared';
+import type { ReactElement } from 'react';
 import SettingsScreen from '@/app/settings';
+import { useHapticsStore } from '@/state/hapticsStore';
 import { withSeededQueries } from '../withSeededQuery';
 
 const SOURCES: SourcesResponse = {
@@ -23,6 +25,21 @@ const ENTITLEMENT: EntitlementResponse = {
   },
 };
 
+const SEEDS = [
+  { queryKey: ['sources'], data: SOURCES },
+  { queryKey: ['entitlement'], data: ENTITLEMENT },
+];
+
+/** The haptics preference lives in a module-global store, not in props, so
+ * each story pins it explicitly — otherwise the switch a story renders is
+ * whatever the previously-viewed story last left behind. */
+function withHaptics(enabled: boolean) {
+  return (Story: () => ReactElement) => {
+    useHapticsStore.setState({ enabled });
+    return <Story />;
+  };
+}
+
 const meta: Meta<typeof SettingsScreen> = {
   title: 'pages/SettingsScreen',
   component: SettingsScreen,
@@ -33,10 +50,9 @@ export default meta;
 type Story = StoryObj<typeof SettingsScreen>;
 
 export const Default: Story = {
-  decorators: [
-    withSeededQueries([
-      { queryKey: ['sources'], data: SOURCES },
-      { queryKey: ['entitlement'], data: ENTITLEMENT },
-    ]),
-  ],
+  decorators: [withSeededQueries(SEEDS), withHaptics(true)],
+};
+
+export const VibrationOff: Story = {
+  decorators: [withSeededQueries(SEEDS), withHaptics(false)],
 };

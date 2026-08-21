@@ -17,6 +17,7 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
 import { formatResetTime } from '@/utils/formatResetTime';
+import { hasQuotaResetPassed } from '@/utils/quotaReset';
 
 export default function FeedScreen() {
   const {
@@ -40,11 +41,17 @@ export default function FeedScreen() {
   const cards = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data]);
   const entitlement = entitlementQuery.data;
   const lastPage = data?.pages.at(-1);
+  const isExpiredQuotaPage =
+    lastPage?.quotaExhausted === true && hasQuotaResetPassed(lastPage.resetsAt);
   const isQuotaExhausted =
     (entitlement?.plan === 'free' &&
       entitlement.quota.cardReads >= entitlement.quota.cardReadsLimit) ||
-    lastPage?.quotaExhausted === true;
+    (lastPage?.quotaExhausted === true && !isExpiredQuotaPage);
   const quotaResetsAt = entitlement?.quota.resetsAt ?? lastPage?.resetsAt;
+
+  useEffect(() => {
+    if (isExpiredQuotaPage) queryClient.resetQueries({ queryKey: ['feed'] });
+  }, [isExpiredQuotaPage, queryClient]);
 
   useQuotaReset(entitlementQuery.data?.quota.resetsAt, () => {
     entitlementQuery.refetch();

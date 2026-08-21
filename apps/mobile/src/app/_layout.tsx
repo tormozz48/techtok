@@ -53,8 +53,6 @@ function RootLayout() {
 
   useEffect(() => {
     ready().then(async () => {
-      startReadQueueFlushing();
-      startEventsQueueFlushing();
       startNetworkMonitoring();
       useTopicsStore.getState().load();
       useThemeStore.getState().load();
@@ -64,6 +62,16 @@ function RootLayout() {
       // anything this app caches) resolves before the first Stack.Protected
       // guard evaluates, so a signed-in user never sees a flash of /auth.
       await useAuthStore.getState().restore();
+      // Started only after sign-in resolves, for the same reason
+      // languageStore.load() is deferred below. Both flushers POST to
+      // authenticated routes the instant they start, and starting them first
+      // fired those POSTs with no Authorization header at all — the 401 then
+      // kicked off a *second* silent sign-in concurrent with restore()'s own,
+      // and whichever lost wrote `signedOut` over the restored session. That
+      // is what showed a signed-in user /auth for a moment at launch, until
+      // the next 5s/15s flush tick 401'd again and recovered it.
+      startReadQueueFlushing();
+      startEventsQueueFlushing();
       setIsHydrated(true);
     });
   }, []);

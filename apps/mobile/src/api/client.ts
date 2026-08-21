@@ -145,7 +145,16 @@ export async function fetchFeedPage({
   if (before) url.searchParams.set('before', before);
 
   const response = await apiFetch(url);
-  return feedResponseSchema.parse(await response.json());
+  const parsed = feedResponseSchema.parse(await response.json());
+  // An exhausted page is the server reporting that the counters have reached
+  // their cap, which makes the cached ['entitlement'] snapshot behind the
+  // QuotaBadge and D81's gate provably stale — and once the feed stops
+  // yielding cards there are no more read flushes to refresh it, so the badge
+  // would sit below its own limit for the rest of the day.
+  if (parsed.quotaExhausted) {
+    queryClient.invalidateQueries({ queryKey: ['entitlement'] });
+  }
+  return parsed;
 }
 
 export async function fetchMe(): Promise<MeResponse> {
@@ -275,12 +284,24 @@ export async function fetchPostContent(
   url.searchParams.set('lang', lang);
   if (intent === 'prefetch') url.searchParams.set('intent', intent);
 
-  const response = await apiFetch(url);
-  const parsed = contentResponseSchema.parse(await response.json());
-  if (intent === 'read') {
-    queryClient.invalidateQueries({ queryKey: ['entitlement'] });
+  try {
+    const response = await apiFetch(url);
+    const parsed = contentResponseSchema.parse(await response.json());
+    if (intent === 'read') {
+      queryClient.invalidateQueries({ queryKey: ['entitlement'] });
+    }
+    return parsed;
+  } catch (err) {
+    // A 402 is the reader-opens cap being enforced, so the counters have just
+    // reached their limit server-side. Invalidating only on the success path
+    // above meant this — the one moment the numbers definitely changed — was
+    // the one moment they were never re-read, leaving the QuotaBadge
+    // advertising a spare open the server will keep refusing.
+    if (err instanceof ApiError && err.status === 402 && intent === 'read') {
+      queryClient.invalidateQueries({ queryKey: ['entitlement'] });
+    }
+    throw err;
   }
-  return parsed;
 }
 
 /** Deletes the signed-in user's account and all their data (D68) — required

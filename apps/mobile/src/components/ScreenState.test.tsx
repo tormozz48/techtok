@@ -13,6 +13,12 @@ describe('ScreenState', () => {
     expect(screen.queryByText('Retry')).toBeNull();
   });
 
+  it('renders an emphasized title above the message', async () => {
+    await render(<ScreenState title="Limit reached" message="Resets at 00:00" />);
+    expect(screen.getByText('Limit reached')).toBeTruthy();
+    expect(screen.getByText('Resets at 00:00')).toBeTruthy();
+  });
+
   it('renders a retry button and calls onRetry when pressed', async () => {
     const onRetry = jest.fn();
     await render(<ScreenState message="Failed." retryLabel="Retry" onRetry={onRetry} />);

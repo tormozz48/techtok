@@ -4,7 +4,7 @@ TikTok-style swipe feed for tech & science news: Expo/React Native Android app +
 
 The two documents that govern this repo:
 
-- [docs/DESIGN.md](docs/DESIGN.md) — architecture, API, data model. §2 is the **decision log** (D1–D74), §12 the deferred defaults.
+- [docs/DESIGN.md](docs/DESIGN.md) — architecture, API, data model. §2 is the **decision log** (D1–D83), §12 the deferred defaults.
 - [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) — 23 phases (0–22), each gated by acceptance criteria.
 
 Never re-decide something already in the decision log. If a decision must change, update the log entry with the reason (`/log-decision`), then implement.
@@ -52,8 +52,8 @@ Beyond the 17 numbered phases: a follow-up initiative proposed in response to "l
 | C1 | Search over history & bookmarks (`?q=` on the existing list endpoints) | Merged (#58) | — |
 | C2 | Reading stats screen (streak, top topics/sources — client-computed from history pages) | Merged (#59), logged as D62 | — |
 | C3 | Listen mode: `expo-speech` TTS in the feed action bar and the compact reader | Merged (#61) | Maintainer: on-device voice-availability check for ru/uk/pl |
-| C4 | Offline saved articles: wifi-gated content prefetch on bookmark + on Saved-screen load | Merged (#62), logged as D55 | — |
-| C5 | Feed read-ahead content prefetch, extending C4/D55 from explicit bookmarks to scroll position, + a fix so prefetch actually covers in-body figures, + a 50-entry eviction cap (D61) | Code complete | Maintainer: commit, push, open a PR from the branch's compare link and merge. No on-device Expo Go pass possible in this environment (same constraint as every prior mobile phase) |
+| C4 | Offline saved articles: wifi-gated content prefetch on bookmark + on Saved-screen load | Merged (#62), logged as D55 — **removed again by D82** (2026-08-21) | — |
+| C5 | Feed read-ahead content prefetch, extending C4/D55 from explicit bookmarks to scroll position, + a fix so prefetch actually covers in-body figures, + a 50-entry eviction cap (D61) | Merged, then **removed by D82** (2026-08-21) — only the image read-ahead remains | — |
 
 ### Going public and paid (2026-08-10, D67–D75, phases 19–23)
 
@@ -81,7 +81,8 @@ Notable cross-phase gotchas worth remembering: DynamoDB reserved keywords (`lang
 
 ```
 pnpm install
-pnpm lint        # Biome — this repo has NO ESLint/Prettier (D7)
+pnpm lint        # Biome + the no-comments check; this repo has NO ESLint/Prettier (D7)
+pnpm lint:comments           # just the no-comments check (optionally: <files...>)
 pnpm typecheck   # tsc --noEmit across workspaces + sst.config.ts/infra (the latter only after a first `pnpm dev`)
 pnpm test        # vitest (shared/core/functions) + jest (mobile)
 pnpm dev         # sst dev --stage dev — live Lambda on your personal "dev" stage
@@ -110,9 +111,28 @@ Definition of done for any change: lint + typecheck + tests green, then exercise
 - Feed access follows the key design in DESIGN §6 (primaryTopic GSI, read-markers via BatchGet). No table scans or filter-expression shortcuts on `Posts`.
 - Keep React Native code cross-platform (D12): no Android-only APIs without a `Platform` guard.
 - Keep `apps/mobile` Storybook in sync with real components/screens: every file in `apps/mobile/src/components/*.tsx` needs a matching `*.stories.tsx` in the same directory, and every route in `apps/mobile/src/app/` needs a page story in `apps/mobile/src/stories/pages/` that imports the real screen via `@/app/<route>` (not a re-implementation). When you add a component/screen, add its story in the same change; when you change a component's props/variants or a screen's states, update its story to match — a PostToolUse hook flags missing coverage on Edit/Write, but it can't catch stale prop shapes, only missing files.
+- Keep `README.md` reflecting the application's *current* settings, not its history. Any change that alters something the README states — root/package scripts, workflow names or the CI pipeline chain, required secrets and env vars, `infra/` resources, API routes, plan/quota constants, the budget number, prerequisites, directory layout, or phase status — updates the README in the same change. Verify README claims by reading the source of truth (`package.json`, `.github/workflows/*`, `infra/*`, `packages/shared`), never by trusting the prose already there; the README describes what the code does today, while the *why* and the superseded decisions stay in DESIGN.md's log.
 - Conventional commits: `feat:` / `fix:` / `docs:` / `chore:` / `test:` / `refactor:`. *(Mobile app versioning is manual, not commit-driven — DESIGN §2 D41 retired D35's automated semver bump.)*
 - Every request/response shape change to `packages/shared`'s zod schemas gets checked against the committed schema snapshot before merge (DESIGN §2 D34) — a removed field, narrowed/changed type, or removed enum value fails CI unless the snapshot is regenerated deliberately.
 - Don't export a function solely so a test can import it. If nothing outside the test file calls it, keep it internal (unexported) and either test it through the real exported function that uses it, or drop the export and inline the check. Tests should exercise the exports that other modules actually consume, not test-only surface area.
+
+### No comments in code
+
+**Never write a comment in `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs`, or `.astro`.** No line comments, no block comments, no JSDoc, no section banners, no `TODO`/`FIXME`, no commented-out code, no file-header preambles, no JSX `{/* … */}`, no CSS `/* … */` inside `.astro` `<style>` blocks. This is absolute — not "keep comments minimal", not "only comment non-obvious things". Zero.
+
+The **only** permitted exceptions are comments a tool actually reads, where deleting the text changes build, lint, or test behaviour: `biome-ignore`, `/// <reference … />`, `@ts-expect-error` / `@ts-ignore` / `@ts-nocheck` / `@ts-check`, `eslint-disable*`, `@jest-environment` / `@vitest-environment`, coverage pragmas (`istanbul`/`c8`/`v8 ignore`), `prettier-ignore`, `@type`/`@typedef` casts in `.js`, `sourceMappingURL`, `webpackIgnore`, and `/* @__PURE__ */`. A `biome-ignore` still needs its real reason string — that reason is the suppression's payload, not prose. Never reach for one of these forms as a loophole to smuggle in an explanation.
+
+Put the information where it belongs instead:
+
+- **The "what"** goes in names. If a block needs a comment to be readable, extract it into a well-named function or named intermediate constant. A comment explaining unclear code is a bug report against that code — fix the code.
+- **The "why"** goes in `docs/DESIGN.md`'s decision log (`/log-decision`) and is referenced by decision id in the commit message. Architectural rationale, rejected alternatives, and the cross-phase gotchas this file lists are documentation, never inline text.
+- **Non-obvious external behaviour** (an upstream library quirk, a DynamoDB reserved-keyword alias, a platform workaround) goes in the commit message plus a DESIGN.md decision entry, so `git log`/`git blame` still surfaces it at the line.
+- **Operational and setup facts** go in `README.md`.
+- **Test intent** goes in the `describe`/`it` name, which is already prose and already printed on failure.
+
+Enforcement is mechanical, not advisory: `pnpm lint` runs `scripts/checkNoComments.ts` (a TypeScript-scanner walk, so it can't be fooled by `//` inside a string, template literal, or regex; `.astro` gets a line-based pass since Biome can't parse it), and it gates the CI `lint` job. A PostToolUse hook (`.claude/hooks/no-comments-check.sh`) **blocks** the edit and reports the offending line the moment a comment is written. Run `pnpm lint:comments` to check the whole tree, or pass file paths to check just those. Biome has no rule for this and its GritQL plugins can't match comments at all (they're CST trivia, not nodes) — that's why the check is a script rather than a `biome.json` entry.
+
+Out of scope for the checker today, and therefore still comment-bearing: `.github/workflows/*.yml`, Maestro `.yaml` flows, `.sh` scripts (including the hooks themselves), `android/` native sources, and Markdown. Don't add comments there gratuitously, but they aren't policed.
 
 ## AWS
 
@@ -151,8 +171,37 @@ Before every commit: `pnpm lint`, then `pnpm typecheck`, then `pnpm test` — al
 
 ## Claude config in this repo
 
-- `.claude/settings.json` — permission allowlist for the common loop + three PostToolUse hooks on Edit/Write: one auto-formats with Biome (no-ops until Biome is installed in Phase 0), one runs a scoped `typecheck` for the edited file's workspace package and surfaces errors immediately instead of waiting for `/check`, and one (`storybook-sync-check.sh`) flags `apps/mobile` components/screens that lack Storybook coverage — informational only, and it only catches missing files, not stale ones (see Hard rules).
+- `.claude/settings.json` — permission allowlist for the common loop + four PostToolUse hooks on Edit/Write: one auto-formats with Biome (no-ops until Biome is installed in Phase 0), one runs a scoped `typecheck` for the edited file's workspace package and surfaces errors immediately instead of waiting for `/check`, one (`storybook-sync-check.sh`) flags `apps/mobile` components/screens that lack Storybook coverage — informational only, and it only catches missing files, not stale ones (see Hard rules) — and one (`no-comments-check.sh`) which, unlike the other three, **blocks** the edit when it finds a comment in the just-written file (see Hard rules, No comments in code).
 - `/check` — run all quality gates and fix until green
 - `/phase` — report progress against the implementation plan, propose next increment
 - `/log-decision` — append a decision to the DESIGN.md decision log
 - `/ship` — run `/check`, commit, push, and print a PR compare link (gh pr create is not usable here — read-only account)
+
+## AWS Agent Toolkit
+
+- Prefer the AWS MCP Server for AWS interactions — it provides sandboxed
+  execution, observability, and audit logging. If unavailable, use the
+  AWS CLI directly.
+- Before starting a task, check whether a relevant AWS skill is available.
+  Load the skill with `retrieve_skill` and prefer its guidance over
+  general knowledge.
+- When uncertain about specific AWS details (API parameters, permissions,
+  limits, error codes), verify against documentation rather than guessing.
+  State uncertainty explicitly if you cannot confirm.
+- When creating infrastructure, prefer infrastructure-as-code (AWS CDK or
+  CloudFormation) over direct CLI commands. **This repo is the exception:
+  its IaC is SST v4/Ion (`infra/`, `sst.config.ts`), a documented decision
+  — do not introduce CDK/CloudFormation here.**
+- When working with infrastructure, follow AWS Well-Architected Framework
+  principles.
+- Do not use em dashes in AWS resource names or descriptions. Use
+  hyphens instead.
+
+### Secret Safety
+
+- MUST load the `aws-secrets-manager` skill first for any secret,
+  credential, API key, token, or password task. MUST NOT call
+  `secretsmanager get-secret-value` or `batch-get-secret-value`, and MUST
+  NOT hit the Secrets Manager Agent daemon directly. MUST use
+  `{{resolve:secretsmanager:secret-id:SecretString:json-key}}` with
+  `asm-exec` so the secret resolves at runtime without entering context.

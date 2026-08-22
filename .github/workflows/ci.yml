@@ -220,11 +220,6 @@ jobs:
     needs: deploy-dev
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     uses: ./.github/workflows/e2e.yml
-    with:
-      # UI-level Maestro flows are more flake-prone than the HTTP-contract
-      # suites — see e2e.yml's `skip_mobile_emulator` input comment for why a
-      # flaky assertion there shouldn't be able to block this deploy chain.
-      skip_mobile_emulator: true
     permissions:
       id-token: write
       contents: read
@@ -248,13 +243,26 @@ jobs:
   # releases/latest currently serves", not "did this one merge touch mobile".
   # That accumulates correctly across skipped runs: three backend merges then
   # one mobile merge still produces exactly one build, containing all four.
+  # should_build only fires on changes that need a native rebuild (the
+  # ~10min `eas build --local` cost): apps/mobile/android, app.json, the
+  # mobile package.json/eas.json, pnpm-lock.yaml (a native dep version bump),
+  # or this workflow's own build definition. should_ota fires on the
+  # complementary case — apps/mobile/src, apps/mobile/app (expo-router
+  # routes) or packages/shared changed but nothing native-relevant did since the
+  # last commit actually published to the channel (D84) — and triggers a
+  # lightweight `eas update` OTA publish instead. This is a path
+  # heuristic, not a real fingerprint (D60 already notes runtimeVersion is
+  # hand-maintained, not auto-computed): it can't detect e.g. a pure-JS
+  # dependency bump inside pnpm-lock.yaml being misclassified as native-relevant,
+  # but that only costs an unnecessary full rebuild, never an unsafe OTA.
   mobile-changes:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     outputs:
       should_build: ${{ steps.check.outputs.should_build }}
+      should_ota: ${{ steps.check.outputs.should_ota }}
     steps:
-      # fetch-depth: 0 for the tags and the commit range below.
+      # fetch-depth: 0 for the tags and the commit ranges below.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -270,23 +278,56 @@ jobs:
           if [ -z "$BASE" ]; then
             echo "No mobile-v* tag exists yet — building (fail open)."
             echo "should_build=true" >> "$GITHUB_OUTPUT"
+            echo "should_ota=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           # packages/shared ships inside the app; pnpm-lock.yaml covers a
           # dependency bump that changes the bundle without touching app code.
-          CHANGED=$(git diff --name-only "$BASE"..HEAD -- \
-            apps/mobile \
-            packages/shared \
+          NATIVE_CHANGED=$(git diff --name-only "$BASE"..HEAD -- \
+            apps/mobile/android \
+            apps/mobile/app.json \
+            apps/mobile/package.json \
+            apps/mobile/eas.json \
             pnpm-lock.yaml \
             .github/workflows/mobile-build.yml)
-          if [ -n "$CHANGED" ]; then
-            echo "Mobile-relevant changes since $BASE:"
-            echo "$CHANGED" | sed 's/^/  /'
+          if [ -n "$NATIVE_CHANGED" ]; then
+            echo "Native-relevant mobile changes since $BASE:"
+            echo "$NATIVE_CHANGED" | sed 's/^/  /'
             echo "should_build=true" >> "$GITHUB_OUTPUT"
+            echo "should_ota=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Nothing native-relevant since $BASE — skipping the APK build."
+          echo "releases/latest keeps serving the APK built for $BASE."
+          echo "should_build=false" >> "$GITHUB_OUTPUT"
+
+          # D84: the OTA baseline is the last commit whose bundle actually
+          # reached the channel, not this one push. The original
+          # `github.event.before..HEAD` window had a hole: this workflow sets
+          # cancel-in-progress, so a mobile-JS push whose run was cancelled by
+          # a following backend-only push never published, and that next run's
+          # window no longer contained the change — it sat unpublished until
+          # some later push happened to touch apps/mobile/src again. Two
+          # markers can carry the baseline, and whichever is further along
+          # main wins: `mobile-ota-latest` (moved by the mobile-ota-update job
+          # below) and the `mobile-v*` tag found above, whose own run
+          # published a bundle as well as an APK.
+          PUBLISH_BASE="$BASE"
+          OTA_BASE=$(git rev-parse -q --verify 'refs/tags/mobile-ota-latest^{commit}' || true)
+          if [ -n "$OTA_BASE" ] && git merge-base --is-ancestor "$BASE" "$OTA_BASE"; then
+            PUBLISH_BASE="$OTA_BASE"
+          fi
+          JS_CHANGED=$(git diff --name-only "$PUBLISH_BASE"..HEAD -- \
+            apps/mobile/src \
+            apps/mobile/app \
+            packages/shared)
+          if [ -n "$JS_CHANGED" ]; then
+            echo "Mobile JS changes since the last published bundle ($PUBLISH_BASE):"
+            echo "$JS_CHANGED" | sed 's/^/  /'
+            echo "should_ota=true" >> "$GITHUB_OUTPUT"
           else
-            echo "Nothing mobile-relevant since $BASE — skipping the APK build."
-            echo "releases/latest keeps serving the APK built for $BASE."
-            echo "should_build=false" >> "$GITHUB_OUTPUT"
+            echo "Nothing mobile-JS since the last published bundle ($PUBLISH_BASE) — nothing to publish."
+            echo "should_ota=false" >> "$GITHUB_OUTPUT"
           fi
 
   mobile-build:
@@ -298,6 +339,67 @@ jobs:
     with:
       api_url: ${{ needs.deploy-production.outputs.api_url }}
     secrets: inherit
+
+  # Mutually exclusive with mobile-build (mobile-changes.should_build/should_ota
+  # are never both true — see that job's comment): publishes just the JS
+  # bundle to the existing "preview" channel/runtimeVersion instead of paying
+  # for a full native rebuild. No version bump, no GitHub Release, no tag —
+  # those are all tied to the APK's own identity, and this ships no new APK.
+  mobile-ota-update:
+    needs: [deploy-production, mobile-changes]
+    if: >-
+      github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+      && needs.mobile-changes.outputs.should_build == 'false'
+      && needs.mobile-changes.outputs.should_ota == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # move the mobile-ota-latest baseline tag
+    steps:
+      # fetch-depth: 0 so the baseline tag below can be force-updated against
+      # a repo that actually has its tags.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Publish OTA update (eas update)
+        working-directory: apps/mobile
+        env:
+          EXPO_PUBLIC_API_URL: ${{ needs.deploy-production.outputs.api_url }}
+          EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_WEB_CLIENT_ID }}
+        run: |
+          VERSION=$(node -e "console.log(require('./app.json').expo.version)")
+          eas update --channel preview --platform android --non-interactive --message "v$VERSION (JS-only: ${{ github.sha }})"
+
+      # D84: the marker mobile-changes reads as its OTA baseline. Moved only
+      # after the publish above succeeds, so a failed or cancelled run leaves
+      # the baseline where it was and the next run still sees the unpublished
+      # change. A moving tag rather than one per publish: only the newest
+      # matters, and per-publish tags would accumulate on every merge.
+      - name: Move the OTA baseline tag
+        env:
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
+        run: |
+          set -euo pipefail
+          git tag -f mobile-ota-latest "${{ github.sha }}"
+          git push --force origin refs/tags/mobile-ota-latest
 
   # Must still publish when mobile-build was skipped, so it can't just `needs`
   # it — a skipped dependency skips the dependent job unless a status-check

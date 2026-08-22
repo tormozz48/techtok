@@ -7,7 +7,8 @@
   },
   "packageManager": "pnpm@11.2.2",
   "scripts": {
-    "lint": "biome check .",
+    "lint": "biome check . && tsx scripts/checkNoComments.ts",
+    "lint:comments": "tsx scripts/checkNoComments.ts",
     "lint:fix": "biome check --write .",
     "typecheck": "./scripts/typecheck-infra.sh && tsc --noEmit -p scripts/tsconfig.json && pnpm -r --if-present run typecheck",
     "test": "vitest run && pnpm --filter mobile run test",

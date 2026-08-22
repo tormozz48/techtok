@@ -158,7 +158,7 @@ Companion to [DESIGN.md](DESIGN.md). Eighteen phases (0–6 original build-out, 
 - Image mirroring: transform stage copies article image → S3 + CloudFront (kills hotlink rot; ~$1/mo).
 - Ranking experiment: recency decay × source `weight` × topic diversity (interleave topics instead of pure newest-first).
 - Bookmarks (`bm#` items) + saved screen; share sheet polish.
-- Offline: explicit prefetch of next N cards + images on wifi.
+- Offline: explicit prefetch of next N cards + images on wifi. *(Images only as of D82 — the article-content half was built by D55/D61 and removed again.)*
 - Card design pass: typography scale, blurhash placeholders, skeleton states, haptics on page-settle.
 - Topic onboarding screen on first launch.
 - Cross-source duplicate-story collapse (canonical URL + title similarity) — experiment.
@@ -550,7 +550,7 @@ Code (tasks 1–5) is complete and verified via the unit test suite and a full `
 - [ ] **Blocked — needs a deployed API + a real client.** Quota survives app restart and is enforced server-side — verified by calling the API directly with a fresh client, not just through the UI.
 - [x] Reset fires at **local** midnight for a non-UTC timezone — verified at the unit level: `packages/core/src/entitlement/quota.test.ts` checks `nextLocalMidnightUtc`/`localDayKey` against both a positive-DST offset (Europe/Warsaw, UTC+2) and a negative offset (America/New_York, UTC-4), and `usersRepo.test.ts` exercises the actual day-rollover `UpdateCommand` conditional logic.
 - [ ] **Blocked — needs AWS credentials.** `grantEntitlement` → the same account immediately reads unlimited cards and articles, with no app reinstall. The script itself typechecks and reuses the already-tested `UsersRepo.grantEntitlement`; running it against a live table is unverified in this session.
-- [x] Prefetched/offscreen cards demonstrably do **not** burn quota: by construction, not just by observation — `POST /v1/reads` is the only call site that increments `cardReads` (`reads.ts`), and it only fires on the settle-based read event (§1), never on `GET /v1/feed` serving a page or D61's prefetch. `feed.ts`'s quota gate only ever *reads* `effectiveQuota`, never increments it.
+- [x] Prefetched/offscreen cards demonstrably do **not** burn quota: by construction, not just by observation — `POST /v1/reads` is the only call site that increments `cardReads` (`reads.ts`), and it only fires on the settle-based read event (§1), never on `GET /v1/feed` serving a page (nor on D61's prefetch, itself removed by D82). `feed.ts`'s quota gate only ever *reads* `effectiveQuota`, never increments it.
 - [x] All 4 languages render the paywall and quota strings — `strings.ts`'s `paywall`/`quota` blocks are typed identically across `en`/`ru`/`uk`/`pl` (a missing key is a compile error, per the file's own stated convention), confirmed by `pnpm --filter mobile run typecheck`. Both color schemes read from `useThemeColors()`/`Colors.overlay.*` the same way every other screen does — no scheme-specific code path to verify separately. Real on-device visual check not done in this environment.
 
 **Out of scope:** any real payment, the extended compact.

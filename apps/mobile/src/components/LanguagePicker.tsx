@@ -11,8 +11,6 @@ export interface LanguagePickerProps {
   readonly disabled?: boolean;
 }
 
-/** Flag-row language picker wired to the shared LANGUAGES list — shared by
- * the settings and onboarding screens. */
 export function LanguagePicker({ language, onChange, disabled }: LanguagePickerProps) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);

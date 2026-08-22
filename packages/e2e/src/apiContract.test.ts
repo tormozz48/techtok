@@ -14,24 +14,8 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { discoverDevResources, getApiEndpoint } from './awsDiscovery';
 import { fetchTestIdToken, readTestCredentials } from './googleTestAuth';
 
-/** D68: the API now requires a verified Google ID token, so per-test
- * isolation via a random device UUID (the pre-D68 approach) no longer
- * exists — every test in this file authenticates as the same dedicated test
- * Google account. Vitest runs tests within one file/describe sequentially by
- * default, so this is safe, but it does mean these tests are no longer
- * independent of run order the way the old per-test identity made them; a
- * future test that needs true isolation would need a second test account. */
 const testCredentials = readTestCredentials();
 
-/**
- * ci.yml runs this suite immediately after `sst deploy --stage dev` — API
- * Gateway/Lambda occasionally return a transient 503 while that fresh
- * deployment finishes settling (confirmed via direct Lambda invoke and clean
- * CloudWatch logs for a request that got a 503 at the HTTP layer; the
- * schedule-triggered runs of this same suite, which hit an already-settled
- * stage, don't see this). Retrying a handful of times with a short backoff
- * absorbs that without masking a real, persistent failure.
- */
 async function fetchWithRetry(url: string, init?: RequestInit, attempts = 5): Promise<Response> {
   let res: Response;
   for (let attempt = 0; ; attempt++) {
@@ -53,16 +37,6 @@ async function fetchFirstPostId(
   return postId;
 }
 
-/**
- * Calls the real deployed `dev` API over HTTP — exactly the requests the
- * mobile client makes — and parses every response through the same
- * `packages/shared` zod schemas the app itself uses. A parse failure here
- * means an already-installed, sideloaded APK (no auto-update, D18) would
- * fail to render (DESIGN §2 D34). Never run against `production`. Skips
- * entirely when GOOGLE_TEST_REFRESH_TOKEN/GOOGLE_OAUTH_WEB_CLIENT_ID/
- * GOOGLE_OAUTH_WEB_CLIENT_SECRET aren't set (see googleTestAuth.ts) — true
- * for every environment except the maintainer-provisioned e2e.yml run.
- */
 describe.skipIf(!testCredentials)('API contract E2E', () => {
   let apiEndpoint: string;
   let headers: Record<string, string>;
@@ -118,16 +92,6 @@ describe.skipIf(!testCredentials)('API contract E2E', () => {
   });
 });
 
-/**
- * Round-trips every mutation endpoint against the real `dev` API — the GET
- * suite above only ever reads, so a handler that's wired up wrong (e.g. an
- * env var/table link a route's infra config never declared) can 500 in
- * production while every GET-only contract test keeps passing, exactly what
- * happened to `POST /v1/bookmarks` (missing `usersTable` link). Post-D68,
- * every test in this file shares one authenticated identity (see the note
- * on `testCredentials` above) rather than a fresh device per test, so these
- * mutation tests run against — and mutate — the same user row in sequence.
- */
 describe.skipIf(!testCredentials)('API mutation E2E', () => {
   let apiEndpoint: string;
   let headers: Record<string, string>;
@@ -237,13 +201,6 @@ describe.skipIf(!testCredentials)('API mutation E2E', () => {
   });
 });
 
-/**
- * Exercises the Google JWT authorizer itself (D68) — no token, and a
- * malformed one, must never reach a handler. These don't need a minted test
- * token, only a reachable API endpoint, but are still gated behind
- * `testCredentials` since that's this suite's proxy for "running against a
- * real deployed `dev` stage with AWS discovery access."
- */
 describe.skipIf(!testCredentials)('API auth failures E2E', () => {
   let apiEndpoint: string;
 
@@ -270,13 +227,6 @@ describe.skipIf(!testCredentials)('API auth failures E2E', () => {
   });
 });
 
-/**
- * Validation, pagination, search and not-found scenarios beyond the
- * happy-path contract/mutation suites above — every 4xx branch a handler can
- * take, exercised against the real deployed `dev` stage. Shares the same
- * authenticated test identity and therefore the same ordering caveat noted
- * on `testCredentials` above.
- */
 describe.skipIf(!testCredentials)('API validation & edge-case E2E', () => {
   let apiEndpoint: string;
   let headers: Record<string, string>;
@@ -492,17 +442,6 @@ describe.skipIf(!testCredentials)('API validation & edge-case E2E', () => {
   });
 });
 
-/**
- * `DELETE /v1/me` — the one genuinely destructive, non-idempotent-feeling
- * endpoint. Placed last in this file on purpose: every describe block above
- * shares one authenticated test identity, and this deletes that identity's
- * profile row (D68 required this for Play policy). `UsersRepo.touch` recreates
- * a fresh default row lazily on the very next authenticated call (topics: [],
- * language back to whatever `DEVICE_LANGUAGE_HEADER` says), so this doesn't
- * strand the test account, but it does reset the preferences the mutation
- * suite above set — hence running strictly after everything else in this
- * file's sequential execution order.
- */
 describe.skipIf(!testCredentials)('API account deletion E2E', () => {
   let apiEndpoint: string;
   let headers: Record<string, string>;

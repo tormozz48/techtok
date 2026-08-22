@@ -32,9 +32,6 @@ export const handler = withAuth(async (event, auth) => {
   const lang = user.language ?? 'en';
   const timezone = user.timezone ?? 'UTC';
 
-  // D69's quota gate (DESIGN §5.2 step 8): checked here, incremented on the
-  // read path (reads.ts) instead — so serving a page and D61's read-ahead
-  // prefetch never themselves consume quota. Plus users skip this entirely.
   if (!isPlus(user)) {
     const quota = effectiveQuota(user.quota, timezone);
     if (quota.cardReads >= FREE_CARD_READS_PER_DAY) {
@@ -45,6 +42,7 @@ export const handler = withAuth(async (event, auth) => {
           nextBefore: null,
           quotaExhausted: true,
           resetsAt: nextLocalMidnightUtc(timezone).toISOString(),
+          language: lang,
         }),
       );
     }
@@ -63,6 +61,7 @@ export const handler = withAuth(async (event, auth) => {
       limit,
       topicReads: user.topicReads,
       mutedSourceIds: new Set(user.mutedSources ?? []),
+      lang,
     },
   );
 
@@ -74,6 +73,7 @@ export const handler = withAuth(async (event, auth) => {
   const body = feedResponseSchema.parse({
     items: page.items.map((post) => toCard(post, bookmarkedIds.has(post.postId), lang)),
     nextBefore: page.nextBefore,
+    language: lang,
   });
 
   return jsonResponse(200, body);

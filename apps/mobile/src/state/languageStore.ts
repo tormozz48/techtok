@@ -1,6 +1,7 @@
 import { isLanguage, type Language } from '@techtok/shared';
 import { create } from 'zustand';
 import { fetchMe, putLanguage } from '@/api/client';
+import { logError } from './eventsQueue';
 import { storage } from './storage';
 
 const LANGUAGE_KEY = 'techtok.language';
@@ -19,28 +20,54 @@ interface LanguageState {
   isLoading: boolean;
   load: () => Promise<void>;
   setLanguage: (language: Language) => Promise<void>;
+  hydrate: () => void;
+  adoptServerLanguage: (language: Language) => void;
 }
 
-export const useLanguageStore = create<LanguageState>((set) => ({
+export const useLanguageStore = create<LanguageState>((set, get) => ({
   language: loadCachedLanguage(),
   isLoading: false,
 
+  hydrate: () => {
+    set({ language: loadCachedLanguage() });
+  },
+
   load: async () => {
+    get().hydrate();
     set({ isLoading: true });
     try {
       const me = await fetchMe();
       saveCachedLanguage(me.language);
       set({ language: me.language });
+    } catch (error) {
+      logError('language reconcile failed', { message: String(error) });
     } finally {
       set({ isLoading: false });
     }
   },
 
   setLanguage: async (language: Language) => {
-    set({ language });
+    const previous = get().language;
+    set({ language, isLoading: true });
+    try {
+      const me = await putLanguage(language);
+      saveCachedLanguage(me.language);
+      set({ language: me.language });
+    } catch (error) {
+      if (!(error instanceof Error) || error.name !== 'ZodError') {
+        set({ language: previous });
+      } else {
+        saveCachedLanguage(language);
+      }
+      throw error;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  adoptServerLanguage: (language: Language) => {
+    if (get().isLoading || get().language === language) return;
     saveCachedLanguage(language);
-    const me = await putLanguage(language);
-    saveCachedLanguage(me.language);
-    set({ language: me.language });
+    set({ language });
   },
 }));

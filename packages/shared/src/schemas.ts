@@ -33,8 +33,6 @@ export const cardSchema = z.object({
   servedLang: languageSchema,
   isTranslated: z.boolean(),
   compactLangs: z.array(languageSchema).default([]),
-  // "Covered by N sources" badge (cross-source dedup, phase 4 experiment) --
-  // present only when at least one other source ran the same story.
   sourceCount: z.number().int().min(2).optional(),
 });
 export type Card = z.infer<typeof cardSchema>;
@@ -42,12 +40,9 @@ export type Card = z.infer<typeof cardSchema>;
 export const feedResponseSchema = z.object({
   items: z.array(cardSchema),
   nextBefore: z.string().nullable(),
-  /** D69: set (with `items: []`, `nextBefore: null`) instead of serving a
-   * page once a free user's daily card-reads are exhausted — the client
-   * routes to the paywall rather than rendering an empty/stuck feed. Absent
-   * (not `false`) on every ordinary response, including for Plus users. */
   quotaExhausted: z.literal(true).optional(),
   resetsAt: z.iso.datetime().optional(),
+  language: languageSchema.optional(),
 });
 export type FeedResponse = z.infer<typeof feedResponseSchema>;
 
@@ -90,14 +85,9 @@ export const errorResponseSchema = z.object({
 });
 export type ErrorResponse = z.infer<typeof errorResponseSchema>;
 
-/** Retired by D68 — Google Sign-In (a JWT `Authorization` header verified by
- * API Gateway's built-in authorizer) replaces the anonymous device-id model
- * entirely. Kept out of the exports on purpose so nothing can resurrect it. */
 export const DEVICE_LANGUAGE_HEADER = 'x-device-language';
-/** Device-reported IANA timezone, sent once at sign-in to seed `Users.timezone`
- * (D69's local-midnight quota reset) the same way `DEVICE_LANGUAGE_HEADER`
- * seeds `language` — first-touch only, never overwritten afterward. */
 export const DEVICE_TIMEZONE_HEADER = 'x-device-timezone';
+export const REQUEST_ID_HEADER = 'x-techtok-request-id';
 
 export const meResponseSchema = z.object({
   userId: z.string(),
@@ -105,18 +95,11 @@ export const meResponseSchema = z.object({
   createdAt: z.iso.datetime(),
   language: languageSchema,
   mutedSources: z.array(z.string()),
-  /** From the Google ID token (D68) — the first personal data this app has
-   * ever stored. Optional only for schema-evolution safety; every user
-   * created post-D68 has both. */
   email: z.string().optional(),
   name: z.string().optional(),
 });
 export type MeResponse = z.infer<typeof meResponseSchema>;
 
-/** `GET /v1/me/entitlement` (D69/D70) — the single source every paywall
- * surface reads from: current plan, today's quota usage/limits, and when
- * it resets. `fairUse` (D72/D73's extended-compact cap) doesn't exist until
- * phase 22 and is intentionally not modeled here yet. */
 export const entitlementResponseSchema = z.object({
   plan: z.enum(['free', 'plus']),
   expiresAt: z.iso.datetime().optional(),
@@ -150,10 +133,6 @@ export const readsRequestSchema = z.object({
 });
 export type ReadsRequest = z.infer<typeof readsRequestSchema>;
 
-/** `POST /v1/events` (D76) — client-batched, non-crash logs + product
- * analytics, sharing one endpoint/schema via a `kind` discriminant. Crash
- * reporting stays a separate, still-deferred decision (§12) and does not
- * go through this schema. */
 export const clientLogSchema = z.object({
   kind: z.literal('log'),
   level: z.enum(['error', 'warn', 'info']),
@@ -188,7 +167,6 @@ export const historyItemSchema = z.object({
   cardTitle: z.string(),
   sourceName: z.string(),
   url: z.url(),
-  // Absent on rows read before this field existed.
   primaryTopic: topicSchema.optional(),
 });
 export type HistoryItem = z.infer<typeof historyItemSchema>;
@@ -202,8 +180,6 @@ export type HistoryResponse = z.infer<typeof historyResponseSchema>;
 export const historyQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   cursor: z.string().optional(),
-  // When present, searches cardTitle/sourceName instead of paginating —
-  // cursor is ignored and the response's nextCursor is always null.
   q: z.string().trim().min(1).max(100).optional(),
 });
 export type HistoryQuery = z.infer<typeof historyQuerySchema>;
@@ -219,7 +195,6 @@ export const bookmarkItemSchema = z.object({
   cardTitle: z.string(),
   sourceName: z.string(),
   url: z.url(),
-  // Absent on rows bookmarked before this field existed.
   primaryTopic: topicSchema.optional(),
 });
 export type BookmarkItem = z.infer<typeof bookmarkItemSchema>;
@@ -233,16 +208,10 @@ export type BookmarksResponse = z.infer<typeof bookmarksResponseSchema>;
 export const bookmarksQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   cursor: z.string().optional(),
-  // Same q contract as historyQuerySchema: present -> search, cursor
-  // ignored, nextCursor always null.
   q: z.string().trim().min(1).max(100).optional(),
 });
 export type BookmarksQuery = z.infer<typeof bookmarksQuerySchema>;
 
-/** Compact-article reader (D23) — a structured block list, image blocks
- * reference the response's own `figures[]` array by index rather than
- * carrying a URL directly (the LLM never invents a figure URL, see
- * `compactArticlePrompt.ts`). */
 export const compactBlockSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('paragraph'), text: z.string().min(1) }),
   z.object({ type: z.literal('heading'), text: z.string().min(1) }),
@@ -264,18 +233,10 @@ export type CompactFigure = z.infer<typeof compactFigureSchema>;
 
 export const contentQuerySchema = z.object({
   lang: languageSchema.default('en'),
-  // 'prefetch' (D61's read-ahead / bookmark wifi-prefetch) must not burn the
-  // free tier's D69 reader-opens quota — only a genuine reader open ('read',
-  // the default) counts against it.
   intent: z.enum(['read', 'prefetch']).default('read'),
 });
 export type ContentQuery = z.infer<typeof contentQuerySchema>;
 
-/** Always a 200 (D23/D22 degrade convention) — `available: false` is a
- * content-level "couldn't prepare" outcome (kill switch, or the rare case a
- * just-ingested post's eager compact job hasn't finished yet), not an error
- * status. Generation happens eagerly during ingest (D36) — this endpoint is
- * now a plain cache read, never a job id or staged progress. */
 export const contentResponseSchema = z.discriminatedUnion('available', [
   z.object({
     available: z.literal(true),

@@ -5,10 +5,6 @@ import {
 
 export const REGION = 'eu-central-1';
 
-/** Every resource this app deploys carries `app: techtok-<stage>` (DESIGN §2
- * D17) — same tag-based discovery `packages/e2e/src/awsDiscovery.ts` uses,
- * so a local ops script never has to guess SST's generated physical table
- * names. Shared by `scripts/wipeUsers.ts` and `scripts/grantEntitlement.ts`. */
 export async function discoverTableName(
   stage: string,
   logicalNameFragment: string,

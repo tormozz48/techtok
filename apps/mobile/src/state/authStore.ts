@@ -15,34 +15,13 @@ export interface AuthUser {
 interface AuthState {
   status: 'loading' | 'signedOut' | 'signedIn';
   user: AuthUser | null;
-  /** Attempts to restore a previous session with no user interaction — call
-   * once at app start, before rendering the `/auth` gate. Google Sign-In's
-   * SDK persists its own session (Credential Manager on Android), so there
-   * is nothing for this app to cache across restarts beyond calling this. */
   restore: () => Promise<void>;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
-  /** Installs an externally-supplied Google ID token as the active session.
-   * No-ops unless the app was built with `EXPO_PUBLIC_E2E_AUTH=1` — see
-   * `e2eAuth.ts` for why this exists and why it grants nothing extra. */
   signInWithIdToken: (idToken: string) => void;
-  /** Re-authenticates silently to obtain a fresh ID token — Google ID tokens
-   * expire in ~1h (D68), so the API client calls this once on a 401 before
-   * retrying. Returns null if the silent refresh itself fails, in which case
-   * the caller should treat the session as signed out. */
   refreshToken: () => Promise<string | null>;
 }
 
-/**
- * Google Sign-In web client ID (D68) — public by design (it's baked into
- * the shipped APK and sent on every sign-in request, unlike an API key), so
- * a plain `EXPO_PUBLIC_*` build-time var is the right home for it, same as
- * `EXPO_PUBLIC_API_URL` in `api/client.ts`. Copy `.env.example` to `.env`
- * and set it to the "Web application" OAuth client ID from Google Cloud
- * Console (see infra/auth.ts for the matching server-side audience). Read
- * lazily (not a module-level const) so it reflects `process.env` at call
- * time rather than at first import.
- */
 function requireWebClientId(): string {
   const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
   if (!webClientId) {
@@ -56,10 +35,6 @@ function requireWebClientId(): string {
 let configured = false;
 function ensureConfigured(): void {
   if (configured) return;
-  // offlineAccess/webClientId (not iosClientId) is what makes signIn()
-  // return a Google *ID token* (a verifiable JWT) rather than just an
-  // opaque access token — the server's JWT authorizer (infra/api.ts) needs
-  // the former.
   GoogleSignin.configure({ webClientId: requireWebClientId() });
   configured = true;
 }
@@ -76,15 +51,31 @@ function toAuthUser(
   return { idToken, email: user.email, name: user.name };
 }
 
+let silentSignInAttempt: Promise<AuthUser | null> | null = null;
+
+function silentSignIn(): Promise<AuthUser | null> {
+  silentSignInAttempt ??= attemptSilentSignIn().finally(() => {
+    silentSignInAttempt = null;
+  });
+  return silentSignInAttempt;
+}
+
+async function attemptSilentSignIn(): Promise<AuthUser | null> {
+  try {
+    ensureConfigured();
+    const response = await GoogleSignin.signInSilently();
+    if (isNoSavedCredentialFoundResponse(response)) return null;
+    return toAuthUser(response.data.idToken, response.data.user);
+  } catch {
+    return null;
+  }
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   status: 'loading',
   user: null,
 
   restore: async () => {
-    // An E2E build has no Google session to restore and must never touch the
-    // Google SDK at all — it has no webClientId configured, and calling into
-    // Play Services would be one more thing to fail on an emulator. Landing on
-    // `signedOut` is what renders `/auth`, where the injected token arrives.
     if (isE2eAuthEnabled()) {
       set({ status: 'signedOut', user: null });
       return;
@@ -95,22 +86,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ status: 'signedOut', user: null });
         return;
       }
-      const response = await GoogleSignin.signInSilently();
-      if (isNoSavedCredentialFoundResponse(response)) {
-        set({ status: 'signedOut', user: null });
-        return;
-      }
-      set({ status: 'signedIn', user: toAuthUser(response.data.idToken, response.data.user) });
     } catch {
       set({ status: 'signedOut', user: null });
+      return;
     }
+    const user = await silentSignIn();
+    set(user ? { status: 'signedIn', user } : { status: 'signedOut', user: null });
   },
 
   signIn: async () => {
     ensureConfigured();
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
     const response = await GoogleSignin.signIn();
-    if (!isSuccessResponse(response)) return; // user cancelled — stay signedOut
+    if (!isSuccessResponse(response)) return;
     set({ status: 'signedIn', user: toAuthUser(response.data.idToken, response.data.user) });
   },
 
@@ -133,24 +121,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   refreshToken: async () => {
-    // The injected token is the only one an E2E build will ever have; a silent
-    // Google re-sign-in would fail and sign the run out mid-flow. Google ID
-    // tokens live ~1h, comfortably longer than a suite run, and the harness
-    // mints a fresh one per run.
     if (isE2eAuthEnabled()) return get().user?.idToken ?? null;
-    ensureConfigured();
-    try {
-      const response = await GoogleSignin.signInSilently();
-      if (isNoSavedCredentialFoundResponse(response)) {
-        set({ status: 'signedOut', user: null });
-        return null;
-      }
-      const user = toAuthUser(response.data.idToken, response.data.user);
-      set({ status: 'signedIn', user });
-      return user.idToken;
-    } catch {
+    const user = await silentSignIn();
+    if (!user) {
       set({ status: 'signedOut', user: null });
       return null;
     }
+    set({ status: 'signedIn', user });
+    return user.idToken;
   },
 }));

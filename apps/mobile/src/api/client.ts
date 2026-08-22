@@ -15,23 +15,21 @@ import {
   type Language,
   type MeResponse,
   meResponseSchema,
+  REQUEST_ID_HEADER,
   type SourcesResponse,
   sourcesResponseSchema,
   type Topic,
 } from '@techtok/shared';
+import * as Crypto from 'expo-crypto';
 import { useAuthStore } from '@/state/authStore';
 import { detectDeviceLanguage, detectDeviceTimezone } from '@/state/deviceLanguage';
+import { logError } from '@/state/logStore';
 import { queryClient } from '@/state/queryClient';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
-/** Default page size shared by fetchHistoryPage and fetchBookmarksPage. */
 const DEFAULT_PAGE_LIMIT = 50;
 
-/** Carries the response status/error code through a failed request so
- * callers can distinguish "quota exceeded" (402, D69) from any other
- * failure — e.g. the reader routes to `/paywall` on 402 instead of showing
- * its generic error state. */
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -43,6 +41,10 @@ export class ApiError extends Error {
   }
 }
 
+function isReaderOpensCapReached(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 402;
+}
+
 function apiUrl(path: string): URL {
   if (!API_URL) {
     throw new Error(
@@ -52,44 +54,57 @@ function apiUrl(path: string): URL {
   return new URL(path, API_URL);
 }
 
-function buildHeaders(init: RequestInit): HeadersInit {
+function buildHeaders(init: RequestInit, requestId: string): HeadersInit {
   const idToken = useAuthStore.getState().user?.idToken;
   return {
     ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
     [DEVICE_LANGUAGE_HEADER]: detectDeviceLanguage() ?? 'en',
     [DEVICE_TIMEZONE_HEADER]: detectDeviceTimezone() ?? 'UTC',
+    [REQUEST_ID_HEADER]: requestId,
     ...(init.body ? { 'content-type': 'application/json' } : {}),
     ...init.headers,
   };
 }
 
-/**
- * Google ID tokens expire in ~1h (D68), so a 401 triggers exactly one silent
- * re-sign-in + retry before giving up — the same shape as any other
- * transient-auth-failure retry, not a sign-out loop. `GET /v1/topics` and
- * `GET /v1/sources` never 401 (no authorizer attached, DESIGN §5), so this
- * only ever fires for the authenticated routes.
- */
 async function apiFetch(url: URL, init: RequestInit = {}): Promise<Response> {
-  let response = await fetch(url.toString(), { ...init, headers: buildHeaders(init) });
+  const requestId = Crypto.randomUUID();
+  const method = init.method ?? 'GET';
+  const wasAuthenticated = useAuthStore.getState().user !== null;
+  let response: Response;
+  try {
+    response = await fetch(url.toString(), { ...init, headers: buildHeaders(init, requestId) });
+  } catch (err) {
+    logError('api network request failed', {
+      requestId,
+      method,
+      path: url.pathname,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    throw err;
+  }
 
-  if (response.status === 401) {
+  if (response.status === 401 && wasAuthenticated) {
     const refreshedIdToken = await useAuthStore.getState().refreshToken();
     if (refreshedIdToken) {
-      response = await fetch(url.toString(), { ...init, headers: buildHeaders(init) });
+      response = await fetch(url.toString(), { ...init, headers: buildHeaders(init, requestId) });
     }
   }
 
   if (!response.ok) {
     let code: string | undefined;
-    let message = `${init.method ?? 'GET'} ${url.pathname} failed with status ${response.status}`;
+    let message = `${method} ${url.pathname} failed with status ${response.status}`;
     try {
       const body = (await response.json()) as { error?: { code?: string; message?: string } };
       code = body.error?.code;
       message = body.error?.message ?? message;
-    } catch {
-      // Non-JSON error body (e.g. an API Gateway-level rejection) — keep the generic message.
-    }
+    } catch {}
+    logError('api request failed', {
+      requestId,
+      method,
+      path: url.pathname,
+      status: response.status,
+      code,
+    });
     throw new ApiError(response.status, code, message);
   }
   return response;
@@ -109,7 +124,11 @@ export async function fetchFeedPage({
   if (before) url.searchParams.set('before', before);
 
   const response = await apiFetch(url);
-  return feedResponseSchema.parse(await response.json());
+  const parsed = feedResponseSchema.parse(await response.json());
+  if (parsed.quotaExhausted) {
+    queryClient.invalidateQueries({ queryKey: ['entitlement'] });
+  }
+  return parsed;
 }
 
 export async function fetchMe(): Promise<MeResponse> {
@@ -141,8 +160,6 @@ export async function putMutedSources(sourceIds: string[]): Promise<MeResponse> 
   return meResponseSchema.parse(await response.json());
 }
 
-/** Public source catalog (no device id needed) — lets the app render a mute
- * picker without hardcoding the source list. */
 export async function fetchSources(): Promise<SourcesResponse> {
   const response = await apiFetch(apiUrl('/v1/sources'));
   return sourcesResponseSchema.parse(await response.json());
@@ -153,14 +170,9 @@ export async function postReads(postIds: string[]): Promise<void> {
     method: 'POST',
     body: JSON.stringify({ postIds }),
   });
-  // A newly-read post burns the D69 cardReads quota server-side — invalidate
-  // so the feed's QuotaBadge/paywall reflect it without waiting on staleTime
-  // + an unrelated focus/mount trigger to happen to fire.
   queryClient.invalidateQueries({ queryKey: ['entitlement'] });
 }
 
-/** Client-batched logs + product analytics (D76) — fire-and-forget from the
- * caller's perspective; `eventsQueue.ts` owns retry-on-failure. */
 export async function postEvents(records: ClientRecord[]): Promise<void> {
   await apiFetch(apiUrl('/v1/events'), {
     method: 'POST',
@@ -171,8 +183,6 @@ export async function postEvents(records: ClientRecord[]): Promise<void> {
 export interface FetchHistoryPageParams {
   cursor?: string;
   limit?: number;
-  /** When set, searches cardTitle/sourceName instead of paginating — the
-   * response's nextCursor always comes back null. */
   q?: string;
 }
 
@@ -193,7 +203,6 @@ export async function fetchHistoryPage({
 export interface FetchBookmarksPageParams {
   cursor?: string;
   limit?: number;
-  /** Same search contract as fetchHistoryPage's q. */
   q?: string;
 }
 
@@ -224,38 +233,27 @@ export async function deleteBookmark(postId: string): Promise<void> {
   });
 }
 
-/** Reads a compact article (D23; eager generation as of D36) — a plain cache
- * read, no job ids or polling. `intent: 'prefetch'` (D61's read-ahead /
- * bookmark wifi-prefetch) tells the server this is speculative background
- * cache-warming, not a genuine reader open — it skips the D69 reader-opens
- * quota gate/increment there, and skips invalidating `['entitlement']` here
- * since nothing server-side actually changed. */
-export async function fetchPostContent(
-  postId: string,
-  lang: Language,
-  intent: 'read' | 'prefetch' = 'read',
-): Promise<ContentResponse> {
+export async function fetchPostContent(postId: string, lang: Language): Promise<ContentResponse> {
   const url = apiUrl(`/v1/posts/${encodeURIComponent(postId)}/content`);
   url.searchParams.set('lang', lang);
-  if (intent === 'prefetch') url.searchParams.set('intent', intent);
 
-  const response = await apiFetch(url);
-  const parsed = contentResponseSchema.parse(await response.json());
-  if (intent === 'read') {
+  try {
+    const response = await apiFetch(url);
+    const parsed = contentResponseSchema.parse(await response.json());
     queryClient.invalidateQueries({ queryKey: ['entitlement'] });
+    return parsed;
+  } catch (err) {
+    if (isReaderOpensCapReached(err)) {
+      queryClient.invalidateQueries({ queryKey: ['entitlement'] });
+    }
+    throw err;
   }
-  return parsed;
 }
 
-/** Deletes the signed-in user's account and all their data (D68) — required
- * by Google Play policy for any app with accounts. Irreversible. */
 export async function deleteAccount(): Promise<void> {
   await apiFetch(apiUrl('/v1/me'), { method: 'DELETE' });
 }
 
-/** Current plan + today's quota usage/limits (D69/D70) — the single call
- * every paywall surface (the feed/reader exhaustion states, the paywall
- * screen itself, the settings quota row) reads from. */
 export async function fetchEntitlement(): Promise<EntitlementResponse> {
   const response = await apiFetch(apiUrl('/v1/me/entitlement'));
   return entitlementResponseSchema.parse(await response.json());

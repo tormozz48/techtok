@@ -18,7 +18,13 @@ import { blocksToUtterances } from '@/utils/blocksToUtterances';
 import { translationFeedbackMailto } from '@/utils/feedback';
 
 export default function PostScreen() {
-  const { id, title, sourceName, url, isBookmarked } = useLocalSearchParams<{
+  const {
+    id,
+    title,
+    sourceName,
+    url,
+    isBookmarked: initialIsBookmarked,
+  } = useLocalSearchParams<{
     id: string;
     title?: string;
     sourceName?: string;
@@ -30,12 +36,11 @@ export default function PostScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const language = useLanguageStore((state) => state.language);
   const [viewLang, setViewLang] = useState<Language>(language);
+  const [isBookmarked, setIsBookmarked] = useState(initialIsBookmarked === 'true');
 
   const contentQuery = useQuery({
     queryKey: ['content', id, viewLang],
     queryFn: () => fetchPostContent(id, viewLang),
-    // A 402 (D69's reader-opens quota) means "go to the paywall", not a
-    // transient failure worth TanStack Query's default retry.
     retry: (failureCount, error) =>
       !(error instanceof ApiError && error.status === 402) && failureCount < 3,
   });
@@ -52,19 +57,11 @@ export default function PostScreen() {
     useSpeechStore.getState().checkVoiceAvailability();
   }, []);
 
-  // The displayed text just changed out from under any in-flight speech —
-  // stop rather than keep reading the language the user just switched away
-  // from. viewLang is a deliberate trigger-only dependency: the effect
-  // re-runs on every toggle even though its body doesn't read the value.
   // biome-ignore lint/correctness/useExhaustiveDependencies: see above.
   useEffect(() => {
     useSpeechStore.getState().stop();
   }, [viewLang]);
 
-  // Kill switch / content-level generation failures (D23), and the rare case
-  // a just-ingested post's eager compact job hasn't finished yet (D36), all
-  // come back as `available: false` — this reads as "routes straight to the
-  // browser" from the user's perspective.
   useEffect(() => {
     if (content && content.available === false) {
       WebBrowser.openBrowserAsync(url);
@@ -72,9 +69,6 @@ export default function PostScreen() {
     }
   }, [content, url]);
 
-  // D69: reader-opens quota exhausted (402) routes to the paywall instead of
-  // the generic error state — `replace`, not `push`, so the paywall's own
-  // back button returns to the feed, not to this now-unusable reader.
   useEffect(() => {
     if (isQuotaExceeded) {
       router.replace('/paywall');
@@ -82,8 +76,6 @@ export default function PostScreen() {
   }, [isQuotaExceeded]);
 
   const openOriginal = () => WebBrowser.openBrowserAsync(url);
-  // Android ignores `url` (iOS-only field), so the link must ride in `message`
-  // or the share intent goes out empty (see BottomActionBar).
   const share = () =>
     Share.share({
       title,
@@ -149,10 +141,11 @@ export default function PostScreen() {
         </Button>
         <BookmarkButton
           postId={id}
-          isBookmarked={isBookmarked === 'true'}
+          isBookmarked={isBookmarked}
           iconColor={colors.text}
           testID="reader-bookmark"
           snapshot={title && sourceName ? { cardTitle: title, sourceName, url } : undefined}
+          onToggled={setIsBookmarked}
         />
         <IconButton
           icon="share-variant"

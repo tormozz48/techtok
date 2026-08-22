@@ -101,4 +101,16 @@ describe('Card', () => {
 
     expect(openURLSpy).not.toHaveBeenCalled();
   });
+
+  it('still navigates on a normal press after a long-press elsewhere (no tap-eating latch)', async () => {
+    const translated: CardData = { ...BASE_CARD, isTranslated: true, servedLang: 'ru' };
+    await render(<Card card={translated} />);
+
+    await fireEvent(screen.getByText(BASE_CARD.title), 'longPress');
+    await fireEvent.press(screen.getByText(BASE_CARD.title));
+
+    expect(routerPushMock).toHaveBeenCalledWith(
+      expect.objectContaining({ params: expect.objectContaining({ id: 'post-1' }) }),
+    );
+  });
 });

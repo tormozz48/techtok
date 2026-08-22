@@ -7,13 +7,6 @@ import {
   View,
 } from 'react-native';
 
-// Storybook renders on the web, where react-native-pager-view has no
-// implementation at all — it's a codegen'd native view manager with no
-// `.web` variant (same class of gap as expo-router, see
-// .storybook/mocks/expo-router.tsx). This mock swaps in a plain
-// paging-enabled ScrollView so FeedPager's story can still show cards and
-// fire onPageSelected as the user scrolls between them.
-
 export interface PagerViewOnPageSelectedEvent {
   nativeEvent: { position: number };
 }

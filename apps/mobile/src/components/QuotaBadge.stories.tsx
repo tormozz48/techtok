@@ -25,3 +25,7 @@ export const Default: Story = {
 export const NearLimit: Story = {
   args: { used: 47, limit: 50 },
 };
+
+export const Labeled: Story = {
+  args: { used: 18, limit: 20, label: 'Articles today' },
+};

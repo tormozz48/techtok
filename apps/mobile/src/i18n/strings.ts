@@ -29,8 +29,21 @@ export interface ChromeStrings {
     themeSystem: string;
     themeLight: string;
     themeDark: string;
+    hapticsLabel: string;
+    hapticsHint: string;
     sourcesSectionTitle: string;
     sourcesHint: string;
+  };
+  build: {
+    sectionTitle: string;
+    source: string;
+    sourceEmbedded: string;
+    sourceOta: string;
+    bundleVersion: string;
+    updateId: string;
+    publishedAt: string;
+    channel: string;
+    runtimeVersion: string;
   };
   onboarding: {
     title: string;
@@ -128,10 +141,6 @@ export interface ChromeStrings {
   };
 }
 
-// Hand-written chrome copy (D20) — no i18n framework dependency. Keep every
-// language's key set identical; `useStrings` indexes this table directly by
-// the current language with no runtime fallback, so a missing key would be a
-// type error, not a silent blank.
 export const STRINGS: Record<Language, ChromeStrings> = {
   en: {
     feed: {
@@ -162,8 +171,21 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       themeSystem: 'System',
       themeLight: 'Light',
       themeDark: 'Dark',
+      hapticsLabel: 'Vibration',
+      hapticsHint: 'Buzz when a card is marked read.',
       sourcesSectionTitle: 'Sources',
       sourcesHint: 'Tap a source to mute it — muted sources are hidden from your feed.',
+    },
+    build: {
+      sectionTitle: 'Build',
+      source: 'Running',
+      sourceEmbedded: 'Bundle shipped with the app',
+      sourceOta: 'Over-the-air update',
+      bundleVersion: 'Bundle version',
+      updateId: 'Update ID',
+      publishedAt: 'Published (UTC)',
+      channel: 'Channel',
+      runtimeVersion: 'Runtime version',
     },
     onboarding: {
       title: 'Welcome to TechTok',
@@ -290,8 +312,21 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       themeSystem: 'Как в системе',
       themeLight: 'Светлая',
       themeDark: 'Тёмная',
+      hapticsLabel: 'Вибрация',
+      hapticsHint: 'Вибрировать, когда карточка отмечена прочитанной.',
       sourcesSectionTitle: 'Источники',
       sourcesHint: 'Нажмите на источник, чтобы скрыть его из ленты.',
+    },
+    build: {
+      sectionTitle: 'Сборка',
+      source: 'Запущено из',
+      sourceEmbedded: 'Сборка из установленного приложения',
+      sourceOta: 'Обновление «по воздуху» (OTA)',
+      bundleVersion: 'Версия сборки',
+      updateId: 'ID обновления',
+      publishedAt: 'Опубликовано (UTC)',
+      channel: 'Канал',
+      runtimeVersion: 'Версия рантайма',
     },
     onboarding: {
       title: 'Добро пожаловать в TechTok',
@@ -418,8 +453,21 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       themeSystem: 'Як у системі',
       themeLight: 'Світла',
       themeDark: 'Темна',
+      hapticsLabel: 'Вібрація',
+      hapticsHint: 'Вібрувати, коли картку позначено прочитаною.',
       sourcesSectionTitle: 'Джерела',
       sourcesHint: 'Торкніться джерела, щоб приховати його зі стрічки.',
+    },
+    build: {
+      sectionTitle: 'Збірка',
+      source: 'Запущено з',
+      sourceEmbedded: 'Збірка зі встановленого застосунку',
+      sourceOta: 'Оновлення «по повітрю» (OTA)',
+      bundleVersion: 'Версія збірки',
+      updateId: 'ID оновлення',
+      publishedAt: 'Опубліковано (UTC)',
+      channel: 'Канал',
+      runtimeVersion: 'Версія рантайму',
     },
     onboarding: {
       title: 'Ласкаво просимо до TechTok',
@@ -546,8 +594,21 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       themeSystem: 'Systemowy',
       themeLight: 'Jasny',
       themeDark: 'Ciemny',
+      hapticsLabel: 'Wibracje',
+      hapticsHint: 'Wibruj, gdy karta zostanie oznaczona jako przeczytana.',
       sourcesSectionTitle: 'Źródła',
       sourcesHint: 'Dotknij źródła, aby ukryć je z kanału.',
+    },
+    build: {
+      sectionTitle: 'Kompilacja',
+      source: 'Uruchomiono z',
+      sourceEmbedded: 'Paczka dołączona do aplikacji',
+      sourceOta: 'Aktualizacja OTA',
+      bundleVersion: 'Wersja paczki',
+      updateId: 'ID aktualizacji',
+      publishedAt: 'Opublikowano (UTC)',
+      channel: 'Kanał',
+      runtimeVersion: 'Wersja środowiska',
     },
     onboarding: {
       title: 'Witaj w TechTok',

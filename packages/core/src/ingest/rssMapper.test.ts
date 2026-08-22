@@ -10,8 +10,6 @@ const FIXTURES_DIR = path.join(dirname, '__fixtures__');
 
 async function loadFeed(filename: string) {
   const xml = await readFile(path.join(FIXTURES_DIR, filename), 'utf8');
-  // Same customFields as ingestSource.ts, so media:content/media:thumbnail
-  // round-trip through the parser exactly as they do in production.
   return new Parser({
     customFields: {
       item: [
@@ -95,8 +93,6 @@ describe('mapEntryToPost — ars.xml (RSS 2.0, media:content + nested media:thum
     };
     const posts = feed.items.map((entry) => mapEntryToPost(entry, source));
 
-    // The Range Rover item's content:encoded also embeds an <img> for
-    // RR_GT_SIDE-PROFILE.jpg — media:content must still win.
     expect(posts[2]?.imageUrl).toBe(
       'https://cdn.arstechnica.net/wp-content/uploads/2026/07/RR_GT_FRONT-3-4-1152x648.jpg',
     );

@@ -1,10 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { type BackfillImagesDeps, backfillImages } from './backfillImages';
 
-// Long enough to clear @extractus/article-extractor's own content-length
-// threshold (200 chars) — below that it returns null for the whole result,
-// image included, same constraint transformArticle.test.ts's fixture works
-// around.
 const ARTICLE_HTML_WITH_IMAGE = `<!doctype html><html><head><title>Archived Article</title>
 <meta property="og:image" content="https://example.com/lead.jpg">
 </head><body><article>

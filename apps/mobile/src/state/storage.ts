@@ -11,7 +11,6 @@ async function hydrate(): Promise<void> {
   }
 }
 
-/** Resolves once AsyncStorage has been read into the in-memory cache. Await this before the first read. */
 export function ready(): Promise<void> {
   hydrated ??= hydrate();
   return hydrated;

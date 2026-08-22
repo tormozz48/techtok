@@ -5,7 +5,6 @@ const HOUR = MINUTE * 60;
 const DAY = HOUR * 24;
 const WEEK = DAY * 7;
 
-/** Terse TikTok-style relative time — "3h ago", not "3 hours ago". */
 export function timeAgo(
   iso: string,
   strings: ChromeStrings['time'],

@@ -3,10 +3,6 @@ import type { ContentResponse } from '@techtok/shared';
 import PostScreen from '@/app/post/[id]';
 import { withSeededQuery } from '../withSeededQuery';
 
-// useLocalSearchParams is mocked to always return {} (see
-// .storybook/mocks/expo-router.tsx), so `id` is undefined and the default
-// language is 'en' (no cached override in this environment) — the query key
-// below must match exactly what the screen will actually request.
 const CONTENT: ContentResponse = {
   available: true,
   lang: 'en',

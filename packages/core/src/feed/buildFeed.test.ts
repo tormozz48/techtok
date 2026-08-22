@@ -189,17 +189,11 @@ describe('buildFeed', () => {
       { userTopics: ['ai'], limit: 20 },
     );
 
-    // 'b' (high weight, oldest) is ranked first in items, not last — but
-    // nextBefore must still equal the oldest post by publishedAt ('b'),
-    // proving the cursor ignores rank order.
     expect(page.items[0]?.postId).toBe('b');
     expect(page.nextBefore).toBe(oldestHighWeight.publishedAt);
   });
 
   it('applies a topicReads affinity boost to outrank an equally-fresh, equally-weighted post in an unread topic', async () => {
-    // Same publishedAt, same (default) sourceId -- without affinity these
-    // would score identically. A strong 'ai' read history (well above the
-    // cold-start threshold) should be the only thing breaking the tie.
     const aiPost = post('ai-post', 'ai', '2026-07-19T00:00:00.000Z');
     const devPost = post('dev-post', 'dev', '2026-07-19T00:00:00.000Z');
     const queryByTopic = vi.fn(async (topic: Topic) => {
@@ -290,6 +284,33 @@ describe('buildFeed', () => {
     expect(page.items.map((p) => p.postId)).toEqual(['a']);
   });
 
+  it("excludes posts missing the requested language's compact article when lang is given", async () => {
+    const ready = { ...post('a', 'ai', '2026-07-19T02:00:00.000Z'), compactLangs: ['en', 'ru'] };
+    const stuck = { ...post('b', 'ai', '2026-07-19T01:00:00.000Z'), compactLangs: [] };
+    const queryByTopic = vi.fn().mockResolvedValue([ready, stuck]);
+    const getReadSet = vi.fn().mockResolvedValue(new Set());
+
+    const page = await buildFeed(
+      { queryByTopic, getReadSet, getSourceWeights: noWeights() },
+      { userTopics: ['ai'], limit: 20, lang: 'en' },
+    );
+
+    expect(page.items.map((p) => p.postId)).toEqual(['a']);
+  });
+
+  it('does not filter on compactLangs when lang is omitted', async () => {
+    const stuck = { ...post('a', 'ai', '2026-07-19T02:00:00.000Z'), compactLangs: [] };
+    const queryByTopic = vi.fn().mockResolvedValue([stuck]);
+    const getReadSet = vi.fn().mockResolvedValue(new Set());
+
+    const page = await buildFeed(
+      { queryByTopic, getReadSet, getSourceWeights: noWeights() },
+      { userTopics: ['ai'], limit: 20 },
+    );
+
+    expect(page.items.map((p) => p.postId)).toEqual(['a']);
+  });
+
   it('excludes posts that are not yet ready (discovered or failed)', async () => {
     const ready = post('a', 'ai', '2026-07-19T02:00:00.000Z');
     const discovered = {
@@ -309,9 +330,6 @@ describe('buildFeed', () => {
   });
 
   it('leaves a discovered post inside the page window permanently behind once the cursor advances past it', async () => {
-    // 24 ready posts spanning 00:01:00 (oldest) .. 00:01:23 (newest), plus a
-    // still-discovered post at 00:01:11.5 — timestamped *inside* that range,
-    // not at either edge.
     const readyPosts = Array.from({ length: 24 }, (_, i) =>
       post(`p${i}`, 'ai', `2026-07-18T00:01:${String(i).padStart(2, '0')}.000Z`),
     );
@@ -328,12 +346,6 @@ describe('buildFeed', () => {
     );
 
     expect(page.items.map((p) => p.postId)).not.toContain('stuck');
-    // The cursor is drawn from the *filtered* candidate list, so it
-    // watermarks at the oldest ready post (p0) — which is older than
-    // `stuck`. Any further page in this session queries strictly before
-    // that watermark, so it can never reach `stuck` again even though
-    // `stuck` sat inside the window just paginated past. This is the
-    // documented, accepted skip: it self-heals only on a fresh feed load.
     expect(page.nextBefore).toBe(readyPosts[0]?.publishedAt);
     expect(
       isBefore(parseISO(page.nextBefore as string), parseISO(stuckDiscovered.publishedAt)),

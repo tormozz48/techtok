@@ -18,6 +18,15 @@ export const Empty: Story = {
   args: { message: 'Nothing here yet.' },
 };
 
+export const TitledWithAction: Story = {
+  args: {
+    title: "You've hit today's limit",
+    message: 'Resets at 00:00',
+    retryLabel: 'Upgrade',
+    onRetry: () => {},
+  },
+};
+
 export const ErrorWithRetry: Story = {
   args: {
     message: 'Something went wrong.',

@@ -1,10 +1,3 @@
-// Manual mock, same convention as the sibling expo-* mocks in this
-// directory. Not the package's own (unexported) internal jest helper —
-// `@react-native-google-signin/google-signin`'s package.json `exports` map
-// doesn't expose a `./jest` subpath, so depending on its internal file path
-// would be fragile across upgrades. Response shapes here mirror the real
-// `SignInSuccessResponse`/`NoSavedCredentialFound` union the library returns.
-
 export const mockUser = {
   idToken: 'mock-id-token',
   user: { email: 'mock@example.com', name: 'Mock User' },

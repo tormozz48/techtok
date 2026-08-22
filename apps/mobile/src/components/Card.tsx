@@ -3,7 +3,7 @@ import { getTopicLabel } from '@techtok/shared';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Linking, StyleSheet, Text, View } from 'react-native';
 import { Chip, TouchableRipple } from 'react-native-paper';
 import { Colors, Spacing, Typography } from '@/constants/theme';
@@ -23,7 +23,6 @@ export function Card({ card }: CardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const strings = useStrings();
   const language = useLanguageStore((state) => state.language);
-  const longPressedRef = useRef(false);
 
   return (
     <View style={styles.container}>
@@ -54,10 +53,6 @@ export function Card({ card }: CardProps) {
         style={styles.content}
         testID="feed-card"
         onPress={() => {
-          if (longPressedRef.current) {
-            longPressedRef.current = false;
-            return;
-          }
           enqueueRead(card.id);
           router.push({
             pathname: '/post/[id]',
@@ -73,8 +68,9 @@ export function Card({ card }: CardProps) {
         onLongPress={
           card.isTranslated
             ? () => {
-                longPressedRef.current = true;
-                Linking.openURL(translationFeedbackMailto(card.id, card.servedLang));
+                Linking.openURL(translationFeedbackMailto(card.id, card.servedLang)).catch(
+                  () => {},
+                );
               }
             : undefined
         }
@@ -125,11 +121,6 @@ export function Card({ card }: CardProps) {
 
 const styles = StyleSheet.create({
   container: {
-    // react-native-pager-view's own docs: `flex: 1` does not size a page's
-    // children correctly, use an explicit width/height instead — 100% then
-    // resolves against whatever height the pager itself is given by its
-    // parent (FeedScreen's layout, D25), so the pager shrinking for the
-    // bottom action bar "just works" without any bar-height arithmetic here.
     width: '100%',
     height: '100%',
     backgroundColor: Colors.overlay.surfaceBlack,

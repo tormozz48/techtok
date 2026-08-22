@@ -14,11 +14,6 @@ const LANGUAGE_NAMES: Record<Language, string> = {
   pl: 'Polish',
 };
 
-/**
- * Self-critique-in-call translation (D22): one Bedrock call drafts the
- * translation, critiques its own draft, then returns only the corrected
- * final JSON — no second LLM call.
- */
 export function buildTranslatePrompt(input: TranslatePromptInput): string {
   const languageName = LANGUAGE_NAMES[input.lang];
 

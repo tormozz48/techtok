@@ -5,6 +5,7 @@ import {
 } from '@react-native-google-signin/google-signin';
 import { create } from 'zustand';
 import { isE2eAuthEnabled } from './e2eAuth';
+import { logError, logEvent } from './eventsQueue';
 
 export interface AuthUser {
   readonly idToken: string;
@@ -66,7 +67,8 @@ async function attemptSilentSignIn(): Promise<AuthUser | null> {
     const response = await GoogleSignin.signInSilently();
     if (isNoSavedCredentialFoundResponse(response)) return null;
     return toAuthUser(response.data.idToken, response.data.user);
-  } catch {
+  } catch (error) {
+    logError('silent sign-in failed', { message: String(error) });
     return null;
   }
 }
@@ -78,28 +80,38 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   restore: async () => {
     if (isE2eAuthEnabled()) {
       set({ status: 'signedOut', user: null });
+      logEvent('auth_restored', { status: 'signedOut' });
       return;
     }
     try {
       ensureConfigured();
       if (!GoogleSignin.hasPreviousSignIn()) {
         set({ status: 'signedOut', user: null });
+        logEvent('auth_restored', { status: 'signedOut' });
         return;
       }
-    } catch {
+    } catch (error) {
+      logError('auth restore failed', { message: String(error) });
       set({ status: 'signedOut', user: null });
       return;
     }
     const user = await silentSignIn();
     set(user ? { status: 'signedIn', user } : { status: 'signedOut', user: null });
+    logEvent('auth_restored', { status: user ? 'signedIn' : 'signedOut' });
   },
 
   signIn: async () => {
-    ensureConfigured();
-    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-    const response = await GoogleSignin.signIn();
-    if (!isSuccessResponse(response)) return;
-    set({ status: 'signedIn', user: toAuthUser(response.data.idToken, response.data.user) });
+    try {
+      ensureConfigured();
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const response = await GoogleSignin.signIn();
+      if (!isSuccessResponse(response)) return;
+      set({ status: 'signedIn', user: toAuthUser(response.data.idToken, response.data.user) });
+      logEvent('auth_signed_in');
+    } catch (error) {
+      logError('sign-in failed', { message: String(error) });
+      throw error;
+    }
   },
 
   signInWithIdToken: (idToken: string) => {
@@ -108,16 +120,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       status: 'signedIn',
       user: { idToken, email: null, name: null },
     });
+    logEvent('auth_signed_in', { e2e: true });
   },
 
   signOut: async () => {
     if (isE2eAuthEnabled()) {
       set({ status: 'signedOut', user: null });
+      logEvent('auth_signed_out');
       return;
     }
-    ensureConfigured();
-    await GoogleSignin.signOut();
-    set({ status: 'signedOut', user: null });
+    try {
+      ensureConfigured();
+      await GoogleSignin.signOut();
+      set({ status: 'signedOut', user: null });
+      logEvent('auth_signed_out');
+    } catch (error) {
+      logError('sign-out failed', { message: String(error) });
+      throw error;
+    }
   },
 
   refreshToken: async () => {

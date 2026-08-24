@@ -1,4 +1,5 @@
 import type { ClientRecord } from '@techtok/shared';
+import { Sentry } from './sentry';
 import { storage } from './storage';
 
 const QUEUE_KEY = 'techtok.eventsQueue';
@@ -32,4 +33,5 @@ export function logEvent(name: string, props?: Record<string, unknown>): void {
 
 export function logError(message: string, context?: Record<string, unknown>): void {
   enqueue({ kind: 'log', level: 'error', message, context, occurredAt: new Date().toISOString() });
+  Sentry.captureMessage(message, { level: 'error', extra: context });
 }

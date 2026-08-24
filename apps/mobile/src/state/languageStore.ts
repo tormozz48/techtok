@@ -1,7 +1,7 @@
 import { isLanguage, type Language } from '@techtok/shared';
 import { create } from 'zustand';
 import { fetchMe, putLanguage } from '@/api/client';
-import { logError } from './eventsQueue';
+import { logError, logEvent } from './eventsQueue';
 import { storage } from './storage';
 
 const LANGUAGE_KEY = 'techtok.language';
@@ -53,7 +53,9 @@ export const useLanguageStore = create<LanguageState>((set, get) => ({
       const me = await putLanguage(language);
       saveCachedLanguage(me.language);
       set({ language: me.language });
+      logEvent('language_changed', { language: me.language });
     } catch (error) {
+      logError('language update failed', { message: String(error) });
       if (!(error instanceof Error) || error.name !== 'ZodError') {
         set({ language: previous });
       } else {
@@ -69,5 +71,6 @@ export const useLanguageStore = create<LanguageState>((set, get) => ({
     if (get().isLoading || get().language === language) return;
     saveCachedLanguage(language);
     set({ language });
+    logEvent('language_adopted_from_server', { language });
   },
 }));

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { fetchMe, putMutedSources } from '@/api/client';
+import { logError, logEvent } from './eventsQueue';
 import { storage } from './storage';
 
 const MUTED_SOURCES_KEY = 'techtok.mutedSources';
@@ -35,6 +36,9 @@ export const useMutedSourcesStore = create<MutedSourcesState>((set) => ({
       const me = await fetchMe();
       saveCachedMutedSources(me.mutedSources);
       set({ mutedSources: me.mutedSources });
+    } catch (error) {
+      logError('muted sources load failed', { message: String(error) });
+      throw error;
     } finally {
       set({ isLoading: false });
     }
@@ -43,8 +47,14 @@ export const useMutedSourcesStore = create<MutedSourcesState>((set) => ({
   setMutedSources: async (sourceIds: string[]) => {
     set({ mutedSources: sourceIds });
     saveCachedMutedSources(sourceIds);
-    const me = await putMutedSources(sourceIds);
-    saveCachedMutedSources(me.mutedSources);
-    set({ mutedSources: me.mutedSources });
+    logEvent('muted_sources_changed', { sourceIds });
+    try {
+      const me = await putMutedSources(sourceIds);
+      saveCachedMutedSources(me.mutedSources);
+      set({ mutedSources: me.mutedSources });
+    } catch (error) {
+      logError('muted sources update failed', { message: String(error) });
+      throw error;
+    }
   },
 }));

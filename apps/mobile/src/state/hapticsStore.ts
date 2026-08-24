@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { logEvent } from './eventsQueue';
 import { storage } from './storage';
 
 const HAPTICS_ENABLED_KEY = 'techtok.hapticsEnabled';
@@ -22,5 +23,6 @@ export const useHapticsStore = create<HapticsState>((set) => ({
   setEnabled: (enabled: boolean) => {
     set({ enabled });
     storage.set(HAPTICS_ENABLED_KEY, String(enabled));
+    logEvent('haptics_enabled_changed', { enabled });
   },
 }));

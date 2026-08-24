@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { logEvent } from './eventsQueue';
 import { storage } from './storage';
 
 const THEME_MODE_KEY = 'techtok.themeMode';
@@ -28,5 +29,6 @@ export const useThemeStore = create<ThemeState>((set) => ({
   setMode: (mode: ThemeMode) => {
     set({ mode });
     storage.set(THEME_MODE_KEY, mode);
+    logEvent('theme_mode_changed', { mode });
   },
 }));

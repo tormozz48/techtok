@@ -2,6 +2,7 @@ import type { Language } from '@techtok/shared';
 import * as Speech from 'expo-speech';
 import { create } from 'zustand';
 import { toSpeechLanguageCode } from '@/utils/speechLanguage';
+import { logError, logEvent } from './eventsQueue';
 
 interface SpeechState {
   speakingId: string | null;
@@ -23,7 +24,9 @@ export const useSpeechStore = create<SpeechState>((set, get) => ({
       const voices = await Speech.getAvailableVoicesAsync();
       const languages = new Set(voices.map((voice) => voice.language.slice(0, 2).toLowerCase()));
       set({ availableLanguages: languages });
-    } catch {}
+    } catch (error) {
+      logError('speech voice availability check failed', { message: String(error) });
+    }
   },
 
   isLanguageAvailable: (language) => {
@@ -39,6 +42,7 @@ export const useSpeechStore = create<SpeechState>((set, get) => ({
 
     const languageCode = toSpeechLanguageCode(language);
     set({ speakingId: id });
+    logEvent('speech_started', { id, language });
 
     speakable.forEach((text, index) => {
       const isLast = index === speakable.length - 1;
@@ -58,6 +62,7 @@ export const useSpeechStore = create<SpeechState>((set, get) => ({
   stop: () => {
     Speech.stop();
     set({ speakingId: null });
+    logEvent('speech_stopped');
   },
 
   isSpeaking: (id) => get().speakingId === id,

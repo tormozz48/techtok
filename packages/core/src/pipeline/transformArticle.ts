@@ -67,8 +67,8 @@ export async function transformArticle(
   if (html && !reason) {
     try {
       const article = await extractFromHtml(html, input.url);
-      excerpt = article?.content ? toExcerpt(article.content) : undefined;
       fullText = article?.content ? toExcerpt(article.content, 4000) : undefined;
+      excerpt = fullText ? toExcerpt(fullText) : undefined;
       if (!excerpt) reason = 'extraction produced no usable text';
       if (article?.image && !isGenericImage(article.image)) {
         ogImageUrl = article.image;
@@ -111,49 +111,46 @@ export async function transformArticle(
     }
   }
 
-  let mirroredImageUrl: string | undefined;
-  let bothCandidatesRejected = false;
+  const imageCandidates = [input.imageUrl, ogImageUrl].filter(
+    (candidate): candidate is string => !!candidate,
+  );
 
-  if (input.imageUrl) {
-    const result = await deps.mirrorImage(input.postId, input.imageUrl);
+  let mirroredImageUrl: string | undefined;
+  let rejectedCandidateCount = 0;
+
+  for (const candidate of imageCandidates) {
+    const result = await deps.mirrorImage(input.postId, candidate);
     if (result.status === 'ok') {
       mirroredImageUrl = result.url;
-    } else if (result.status === 'rejected') {
-      if (ogImageUrl) {
-        const ogResult = await deps.mirrorImage(input.postId, ogImageUrl);
-        if (ogResult.status === 'ok') {
-          mirroredImageUrl = ogResult.url;
-        } else if (ogResult.status === 'rejected') {
-          bothCandidatesRejected = true;
-        }
-      } else {
-        bothCandidatesRejected = true;
-      }
+      break;
     }
-  } else if (ogImageUrl) {
-    const result = await deps.mirrorImage(input.postId, ogImageUrl);
-    if (result.status === 'ok') {
-      mirroredImageUrl = result.url;
-    }
+    if (result.status !== 'rejected') break;
+    rejectedCandidateCount++;
   }
 
-  await deps.updatePost(input.postId, {
-    status: 'ready',
-    transform,
-    s3RawKey,
-    ...(summary ? { summary } : {}),
-    ...(excerpt ? { excerpt } : {}),
-    ...(cardTitle ? { cardTitle } : {}),
-    ...(whyItMatters ? { whyItMatters } : {}),
-    ...(primaryTopic ? { primaryTopic } : {}),
-    ...(topics ? { topics } : {}),
-    ...(lang ? { lang } : {}),
-    ...(mirroredImageUrl ? { mirroredImageUrl } : {}),
-    ...(bothCandidatesRejected ? { clearImageUrl: true } : {}),
-  });
+  const bothCandidatesRejected =
+    !!input.imageUrl &&
+    rejectedCandidateCount === imageCandidates.length &&
+    imageCandidates.length > 0;
 
-  await deps.enqueueTranslations(input.postId);
-  await deps.enqueueContentJobs(input.postId);
+  await Promise.all([
+    deps.updatePost(input.postId, {
+      status: 'ready',
+      transform,
+      s3RawKey,
+      ...(summary ? { summary } : {}),
+      ...(excerpt ? { excerpt } : {}),
+      ...(cardTitle ? { cardTitle } : {}),
+      ...(whyItMatters ? { whyItMatters } : {}),
+      ...(primaryTopic ? { primaryTopic } : {}),
+      ...(topics ? { topics } : {}),
+      ...(lang ? { lang } : {}),
+      ...(mirroredImageUrl ? { mirroredImageUrl } : {}),
+      ...(bothCandidatesRejected ? { clearImageUrl: true } : {}),
+    }),
+    deps.enqueueTranslations(input.postId),
+    deps.enqueueContentJobs(input.postId),
+  ]);
 
   return reason ? { degraded: true, reason } : { degraded: false };
 }

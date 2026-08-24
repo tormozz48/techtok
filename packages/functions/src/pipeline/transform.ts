@@ -9,6 +9,7 @@ import {
   isCompactEnabled,
   type MirrorImageResult,
   RawArticleStore,
+  type SourceRecord,
   transformArticle,
 } from '@techtok/core';
 import { LANGUAGES } from '@techtok/shared';
@@ -73,6 +74,7 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
   const rawStore = getRawArticleStore();
   const provider = getLlmProvider();
   const batchItemFailures: SQSBatchResponse['batchItemFailures'] = [];
+  const sourceCache = new Map<string, SourceRecord | undefined>();
 
   for (const record of event.Records) {
     try {
@@ -91,7 +93,7 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
         },
         {
           fetchRobotsTxt,
-          fetchPage: (pageUrl) => fetchText(pageUrl),
+          fetchPage: fetchText,
           archiveRaw: (id, html) => rawStore.archiveRaw(id, html),
           generateCard: (cardInput) => generateCardViaLlm(cardInput, provider),
           updatePost: (id, fields) => repo.updateTransform(id, fields),
@@ -101,7 +103,11 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
               NON_ENGLISH_LANGUAGES.map((lang) => ({ postId: id, lang })),
             ),
           enqueueContentJobs: async (id) => {
-            const source = await getSourcesRepo().getById(post.sourceId);
+            let source = sourceCache.get(post.sourceId);
+            if (!sourceCache.has(post.sourceId)) {
+              source = await getSourcesRepo().getById(post.sourceId);
+              sourceCache.set(post.sourceId, source);
+            }
             if (!isCompactEnabled(source)) return;
             await getContentQueue().enqueuePending(LANGUAGES.map((lang) => ({ postId: id, lang })));
           },

@@ -3,7 +3,7 @@ import type { Card as CardData } from '@techtok/shared';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { useEntitlementQuery } from '@/api/useEntitlementQuery';
 import { useFeedQuery } from '@/api/useFeedQuery';
 import { BottomActionBar } from '@/components/BottomActionBar';
@@ -11,13 +11,14 @@ import { FeedPager } from '@/components/FeedPager';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { QuotaBadge } from '@/components/QuotaBadge';
 import { ScreenState } from '@/components/ScreenState';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors } from '@/constants/theme';
 import { useQuotaReset } from '@/hooks/useQuotaReset';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
 import { formatResetTime } from '@/utils/formatResetTime';
 import { hasQuotaResetPassed } from '@/utils/quotaReset';
+import { styles } from './index.styles';
 
 export default function FeedScreen() {
   const {
@@ -166,21 +167,3 @@ export default function FeedScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
-  fetchingIndicator: {
-    position: 'absolute',
-    top: Spacing.six,
-    alignSelf: 'center',
-  },
-  quotaBadge: {
-    position: 'absolute',
-    top: Spacing.six,
-    right: Spacing.three,
-    gap: Spacing.half,
-    alignItems: 'flex-end',
-  },
-});

@@ -2,14 +2,14 @@ import { useQuery } from '@tanstack/react-query';
 import { getTopicLabel, type HistoryItem } from '@techtok/shared';
 import type { ReactNode } from 'react';
 import { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { fetchHistoryPage } from '@/api/client';
 import { ScreenState } from '@/components/ScreenState';
-import { Spacing, type ThemeColors, Typography } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
 import { computeReadingStats } from '@/utils/readingStats';
+import { createStyles, type StatsStyles } from './stats.styles';
 
 const MAX_ITEMS = 500;
 const PAGE_SIZE = 100;
@@ -27,8 +27,6 @@ async function fetchHistoryForStats(): Promise<HistoryItem[]> {
 
   return items;
 }
-
-type StatsStyles = ReturnType<typeof createStyles>;
 
 export default function StatsScreen() {
   const strings = useStrings();
@@ -127,73 +125,4 @@ function RankedRow({
       <Text style={styles.rowCount}>{count}</Text>
     </View>
   );
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    content: {
-      padding: Spacing.four,
-    },
-    tileRow: {
-      flexDirection: 'row',
-      gap: Spacing.two,
-      marginBottom: Spacing.five,
-    },
-    tile: {
-      flex: 1,
-      backgroundColor: colors.backgroundElement,
-      borderRadius: 12,
-      paddingVertical: Spacing.three,
-      alignItems: 'center',
-    },
-    tileValue: {
-      color: colors.text,
-      ...Typography.xxl,
-      fontWeight: '700',
-    },
-    tileLabel: {
-      color: colors.textSecondary,
-      ...Typography.xs,
-      fontWeight: '600',
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginTop: Spacing.one,
-      textAlign: 'center',
-    },
-    section: {
-      marginBottom: Spacing.four,
-    },
-    sectionTitle: {
-      color: colors.textSecondary,
-      fontSize: 13,
-      fontWeight: '700',
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginBottom: Spacing.two,
-    },
-    row: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      backgroundColor: colors.backgroundElement,
-      borderRadius: 12,
-      paddingHorizontal: Spacing.three,
-      paddingVertical: Spacing.three,
-      marginBottom: Spacing.two,
-    },
-    rowLabel: {
-      color: colors.text,
-      fontSize: 16,
-      fontWeight: '600',
-    },
-    rowCount: {
-      color: colors.textSecondary,
-      fontSize: 16,
-      fontWeight: '700',
-    },
-  });
 }

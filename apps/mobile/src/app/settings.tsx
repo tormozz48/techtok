@@ -10,7 +10,6 @@ import { BuildInfo } from '@/components/BuildInfo';
 import { LanguagePicker } from '@/components/LanguagePicker';
 import { SelectableList } from '@/components/SelectableList';
 import { TopicPicker } from '@/components/TopicPicker';
-import { Spacing, type ThemeColors } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { logError } from '@/state/eventsQueue';
@@ -19,6 +18,7 @@ import { useLanguageStore } from '@/state/languageStore';
 import { useMutedSourcesStore } from '@/state/mutedSourcesStore';
 import { type ThemeMode, useThemeStore } from '@/state/themeStore';
 import { useTopicsStore } from '@/state/topicsStore';
+import { createStyles } from './settings.styles';
 
 const THEME_MODES: readonly ThemeMode[] = ['system', 'light', 'dark'];
 
@@ -182,51 +182,4 @@ export default function SettingsScreen() {
       </View>
     </ScrollView>
   );
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    content: {
-      padding: Spacing.four,
-      paddingBottom: Spacing.six,
-    },
-    sectionTitle: {
-      color: colors.textSecondary,
-      fontSize: 13,
-      fontWeight: '700',
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginBottom: Spacing.two,
-    },
-    sectionTitleSpaced: {
-      marginTop: Spacing.four,
-    },
-    hint: {
-      color: colors.textSecondary,
-      fontSize: 14,
-      marginTop: Spacing.three,
-      marginBottom: Spacing.three,
-    },
-    row: {
-      backgroundColor: colors.backgroundElement,
-      borderRadius: 12,
-      marginBottom: Spacing.two,
-    },
-    rowSelected: {
-      backgroundColor: colors.backgroundSelected,
-    },
-    rowText: {
-      color: colors.text,
-      fontSize: 16,
-      fontWeight: '600',
-    },
-    rowDescription: {
-      color: colors.textSecondary,
-      fontSize: 13,
-    },
-  });
 }

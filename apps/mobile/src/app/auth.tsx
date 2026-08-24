@@ -1,13 +1,14 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { Button } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Radius, Spacing, type ThemeColors, Typography } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { useAuthStore } from '@/state/authStore';
 import { isE2eAuthEnabled } from '@/state/e2eAuth';
+import { createStyles } from './auth.styles';
 
 export default function AuthScreen() {
   const strings = useStrings();
@@ -54,42 +55,4 @@ export default function AuthScreen() {
       </Button>
     </View>
   );
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-      justifyContent: 'space-between',
-    },
-    content: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingHorizontal: Spacing.four,
-    },
-    title: {
-      color: colors.text,
-      ...Typography.xl,
-      fontWeight: '700',
-      textAlign: 'center',
-      marginBottom: Spacing.two,
-    },
-    subtitle: {
-      color: colors.textSecondary,
-      ...Typography.base,
-      textAlign: 'center',
-    },
-    error: {
-      color: colors.error,
-      ...Typography.base,
-      textAlign: 'center',
-      marginTop: Spacing.three,
-    },
-    cta: {
-      margin: Spacing.four,
-      borderRadius: Radius.md,
-    },
-  });
 }

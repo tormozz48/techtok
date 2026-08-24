@@ -1,16 +1,17 @@
 import { router } from 'expo-router';
 import { useEffect, useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { Button } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LanguagePicker } from '@/components/LanguagePicker';
 import { TopicPicker } from '@/components/TopicPicker';
-import { Spacing, type ThemeColors, Typography } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
 import { markOnboardingSeen } from '@/state/onboardingStore';
 import { useTopicsStore } from '@/state/topicsStore';
+import { createStyles } from './onboarding.styles';
 
 export default function OnboardingScreen() {
   const { topics, isLoading, load, setTopics } = useTopicsStore();
@@ -58,34 +59,4 @@ export default function OnboardingScreen() {
       </Button>
     </View>
   );
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    content: {
-      padding: Spacing.four,
-    },
-    title: {
-      color: colors.text,
-      ...Typography.xl,
-      fontWeight: '700',
-      marginBottom: Spacing.three,
-    },
-    stepTitle: {
-      color: colors.textSecondary,
-      ...Typography.base,
-      fontWeight: '700',
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginBottom: Spacing.two,
-    },
-    cta: {
-      marginHorizontal: Spacing.four,
-      marginTop: 0,
-    },
-  });
 }

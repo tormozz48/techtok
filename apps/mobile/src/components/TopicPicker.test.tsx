@@ -39,4 +39,10 @@ describe('TopicPicker', () => {
     await fireEvent.press(screen.getByText(getTopicLabel('ai', 'en')));
     expect(onChange).toHaveBeenCalledWith(['space']);
   });
+
+  it('deselecting a topic while all are selected keeps the rest selected', async () => {
+    const { onChange } = await renderPicker({ topics: [] });
+    await fireEvent.press(screen.getByText(getTopicLabel('ai', 'en')));
+    expect(onChange).toHaveBeenCalledWith(TOPICS.filter((topic) => topic !== 'ai'));
+  });
 });

@@ -17,6 +17,20 @@ function StatefulTopicPicker() {
   );
 }
 
+function StatefulTopicPickerAllSelected() {
+  const [topics, setTopics] = useState<Topic[]>([]);
+
+  return (
+    <TopicPicker
+      topics={topics}
+      language="en"
+      hintAll="Showing all topics."
+      hintSome={(selected, total) => `Showing ${selected} of ${total} topics.`}
+      onChange={setTopics}
+    />
+  );
+}
+
 const meta: Meta<typeof StatefulTopicPicker> = {
   title: 'components/TopicPicker',
   component: StatefulTopicPicker,
@@ -27,3 +41,7 @@ export default meta;
 type Story = StoryObj<typeof StatefulTopicPicker>;
 
 export const Default: Story = {};
+
+export const AllSelectedByDefault: StoryObj<typeof StatefulTopicPickerAllSelected> = {
+  render: () => <StatefulTopicPickerAllSelected />,
+};

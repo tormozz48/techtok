@@ -4,18 +4,18 @@ import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useMemo, useState } from 'react';
-import { Linking, Platform, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, ScrollView, Share, Text, View } from 'react-native';
 import { Button, IconButton, TouchableRipple } from 'react-native-paper';
 import { ApiError, fetchPostContent } from '@/api/client';
 import { BookmarkButton } from '@/components/BookmarkButton';
 import { ScreenState } from '@/components/ScreenState';
-import { Radius, Spacing, type ThemeColors, Typography } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
 import { useSpeechStore } from '@/state/speechStore';
 import { blocksToUtterances } from '@/utils/blocksToUtterances';
 import { translationFeedbackMailto } from '@/utils/feedback';
+import { createStyles } from './[id].styles';
 
 export default function PostScreen() {
   const {
@@ -213,83 +213,4 @@ function ReaderBlock({ block, figures, styles }: ReaderBlockProps) {
     default:
       return null;
   }
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    content: {
-      padding: Spacing.four,
-      paddingBottom: Spacing.six,
-    },
-    header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: Spacing.four,
-    },
-    sourceName: {
-      color: colors.textSecondary,
-      ...Typography.sm,
-      fontWeight: '600',
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-    },
-    toggleText: {
-      color: colors.primary,
-      ...Typography.sm,
-      fontWeight: '600',
-    },
-    heading: {
-      color: colors.text,
-      ...Typography.lg,
-      fontWeight: '700',
-      marginTop: Spacing.three,
-      marginBottom: Spacing.two,
-    },
-    paragraph: {
-      color: colors.text,
-      ...Typography.md,
-      marginBottom: Spacing.three,
-    },
-    quote: {
-      color: colors.textSecondary,
-      ...Typography.md,
-      fontStyle: 'italic',
-      borderLeftColor: colors.primary,
-      borderLeftWidth: 2,
-      paddingLeft: Spacing.three,
-      marginBottom: Spacing.three,
-    },
-    list: {
-      marginBottom: Spacing.three,
-    },
-    listItem: {
-      color: colors.text,
-      ...Typography.md,
-      marginBottom: Spacing.one,
-    },
-    figure: {
-      marginBottom: Spacing.three,
-    },
-    figureImage: {
-      width: '100%',
-      aspectRatio: 16 / 9,
-      borderRadius: Radius.md,
-    },
-    figureCaption: {
-      color: colors.textSecondary,
-      ...Typography.sm,
-      marginTop: Spacing.one,
-    },
-    actions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: Spacing.three,
-      marginTop: Spacing.four,
-    },
-  });
 }

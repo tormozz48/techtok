@@ -1,14 +1,14 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, router } from 'expo-router';
 import { useEffect, useMemo, useRef } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { ActivityIndicator, Button } from 'react-native-paper';
 import { useEntitlementQuery } from '@/api/useEntitlementQuery';
-import { Radius, Spacing, type ThemeColors, Typography } from '@/constants/theme';
 import { useQuotaReset } from '@/hooks/useQuotaReset';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { formatResetTime } from '@/utils/formatResetTime';
+import { createStyles } from './paywall.styles';
 
 export default function PaywallScreen() {
   const strings = useStrings();
@@ -87,94 +87,4 @@ export default function PaywallScreen() {
       </Link>
     </ScrollView>
   );
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    content: {
-      padding: Spacing.four,
-    },
-    spinner: {
-      marginBottom: Spacing.three,
-    },
-    exhaustedBanner: {
-      backgroundColor: colors.backgroundElement,
-      borderRadius: Radius.md,
-      padding: Spacing.three,
-      marginBottom: Spacing.four,
-    },
-    exhaustedTitle: {
-      color: colors.text,
-      ...Typography.md,
-      fontWeight: '700',
-      marginBottom: Spacing.one,
-    },
-    exhaustedMessage: {
-      color: colors.textSecondary,
-      ...Typography.base,
-    },
-    title: {
-      color: colors.text,
-      ...Typography.xl,
-      fontWeight: '700',
-      marginBottom: Spacing.two,
-    },
-    subtitle: {
-      color: colors.textSecondary,
-      ...Typography.base,
-      marginBottom: Spacing.four,
-    },
-    plans: {
-      flexDirection: 'row',
-      gap: Spacing.three,
-      marginBottom: Spacing.four,
-    },
-    planCard: {
-      flex: 1,
-      backgroundColor: colors.backgroundElement,
-      borderRadius: Radius.md,
-      padding: Spacing.three,
-    },
-    planCardHighlighted: {
-      backgroundColor: colors.backgroundSelected,
-    },
-    planTitle: {
-      color: colors.text,
-      ...Typography.md,
-      fontWeight: '700',
-      marginBottom: Spacing.two,
-    },
-    planPrice: {
-      color: colors.text,
-      ...Typography.lg,
-      fontWeight: '700',
-    },
-    planPriceSecondary: {
-      color: colors.textSecondary,
-      ...Typography.base,
-      marginBottom: Spacing.two,
-    },
-    planFeature: {
-      color: colors.textSecondary,
-      ...Typography.base,
-      marginTop: Spacing.one,
-    },
-    cta: {
-      borderRadius: Radius.md,
-    },
-    settingsLink: {
-      marginTop: Spacing.four,
-      alignSelf: 'center',
-    },
-    settingsLinkText: {
-      color: colors.textSecondary,
-      ...Typography.base,
-      fontWeight: '600',
-      textDecorationLine: 'underline',
-    },
-  });
 }

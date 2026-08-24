@@ -28,7 +28,10 @@ export function TopicPicker({
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const toggle = (topic: Topic) => {
-    const next = topics.includes(topic) ? topics.filter((t) => t !== topic) : [...topics, topic];
+    const effectiveTopics = topics.length === 0 ? TOPICS : topics;
+    const next = effectiveTopics.includes(topic)
+      ? effectiveTopics.filter((t) => t !== topic)
+      : [...effectiveTopics, topic];
     onChange(next);
   };
 
@@ -39,7 +42,7 @@ export function TopicPicker({
       </Text>
       <SelectableList
         items={TOPICS}
-        isSelected={(topic) => topics.includes(topic)}
+        isSelected={(topic) => topics.length === 0 || topics.includes(topic)}
         label={(topic) => getTopicLabel(topic, language)}
         onSelect={toggle}
         disabled={isLoading}

@@ -162,7 +162,7 @@ export default function SettingsScreen() {
           <Text style={styles.hint}>{strings.settings.sourcesHint}</Text>
           <SelectableList
             items={sourcesQuery.data.sources.map((source) => source.sourceId)}
-            isSelected={(sourceId) => mutedSources.includes(sourceId)}
+            isSelected={(sourceId) => !mutedSources.includes(sourceId)}
             label={(sourceId) =>
               sourcesQuery.data.sources.find((source) => source.sourceId === sourceId)?.name ??
               sourceId

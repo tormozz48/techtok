@@ -4,9 +4,6 @@ import {
   createConfiguredLlmProvider,
   createS3Client,
   errorMessage,
-  DEFAULT_TIMEOUT_MS as FETCH_TIMEOUT_MS,
-  fetchBytesWithCap,
-  fetchTextWithCap,
   generateCard as generateCardViaLlm,
   ImageStore,
   isCompactEnabled,
@@ -17,8 +14,9 @@ import {
 import { LANGUAGES } from '@techtok/shared';
 import type { SQSBatchResponse, SQSEvent, SQSHandler } from 'aws-lambda';
 import { requireEnv } from '../env';
+import { fetchBytes, fetchRobotsTxt, fetchText } from '../httpFetch';
 import { lazy } from '../lazy';
-import { MAX_ARTICLE_BYTES, MAX_IMAGE_BYTES } from '../limits';
+import { MAX_IMAGE_BYTES } from '../limits';
 import { getContentQueue, getPostsRepo, getSourcesRepo, getTranslateQueue } from '../repos';
 
 const logger = new Logger({ serviceName: 'transform' });
@@ -31,23 +29,6 @@ const getRawArticleStore = lazy(
 );
 const getImageStore = lazy(() => new ImageStore(getS3Client(), requireEnv('IMAGES_BUCKET_NAME')));
 const getLlmProvider = lazy(() => createConfiguredLlmProvider(process.env));
-
-const robotsCache = new Map<string, string | undefined>();
-
-function fetchBytes(url: string, maxBytes: number) {
-  return fetchBytesWithCap(url, { maxBytes, timeoutMs: FETCH_TIMEOUT_MS });
-}
-
-function fetchText(url: string, maxBytes = MAX_ARTICLE_BYTES) {
-  return fetchTextWithCap(url, { maxBytes, timeoutMs: FETCH_TIMEOUT_MS });
-}
-
-async function fetchRobotsTxt(robotsUrl: string): Promise<string | undefined> {
-  if (robotsCache.has(robotsUrl)) return robotsCache.get(robotsUrl);
-  const text = await fetchText(robotsUrl).catch(() => undefined);
-  robotsCache.set(robotsUrl, text);
-  return text;
-}
 
 async function mirrorImage(postId: string, imageUrl: string): Promise<MirrorImageResult> {
   try {

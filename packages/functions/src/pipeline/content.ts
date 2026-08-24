@@ -7,9 +7,6 @@ import {
   createS3Client,
   type ExtractedFigure,
   errorMessage,
-  DEFAULT_TIMEOUT_MS as FETCH_TIMEOUT_MS,
-  fetchBytesWithCap,
-  fetchTextWithCap,
   generateContentArticle,
   ImageStore,
   isAllowedByRobots,
@@ -19,8 +16,9 @@ import {
 import { type CompactFigure, isLanguage, type Language } from '@techtok/shared';
 import type { SQSBatchResponse, SQSEvent, SQSHandler } from 'aws-lambda';
 import { requireEnv } from '../env';
+import { fetchBytes, fetchRobotsTxt, fetchText } from '../httpFetch';
 import { lazy } from '../lazy';
-import { MAX_ARTICLE_BYTES, MAX_IMAGE_BYTES } from '../limits';
+import { MAX_IMAGE_BYTES } from '../limits';
 import { getPostsRepo, getSourcesRepo } from '../repos';
 
 const logger = new Logger({ serviceName: 'content' });
@@ -35,15 +33,8 @@ const getContentStore = lazy(
 );
 const getLlmProvider = lazy(() => createConfiguredLlmProvider(process.env));
 
-function fetchBytes(url: string, maxBytes: number) {
-  return fetchBytesWithCap(url, { maxBytes, timeoutMs: FETCH_TIMEOUT_MS });
-}
-
-function fetchText(url: string, maxBytes = MAX_ARTICLE_BYTES) {
-  return fetchTextWithCap(url, { maxBytes, timeoutMs: FETCH_TIMEOUT_MS });
-}
-
 async function mirrorFigures(postId: string, figures: ExtractedFigure[]): Promise<CompactFigure[]> {
+  const cdnBaseUrl = requireEnv('IMAGES_CDN_BASE_URL');
   const mirrored = await Promise.all(
     figures.map(async (figure, index): Promise<CompactFigure | undefined> => {
       try {
@@ -54,7 +45,7 @@ async function mirrorFigures(postId: string, figures: ExtractedFigure[]): Promis
           contentType ?? 'image/jpeg',
           `-fig${index}`,
         );
-        return { url: `${requireEnv('IMAGES_CDN_BASE_URL')}/${key}`, caption: figure.caption };
+        return { url: `${cdnBaseUrl}/${key}`, caption: figure.caption };
       } catch (err) {
         logger.warn('figure mirror failed, dropping figure', {
           postId,
@@ -81,8 +72,7 @@ async function loadArticleHtml(post: { s3RawKey?: string; url: string }): Promis
   }
 
   const robotsUrl = new URL('/robots.txt', post.url).toString();
-  const robotsTxt = await fetchText(robotsUrl).catch(() => undefined);
-  const allowed = await isAllowedByRobots(post.url, async () => robotsTxt);
+  const allowed = await isAllowedByRobots(post.url, () => fetchRobotsTxt(robotsUrl));
   if (!allowed) throw new Error('disallowed by robots.txt');
   return fetchText(post.url);
 }
@@ -114,11 +104,10 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
         throw new Error(`post ${postId} not found for content job`);
       }
 
+      const source = await getSourcesRepo().getById(post.sourceId);
+
       const deps: ContentDeps = {
-        compactEnabled: async () => {
-          const source = await getSourcesRepo().getById(post.sourceId);
-          return isCompactEnabled(source);
-        },
+        compactEnabled: async () => isCompactEnabled(source),
         loadArticleHtml: () => loadArticleHtml(post),
         mirrorFigures: (figures) => mirrorFigures(postId, figures),
         saveMirroredFigures: (figures) => postsRepo.setMirroredFigures(postId, figures),

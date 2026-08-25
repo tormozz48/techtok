@@ -10,6 +10,7 @@ Sentry.init({
   dsn: 'https://bfd5dd410764a23a482d4f7eacf60507@o4511914103144448.ingest.de.sentry.io/4511914113106000',
   environment: __DEV__ ? 'development' : 'production',
 
+  attachStacktrace: false,
   attachScreenshot: true,
   attachViewHierarchy: true,
   enableCaptureFailedRequests: true,

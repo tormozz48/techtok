@@ -39,7 +39,6 @@ export const useTopicsStore = create<TopicsState>((set) => ({
       set({ topics: me.topics });
     } catch (error) {
       logError('topics load failed', { message: String(error) });
-      throw error;
     } finally {
       set({ isLoading: false });
     }

@@ -14,6 +14,7 @@ export interface FetchFeedResult {
 }
 
 export const DEDUP_ENABLED = true;
+export const MAX_ITEMS_PER_FETCH = 100;
 
 export interface IngestDeps {
   readonly fetchFeed: (source: SourceRecord) => Promise<FetchFeedResult>;
@@ -52,13 +53,22 @@ export async function ingestSource(source: SourceRecord, deps: IngestDeps): Prom
     return { sourceId: source.sourceId, seen, created, errors };
   }
 
+  let newestSeenPublishedAt = source.newestSeenPublishedAt;
+
   try {
     const feed = await parseFeed(fetched.body ?? '');
 
-    for (const entry of feed.items) {
+    for (const entry of feed.items.slice(0, MAX_ITEMS_PER_FETCH)) {
       seen += 1;
       const post = mapEntryToPost(entry, source);
       if (!post) continue;
+
+      if (!newestSeenPublishedAt || post.publishedAt > newestSeenPublishedAt) {
+        newestSeenPublishedAt = post.publishedAt;
+      }
+      if (source.newestSeenPublishedAt && post.publishedAt <= source.newestSeenPublishedAt) {
+        continue;
+      }
 
       let isNew: boolean;
       try {
@@ -107,6 +117,7 @@ export async function ingestSource(source: SourceRecord, deps: IngestDeps): Prom
     status: 'ok',
     etag: fetched.etag,
     lastModified: fetched.lastModified,
+    newestSeenPublishedAt,
   });
 
   return { sourceId: source.sourceId, seen, created, errors };

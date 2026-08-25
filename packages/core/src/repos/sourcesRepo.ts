@@ -12,6 +12,7 @@ export interface FetchOutcome {
   readonly status: 'ok' | 'not-modified' | 'error';
   readonly etag?: string;
   readonly lastModified?: string;
+  readonly newestSeenPublishedAt?: string;
 }
 
 export class SourcesRepo {
@@ -78,6 +79,10 @@ export class SourcesRepo {
     if (outcome.lastModified) {
       setParts.push('lastModified = :lastModified');
       values[':lastModified'] = outcome.lastModified;
+    }
+    if (outcome.newestSeenPublishedAt) {
+      setParts.push('newestSeenPublishedAt = :newestSeenPublishedAt');
+      values[':newestSeenPublishedAt'] = outcome.newestSeenPublishedAt;
     }
 
     await this.client.send(

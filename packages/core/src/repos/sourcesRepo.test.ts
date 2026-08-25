@@ -110,6 +110,22 @@ describe('sourcesRepo.recordFetchResult', () => {
     });
   });
 
+  it('stores newestSeenPublishedAt when provided', async () => {
+    ddbMock.on(UpdateCommand).resolves({});
+    const repo = new SourcesRepo(client, 'Sources');
+
+    await repo.recordFetchResult('hn', {
+      status: 'ok',
+      newestSeenPublishedAt: '2026-07-18T17:53:05.000Z',
+    });
+
+    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
+    expect(input?.UpdateExpression).toContain('newestSeenPublishedAt = :newestSeenPublishedAt');
+    expect(input?.ExpressionAttributeValues).toMatchObject({
+      ':newestSeenPublishedAt': '2026-07-18T17:53:05.000Z',
+    });
+  });
+
   it('records not-modified without requiring etag/lastModified', async () => {
     ddbMock.on(UpdateCommand).resolves({});
     const repo = new SourcesRepo(client, 'Sources');

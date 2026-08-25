@@ -12,6 +12,7 @@ export interface SourceRecord {
   readonly lastModified?: string;
   readonly lastFetchAt?: string;
   readonly lastStatus?: 'ok' | 'not-modified' | 'error';
+  readonly newestSeenPublishedAt?: string;
   readonly failCount: number;
   readonly compactEnabled?: boolean;
 }

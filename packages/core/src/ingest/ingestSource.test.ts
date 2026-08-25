@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { NewPost } from '../posts.types';
 import type { SourceRecord } from '../sources.types';
 import type { FetchFeedResult } from './ingestSource';
-import { ingestSource } from './ingestSource';
+import { ingestSource, MAX_ITEMS_PER_FETCH } from './ingestSource';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const HN_FIXTURE = path.join(dirname, '__fixtures__/hn.xml');
@@ -62,6 +62,7 @@ describe('ingestSource', () => {
       status: 'ok',
       etag: '"v1"',
       lastModified: undefined,
+      newestSeenPublishedAt: expect.any(String),
     });
   });
 
@@ -225,7 +226,44 @@ describe('ingestSource', () => {
       status: 'ok',
       etag: '"v1"',
       lastModified: undefined,
+      newestSeenPublishedAt: expect.any(String),
     });
+  });
+
+  it('skips writes for items already covered by the source watermark, without calling putIfNew', async () => {
+    const xml = await readFile(HN_FIXTURE, 'utf8');
+    const deps = fakeDeps(xml);
+    const watermarked: SourceRecord = {
+      ...source,
+      newestSeenPublishedAt: new Date('Sat, 18 Jul 2026 17:53:05 +0000').toISOString(),
+    };
+
+    const result = await ingestSource(watermarked, deps);
+
+    expect(result).toEqual({ sourceId: 'hn', seen: 3, created: 0, errors: [] });
+    expect(deps.putIfNew).not.toHaveBeenCalled();
+    expect(deps.enqueueNew).not.toHaveBeenCalled();
+    expect(deps.recordFetchResult).toHaveBeenCalledWith('hn', {
+      status: 'ok',
+      etag: '"v1"',
+      lastModified: undefined,
+      newestSeenPublishedAt: watermarked.newestSeenPublishedAt,
+    });
+  });
+
+  it('caps the number of feed items processed per fetch at MAX_ITEMS_PER_FETCH', async () => {
+    const itemCount = MAX_ITEMS_PER_FETCH + 5;
+    const items = Array.from({ length: itemCount }, (_, i) => {
+      const pubDate = new Date(Date.UTC(2026, 6, 18, 0, 0, itemCount - i)).toUTCString();
+      return `<item><title>Item ${i}</title><link>https://example.com/${i}</link><pubDate>${pubDate}</pubDate></item>`;
+    }).join('\n');
+    const xml = `<?xml version="1.0"?><rss version="2.0"><channel><title>Many</title><link>https://example.com</link><description>d</description>${items}</channel></rss>`;
+    const deps = fakeDeps(xml);
+
+    const result = await ingestSource(source, deps);
+
+    expect(result.seen).toBe(MAX_ITEMS_PER_FETCH);
+    expect(deps.putIfNew).toHaveBeenCalledTimes(MAX_ITEMS_PER_FETCH);
   });
 
   it('reports the original parse error when the body is too broken to repair', async () => {

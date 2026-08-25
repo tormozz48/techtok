@@ -38,7 +38,6 @@ export const useMutedSourcesStore = create<MutedSourcesState>((set) => ({
       set({ mutedSources: me.mutedSources });
     } catch (error) {
       logError('muted sources load failed', { message: String(error) });
-      throw error;
     } finally {
       set({ isLoading: false });
     }

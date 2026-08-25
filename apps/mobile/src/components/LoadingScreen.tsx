@@ -8,7 +8,7 @@ export function LoadingScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Image
-        source={require('../../assets/images/splash-icon.png')}
+        source={require('../../assets/images/loading-logo.png')}
         style={styles.logo}
         contentFit="contain"
       />

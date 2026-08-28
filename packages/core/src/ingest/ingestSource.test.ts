@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { NewPost } from '../posts.types';
 import type { SourceRecord } from '../sources.types';
 import type { FetchFeedResult } from './ingestSource';
-import { ingestSource, MAX_ITEMS_PER_FETCH } from './ingestSource';
+import { ingestSource, MAX_CANDIDATES_PER_FETCH } from './ingestSource';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const HN_FIXTURE = path.join(dirname, '__fixtures__/hn.xml');
@@ -35,6 +35,14 @@ function fakeDeps(xml: string) {
     markDuplicate,
     recordDuplicate,
   };
+}
+
+function manyItemsXml(itemCount: number): string {
+  const items = Array.from({ length: itemCount }, (_, i) => {
+    const pubDate = new Date(Date.UTC(2026, 6, 18, 0, 0, itemCount - i)).toUTCString();
+    return `<item><title>Item ${i}</title><link>https://example.com/${i}</link><pubDate>${pubDate}</pubDate></item>`;
+  }).join('\n');
+  return `<?xml version="1.0"?><rss version="2.0"><channel><title>Many</title><link>https://example.com</link><description>d</description>${items}</channel></rss>`;
 }
 
 const source: SourceRecord = {
@@ -230,12 +238,12 @@ describe('ingestSource', () => {
     });
   });
 
-  it('skips writes for items already covered by the source watermark, without calling putIfNew', async () => {
+  it('skips writes for items older than the source watermark, without calling putIfNew', async () => {
     const xml = await readFile(HN_FIXTURE, 'utf8');
     const deps = fakeDeps(xml);
     const watermarked: SourceRecord = {
       ...source,
-      newestSeenPublishedAt: new Date('Sat, 18 Jul 2026 17:53:05 +0000').toISOString(),
+      newestSeenPublishedAt: new Date('Sat, 18 Jul 2026 17:53:06 +0000').toISOString(),
     };
 
     const result = await ingestSource(watermarked, deps);
@@ -251,19 +259,46 @@ describe('ingestSource', () => {
     });
   });
 
-  it('caps the number of feed items processed per fetch at MAX_ITEMS_PER_FETCH', async () => {
-    const itemCount = MAX_ITEMS_PER_FETCH + 5;
-    const items = Array.from({ length: itemCount }, (_, i) => {
-      const pubDate = new Date(Date.UTC(2026, 6, 18, 0, 0, itemCount - i)).toUTCString();
-      return `<item><title>Item ${i}</title><link>https://example.com/${i}</link><pubDate>${pubDate}</pubDate></item>`;
-    }).join('\n');
-    const xml = `<?xml version="1.0"?><rss version="2.0"><channel><title>Many</title><link>https://example.com</link><description>d</description>${items}</channel></rss>`;
+  it('still ingests items stamped exactly at the source watermark', async () => {
+    const pubDate = new Date(Date.UTC(2026, 6, 18, 4, 0, 0)).toUTCString();
+    const items = Array.from(
+      { length: 3 },
+      (_, i) =>
+        `<item><title>Paper ${i}</title><link>https://example.com/${i}</link><pubDate>${pubDate}</pubDate></item>`,
+    ).join('\n');
+    const xml = `<?xml version="1.0"?><rss version="2.0"><channel><title>Batch</title><link>https://example.com</link><description>d</description>${items}</channel></rss>`;
     const deps = fakeDeps(xml);
+    const watermarked: SourceRecord = {
+      ...source,
+      newestSeenPublishedAt: new Date(pubDate).toISOString(),
+    };
 
-    const result = await ingestSource(source, deps);
+    const result = await ingestSource(watermarked, deps);
 
-    expect(result.seen).toBe(MAX_ITEMS_PER_FETCH);
-    expect(deps.putIfNew).toHaveBeenCalledTimes(MAX_ITEMS_PER_FETCH);
+    expect(result.created).toBe(3);
+    expect(deps.putIfNew).toHaveBeenCalledTimes(3);
+  });
+
+  it('caps candidates per fetch at MAX_CANDIDATES_PER_FETCH', async () => {
+    const deps = fakeDeps(manyItemsXml(MAX_CANDIDATES_PER_FETCH + 5));
+
+    await ingestSource(source, deps);
+
+    expect(deps.putIfNew).toHaveBeenCalledTimes(MAX_CANDIDATES_PER_FETCH);
+  });
+
+  it('does not spend the candidate budget on items below the watermark', async () => {
+    const itemCount = MAX_CANDIDATES_PER_FETCH + 5;
+    const deps = fakeDeps(manyItemsXml(itemCount));
+    const watermarked: SourceRecord = {
+      ...source,
+      newestSeenPublishedAt: new Date(Date.UTC(2026, 6, 18, 0, 0, itemCount - 2)).toISOString(),
+    };
+
+    const result = await ingestSource(watermarked, deps);
+
+    expect(result.seen).toBe(itemCount);
+    expect(deps.putIfNew).toHaveBeenCalledTimes(3);
   });
 
   it('reports the original parse error when the body is too broken to repair', async () => {

@@ -14,7 +14,7 @@ export interface FetchFeedResult {
 }
 
 export const DEDUP_ENABLED = true;
-export const MAX_ITEMS_PER_FETCH = 100;
+export const MAX_CANDIDATES_PER_FETCH = 1000;
 
 export interface IngestDeps {
   readonly fetchFeed: (source: SourceRecord) => Promise<FetchFeedResult>;
@@ -54,20 +54,25 @@ export async function ingestSource(source: SourceRecord, deps: IngestDeps): Prom
   }
 
   let newestSeenPublishedAt = source.newestSeenPublishedAt;
+  let candidates = 0;
 
   try {
     const feed = await parseFeed(fetched.body ?? '');
 
-    for (const entry of feed.items.slice(0, MAX_ITEMS_PER_FETCH)) {
+    for (const entry of feed.items) {
       seen += 1;
       const post = mapEntryToPost(entry, source);
       if (!post) continue;
 
+      if (source.newestSeenPublishedAt && post.publishedAt < source.newestSeenPublishedAt) {
+        continue;
+      }
+
+      candidates += 1;
+      if (candidates > MAX_CANDIDATES_PER_FETCH) break;
+
       if (!newestSeenPublishedAt || post.publishedAt > newestSeenPublishedAt) {
         newestSeenPublishedAt = post.publishedAt;
-      }
-      if (source.newestSeenPublishedAt && post.publishedAt <= source.newestSeenPublishedAt) {
-        continue;
       }
 
       let isNew: boolean;

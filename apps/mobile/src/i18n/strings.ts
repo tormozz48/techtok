@@ -129,6 +129,8 @@ export interface ChromeStrings {
     bookmarkAdd: string;
     bookmarkRemove: string;
     share: string;
+    copyText: string;
+    copyTextDone: string;
     openSaved: string;
     openHistory: string;
     openSettings: string;
@@ -272,6 +274,8 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       bookmarkAdd: 'Save',
       bookmarkRemove: 'Remove from saved',
       share: 'Share',
+      copyText: 'Copy article text',
+      copyTextDone: 'Copied',
       openSaved: 'Open saved',
       openHistory: 'Open history',
       openSettings: 'Open settings',
@@ -413,6 +417,8 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       bookmarkAdd: 'Сохранить',
       bookmarkRemove: 'Убрать из сохранённого',
       share: 'Поделиться',
+      copyText: 'Скопировать текст статьи',
+      copyTextDone: 'Скопировано',
       openSaved: 'Открыть сохранённое',
       openHistory: 'Открыть историю',
       openSettings: 'Открыть настройки',
@@ -554,6 +560,8 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       bookmarkAdd: 'Зберегти',
       bookmarkRemove: 'Прибрати зі збереженого',
       share: 'Поділитися',
+      copyText: 'Скопіювати текст статті',
+      copyTextDone: 'Скопійовано',
       openSaved: 'Відкрити збережене',
       openHistory: 'Відкрити історію',
       openSettings: 'Відкрити налаштування',
@@ -695,6 +703,8 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       bookmarkAdd: 'Zapisz',
       bookmarkRemove: 'Usuń z zapisanych',
       share: 'Udostępnij',
+      copyText: 'Skopiuj tekst artykułu',
+      copyTextDone: 'Skopiowano',
       openSaved: 'Otwórz zapisane',
       openHistory: 'Otwórz historię',
       openSettings: 'Otwórz ustawienia',

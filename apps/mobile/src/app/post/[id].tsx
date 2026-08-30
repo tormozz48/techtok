@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import type { CompactBlock, CompactFigure, Language } from '@techtok/shared';
+import * as Clipboard from 'expo-clipboard';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
@@ -13,6 +14,7 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
 import { useSpeechStore } from '@/state/speechStore';
+import { blocksToPlainText } from '@/utils/blocksToPlainText';
 import { blocksToUtterances } from '@/utils/blocksToUtterances';
 import { translationFeedbackMailto } from '@/utils/feedback';
 import { createStyles } from './[id].styles';
@@ -37,6 +39,7 @@ export default function PostScreen() {
   const language = useLanguageStore((state) => state.language);
   const [viewLang, setViewLang] = useState<Language>(language);
   const [isBookmarked, setIsBookmarked] = useState(initialIsBookmarked === 'true');
+  const [justCopied, setJustCopied] = useState(false);
 
   const contentQuery = useQuery({
     queryKey: ['content', id, viewLang],
@@ -75,6 +78,12 @@ export default function PostScreen() {
     }
   }, [isQuotaExceeded]);
 
+  useEffect(() => {
+    if (!justCopied) return;
+    const timer = setTimeout(() => setJustCopied(false), 1500);
+    return () => clearTimeout(timer);
+  }, [justCopied]);
+
   const openOriginal = () => WebBrowser.openBrowserAsync(url);
   const share = () =>
     Share.share({
@@ -82,6 +91,11 @@ export default function PostScreen() {
       url,
       message: Platform.OS === 'android' ? (title ? `${title}\n${url}` : url) : title,
     });
+  const copyText = async () => {
+    if (content?.available !== true) return;
+    await Clipboard.setStringAsync(blocksToPlainText(content.blocks, content.figures));
+    setJustCopied(true);
+  };
 
   if (contentQuery.isPending || content?.available === false || isQuotaExceeded) {
     return <ScreenState loading spinnerColor={colors.primary} caption={strings.reader.loading} />;
@@ -146,6 +160,13 @@ export default function PostScreen() {
           testID="reader-bookmark"
           snapshot={title && sourceName ? { cardTitle: title, sourceName, url } : undefined}
           onToggled={setIsBookmarked}
+        />
+        <IconButton
+          icon={justCopied ? 'check' : 'content-copy'}
+          iconColor={colors.text}
+          testID="reader-copy"
+          onPress={copyText}
+          accessibilityLabel={justCopied ? strings.a11y.copyTextDone : strings.a11y.copyText}
         />
         <IconButton
           icon="share-variant"

@@ -7,6 +7,7 @@ import { deleteBookmark, fetchBookmarksPage } from '@/api/client';
 import { ScreenState } from '@/components/ScreenState';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
+import { logError } from '@/state/eventsQueue';
 import { timeAgo } from '@/utils/timeAgo';
 import { createStyles } from './saved.styles';
 
@@ -41,6 +42,8 @@ export default function SavedScreen() {
     });
     try {
       await deleteBookmark(postId);
+    } catch (error) {
+      logError('removeBookmark failed', { message: String(error) });
     } finally {
       queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
     }

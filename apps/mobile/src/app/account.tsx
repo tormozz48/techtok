@@ -5,6 +5,7 @@ import { deleteAccount } from '@/api/client';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { useAuthStore } from '@/state/authStore';
+import { logError } from '@/state/eventsQueue';
 import { createStyles } from './account.styles';
 
 export default function AccountScreen() {
@@ -15,6 +16,14 @@ export default function AccountScreen() {
   const signOut = useAuthStore((state) => state.signOut);
   const [isDeleting, setIsDeleting] = useState(false);
   const [hasDeleteError, setHasDeleteError] = useState(false);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      logError('handleSignOut failed', { message: String(error) });
+    }
+  };
 
   const confirmDelete = () => {
     Alert.alert(
@@ -48,7 +57,7 @@ export default function AccountScreen() {
 
       <Button
         mode="outlined"
-        onPress={() => signOut()}
+        onPress={handleSignOut}
         style={styles.button}
         testID="account-sign-out"
       >

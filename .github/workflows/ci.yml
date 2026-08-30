@@ -354,6 +354,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # move the mobile-ota-latest baseline tag
+    env:
+      # secrets can't be referenced directly in a step-level `if:` — mirror
+      # it into env so the Sentry steps below can check it there instead.
+      HAS_SENTRY_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN != '' }}
     steps:
       # fetch-depth: 0 so the baseline tag below can be force-updated against
       # a repo that actually has its tags.
@@ -394,7 +398,7 @@ jobs:
       # SENTRY_AUTH_TOKEN isn't set, matching the Gradle plugin's optional
       # behaviour in mobile-build.yml.
       - name: Export bundle + sourcemaps for Sentry
-        if: ${{ secrets.SENTRY_AUTH_TOKEN != '' }}
+        if: ${{ env.HAS_SENTRY_TOKEN == 'true' }}
         working-directory: apps/mobile
         env:
           EXPO_PUBLIC_API_URL: ${{ needs.deploy-production.outputs.api_url }}
@@ -402,7 +406,7 @@ jobs:
         run: npx expo export --platform android --source-maps
 
       - name: Upload Sentry sourcemaps
-        if: ${{ secrets.SENTRY_AUTH_TOKEN != '' }}
+        if: ${{ env.HAS_SENTRY_TOKEN == 'true' }}
         working-directory: apps/mobile
         env:
           SENTRY_ORG: tormozz48

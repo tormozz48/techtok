@@ -1,4 +1,4 @@
-import { GetObjectCommand, PutObjectCommand, type S3Client } from '@aws-sdk/client-s3';
+import { GetObjectCommand, NoSuchKey, PutObjectCommand, type S3Client } from '@aws-sdk/client-s3';
 import type { CompactBlock, CompactFigure, Language } from '@techtok/shared';
 
 export interface StoredContent {
@@ -23,8 +23,11 @@ export class ContentStore {
       );
       const text = await result.Body?.transformToString();
       return text ? (JSON.parse(text) as StoredContent) : undefined;
-    } catch {
-      return undefined;
+    } catch (err) {
+      if (err instanceof NoSuchKey) {
+        return undefined;
+      }
+      throw err;
     }
   }
 

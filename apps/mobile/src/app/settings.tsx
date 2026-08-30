@@ -53,8 +53,12 @@ export default function SettingsScreen() {
   }, [load, loadMutedSources]);
 
   const applyTopics = async (next: Topic[]) => {
-    await setTopics(next);
-    queryClient.invalidateQueries({ queryKey: ['feed'] });
+    try {
+      await setTopics(next);
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+    } catch (error) {
+      logError('applyTopics failed', { message: String(error) });
+    }
   };
 
   const applyLanguage = async (next: Language) => {
@@ -70,8 +74,12 @@ export default function SettingsScreen() {
     const next = mutedSources.includes(sourceId)
       ? mutedSources.filter((id) => id !== sourceId)
       : [...mutedSources, sourceId];
-    await setMutedSources(next);
-    queryClient.invalidateQueries({ queryKey: ['feed'] });
+    try {
+      await setMutedSources(next);
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+    } catch (error) {
+      logError('toggleMutedSource failed', { message: String(error) });
+    }
   };
 
   const themeLabel = (themeMode: ThemeMode) =>

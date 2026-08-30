@@ -1,3 +1,4 @@
+import type { Language, Topic } from '@techtok/shared';
 import { router } from 'expo-router';
 import { useEffect, useMemo } from 'react';
 import { ScrollView, Text, View } from 'react-native';
@@ -8,6 +9,7 @@ import { TopicPicker } from '@/components/TopicPicker';
 import { Spacing } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
+import { logError } from '@/state/eventsQueue';
 import { useLanguageStore } from '@/state/languageStore';
 import { markOnboardingSeen } from '@/state/onboardingStore';
 import { useTopicsStore } from '@/state/topicsStore';
@@ -31,13 +33,29 @@ export default function OnboardingScreen() {
     router.replace('/');
   };
 
+  const applyLanguage = async (next: Language) => {
+    try {
+      await setLanguage(next);
+    } catch (error) {
+      logError('applyLanguage failed', { message: String(error) });
+    }
+  };
+
+  const applyTopics = async (next: Topic[]) => {
+    try {
+      await setTopics(next);
+    } catch (error) {
+      logError('applyTopics failed', { message: String(error) });
+    }
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>{strings.onboarding.title}</Text>
 
         <Text style={styles.stepTitle}>{strings.onboarding.languageStepTitle}</Text>
-        <LanguagePicker language={language} onChange={setLanguage} />
+        <LanguagePicker language={language} onChange={applyLanguage} />
 
         <TopicPicker
           topics={topics}
@@ -45,7 +63,7 @@ export default function OnboardingScreen() {
           isLoading={isLoading}
           hintAll={strings.onboarding.hintAll}
           hintSome={strings.onboarding.hintSome}
-          onChange={setTopics}
+          onChange={applyTopics}
           testIDPrefix="onboarding-topic"
         />
       </ScrollView>

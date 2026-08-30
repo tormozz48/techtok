@@ -385,6 +385,31 @@ jobs:
           VERSION=$(node -e "console.log(require('./app.json').expo.version)")
           eas update --channel preview --platform android --non-interactive --message "v$VERSION (JS-only: ${{ github.sha }})"
 
+      # This job has no native build, so the sentry-android-gradle-plugin
+      # never runs and never uploads a sourcemap for the bundle just published
+      # above — unlike mobile-build.yml, where it runs as part of the Gradle
+      # build. Re-export the same bundle here (same env vars, so its content
+      # and Sentry debug ID match what eas update just shipped) and upload its
+      # sourcemap explicitly. Both steps are skipped, not failed, when
+      # SENTRY_AUTH_TOKEN isn't set, matching the Gradle plugin's optional
+      # behaviour in mobile-build.yml.
+      - name: Export bundle + sourcemaps for Sentry
+        if: ${{ secrets.SENTRY_AUTH_TOKEN != '' }}
+        working-directory: apps/mobile
+        env:
+          EXPO_PUBLIC_API_URL: ${{ needs.deploy-production.outputs.api_url }}
+          EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_WEB_CLIENT_ID }}
+        run: npx expo export --platform android --source-maps
+
+      - name: Upload Sentry sourcemaps
+        if: ${{ secrets.SENTRY_AUTH_TOKEN != '' }}
+        working-directory: apps/mobile
+        env:
+          SENTRY_ORG: tormozz48
+          SENTRY_PROJECT: react-native
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: npx sentry-expo-upload-sourcemaps dist
+
       # D84: the marker mobile-changes reads as its OTA baseline. Moved only
       # after the publish above succeeds, so a failed or cancelled run leaves
       # the baseline where it was and the next run still sees the unpublished

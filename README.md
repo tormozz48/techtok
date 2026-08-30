@@ -309,7 +309,7 @@ dev ─→ e2e ┘                                    └─→ release-cleanup
 | `AWS_E2E_ROLE_ARN` | E2E | OIDC, read/invoke only — never grant it write/deploy |
 | `GOOGLE_OAUTH_WEB_CLIENT_ID` | both deploys, Mobile build | Not sensitive; without it every ID token fails on audience mismatch |
 | `EXPO_TOKEN` | Mobile build | Free Expo account; also supplies the signing credentials |
-| `SENTRY_AUTH_TOKEN` | Mobile build | Optional — its absence just skips the source-map/symbol upload |
+| `SENTRY_AUTH_TOKEN` | Mobile build, mobile-ota-update | Optional — its absence just skips the source-map/symbol upload |
 | `GOOGLE_TEST_REFRESH_TOKEN`, `GOOGLE_OAUTH_WEB_CLIENT_SECRET` | E2E | The authenticated suites skip cleanly until these exist |
 
 No long-lived AWS keys anywhere — every AWS-touching job assumes a role via OIDC, and every PR-triggered job runs with no credentials at all.

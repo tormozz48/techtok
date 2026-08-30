@@ -11,7 +11,7 @@ This README covers running, developing, and deploying the project day to day. Fo
 ## What the app does
 
 - **Feed** — full-screen swipeable cards (image, hook title, 2–3 sentence summary, "why it matters", source, topic chip), newest-unread-first, filtered to your topics and excluding muted sources.
-- **Compact reader** — tap a card for a ~400–600 word structured condensation with the article's own figures, generated ahead of time in all 4 languages, ending in a prominent "Read original" link-out.
+- **Compact reader** — tap a card for a ~400–600 word structured condensation with the article's own figures, generated ahead of time in all 4 languages, ending in a prominent "Read original" link-out. Bookmark, copy the article text, or share it from the action bar.
 - **Localized** — `en` · `ru` · `uk` · `pl`, for both card content (LLM-translated) and the app's own chrome.
 - **History, bookmarks & search** — everything you've read or saved, searchable via `?q=` on both list endpoints.
 - **Listen mode** — `expo-speech` TTS in the feed action bar and the reader.

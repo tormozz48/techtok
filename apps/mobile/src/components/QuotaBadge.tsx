@@ -8,18 +8,6 @@ export interface QuotaBadgeProps {
   readonly label?: string;
 }
 
-export function QuotaBadge({ used, limit, label }: QuotaBadgeProps) {
-  const strings = useStrings();
-  return (
-    <View style={styles.badge}>
-      <Text style={styles.text}>
-        {label ? `${label} ` : ''}
-        {strings.quota.remaining(used, limit)}
-      </Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   badge: {
     alignSelf: 'center',
@@ -34,3 +22,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
+export function QuotaBadge({ used, limit, label }: QuotaBadgeProps) {
+  const strings = useStrings();
+  return (
+    <View style={styles.badge}>
+      <Text style={styles.text}>
+        {label ? `${label} ` : ''}
+        {strings.quota.remaining(used, limit)}
+      </Text>
+    </View>
+  );
+}

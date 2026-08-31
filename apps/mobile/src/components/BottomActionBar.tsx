@@ -16,6 +16,25 @@ export interface BottomActionBarProps {
   onRefresh: () => void;
 }
 
+const styles = StyleSheet.create({
+  bar: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.overlay.surfaceBlack,
+    paddingHorizontal: Spacing.two,
+    paddingTop: Spacing.two,
+  },
+  side: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.half,
+  },
+  icon: {
+    margin: 0,
+  },
+});
+
 export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps) {
   const insets = useSafeAreaInsets();
   const strings = useStrings();
@@ -139,22 +158,3 @@ export function BottomActionBar({ activeCard, onRefresh }: BottomActionBarProps)
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  bar: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.overlay.surfaceBlack,
-    paddingHorizontal: Spacing.two,
-    paddingTop: Spacing.two,
-  },
-  side: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.half,
-  },
-  icon: {
-    margin: 0,
-  },
-});

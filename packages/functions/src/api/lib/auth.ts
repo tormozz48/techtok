@@ -18,6 +18,8 @@ export interface AuthContext {
   readonly name?: string;
 }
 
+const IANA_TIMEZONE_RE = /^[A-Za-z0-9_+-]+(\/[A-Za-z0-9_+-]+)*$/;
+
 export function extractAuthContext(event: APIGatewayProxyEventV2): AuthContext | undefined {
   const claims = (event as JwtAuthorizerEvent).requestContext?.authorizer?.jwt?.claims;
   const sub = claims?.sub;
@@ -37,8 +39,6 @@ export function extractDeviceLanguage(event: APIGatewayProxyEventV2): Language |
   if (!value || !isLanguage(value)) return undefined;
   return value;
 }
-
-const IANA_TIMEZONE_RE = /^[A-Za-z0-9_+-]+(\/[A-Za-z0-9_+-]+)*$/;
 
 export function extractDeviceTimezone(event: APIGatewayProxyEventV2): string | undefined {
   const value = event.headers[DEVICE_TIMEZONE_HEADER];

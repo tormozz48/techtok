@@ -10,19 +10,7 @@ interface QueuedRead {
   readAt: string;
 }
 
-function loadQueue(): QueuedRead[] {
-  const raw = storage.getString(QUEUE_KEY);
-  if (!raw) return [];
-  try {
-    return JSON.parse(raw) as QueuedRead[];
-  } catch {
-    return [];
-  }
-}
-
-function saveQueue(queue: QueuedRead[]): void {
-  storage.set(QUEUE_KEY, JSON.stringify(queue));
-}
+let started = false;
 
 export function enqueueRead(postId: string): void {
   const queue = loadQueue();
@@ -42,8 +30,6 @@ export async function flushReadQueue(): Promise<void> {
   } catch {}
 }
 
-let started = false;
-
 export function startReadQueueFlushing(): void {
   if (started) return;
   started = true;
@@ -53,4 +39,18 @@ export function startReadQueueFlushing(): void {
   AppState.addEventListener('change', (state) => {
     if (state === 'background') flushReadQueue();
   });
+}
+
+function loadQueue(): QueuedRead[] {
+  const raw = storage.getString(QUEUE_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as QueuedRead[];
+  } catch {
+    return [];
+  }
+}
+
+function saveQueue(queue: QueuedRead[]): void {
+  storage.set(QUEUE_KEY, JSON.stringify(queue));
 }

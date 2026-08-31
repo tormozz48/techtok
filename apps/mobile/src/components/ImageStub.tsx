@@ -19,6 +19,18 @@ const GRADIENT_PAIRS: ReadonlyArray<readonly [string, string]> = [
   ['#16222A', '#3A6073'],
 ];
 
+const styles = StyleSheet.create({
+  mascotWrapper: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
+
 export function hashToIndex(value: string, modulus: number): number {
   let hash = 0;
   for (let i = 0; i < value.length; i += 1) {
@@ -43,15 +55,3 @@ export function ImageStub({ postId, topic }: ImageStubProps) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  mascotWrapper: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '50%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

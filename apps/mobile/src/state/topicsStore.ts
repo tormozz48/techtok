@@ -6,20 +6,6 @@ import { storage } from './storage';
 
 const TOPICS_KEY = 'techtok.topics';
 
-function loadCachedTopics(): Topic[] {
-  const raw = storage.getString(TOPICS_KEY);
-  if (!raw) return [];
-  try {
-    return JSON.parse(raw) as Topic[];
-  } catch {
-    return [];
-  }
-}
-
-function saveCachedTopics(topics: Topic[]): void {
-  storage.set(TOPICS_KEY, JSON.stringify(topics));
-}
-
 interface TopicsState {
   topics: Topic[];
   isLoading: boolean;
@@ -58,3 +44,17 @@ export const useTopicsStore = create<TopicsState>((set) => ({
     }
   },
 }));
+
+function loadCachedTopics(): Topic[] {
+  const raw = storage.getString(TOPICS_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as Topic[];
+  } catch {
+    return [];
+  }
+}
+
+function saveCachedTopics(topics: Topic[]): void {
+  storage.set(TOPICS_KEY, JSON.stringify(topics));
+}

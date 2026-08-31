@@ -10,11 +10,6 @@ const TRACKING_PARAMS = new Set([
   'igshid',
 ]);
 
-function isTrackingParam(key: string): boolean {
-  const lower = key.toLowerCase();
-  return lower.startsWith('utm_') || TRACKING_PARAMS.has(lower);
-}
-
 export function canonicalizeUrl(rawUrl: string): string {
   const url = new URL(rawUrl);
   url.hash = '';
@@ -45,4 +40,9 @@ export function canonicalizeUrl(rawUrl: string): string {
 
 export function hashPostId(canonicalUrl: string): string {
   return createHash('sha256').update(canonicalUrl).digest('hex');
+}
+
+function isTrackingParam(key: string): boolean {
+  const lower = key.toLowerCase();
+  return lower.startsWith('utm_') || TRACKING_PARAMS.has(lower);
 }

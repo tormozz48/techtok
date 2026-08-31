@@ -6,6 +6,22 @@ export type CallWithRepairResult<T> = { ok: true; value: T } | { ok: false; reas
 
 type AttemptResult<T> = { ok: true; value: T } | { ok: false; reason: string; raw?: string };
 
+export async function callLlmWithRepair<T>(
+  provider: LlmProvider,
+  prompt: string,
+  schema: z.ZodType<T>,
+  buildRepairPrompt: (prompt: string, raw: string, reason: string) => string,
+): Promise<CallWithRepairResult<T>> {
+  const first = await attempt(provider, prompt, schema);
+  if (first.ok) return first;
+
+  const repairPrompt = buildRepairPrompt(prompt, first.raw ?? '(no response)', first.reason);
+  const second = await attempt(provider, repairPrompt, schema);
+  if (second.ok) return second;
+
+  return { ok: false, reason: `${first.reason}; repair retry: ${second.reason}` };
+}
+
 function extractJson(raw: string): string {
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
   return (fenced?.[1] ?? raw).trim();
@@ -35,20 +51,4 @@ async function attempt<T>(
     return { ok: false, reason: `schema validation failed: ${parsed.error.message}`, raw };
   }
   return { ok: true, value: parsed.data };
-}
-
-export async function callLlmWithRepair<T>(
-  provider: LlmProvider,
-  prompt: string,
-  schema: z.ZodType<T>,
-  buildRepairPrompt: (prompt: string, raw: string, reason: string) => string,
-): Promise<CallWithRepairResult<T>> {
-  const first = await attempt(provider, prompt, schema);
-  if (first.ok) return first;
-
-  const repairPrompt = buildRepairPrompt(prompt, first.raw ?? '(no response)', first.reason);
-  const second = await attempt(provider, repairPrompt, schema);
-  if (second.ok) return second;
-
-  return { ok: false, reason: `${first.reason}; repair retry: ${second.reason}` };
 }

@@ -21,6 +21,23 @@ const getRawArticleStore = lazy(
 );
 const getImageStore = lazy(() => new ImageStore(getS3Client(), requireEnv('IMAGES_BUCKET_NAME')));
 
+export async function handler(): Promise<void> {
+  const rawStore = getRawArticleStore();
+
+  const result = await runBackfillImages({
+    nextCandidates,
+    getRawHtml: (s3RawKey) => rawStore.getRaw(s3RawKey),
+    mirrorImage,
+    updateMirroredImage: (postId, mirroredImageUrl) =>
+      getPostsRepo().updateMirroredImage(postId, mirroredImageUrl),
+    onError: (postId, err) => {
+      logger.warn('image backfill failed for post', { postId, error: errorMessage(err) });
+    },
+  });
+
+  logger.info('image backfill complete', { ...result });
+}
+
 function fetchImageBytes(url: string) {
   return fetchBytesWithCap(url, { maxBytes: MAX_IMAGE_BYTES, timeoutMs: FETCH_TIMEOUT_MS });
 }
@@ -51,21 +68,4 @@ async function nextCandidates(before: string | undefined) {
 
   const last = page[page.length - 1];
   return { candidates, nextBefore: last?.publishedAt };
-}
-
-export async function handler(): Promise<void> {
-  const rawStore = getRawArticleStore();
-
-  const result = await runBackfillImages({
-    nextCandidates,
-    getRawHtml: (s3RawKey) => rawStore.getRaw(s3RawKey),
-    mirrorImage,
-    updateMirroredImage: (postId, mirroredImageUrl) =>
-      getPostsRepo().updateMirroredImage(postId, mirroredImageUrl),
-    onError: (postId, err) => {
-      logger.warn('image backfill failed for post', { postId, error: errorMessage(err) });
-    },
-  });
-
-  logger.info('image backfill complete', { ...result });
 }

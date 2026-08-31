@@ -11,17 +11,6 @@ type Props = {
   value?: BuildInfoValue;
 };
 
-function readBuildInfo(): BuildInfoValue {
-  return describeBuild({
-    bundleVersion: Constants.expoConfig?.version,
-    runtimeVersion: Updates.runtimeVersion,
-    channel: Updates.channel,
-    updateId: Updates.updateId,
-    createdAt: Updates.createdAt,
-    isEmbeddedLaunch: Updates.isEmbeddedLaunch,
-  });
-}
-
 export function BuildInfo({ value }: Props) {
   const strings = useStrings();
   const colors = useThemeColors();
@@ -55,6 +44,17 @@ export function BuildInfo({ value }: Props) {
       </View>
     </View>
   );
+}
+
+function readBuildInfo(): BuildInfoValue {
+  return describeBuild({
+    bundleVersion: Constants.expoConfig?.version,
+    runtimeVersion: Updates.runtimeVersion,
+    channel: Updates.channel,
+    updateId: Updates.updateId,
+    createdAt: Updates.createdAt,
+    isEmbeddedLaunch: Updates.isEmbeddedLaunch,
+  });
 }
 
 function createStyles(colors: ThemeColors) {

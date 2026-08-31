@@ -5,10 +5,6 @@ import { storage } from './storage';
 const HAPTICS_ENABLED_KEY = 'techtok.hapticsEnabled';
 const EXPLICIT_OPT_OUT = 'false';
 
-function loadCachedEnabled(): boolean {
-  return storage.getString(HAPTICS_ENABLED_KEY) !== EXPLICIT_OPT_OUT;
-}
-
 interface HapticsState {
   enabled: boolean;
   load: () => void;
@@ -26,3 +22,7 @@ export const useHapticsStore = create<HapticsState>((set) => ({
     logEvent('haptics_enabled_changed', { enabled });
   },
 }));
+
+function loadCachedEnabled(): boolean {
+  return storage.getString(HAPTICS_ENABLED_KEY) !== EXPLICIT_OPT_OUT;
+}

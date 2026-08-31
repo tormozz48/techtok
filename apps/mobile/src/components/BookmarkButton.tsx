@@ -25,6 +25,56 @@ export interface BookmarkButtonProps {
 
 const DEFAULT_BOOKMARKS_QUERY_KEY = ['bookmarks', ''];
 
+export function BookmarkButton({
+  postId,
+  isBookmarked,
+  iconColor = Colors.overlay.text,
+  style,
+  testID,
+  snapshot,
+  onToggled,
+}: BookmarkButtonProps) {
+  const queryClient = useQueryClient();
+  const strings = useStrings();
+  const overlayValue = useBookmarksOverlay((state) => state.overlay[postId]);
+  const setOptimistic = useBookmarksOverlay((state) => state.setOptimistic);
+  const clearOptimistic = useBookmarksOverlay((state) => state.clear);
+
+  const bookmarked = overlayValue ?? isBookmarked ?? false;
+
+  const toggle = async () => {
+    const next = !bookmarked;
+    setOptimistic(postId, next);
+    try {
+      if (next) {
+        await createBookmark(postId);
+        if (snapshot) patchBookmarksListOnCreate(queryClient, postId, snapshot);
+      } else {
+        await deleteBookmark(postId);
+        patchBookmarksListOnRemove(queryClient, postId);
+      }
+      patchFeedBookmarkState(queryClient, postId, next);
+      queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
+      onToggled?.(next);
+      clearOptimistic(postId);
+    } catch {
+      setOptimistic(postId, bookmarked);
+    }
+  };
+
+  return (
+    <IconButton
+      icon={bookmarked ? 'bookmark' : 'bookmark-outline'}
+      iconColor={iconColor}
+      size={ActionIconSize}
+      style={style}
+      testID={testID}
+      onPress={toggle}
+      accessibilityLabel={bookmarked ? strings.a11y.bookmarkRemove : strings.a11y.bookmarkAdd}
+    />
+  );
+}
+
 function patchBookmarksListOnCreate(
   queryClient: QueryClient,
   postId: string,
@@ -92,54 +142,4 @@ function patchFeedBookmarkState(
       })),
     };
   });
-}
-
-export function BookmarkButton({
-  postId,
-  isBookmarked,
-  iconColor = Colors.overlay.text,
-  style,
-  testID,
-  snapshot,
-  onToggled,
-}: BookmarkButtonProps) {
-  const queryClient = useQueryClient();
-  const strings = useStrings();
-  const overlayValue = useBookmarksOverlay((state) => state.overlay[postId]);
-  const setOptimistic = useBookmarksOverlay((state) => state.setOptimistic);
-  const clearOptimistic = useBookmarksOverlay((state) => state.clear);
-
-  const bookmarked = overlayValue ?? isBookmarked ?? false;
-
-  const toggle = async () => {
-    const next = !bookmarked;
-    setOptimistic(postId, next);
-    try {
-      if (next) {
-        await createBookmark(postId);
-        if (snapshot) patchBookmarksListOnCreate(queryClient, postId, snapshot);
-      } else {
-        await deleteBookmark(postId);
-        patchBookmarksListOnRemove(queryClient, postId);
-      }
-      patchFeedBookmarkState(queryClient, postId, next);
-      queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
-      onToggled?.(next);
-      clearOptimistic(postId);
-    } catch {
-      setOptimistic(postId, bookmarked);
-    }
-  };
-
-  return (
-    <IconButton
-      icon={bookmarked ? 'bookmark' : 'bookmark-outline'}
-      iconColor={iconColor}
-      size={ActionIconSize}
-      style={style}
-      testID={testID}
-      onPress={toggle}
-      accessibilityLabel={bookmarked ? strings.a11y.bookmarkRemove : strings.a11y.bookmarkAdd}
-    />
-  );
 }

@@ -36,6 +36,8 @@ const persister = createAsyncStoragePersister({
   key: 'techtok.queryCache',
 });
 
+export default Sentry.wrap(AppRoot);
+
 function RootLayout() {
   const systemScheme = useColorScheme();
   const themeMode = useThemeStore((state) => state.mode);
@@ -166,5 +168,3 @@ function AppRoot() {
     </Sentry.ErrorBoundary>
   );
 }
-
-export default Sentry.wrap(AppRoot);

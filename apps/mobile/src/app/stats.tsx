@@ -14,20 +14,6 @@ import { createStyles, type StatsStyles } from './stats.styles';
 const MAX_ITEMS = 500;
 const PAGE_SIZE = 100;
 
-async function fetchHistoryForStats(): Promise<HistoryItem[]> {
-  const items: HistoryItem[] = [];
-  let cursor: string | undefined;
-
-  while (items.length < MAX_ITEMS) {
-    const page = await fetchHistoryPage({ cursor, limit: PAGE_SIZE });
-    items.push(...page.items);
-    if (!page.nextCursor) break;
-    cursor = page.nextCursor;
-  }
-
-  return items;
-}
-
 export default function StatsScreen() {
   const strings = useStrings();
   const language = useLanguageStore((state) => state.language);
@@ -82,6 +68,20 @@ export default function StatsScreen() {
       ) : null}
     </ScrollView>
   );
+}
+
+async function fetchHistoryForStats(): Promise<HistoryItem[]> {
+  const items: HistoryItem[] = [];
+  let cursor: string | undefined;
+
+  while (items.length < MAX_ITEMS) {
+    const page = await fetchHistoryPage({ cursor, limit: PAGE_SIZE });
+    items.push(...page.items);
+    if (!page.nextCursor) break;
+    cursor = page.nextCursor;
+  }
+
+  return items;
 }
 
 function StatTile({ styles, value, label }: { styles: StatsStyles; value: number; label: string }) {

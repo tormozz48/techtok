@@ -1,6 +1,5 @@
 import type { CompactFigure, Language, Topic, TransformKind } from '@techtok/shared';
 
-export type { TransformKind };
 export type PostStatus = 'discovered' | 'ready' | 'failed';
 
 export interface TranslatedFields {
@@ -41,3 +40,5 @@ export interface PostRecord extends NewPost {
   readonly mirroredFigures?: CompactFigure[];
   readonly dupCount?: number;
 }
+
+export type { TransformKind };

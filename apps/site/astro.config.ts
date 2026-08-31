@@ -1,3 +1,4 @@
+import { LANGUAGES } from '@techtok/shared';
 import { defineConfig } from 'astro/config';
 
 export default defineConfig({
@@ -5,7 +6,7 @@ export default defineConfig({
   base: '/techtok',
   i18n: {
     defaultLocale: 'en',
-    locales: ['en', 'ru', 'uk', 'pl'],
+    locales: [...LANGUAGES],
     routing: {
       prefixDefaultLocale: false,
     },

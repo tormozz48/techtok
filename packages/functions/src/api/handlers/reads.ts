@@ -1,7 +1,7 @@
 import {
+  chargeableCardReads,
   countTopicReads,
   effectiveQuota,
-  FREE_CARD_READS_PER_DAY,
   isPlus,
   selectCardVariant,
 } from '@techtok/core';
@@ -15,9 +15,11 @@ export const handler = withAuth(async (event, auth) => {
 
   const readAt = new Date().toISOString();
 
-  const foundPosts = await getPostsRepo().getByIds(body.data.postIds);
   const activity = getUserActivityRepo();
-  const user = await getUsersRepo().touch(auth.userId, { email: auth.email, name: auth.name });
+  const [foundPosts, user] = await Promise.all([
+    getPostsRepo().getByIds(body.data.postIds),
+    getUsersRepo().touch(auth.userId, { email: auth.email, name: auth.name }),
+  ]);
   const lang = user.language ?? 'en';
   const results = await Promise.all(
     foundPosts.map(async (post) => {
@@ -36,17 +38,15 @@ export const handler = withAuth(async (event, auth) => {
     }),
   );
 
-  const newlyReadCount = results.filter((r) => r.wasNew).length;
-  const firstReadTopics = results.filter((r) => r.wasNew).map((r) => r.post.primaryTopic);
-  const topicCounts = countTopicReads(firstReadTopics);
+  const newlyRead = results.filter((r) => r.wasNew);
+  const topicCounts = countTopicReads(newlyRead.map((r) => r.post.primaryTopic));
   if (Object.keys(topicCounts).length > 0) {
     await getUsersRepo().addTopicReads(auth.userId, topicCounts);
   }
-  if (newlyReadCount > 0 && !isPlus(user)) {
+  if (newlyRead.length > 0 && !isPlus(user)) {
     const timezone = user.timezone ?? 'UTC';
     const quota = effectiveQuota(user.quota, timezone);
-    const remaining = Math.max(0, FREE_CARD_READS_PER_DAY - quota.cardReads);
-    const chargeCount = Math.min(newlyReadCount, remaining);
+    const chargeCount = chargeableCardReads(quota, newlyRead.length);
     if (chargeCount > 0) {
       await getUsersRepo().incrementQuota(auth.userId, 'cardReads', timezone, chargeCount);
     }

@@ -1,20 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/react-native-web-vite';
+import { LANGUAGE_FLAGS, LANGUAGES, type Language } from '@techtok/shared';
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { LanguageFlagRow } from './LanguageFlagRow';
 
-const LANGUAGES = ['en', 'ru', 'uk', 'pl'] as const;
-const FLAGS: Record<(typeof LANGUAGES)[number], string> = {
-  en: '🇬🇧',
-  ru: '🇷🇺',
-  uk: '🇺🇦',
-  pl: '🇵🇱',
-};
-
 function StatefulLanguageFlagRow() {
   const colors = useThemeColors();
-  const [language, setLanguage] = useState<(typeof LANGUAGES)[number]>('en');
+  const [language, setLanguage] = useState<Language>('en');
   const styles = StyleSheet.create({
     button: {
       backgroundColor: colors.backgroundElement,
@@ -30,7 +23,7 @@ function StatefulLanguageFlagRow() {
     <LanguageFlagRow
       items={LANGUAGES}
       isSelected={(lang) => language === lang}
-      flag={(lang) => FLAGS[lang]}
+      flag={(lang) => LANGUAGE_FLAGS[lang]}
       accessibilityLabel={(lang) => lang}
       onSelect={setLanguage}
       buttonStyle={styles.button}

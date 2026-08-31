@@ -4,7 +4,7 @@ TikTok-style swipe feed for tech & science news: Expo/React Native Android app +
 
 The two documents that govern this repo:
 
-- [docs/DESIGN.md](docs/DESIGN.md) — architecture, API, data model. §2 is the **decision log** (D1–D89), §12 the deferred defaults.
+- [docs/DESIGN.md](docs/DESIGN.md) — architecture, API, data model. §2 is the **decision log** (D1–D90), §12 the deferred defaults.
 - [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) — phases 0–24 (no phase 6), each gated by acceptance criteria.
 
 Never re-decide something already in the decision log. If a decision must change, update the log entry with the reason (`/log-decision`), then implement.
@@ -71,7 +71,7 @@ The project's posture changes here: D1's "me + friends" and §1's "Play Store pu
 
 **Release gate (parallel, maintainer-side; re-scoped by D75).** *Blocks the free launch:* rights review at free-launch scope (assumption #4/D23/§11, deferred since day one — now due); Play Console account (personal, $25, so **no exemption** from the 12-testers-for-14-continuous-days gate); privacy policy + Data Safety + a **public web** account-deletion URL (the in-app `DELETE /v1/me` alone does not satisfy Play). *Blocks monetization only:* subscription products, terms of service, and the paid-scope half of the rights review. The tester window is the longest-lead item in the project — start it the day phase 23 produces an uploadable AAB.
 
-### Relational data layer (2026-08-31, D89, phase 24)
+### Relational data layer (2026-08-31, D90, phase 24)
 
 Planned, not started. DynamoDB is replaced by **Neon Postgres + Drizzle** on a normalized 15-table schema; the four repos in `packages/core/src/repos/` keep their class names and method signatures, so `packages/shared`, every handler, `buildFeed` and the mobile app are untouched (the schema snapshot must stay byte-identical). Measured 2026-08-31, `production` is ~56 MB total, and D88 already removed the one real DynamoDB cost (write amplification, $2.75/mo), so **this is not a cost migration** — the motive is queryability, self-enforcing invariants, and real-Postgres unit tests via PGlite. The binding new constraint is Neon's **5 GB/month egress**, since every row now crosses the internet; D88's `PostCandidate`/`hydrate` split already cuts a feed request to ~130 KB and **must be preserved by the port**, with the single-language join taking it to ~48 KB. Full plan in [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) phase 24; slot it after phase 23 closes and before phase 21.
 
@@ -191,6 +191,7 @@ Before every commit: `pnpm lint`, then `pnpm typecheck`, then `pnpm test` — al
 ## Claude config in this repo
 
 - `.claude/settings.json` — permission allowlist for the common loop + four PostToolUse hooks on Edit/Write: one auto-formats with Biome (no-ops until Biome is installed in Phase 0), one runs a scoped `typecheck` for the edited file's workspace package and surfaces errors immediately instead of waiting for `/check`, one (`storybook-sync-check.sh`) flags `apps/mobile` components/screens that lack Storybook coverage — informational only, and it only catches missing files, not stale ones (see Hard rules) — and one (`no-comments-check.sh`) which, unlike the other three, **blocks** the edit when it finds a comment in the just-written file (see Hard rules, No comments in code).
+- `.claude/skills/` — vendored agent skills, pinned by content hash in the root `skills-lock.json`: `neon` + `neon-postgres` from `neondatabase/agent-skills`, installed with `npx neon@latest skills -s neon -s neon-postgres -y` (re-run to refresh). Skills are discovered at session start, so a new session is needed after installing one.
 - `/check` — run all quality gates and fix until green
 - `/phase` — report progress against the implementation plan, propose next increment
 - `/log-decision` — append a decision to the DESIGN.md decision log

@@ -187,6 +187,7 @@ Before every commit: `pnpm lint`, then `pnpm typecheck`, then `pnpm test` — al
 ## Claude config in this repo
 
 - `.claude/settings.json` — permission allowlist for the common loop + four PostToolUse hooks on Edit/Write: one auto-formats with Biome (no-ops until Biome is installed in Phase 0), one runs a scoped `typecheck` for the edited file's workspace package and surfaces errors immediately instead of waiting for `/check`, one (`storybook-sync-check.sh`) flags `apps/mobile` components/screens that lack Storybook coverage — informational only, and it only catches missing files, not stale ones (see Hard rules) — and one (`no-comments-check.sh`) which, unlike the other three, **blocks** the edit when it finds a comment in the just-written file (see Hard rules, No comments in code).
+- `.claude/skills/` — vendored agent skills, pinned by content hash in the root `skills-lock.json`: `neon` + `neon-postgres` from `neondatabase/agent-skills`, installed with `npx neon@latest skills -s neon -s neon-postgres -y` (re-run to refresh). Skills are discovered at session start, so a new session is needed after installing one.
 - `/check` — run all quality gates and fix until green
 - `/phase` — report progress against the implementation plan, propose next increment
 - `/log-decision` — append a decision to the DESIGN.md decision log

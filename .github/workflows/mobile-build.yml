@@ -92,7 +92,7 @@ jobs:
               break
             fi
             VERSION=$(node -e "console.log(require('./apps/mobile/app.json').expo.version)")
-            git add apps/mobile/app.json apps/mobile/package.json apps/mobile/android/app/build.gradle
+            git add apps/mobile/app.json apps/mobile/package.json apps/mobile/android/app/build.gradle apps/mobile/android/app/src/main/res/values/strings.xml
             git commit -m "chore(mobile): bump version to $VERSION [skip ci]"
             if git push origin HEAD:main; then
               echo "Pushed version bump to $VERSION."
@@ -223,11 +223,13 @@ jobs:
       # committed `android/` project has no per-build prebuild step, so a
       # fingerprint policy would never actually be recomputed by CI — see
       # D60) — publishing here is only safe for the current runtimeVersion.
-      # Any native-affecting change (new native dependency, app.json
-      # plugin/permission/icon change, Expo SDK bump) MUST bump
-      # runtimeVersion in both app.json and this generated
-      # strings.xml/expo_runtime_version by hand first, or this step would
-      # silently offer an incompatible JS bundle to already-installed apps.
+      # D87: the "bump it by hand first" rule above this comment is exactly
+      # what got skipped for the expo-clipboard native dependency, so every
+      # run of this job now unconditionally bumps runtimeVersion (in both
+      # app.json and this generated strings.xml/expo_runtime_version) via the
+      # version-bump step above — this job only runs on a native-affecting
+      # change (D53's `should_build`), so there's no case where it runs
+      # without one.
       - name: Publish OTA update (eas update)
         working-directory: apps/mobile
         env:

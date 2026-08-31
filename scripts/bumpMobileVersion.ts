@@ -8,6 +8,7 @@ const ROOT = resolve(__dirname, '..');
 const APP_JSON_PATH = resolve(ROOT, 'apps/mobile/app.json');
 const PACKAGE_JSON_PATH = resolve(ROOT, 'apps/mobile/package.json');
 const BUILD_GRADLE_PATH = resolve(ROOT, 'apps/mobile/android/app/build.gradle');
+const STRINGS_XML_PATH = resolve(ROOT, 'apps/mobile/android/app/src/main/res/values/strings.xml');
 const APP_JSON_GIT_PATH = 'apps/mobile/app.json';
 const BUILD_GRADLE_GIT_PATH = 'apps/mobile/android/app/build.gradle';
 
@@ -64,6 +65,18 @@ function currentAppJsonVersion(): string {
   return JSON.parse(readFileSync(APP_JSON_PATH, 'utf8')).expo.version as string;
 }
 
+function runtimeVersionAtRef(ref: string): string {
+  const content = execFileSync('git', ['show', `${ref}:${APP_JSON_GIT_PATH}`], {
+    cwd: ROOT,
+    encoding: 'utf8',
+  });
+  return JSON.parse(content).expo.runtimeVersion as string;
+}
+
+function currentRuntimeVersion(): string {
+  return JSON.parse(readFileSync(APP_JSON_PATH, 'utf8')).expo.runtimeVersion as string;
+}
+
 function versionCodeAtRef(ref: string): number {
   const content = execFileSync('git', ['show', `${ref}:${BUILD_GRADLE_GIT_PATH}`], {
     cwd: ROOT,
@@ -104,6 +117,18 @@ function writeBuildGradle(version: string, versionCode: number): void {
   writeFileSync(BUILD_GRADLE_PATH, gradle);
 }
 
+function writeRuntimeVersion(version: string): void {
+  const appJson = JSON.parse(readFileSync(APP_JSON_PATH, 'utf8'));
+  appJson.expo.runtimeVersion = version;
+  writeFileSync(APP_JSON_PATH, `${JSON.stringify(appJson, null, 2)}\n`);
+
+  const strings = readFileSync(STRINGS_XML_PATH, 'utf8').replace(
+    /(<string name="expo_runtime_version">)[^<]*(<\/string>)/,
+    `$1${version}$2`,
+  );
+  writeFileSync(STRINGS_XML_PATH, strings);
+}
+
 function latestVersionTag(): string | null {
   const output = execFileSync('git', ['tag', '--list', 'mobile-v*', '--sort=-v:refname'], {
     cwd: ROOT,
@@ -118,6 +143,20 @@ export function main(): void {
   if (!tag) {
     console.log('No mobile-v* tag found yet — skipping automated bump.');
     return;
+  }
+
+  const baseRuntimeVersion = runtimeVersionAtRef(tag);
+  const currentRuntime = currentRuntimeVersion();
+  if (currentRuntime === baseRuntimeVersion) {
+    const nextRuntimeVersion = applyBump(baseRuntimeVersion, 'patch');
+    writeRuntimeVersion(nextRuntimeVersion);
+    console.log(
+      `Bumped runtimeVersion ${baseRuntimeVersion} -> ${nextRuntimeVersion} (this script only runs on a native rebuild, so any already-installed build must stop matching it)`,
+    );
+  } else {
+    console.log(
+      `runtimeVersion (${currentRuntime}) already differs from ${tag} (${baseRuntimeVersion}) — manual bump present, skipping.`,
+    );
   }
 
   const baseVersion = appJsonVersionAtRef(tag);

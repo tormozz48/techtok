@@ -9,6 +9,8 @@ import { getUnixTime } from 'date-fns';
 import { batchGetChunked, conditionalWrite, DYNAMO_BATCH_GET_LIMIT } from '../clients/dynamoClient';
 import type {
   NewPost,
+  PostCandidate,
+  PostKey,
   PostRecord,
   PostStatus,
   TransformKind,
@@ -66,12 +68,12 @@ export class PostsRepo {
     );
   }
 
-  async queryByTopic(topic: Topic, opts: QueryOpts = {}): Promise<PostRecord[]> {
-    return this.queryNewestFirst('byTopic', 'primaryTopic', topic, opts);
+  async queryByTopic(topic: Topic, opts: QueryOpts = {}): Promise<PostCandidate[]> {
+    return this.queryNewestFirst<PostCandidate>('byTopic', 'primaryTopic', topic, opts);
   }
 
-  async queryRecent(opts: QueryOpts = {}): Promise<PostRecord[]> {
-    return this.queryNewestFirst('byTime', 'gsi1pk', BY_TIME_PARTITION, opts);
+  async queryRecent(opts: QueryOpts = {}): Promise<PostKey[]> {
+    return this.queryNewestFirst<PostKey>('byTime', 'gsi1pk', BY_TIME_PARTITION, opts);
   }
 
   async getByIds(postIds: string[]): Promise<PostRecord[]> {
@@ -191,12 +193,12 @@ export class PostsRepo {
     );
   }
 
-  private async queryNewestFirst(
+  private async queryNewestFirst<T>(
     indexName: string,
     partitionKey: string,
     partitionValue: string,
     opts: QueryOpts,
-  ): Promise<PostRecord[]> {
+  ): Promise<T[]> {
     const result = await this.client.send(
       new QueryCommand({
         TableName: this.tableName,
@@ -210,6 +212,6 @@ export class PostsRepo {
         Limit: opts.limit ?? 20,
       }),
     );
-    return (result.Items ?? []) as PostRecord[];
+    return (result.Items ?? []) as T[];
   }
 }

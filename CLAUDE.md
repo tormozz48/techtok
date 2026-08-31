@@ -9,6 +9,10 @@ The two documents that govern this repo:
 
 Never re-decide something already in the decision log. If a decision must change, update the log entry with the reason (`/log-decision`), then implement.
 
+Standing evaluations that are *not* governing documents, but exist so a settled question isn't re-derived:
+
+- [docs/DSQL_MIGRATION_SPEC.md](docs/DSQL_MIGRATION_SPEC.md) — the relational-database question (D89). Answer: stay on DynamoDB; Aurora DSQL is specced but not adopted, RDS/Aurora Serverless v2 are rejected on cost. Read this before re-analyzing DynamoDB alternatives.
+
 ## Status
 
 Phases 0–17 are code complete (phase 6 doesn't exist yet). Full narrative history/verification detail lives in git history and the DESIGN.md decision log (D1–D62) — this table tracks only current state and what's still outstanding.

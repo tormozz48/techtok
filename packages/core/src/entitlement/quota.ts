@@ -1,5 +1,6 @@
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 import type { Quota } from './entitlement.types';
+import { FREE_CARD_READS_PER_DAY } from './entitlement.types';
 
 export function localDayKey(timezone: string, now: Date = new Date()): string {
   try {
@@ -33,4 +34,9 @@ export function effectiveQuota(
     return { day: today, cardReads: 0, readerOpens: 0 };
   }
   return quota;
+}
+
+export function chargeableCardReads(quota: Quota, requestedCount: number): number {
+  const remaining = Math.max(0, FREE_CARD_READS_PER_DAY - quota.cardReads);
+  return Math.min(requestedCount, remaining);
 }

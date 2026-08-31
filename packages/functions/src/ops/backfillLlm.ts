@@ -19,7 +19,8 @@ export async function handler(): Promise<void> {
     if (page.length === 0) break;
 
     scanned += page.length;
-    const toReenqueue = page.filter((post) => post.transform === 'excerpt');
+    const records = await repo.getByIds(page.map((post) => post.postId));
+    const toReenqueue = records.filter((post) => post.transform === 'excerpt');
     if (toReenqueue.length > 0) {
       await queue.enqueueNew(toReenqueue);
       enqueued += toReenqueue.length;

@@ -4,8 +4,8 @@ TikTok-style swipe feed for tech & science news: Expo/React Native Android app +
 
 The two documents that govern this repo:
 
-- [docs/DESIGN.md](docs/DESIGN.md) — architecture, API, data model. §2 is the **decision log** (D1–D83), §12 the deferred defaults.
-- [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) — 23 phases (0–22), each gated by acceptance criteria.
+- [docs/DESIGN.md](docs/DESIGN.md) — architecture, API, data model. §2 is the **decision log** (D1–D88), §12 the deferred defaults.
+- [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) — phases 0–24 (no phase 6), each gated by acceptance criteria.
 
 Never re-decide something already in the decision log. If a decision must change, update the log entry with the reason (`/log-decision`), then implement.
 
@@ -70,6 +70,10 @@ The project's posture changes here: D1's "me + friends" and §1's "Play Store pu
 | 23 | Public Play launch, free (D75) — **runs before 21–22** | Planned | Deploy + verify 19/20 for real; upload keystore; AAB build path (`eas.json`'s `production` profile is APK today, and the raw-Gradle path ships no OTA channel binding); privacy-policy + account-deletion pages on `apps/site`; Play listing; 14-day closed test. ~3–4 d of work, ~4–6 weeks elapsed — the two are not the same number |
 
 **Release gate (parallel, maintainer-side; re-scoped by D75).** *Blocks the free launch:* rights review at free-launch scope (assumption #4/D23/§11, deferred since day one — now due); Play Console account (personal, $25, so **no exemption** from the 12-testers-for-14-continuous-days gate); privacy policy + Data Safety + a **public web** account-deletion URL (the in-app `DELETE /v1/me` alone does not satisfy Play). *Blocks monetization only:* subscription products, terms of service, and the paid-scope half of the rights review. The tester window is the longest-lead item in the project — start it the day phase 23 produces an uploadable AAB.
+
+### Relational data layer (2026-08-31, D88, phase 24)
+
+Planned, not started. DynamoDB is replaced by **Neon Postgres + Drizzle** on a normalized 15-table schema; the four repos in `packages/core/src/repos/` keep their class names and method signatures, so `packages/shared`, every handler, `buildFeed` and the mobile app are untouched (the schema snapshot must stay byte-identical). Measured 2026-08-31, `production` is ~56 MB total, so **this is not a cost migration** — the motive is queryability, self-enforcing invariants, and real-Postgres unit tests via PGlite. The binding new constraint is Neon's **5 GB/month egress**: today's `buildFeed` ships ~700 KB per request, which is why phase 24's filter pushdown and single-language join are mandatory, not optional. Full plan in [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) phase 24; slot it after phase 23 closes and before phase 21.
 
 **Two permanent changes land in phase 19:** the **Expo Go loop ends** (native modules for sign-in and billing; D18's committed `android/` is what makes it survivable), and the app **stores personal data for the first time** (email/name), which pulls GDPR, Data Safety and account deletion into scope.
 

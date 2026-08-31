@@ -51,6 +51,10 @@ function RootLayout() {
   }, [navigationRef]);
 
   useEffect(() => {
+    startOtaUpdates();
+  }, []);
+
+  useEffect(() => {
     ready().then(async () => {
       startNetworkMonitoring();
       useTopicsStore.getState().load();
@@ -61,7 +65,6 @@ function RootLayout() {
       await useAuthStore.getState().restore();
       startReadQueueFlushing();
       startEventsQueueFlushing();
-      startOtaUpdates();
       setIsHydrated(true);
     });
   }, []);

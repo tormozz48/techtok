@@ -14,8 +14,12 @@ export const postsTable = new sst.aws.Dynamo('Posts', {
   },
   primaryIndex: { hashKey: 'postId' },
   globalIndexes: {
-    byTopic: { hashKey: 'primaryTopic', rangeKey: 'publishedAt' },
-    byTime: { hashKey: 'gsi1pk', rangeKey: 'publishedAt' },
+    byTopic: {
+      hashKey: 'primaryTopic',
+      rangeKey: 'publishedAt',
+      projection: ['sourceId', 'origTitle', 'status', 'compactLangs', 'duplicateOf'],
+    },
+    byTime: { hashKey: 'gsi1pk', rangeKey: 'publishedAt', projection: 'keys-only' },
   },
   ttl: 'ttl',
 });

@@ -202,7 +202,7 @@ Companion to [DESIGN.md](DESIGN.md). Eighteen phases (0–6 original build-out, 
 
 **Acceptance criteria**
 
-- [ ] A deliberately-broken source, a DLQ message, and a Bedrock throttle are all diagnosable from logs, alarms + runbook alone (the ops dashboard was retired by D88).
+- [ ] A deliberately-broken source, a DLQ message, and a Bedrock throttle are all diagnosable from logs, alarms + runbook alone (the ops dashboard was retired by D89).
 - [ ] Two weeks untouched: no alarm, no cost drift, feed still fresh.
 
 ---

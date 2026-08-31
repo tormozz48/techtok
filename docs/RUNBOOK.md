@@ -30,7 +30,7 @@ a bug or an outage, not routine content noise.
 | `ContentQueue` | `ContentDLQ` | `ContentDlqDepthAlarm` |
 
 There is no queue-backlog alarm. The three `<Name>QueueBacklogAlarm`s on
-`ApproximateAgeOfOldestMessage` were removed as pure cost (D88): a consumer
+`ApproximateAgeOfOldestMessage` were removed as pure cost (D89): a consumer
 wedged long enough to age a message past 60 minutes also fails that message
 3 times into the DLQ, which these alarms already catch at depth > 0. Read the
 age by hand when it matters: `aws sqs get-queue-attributes --queue-url <live
@@ -65,7 +65,7 @@ queue URL> --attribute-names ApproximateAgeOfOldestMessage`.
   console's "Start DLQ redrive" action on the queue).
 
 **Verify:** the queue's depth alarm transitions `ALARM → OK`. There is no ops
-dashboard (D88) — `aws cloudwatch describe-alarms --state-value ALARM --region
+dashboard (D89) — `aws cloudwatch describe-alarms --state-value ALARM --region
 eu-central-1` lists everything still firing, and `aws sqs get-queue-attributes
 --queue-url <DLQ URL> --attribute-names ApproximateNumberOfMessagesVisible`
 reads one DLQ's depth directly.
@@ -179,7 +179,7 @@ entirely) or rolling back a bad deploy.
   series, so a production alarm would be silenced by dev activity. Needs a
   `stage` dimension in [summarize.ts](../packages/functions/src/pipeline/summarize.ts)
   first — the same conflation that had the retired dashboard's ingest-volume
-  widget labelled all-stages (D88).
+  widget labelled all-stages (D89).
 - Degrade-rate visibility (§2's blind spot): the excerpt-fallback,
   translation-skip, and compact-degrade paths still emit no metrics, so a
   feed rotting to 100% excerpt cards keeps every alarm green.

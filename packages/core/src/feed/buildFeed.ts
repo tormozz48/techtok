@@ -1,5 +1,5 @@
 import { type Language, TOPICS, type Topic } from '@techtok/shared';
-import type { PostRecord } from '../posts.types';
+import type { PostCandidate, PostRecord } from '../posts.types';
 import { rankCandidates, topicAffinityBoosts } from './scoring';
 
 const PER_TOPIC_PAGE_SIZE = 25;
@@ -9,7 +9,8 @@ export interface BuildFeedDeps {
   readonly queryByTopic: (
     topic: Topic,
     opts: { before?: string; limit: number },
-  ) => Promise<PostRecord[]>;
+  ) => Promise<PostCandidate[]>;
+  readonly hydrate: (postIds: string[]) => Promise<PostRecord[]>;
   readonly getReadSet: (postIds: string[]) => Promise<Set<string>>;
   readonly getSourceWeights: () => Promise<Map<string, number>>;
   readonly getCompactDisabledSourceIds?: () => Promise<Set<string>>;
@@ -37,7 +38,7 @@ export async function buildFeed(deps: BuildFeedDeps, params: BuildFeedParams): P
     topics.map((topic) => deps.queryByTopic(topic, { before, limit: PER_TOPIC_PAGE_SIZE })),
   );
 
-  const merged = new Map<string, PostRecord>();
+  const merged = new Map<string, PostCandidate>();
   for (const posts of perTopicResults) {
     for (const post of posts) merged.set(post.postId, post);
   }
@@ -61,10 +62,25 @@ export async function buildFeed(deps: BuildFeedDeps, params: BuildFeedParams): P
   const sourceWeights = await deps.getSourceWeights();
   const affinityBoosts = topicAffinityBoosts(params.topicReads);
   const ranked = rankCandidates(unread, sourceWeights, undefined, affinityBoosts);
-  const items = ranked.slice(0, limit);
+  const items = await hydrateInRankOrder(deps, ranked.slice(0, limit));
 
   const moreUpstream = perTopicResults.some((posts) => posts.length >= PER_TOPIC_PAGE_SIZE);
   const nextBefore = moreUpstream ? (candidatesByTime.at(-1)?.publishedAt ?? null) : null;
 
   return { items, nextBefore };
+}
+
+async function hydrateInRankOrder(
+  deps: BuildFeedDeps,
+  ranked: PostCandidate[],
+): Promise<PostRecord[]> {
+  if (ranked.length === 0) return [];
+
+  const records = await deps.hydrate(ranked.map((post) => post.postId));
+  const byId = new Map(records.map((record) => [record.postId, record]));
+
+  return ranked.flatMap((candidate) => {
+    const record = byId.get(candidate.postId);
+    return record ? [record] : [];
+  });
 }

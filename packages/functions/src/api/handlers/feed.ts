@@ -51,6 +51,7 @@ export const handler = withAuth(async (event, auth) => {
   const page = await buildFeed(
     {
       queryByTopic: (topic, opts) => posts.queryByTopic(topic, opts),
+      hydrate: (postIds) => posts.getByIds(postIds),
       getReadSet: (postIds) => activity.getReadSet(auth.userId, postIds),
       getSourceWeights: () => getSourceWeightsCache().getSourceWeights(),
       getCompactDisabledSourceIds: () => getSourceWeightsCache().getCompactDisabledSourceIds(),

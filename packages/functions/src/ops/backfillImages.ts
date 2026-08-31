@@ -61,7 +61,8 @@ async function nextCandidates(before: string | undefined) {
   const page = await getPostsRepo().queryRecent({ limit: BACKFILL_PAGE_SIZE, before });
   if (page.length === 0) return { candidates: [], nextBefore: undefined };
 
-  const candidates = page.flatMap((post) => {
+  const records = await getPostsRepo().getByIds(page.map((post) => post.postId));
+  const candidates = records.flatMap((post) => {
     if (post.imageUrl || post.mirroredImageUrl || !post.s3RawKey) return [];
     return [{ postId: post.postId, url: post.url, s3RawKey: post.s3RawKey }];
   });

@@ -2,6 +2,20 @@ import type { CompactFigure, Language, Topic, TransformKind } from '@techtok/sha
 
 export type PostStatus = 'discovered' | 'ready' | 'failed';
 
+export interface PostKey {
+  readonly postId: string;
+  readonly publishedAt: string;
+}
+
+export interface PostCandidate extends PostKey {
+  readonly primaryTopic: Topic;
+  readonly sourceId: string;
+  readonly origTitle: string;
+  readonly status: PostStatus;
+  readonly compactLangs?: Language[];
+  readonly duplicateOf?: string;
+}
+
 export interface TranslatedFields {
   readonly cardTitle: string;
   readonly summary: string;

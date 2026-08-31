@@ -142,10 +142,10 @@ not restored.
 
 **What's left as a signal:**
 
-- The **$10/mo AWS Budget alarm** (D11) — monitoring-only now, not an
-  enforced ceiling, and it fires an SNS email at 80%/actual and
-  100%/forecasted. Check current spend: AWS Cost Explorer, grouped by the
-  `app: techtok-dev`/`techtok-production` tag (D17).
+- The **$25/mo AWS Budget alarm** (D74, amending D11's $10 ceiling) — an
+  infrastructure-drift signal only, not an enforced ceiling, and it fires an
+  SNS email at 80%/actual and 100%/forecasted. Check current spend: AWS Cost
+  Explorer, grouped by the `app: techtok-dev`/`techtok-production` tag (D17).
 - **It does not see OpenRouter spend at all** (D32) — that's a separate
   bill with its own dashboard at openrouter.ai. If AWS spend looks fine but
   something feels expensive, check OpenRouter's usage page directly; the

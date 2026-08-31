@@ -16,43 +16,6 @@ export interface DevResources {
   apiId: string;
 }
 
-function queueUrlFromArn(arn: string): string {
-  const [, , , region, account, name] = arn.split(':');
-  return `https://sqs.${region}.amazonaws.com/${account}/${name}`;
-}
-
-function dynamoTableNameFromArn(arn: string): string {
-  const name = arn.split('/').pop();
-  if (!name) throw new Error(`Could not parse a table name out of ARN: ${arn}`);
-  return name;
-}
-
-async function listTaggedArns(stage: string): Promise<string[]> {
-  const client = new ResourceGroupsTaggingAPIClient({ region: REGION });
-  const arns: string[] = [];
-  let paginationToken: string | undefined;
-  do {
-    const result = await client.send(
-      new GetResourcesCommand({
-        TagFilters: [{ Key: 'app', Values: [`techtok-${stage}`] }],
-        PaginationToken: paginationToken,
-      }),
-    );
-    for (const mapping of result.ResourceTagMappingList ?? []) {
-      if (mapping.ResourceARN) arns.push(mapping.ResourceARN);
-    }
-    paginationToken = result.PaginationToken || undefined;
-  } while (paginationToken);
-  return arns;
-}
-
-function findArn(arns: string[], predicate: (arn: string) => boolean, label: string): string {
-  const match = arns.find(predicate);
-  if (!match)
-    throw new Error(`Could not discover the ${label} among the tagged dev-stage resources`);
-  return match;
-}
-
 export async function discoverDevResources(stage = 'dev'): Promise<DevResources> {
   const arns = await listTaggedArns(stage);
 
@@ -113,4 +76,41 @@ export async function getApiEndpoint(apiId: string): Promise<string> {
   const result = await client.send(new GetApiCommand({ ApiId: apiId }));
   if (!result.ApiEndpoint) throw new Error(`API ${apiId} has no ApiEndpoint`);
   return result.ApiEndpoint;
+}
+
+function queueUrlFromArn(arn: string): string {
+  const [, , , region, account, name] = arn.split(':');
+  return `https://sqs.${region}.amazonaws.com/${account}/${name}`;
+}
+
+function dynamoTableNameFromArn(arn: string): string {
+  const name = arn.split('/').pop();
+  if (!name) throw new Error(`Could not parse a table name out of ARN: ${arn}`);
+  return name;
+}
+
+async function listTaggedArns(stage: string): Promise<string[]> {
+  const client = new ResourceGroupsTaggingAPIClient({ region: REGION });
+  const arns: string[] = [];
+  let paginationToken: string | undefined;
+  do {
+    const result = await client.send(
+      new GetResourcesCommand({
+        TagFilters: [{ Key: 'app', Values: [`techtok-${stage}`] }],
+        PaginationToken: paginationToken,
+      }),
+    );
+    for (const mapping of result.ResourceTagMappingList ?? []) {
+      if (mapping.ResourceARN) arns.push(mapping.ResourceARN);
+    }
+    paginationToken = result.PaginationToken || undefined;
+  } while (paginationToken);
+  return arns;
+}
+
+function findArn(arns: string[], predicate: (arn: string) => boolean, label: string): string {
+  const match = arns.find(predicate);
+  if (!match)
+    throw new Error(`Could not discover the ${label} among the tagged dev-stage resources`);
+  return match;
 }

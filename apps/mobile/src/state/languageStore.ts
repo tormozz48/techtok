@@ -6,15 +6,6 @@ import { storage } from './storage';
 
 const LANGUAGE_KEY = 'techtok.language';
 
-function loadCachedLanguage(): Language {
-  const raw = storage.getString(LANGUAGE_KEY);
-  return raw && isLanguage(raw) ? raw : 'en';
-}
-
-function saveCachedLanguage(language: Language): void {
-  storage.set(LANGUAGE_KEY, language);
-}
-
 interface LanguageState {
   language: Language;
   isLoading: boolean;
@@ -74,3 +65,12 @@ export const useLanguageStore = create<LanguageState>((set, get) => ({
     logEvent('language_adopted_from_server', { language });
   },
 }));
+
+function loadCachedLanguage(): Language {
+  const raw = storage.getString(LANGUAGE_KEY);
+  return raw && isLanguage(raw) ? raw : 'en';
+}
+
+function saveCachedLanguage(language: Language): void {
+  storage.set(LANGUAGE_KEY, language);
+}

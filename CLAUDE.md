@@ -135,6 +135,20 @@ Enforcement is mechanical, not advisory: `pnpm lint` runs `scripts/checkNoCommen
 
 Out of scope for the checker today, and therefore still comment-bearing: `.github/workflows/*.yml`, Maestro `.yaml` flows, `.sh` scripts (including the hooks themselves), `android/` native sources, and Markdown. Don't add comments there gratuitously, but they aren't policed.
 
+### File organization
+
+Order top-level declarations in every `packages/*/src/**/*.ts(x)` and `apps/*/src/**/*.ts(x)` file into three groups, top to bottom:
+
+1. **Constants and types** — `const`/`let` whose initializer isn't a function/arrow/class, `interface`, `type`, `enum`. Relative order within this group is free (e.g. keep a tight cluster of regex constants together, un-blank-lined, if that's how they read best).
+2. **Exported functions and classes** — top-level `function`/`class` declarations, and `const`s assigned an arrow/function/class expression, that carry an `export` modifier (including `export default`).
+3. **Private (non-exported) functions and classes** — the same shapes as group 2, without `export`.
+
+Imports stay untouched at the very top, before group 1. Inside a `class` body, apply the same public-before-private split to its methods. A hook name assigned via a factory call (`export const useFooStore = create(...)`) is a constant (group 1), not a function — it's the value being exported, not a function declaration.
+
+This governs top-level *declaration* order, not everything in a file: `describe`/`it` blocks in `*.test.ts(x)`, Storybook `*.stories.tsx` exports, `infra/*.ts` (SST resources are declared in a dependency-ordered chain, not grouped by kind), and root-level `scripts/*.ts` (procedural CLI entry points) are exempt — none of them fit the constants/types → exported → private model this rule describes.
+
+Enforcement mirrors the no-comments check: `pnpm lint` runs `scripts/checkFileOrganization.ts` (walks each file's top-level statements via the TypeScript compiler API and flags any statement whose group appears after a later group), and a PostToolUse hook (`.claude/hooks/file-organization-check.sh`) **blocks** an Edit/Write to a checked file the moment it violates the order. Run `pnpm lint:organization` to check the whole tree, or pass file paths to check just those.
+
 ## AWS
 
 - Region `eu-central-1`. Stages: personal dev stage, named `dev` (`sst dev` / `sst deploy --stage dev`, formerly the OS-username default `andrey`, briefly `stage` — see D17) and `production` (deployed by CI only — don't `sst deploy --stage production` from a laptop). All resources carry default tags `app: techtok-dev|techtok-production` + `stage: <stage name>` for Cost Explorer grouping (D17).

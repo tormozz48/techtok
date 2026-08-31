@@ -11,30 +11,6 @@ export interface ReadingStats {
 
 const TOP_N = 3;
 
-function dayKey(iso: string): string {
-  return iso.slice(0, 10);
-}
-
-function topN<K>(counts: Map<K, number>, n: number): [K, number][] {
-  return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, n);
-}
-
-function computeStreak(readDays: ReadonlySet<string>): number {
-  if (readDays.size === 0) return 0;
-
-  const newestFirst = [...readDays].sort().reverse();
-  let streak = 1;
-  const cursor = new Date(`${newestFirst[0]}T00:00:00.000Z`);
-
-  for (let i = 1; i < newestFirst.length; i++) {
-    cursor.setUTCDate(cursor.getUTCDate() - 1);
-    if (dayKey(cursor.toISOString()) !== newestFirst[i]) break;
-    streak += 1;
-  }
-
-  return streak;
-}
-
 export function computeReadingStats(items: HistoryItem[], now: Date = new Date()): ReadingStats {
   const weekAgoMs = now.getTime() - 7 * ONE_DAY_MS;
   const monthAgoMs = now.getTime() - 30 * ONE_DAY_MS;
@@ -64,4 +40,28 @@ export function computeReadingStats(items: HistoryItem[], now: Date = new Date()
     topTopics: topN(topicCounts, TOP_N).map(([topic, count]) => ({ topic, count })),
     topSources: topN(sourceCounts, TOP_N).map(([sourceName, count]) => ({ sourceName, count })),
   };
+}
+
+function dayKey(iso: string): string {
+  return iso.slice(0, 10);
+}
+
+function topN<K>(counts: Map<K, number>, n: number): [K, number][] {
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, n);
+}
+
+function computeStreak(readDays: ReadonlySet<string>): number {
+  if (readDays.size === 0) return 0;
+
+  const newestFirst = [...readDays].sort().reverse();
+  let streak = 1;
+  const cursor = new Date(`${newestFirst[0]}T00:00:00.000Z`);
+
+  for (let i = 1; i < newestFirst.length; i++) {
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
+    if (dayKey(cursor.toISOString()) !== newestFirst[i]) break;
+    streak += 1;
+  }
+
+  return streak;
 }

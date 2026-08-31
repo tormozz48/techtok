@@ -30,6 +30,23 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 const DEFAULT_PAGE_LIMIT = 50;
 
+export interface FetchFeedPageParams {
+  before?: string;
+  limit?: number;
+}
+
+export interface FetchHistoryPageParams {
+  cursor?: string;
+  limit?: number;
+  q?: string;
+}
+
+export interface FetchBookmarksPageParams {
+  cursor?: string;
+  limit?: number;
+  q?: string;
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -39,6 +56,138 @@ export class ApiError extends Error {
     super(message);
     this.name = 'ApiError';
   }
+}
+
+export async function fetchFeedPage({
+  before,
+  limit = 20,
+}: FetchFeedPageParams = {}): Promise<FeedResponse> {
+  const url = apiUrl('/v1/feed');
+  url.searchParams.set('limit', String(limit));
+  if (before) url.searchParams.set('before', before);
+
+  const response = await apiFetch(url);
+  const parsed = feedResponseSchema.parse(await response.json());
+  if (parsed.quotaExhausted) {
+    queryClient.invalidateQueries({ queryKey: ['entitlement'] });
+  }
+  return parsed;
+}
+
+export async function fetchMe(): Promise<MeResponse> {
+  const response = await apiFetch(apiUrl('/v1/me'));
+  return meResponseSchema.parse(await response.json());
+}
+
+export async function putTopics(topics: Topic[]): Promise<MeResponse> {
+  const response = await apiFetch(apiUrl('/v1/me/topics'), {
+    method: 'PUT',
+    body: JSON.stringify({ topics }),
+  });
+  return meResponseSchema.parse(await response.json());
+}
+
+export async function putLanguage(language: Language): Promise<MeResponse> {
+  const response = await apiFetch(apiUrl('/v1/me/language'), {
+    method: 'PUT',
+    body: JSON.stringify({ language }),
+  });
+  return meResponseSchema.parse(await response.json());
+}
+
+export async function putMutedSources(sourceIds: string[]): Promise<MeResponse> {
+  const response = await apiFetch(apiUrl('/v1/me/muted-sources'), {
+    method: 'PUT',
+    body: JSON.stringify({ sourceIds }),
+  });
+  return meResponseSchema.parse(await response.json());
+}
+
+export async function fetchSources(): Promise<SourcesResponse> {
+  const response = await apiFetch(apiUrl('/v1/sources'));
+  return sourcesResponseSchema.parse(await response.json());
+}
+
+export async function postReads(postIds: string[]): Promise<void> {
+  await apiFetch(apiUrl('/v1/reads'), {
+    method: 'POST',
+    body: JSON.stringify({ postIds }),
+  });
+  queryClient.invalidateQueries({ queryKey: ['entitlement'] });
+}
+
+export async function postEvents(records: ClientRecord[]): Promise<void> {
+  await apiFetch(apiUrl('/v1/events'), {
+    method: 'POST',
+    body: JSON.stringify({ records }),
+  });
+}
+
+export async function fetchHistoryPage({
+  cursor,
+  limit = DEFAULT_PAGE_LIMIT,
+  q,
+}: FetchHistoryPageParams = {}): Promise<HistoryResponse> {
+  const url = apiUrl('/v1/history');
+  url.searchParams.set('limit', String(limit));
+  if (cursor) url.searchParams.set('cursor', cursor);
+  if (q) url.searchParams.set('q', q);
+
+  const response = await apiFetch(url);
+  return historyResponseSchema.parse(await response.json());
+}
+
+export async function fetchBookmarksPage({
+  cursor,
+  limit = DEFAULT_PAGE_LIMIT,
+  q,
+}: FetchBookmarksPageParams = {}): Promise<BookmarksResponse> {
+  const url = apiUrl('/v1/bookmarks');
+  url.searchParams.set('limit', String(limit));
+  if (cursor) url.searchParams.set('cursor', cursor);
+  if (q) url.searchParams.set('q', q);
+
+  const response = await apiFetch(url);
+  return bookmarksResponseSchema.parse(await response.json());
+}
+
+export async function createBookmark(postId: string): Promise<void> {
+  await apiFetch(apiUrl('/v1/bookmarks'), {
+    method: 'POST',
+    body: JSON.stringify({ postId }),
+  });
+}
+
+export async function deleteBookmark(postId: string): Promise<void> {
+  await apiFetch(apiUrl(`/v1/bookmarks/${encodeURIComponent(postId)}`), {
+    method: 'DELETE',
+  });
+}
+
+export async function fetchPostContent(postId: string, lang: Language): Promise<ContentResponse> {
+  const url = apiUrl(`/v1/posts/${encodeURIComponent(postId)}/content`);
+  url.searchParams.set('lang', lang);
+
+  try {
+    const response = await apiFetch(url);
+    const parsed = contentResponseSchema.parse(await response.json());
+    queryClient.invalidateQueries({ queryKey: ['entitlement'] });
+    return parsed;
+  } catch (err) {
+    if (isReaderOpensCapReached(err)) {
+      queryClient.invalidateQueries({ queryKey: ['entitlement'] });
+    }
+    throw err;
+  }
+}
+
+export async function deleteAccount(): Promise<void> {
+  await apiFetch(apiUrl('/v1/me'), { method: 'DELETE' });
+}
+
+export async function fetchEntitlement(): Promise<EntitlementResponse> {
+  const response = await apiFetch(apiUrl('/v1/me/entitlement'));
+  return entitlementResponseSchema.parse(await response.json());
 }
 
 function isReaderOpensCapReached(err: unknown): boolean {
@@ -108,153 +257,4 @@ async function apiFetch(url: URL, init: RequestInit = {}): Promise<Response> {
     throw new ApiError(response.status, code, message);
   }
   return response;
-}
-
-export interface FetchFeedPageParams {
-  before?: string;
-  limit?: number;
-}
-
-export async function fetchFeedPage({
-  before,
-  limit = 20,
-}: FetchFeedPageParams = {}): Promise<FeedResponse> {
-  const url = apiUrl('/v1/feed');
-  url.searchParams.set('limit', String(limit));
-  if (before) url.searchParams.set('before', before);
-
-  const response = await apiFetch(url);
-  const parsed = feedResponseSchema.parse(await response.json());
-  if (parsed.quotaExhausted) {
-    queryClient.invalidateQueries({ queryKey: ['entitlement'] });
-  }
-  return parsed;
-}
-
-export async function fetchMe(): Promise<MeResponse> {
-  const response = await apiFetch(apiUrl('/v1/me'));
-  return meResponseSchema.parse(await response.json());
-}
-
-export async function putTopics(topics: Topic[]): Promise<MeResponse> {
-  const response = await apiFetch(apiUrl('/v1/me/topics'), {
-    method: 'PUT',
-    body: JSON.stringify({ topics }),
-  });
-  return meResponseSchema.parse(await response.json());
-}
-
-export async function putLanguage(language: Language): Promise<MeResponse> {
-  const response = await apiFetch(apiUrl('/v1/me/language'), {
-    method: 'PUT',
-    body: JSON.stringify({ language }),
-  });
-  return meResponseSchema.parse(await response.json());
-}
-
-export async function putMutedSources(sourceIds: string[]): Promise<MeResponse> {
-  const response = await apiFetch(apiUrl('/v1/me/muted-sources'), {
-    method: 'PUT',
-    body: JSON.stringify({ sourceIds }),
-  });
-  return meResponseSchema.parse(await response.json());
-}
-
-export async function fetchSources(): Promise<SourcesResponse> {
-  const response = await apiFetch(apiUrl('/v1/sources'));
-  return sourcesResponseSchema.parse(await response.json());
-}
-
-export async function postReads(postIds: string[]): Promise<void> {
-  await apiFetch(apiUrl('/v1/reads'), {
-    method: 'POST',
-    body: JSON.stringify({ postIds }),
-  });
-  queryClient.invalidateQueries({ queryKey: ['entitlement'] });
-}
-
-export async function postEvents(records: ClientRecord[]): Promise<void> {
-  await apiFetch(apiUrl('/v1/events'), {
-    method: 'POST',
-    body: JSON.stringify({ records }),
-  });
-}
-
-export interface FetchHistoryPageParams {
-  cursor?: string;
-  limit?: number;
-  q?: string;
-}
-
-export async function fetchHistoryPage({
-  cursor,
-  limit = DEFAULT_PAGE_LIMIT,
-  q,
-}: FetchHistoryPageParams = {}): Promise<HistoryResponse> {
-  const url = apiUrl('/v1/history');
-  url.searchParams.set('limit', String(limit));
-  if (cursor) url.searchParams.set('cursor', cursor);
-  if (q) url.searchParams.set('q', q);
-
-  const response = await apiFetch(url);
-  return historyResponseSchema.parse(await response.json());
-}
-
-export interface FetchBookmarksPageParams {
-  cursor?: string;
-  limit?: number;
-  q?: string;
-}
-
-export async function fetchBookmarksPage({
-  cursor,
-  limit = DEFAULT_PAGE_LIMIT,
-  q,
-}: FetchBookmarksPageParams = {}): Promise<BookmarksResponse> {
-  const url = apiUrl('/v1/bookmarks');
-  url.searchParams.set('limit', String(limit));
-  if (cursor) url.searchParams.set('cursor', cursor);
-  if (q) url.searchParams.set('q', q);
-
-  const response = await apiFetch(url);
-  return bookmarksResponseSchema.parse(await response.json());
-}
-
-export async function createBookmark(postId: string): Promise<void> {
-  await apiFetch(apiUrl('/v1/bookmarks'), {
-    method: 'POST',
-    body: JSON.stringify({ postId }),
-  });
-}
-
-export async function deleteBookmark(postId: string): Promise<void> {
-  await apiFetch(apiUrl(`/v1/bookmarks/${encodeURIComponent(postId)}`), {
-    method: 'DELETE',
-  });
-}
-
-export async function fetchPostContent(postId: string, lang: Language): Promise<ContentResponse> {
-  const url = apiUrl(`/v1/posts/${encodeURIComponent(postId)}/content`);
-  url.searchParams.set('lang', lang);
-
-  try {
-    const response = await apiFetch(url);
-    const parsed = contentResponseSchema.parse(await response.json());
-    queryClient.invalidateQueries({ queryKey: ['entitlement'] });
-    return parsed;
-  } catch (err) {
-    if (isReaderOpensCapReached(err)) {
-      queryClient.invalidateQueries({ queryKey: ['entitlement'] });
-    }
-    throw err;
-  }
-}
-
-export async function deleteAccount(): Promise<void> {
-  await apiFetch(apiUrl('/v1/me'), { method: 'DELETE' });
-}
-
-export async function fetchEntitlement(): Promise<EntitlementResponse> {
-  const response = await apiFetch(apiUrl('/v1/me/entitlement'));
-  return entitlementResponseSchema.parse(await response.json());
 }

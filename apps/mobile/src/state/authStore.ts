@@ -23,55 +23,9 @@ interface AuthState {
   refreshToken: () => Promise<string | null>;
 }
 
-function requireWebClientId(): string {
-  const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-  if (!webClientId) {
-    throw new Error(
-      'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set. Copy .env.example to .env and set it to the Google OAuth "Web application" client ID.',
-    );
-  }
-  return webClientId;
-}
-
 let configured = false;
-function ensureConfigured(): void {
-  if (configured) return;
-  GoogleSignin.configure({ webClientId: requireWebClientId() });
-  configured = true;
-}
-
-function toAuthUser(
-  idToken: string | null,
-  user: { email: string; name: string | null },
-): AuthUser {
-  if (!idToken) {
-    throw new Error(
-      'Google Sign-In returned no ID token — check that GoogleSignin.configure() was called with webClientId, not just iosClientId.',
-    );
-  }
-  return { idToken, email: user.email, name: user.name };
-}
 
 let silentSignInAttempt: Promise<AuthUser | null> | null = null;
-
-function silentSignIn(): Promise<AuthUser | null> {
-  silentSignInAttempt ??= attemptSilentSignIn().finally(() => {
-    silentSignInAttempt = null;
-  });
-  return silentSignInAttempt;
-}
-
-async function attemptSilentSignIn(): Promise<AuthUser | null> {
-  try {
-    ensureConfigured();
-    const response = await GoogleSignin.signInSilently();
-    if (isNoSavedCredentialFoundResponse(response)) return null;
-    return toAuthUser(response.data.idToken, response.data.user);
-  } catch (error) {
-    logError('silent sign-in failed', { message: String(error) });
-    return null;
-  }
-}
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   status: 'loading',
@@ -151,3 +105,50 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return user.idToken;
   },
 }));
+
+function requireWebClientId(): string {
+  const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  if (!webClientId) {
+    throw new Error(
+      'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set. Copy .env.example to .env and set it to the Google OAuth "Web application" client ID.',
+    );
+  }
+  return webClientId;
+}
+
+function ensureConfigured(): void {
+  if (configured) return;
+  GoogleSignin.configure({ webClientId: requireWebClientId() });
+  configured = true;
+}
+
+function toAuthUser(
+  idToken: string | null,
+  user: { email: string; name: string | null },
+): AuthUser {
+  if (!idToken) {
+    throw new Error(
+      'Google Sign-In returned no ID token — check that GoogleSignin.configure() was called with webClientId, not just iosClientId.',
+    );
+  }
+  return { idToken, email: user.email, name: user.name };
+}
+
+function silentSignIn(): Promise<AuthUser | null> {
+  silentSignInAttempt ??= attemptSilentSignIn().finally(() => {
+    silentSignInAttempt = null;
+  });
+  return silentSignInAttempt;
+}
+
+async function attemptSilentSignIn(): Promise<AuthUser | null> {
+  try {
+    ensureConfigured();
+    const response = await GoogleSignin.signInSilently();
+    if (isNoSavedCredentialFoundResponse(response)) return null;
+    return toAuthUser(response.data.idToken, response.data.user);
+  } catch (error) {
+    logError('silent sign-in failed', { message: String(error) });
+    return null;
+  }
+}

@@ -19,14 +19,6 @@ export function saveQueue(queue: ClientRecord[]): void {
   storage.set(QUEUE_KEY, JSON.stringify(queue));
 }
 
-function enqueue(record: ClientRecord): void {
-  const queue = loadQueue();
-  queue.push(record);
-  saveQueue(
-    queue.length > MAX_QUEUED_RECORDS ? queue.slice(queue.length - MAX_QUEUED_RECORDS) : queue,
-  );
-}
-
 export function logEvent(name: string, props?: Record<string, unknown>): void {
   enqueue({ kind: 'event', name, props, occurredAt: new Date().toISOString() });
 }
@@ -34,4 +26,12 @@ export function logEvent(name: string, props?: Record<string, unknown>): void {
 export function logError(message: string, context?: Record<string, unknown>): void {
   enqueue({ kind: 'log', level: 'error', message, context, occurredAt: new Date().toISOString() });
   Sentry.captureMessage(message, { level: 'error', extra: context });
+}
+
+function enqueue(record: ClientRecord): void {
+  const queue = loadQueue();
+  queue.push(record);
+  saveQueue(
+    queue.length > MAX_QUEUED_RECORDS ? queue.slice(queue.length - MAX_QUEUED_RECORDS) : queue,
+  );
 }

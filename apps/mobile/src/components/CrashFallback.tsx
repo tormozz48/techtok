@@ -7,25 +7,6 @@ interface CrashFallbackProps {
   resetError: () => void;
 }
 
-export function CrashFallback({ resetError }: CrashFallbackProps) {
-  const colors = useThemeColors();
-  const strings = useStrings();
-
-  return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Text style={[styles.title, { color: colors.text }]}>{strings.crash.title}</Text>
-      <Text style={[styles.message, { color: colors.text }]}>{strings.crash.message}</Text>
-      <Pressable
-        onPress={resetError}
-        style={[styles.button, { backgroundColor: colors.primary }]}
-        accessibilityRole="button"
-      >
-        <Text style={styles.buttonLabel}>{strings.crash.retry}</Text>
-      </Pressable>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -55,3 +36,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
+export function CrashFallback({ resetError }: CrashFallbackProps) {
+  const colors = useThemeColors();
+  const strings = useStrings();
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.title, { color: colors.text }]}>{strings.crash.title}</Text>
+      <Text style={[styles.message, { color: colors.text }]}>{strings.crash.message}</Text>
+      <Pressable
+        onPress={resetError}
+        style={[styles.button, { backgroundColor: colors.primary }]}
+        accessibilityRole="button"
+      >
+        <Text style={styles.buttonLabel}>{strings.crash.retry}</Text>
+      </Pressable>
+    </View>
+  );
+}

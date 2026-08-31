@@ -13,11 +13,6 @@ export const AFFINITY_GAIN = 0.5;
 
 export const MAX_AFFINITY_BOOST = 1.5;
 
-function recencyDecay(publishedAt: string, now: Date = new Date()): number {
-  const ageHours = Math.max(0, differenceInMilliseconds(now, parseISO(publishedAt))) / MS_PER_HOUR;
-  return 2 ** (-ageHours / RECENCY_HALF_LIFE_HOURS);
-}
-
 export function topicAffinityBoosts(
   topicReads: Partial<Record<Topic, number>> | undefined,
 ): Map<Topic, number> {
@@ -31,6 +26,24 @@ export function topicAffinityBoosts(
       Math.min(1 + AFFINITY_GAIN * (count / total), MAX_AFFINITY_BOOST),
     ]),
   );
+}
+
+export function rankCandidates(
+  candidates: PostRecord[],
+  sourceWeights: Map<string, number>,
+  now: Date = new Date(),
+  affinityBoosts?: Map<Topic, number>,
+): PostRecord[] {
+  const scored = candidates
+    .map((post) => ({ post, score: scorePost(post, sourceWeights, now, affinityBoosts) }))
+    .sort((a, b) => b.score - a.score)
+    .map(({ post }) => post);
+  return interleaveBySource(interleaveByTopic(scored));
+}
+
+function recencyDecay(publishedAt: string, now: Date = new Date()): number {
+  const ageHours = Math.max(0, differenceInMilliseconds(now, parseISO(publishedAt))) / MS_PER_HOUR;
+  return 2 ** (-ageHours / RECENCY_HALF_LIFE_HOURS);
 }
 
 function scorePost(
@@ -79,17 +92,4 @@ function interleaveByTopic(sorted: PostRecord[]): PostRecord[] {
 
 function interleaveBySource(sorted: PostRecord[]): PostRecord[] {
   return interleaveByKey(sorted, (post) => post.sourceId);
-}
-
-export function rankCandidates(
-  candidates: PostRecord[],
-  sourceWeights: Map<string, number>,
-  now: Date = new Date(),
-  affinityBoosts?: Map<Topic, number>,
-): PostRecord[] {
-  const scored = candidates
-    .map((post) => ({ post, score: scorePost(post, sourceWeights, now, affinityBoosts) }))
-    .sort((a, b) => b.score - a.score)
-    .map(({ post }) => post);
-  return interleaveBySource(interleaveByTopic(scored));
 }

@@ -5,20 +5,6 @@ import { storage } from './storage';
 
 const MUTED_SOURCES_KEY = 'techtok.mutedSources';
 
-function loadCachedMutedSources(): string[] {
-  const raw = storage.getString(MUTED_SOURCES_KEY);
-  if (!raw) return [];
-  try {
-    return JSON.parse(raw) as string[];
-  } catch {
-    return [];
-  }
-}
-
-function saveCachedMutedSources(sourceIds: string[]): void {
-  storage.set(MUTED_SOURCES_KEY, JSON.stringify(sourceIds));
-}
-
 interface MutedSourcesState {
   mutedSources: string[];
   isLoading: boolean;
@@ -57,3 +43,17 @@ export const useMutedSourcesStore = create<MutedSourcesState>((set) => ({
     }
   },
 }));
+
+function loadCachedMutedSources(): string[] {
+  const raw = storage.getString(MUTED_SOURCES_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as string[];
+  } catch {
+    return [];
+  }
+}
+
+function saveCachedMutedSources(sourceIds: string[]): void {
+  storage.set(MUTED_SOURCES_KEY, JSON.stringify(sourceIds));
+}

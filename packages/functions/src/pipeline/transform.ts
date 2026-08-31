@@ -31,42 +31,9 @@ const getRawArticleStore = lazy(
 const getImageStore = lazy(() => new ImageStore(getS3Client(), requireEnv('IMAGES_BUCKET_NAME')));
 const getLlmProvider = lazy(() => createConfiguredLlmProvider(process.env));
 
-async function mirrorImage(postId: string, imageUrl: string): Promise<MirrorImageResult> {
-  try {
-    const { body, contentType } = await fetchBytes(imageUrl, MAX_IMAGE_BYTES);
-    const quality = checkImageQuality(body);
-    if (!quality.passes) {
-      logger.info('image mirror rejected image below the quality bar (D28)', {
-        postId,
-        imageUrl,
-        width: quality.width,
-        height: quality.height,
-      });
-      return { status: 'rejected' };
-    }
-    const key = await getImageStore().putImage(postId, body, contentType ?? 'image/jpeg');
-    return { status: 'ok', url: `${requireEnv('IMAGES_CDN_BASE_URL')}/${key}` };
-  } catch (err) {
-    logger.warn('image mirror failed, keeping original hotlinked url', {
-      postId,
-      imageUrl,
-      error: errorMessage(err),
-    });
-    return { status: 'failed' };
-  }
-}
-
 interface MessageBody {
   readonly postId: string;
   readonly url: string;
-}
-
-function parseMessageBody(body: string): MessageBody {
-  const parsed = JSON.parse(body) as Partial<MessageBody>;
-  if (!parsed.postId || !parsed.url) {
-    throw new Error('transform message missing postId/url');
-  }
-  return { postId: parsed.postId, url: parsed.url };
 }
 
 export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
@@ -128,3 +95,36 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
 
   return { batchItemFailures };
 };
+
+async function mirrorImage(postId: string, imageUrl: string): Promise<MirrorImageResult> {
+  try {
+    const { body, contentType } = await fetchBytes(imageUrl, MAX_IMAGE_BYTES);
+    const quality = checkImageQuality(body);
+    if (!quality.passes) {
+      logger.info('image mirror rejected image below the quality bar (D28)', {
+        postId,
+        imageUrl,
+        width: quality.width,
+        height: quality.height,
+      });
+      return { status: 'rejected' };
+    }
+    const key = await getImageStore().putImage(postId, body, contentType ?? 'image/jpeg');
+    return { status: 'ok', url: `${requireEnv('IMAGES_CDN_BASE_URL')}/${key}` };
+  } catch (err) {
+    logger.warn('image mirror failed, keeping original hotlinked url', {
+      postId,
+      imageUrl,
+      error: errorMessage(err),
+    });
+    return { status: 'failed' };
+  }
+}
+
+function parseMessageBody(body: string): MessageBody {
+  const parsed = JSON.parse(body) as Partial<MessageBody>;
+  if (!parsed.postId || !parsed.url) {
+    throw new Error('transform message missing postId/url');
+  }
+  return { postId: parsed.postId, url: parsed.url };
+}

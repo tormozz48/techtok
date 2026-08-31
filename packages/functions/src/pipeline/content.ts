@@ -33,61 +33,9 @@ const getContentStore = lazy(
 );
 const getLlmProvider = lazy(() => createConfiguredLlmProvider(process.env));
 
-async function mirrorFigures(postId: string, figures: ExtractedFigure[]): Promise<CompactFigure[]> {
-  const cdnBaseUrl = requireEnv('IMAGES_CDN_BASE_URL');
-  const mirrored = await Promise.all(
-    figures.map(async (figure, index): Promise<CompactFigure | undefined> => {
-      try {
-        const { body, contentType } = await fetchBytes(figure.url, MAX_IMAGE_BYTES);
-        const key = await getImageStore().putImage(
-          postId,
-          body,
-          contentType ?? 'image/jpeg',
-          `-fig${index}`,
-        );
-        return { url: `${cdnBaseUrl}/${key}`, caption: figure.caption };
-      } catch (err) {
-        logger.warn('figure mirror failed, dropping figure', {
-          postId,
-          url: figure.url,
-          error: errorMessage(err),
-        });
-        return undefined;
-      }
-    }),
-  );
-  return mirrored.filter((figure): figure is CompactFigure => figure !== undefined);
-}
-
-async function loadArticleHtml(post: { s3RawKey?: string; url: string }): Promise<string> {
-  if (post.s3RawKey) {
-    try {
-      return await getRawArticleStore().getRaw(post.s3RawKey);
-    } catch (err) {
-      logger.warn('archived html unavailable, attempting live fetch', {
-        url: post.url,
-        error: errorMessage(err),
-      });
-    }
-  }
-
-  const robotsUrl = new URL('/robots.txt', post.url).toString();
-  const allowed = await isAllowedByRobots(post.url, () => fetchRobotsTxt(robotsUrl));
-  if (!allowed) throw new Error('disallowed by robots.txt');
-  return fetchText(post.url);
-}
-
 interface MessageBody {
   readonly postId: string;
   readonly lang: Language;
-}
-
-function parseMessageBody(body: string): MessageBody {
-  const parsed = JSON.parse(body) as Partial<Record<'postId' | 'lang', string>>;
-  if (!parsed.postId || !parsed.lang || !isLanguage(parsed.lang)) {
-    throw new Error('content message missing postId/lang');
-  }
-  return { postId: parsed.postId, lang: parsed.lang };
 }
 
 export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
@@ -147,3 +95,55 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
 
   return { batchItemFailures };
 };
+
+async function mirrorFigures(postId: string, figures: ExtractedFigure[]): Promise<CompactFigure[]> {
+  const cdnBaseUrl = requireEnv('IMAGES_CDN_BASE_URL');
+  const mirrored = await Promise.all(
+    figures.map(async (figure, index): Promise<CompactFigure | undefined> => {
+      try {
+        const { body, contentType } = await fetchBytes(figure.url, MAX_IMAGE_BYTES);
+        const key = await getImageStore().putImage(
+          postId,
+          body,
+          contentType ?? 'image/jpeg',
+          `-fig${index}`,
+        );
+        return { url: `${cdnBaseUrl}/${key}`, caption: figure.caption };
+      } catch (err) {
+        logger.warn('figure mirror failed, dropping figure', {
+          postId,
+          url: figure.url,
+          error: errorMessage(err),
+        });
+        return undefined;
+      }
+    }),
+  );
+  return mirrored.filter((figure): figure is CompactFigure => figure !== undefined);
+}
+
+async function loadArticleHtml(post: { s3RawKey?: string; url: string }): Promise<string> {
+  if (post.s3RawKey) {
+    try {
+      return await getRawArticleStore().getRaw(post.s3RawKey);
+    } catch (err) {
+      logger.warn('archived html unavailable, attempting live fetch', {
+        url: post.url,
+        error: errorMessage(err),
+      });
+    }
+  }
+
+  const robotsUrl = new URL('/robots.txt', post.url).toString();
+  const allowed = await isAllowedByRobots(post.url, () => fetchRobotsTxt(robotsUrl));
+  if (!allowed) throw new Error('disallowed by robots.txt');
+  return fetchText(post.url);
+}
+
+function parseMessageBody(body: string): MessageBody {
+  const parsed = JSON.parse(body) as Partial<Record<'postId' | 'lang', string>>;
+  if (!parsed.postId || !parsed.lang || !isLanguage(parsed.lang)) {
+    throw new Error('content message missing postId/lang');
+  }
+  return { postId: parsed.postId, lang: parsed.lang };
+}

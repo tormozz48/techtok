@@ -21,29 +21,6 @@ const palettes = {
   neutralVariant: seeded.palettes.neutralVariant,
 };
 
-function tone(palette: TonalPalette, t: number): string {
-  return hexFromArgb(palette.tone(t));
-}
-
-function rgba(hex: string, alpha: number): string {
-  const argb = argbFromHex(hex);
-  const r = (argb >> 16) & 0xff;
-  const g = (argb >> 8) & 0xff;
-  const b = argb & 0xff;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-function mix(fgHex: string, bgHex: string, alpha: number): string {
-  const fg = argbFromHex(fgHex);
-  const bg = argbFromHex(bgHex);
-  const blend = (shift: number) => {
-    const f = (fg >> shift) & 0xff;
-    const b = (bg >> shift) & 0xff;
-    return Math.round(f * alpha + b * (1 - alpha));
-  };
-  return `rgb(${blend(16)}, ${blend(8)}, ${blend(0)})`;
-}
-
 export type ThemeTone = 'light' | 'dark';
 
 export function buildMD3Colors(themeTone: ThemeTone) {
@@ -96,4 +73,27 @@ export function buildMD3Colors(themeTone: ThemeTone) {
       level5: mix(primary, surface, 0.14),
     },
   };
+}
+
+function tone(palette: TonalPalette, t: number): string {
+  return hexFromArgb(palette.tone(t));
+}
+
+function rgba(hex: string, alpha: number): string {
+  const argb = argbFromHex(hex);
+  const r = (argb >> 16) & 0xff;
+  const g = (argb >> 8) & 0xff;
+  const b = argb & 0xff;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function mix(fgHex: string, bgHex: string, alpha: number): string {
+  const fg = argbFromHex(fgHex);
+  const bg = argbFromHex(bgHex);
+  const blend = (shift: number) => {
+    const f = (fg >> shift) & 0xff;
+    const b = (bg >> shift) & 0xff;
+    return Math.round(f * alpha + b * (1 - alpha));
+  };
+  return `rgb(${blend(16)}, ${blend(8)}, ${blend(0)})`;
 }

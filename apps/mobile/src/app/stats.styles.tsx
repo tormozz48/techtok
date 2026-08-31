@@ -1,6 +1,8 @@
 import { StyleSheet } from 'react-native';
 import { Spacing, type ThemeColors, Typography } from '@/constants/theme';
 
+export type StatsStyles = ReturnType<typeof createStyles>;
+
 export function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     container: {
@@ -69,5 +71,3 @@ export function createStyles(colors: ThemeColors) {
     },
   });
 }
-
-export type StatsStyles = ReturnType<typeof createStyles>;

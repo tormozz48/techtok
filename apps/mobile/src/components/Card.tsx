@@ -19,6 +19,85 @@ export interface CardProps {
   card: CardData;
 }
 
+const styles = StyleSheet.create({
+  container: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: Colors.overlay.surfaceBlack,
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    padding: Spacing.four,
+    paddingBottom: Spacing.six,
+  },
+  topicChip: {
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.overlay.chipBackground,
+    marginBottom: Spacing.three,
+  },
+  topicChipText: {
+    color: Colors.overlay.text,
+    ...Typography.xs,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  translatedBadge: {
+    alignSelf: 'flex-start',
+    borderColor: Colors.overlay.accent,
+    backgroundColor: 'transparent',
+    marginBottom: Spacing.three,
+  },
+  translatedBadgeText: {
+    color: Colors.overlay.accent,
+    ...Typography.xs,
+    fontWeight: '600',
+  },
+  title: {
+    color: Colors.overlay.text,
+    ...Typography.xl,
+    fontWeight: '700',
+    marginBottom: Spacing.two,
+  },
+  summary: {
+    color: Colors.overlay.textMuted,
+    ...Typography.md,
+    marginBottom: Spacing.three,
+  },
+  whyItMatters: {
+    color: Colors.overlay.accent,
+    ...Typography.base,
+    fontStyle: 'italic',
+    marginBottom: Spacing.three,
+  },
+  meta: {
+    flexDirection: 'row',
+  },
+  metaText: {
+    color: Colors.overlay.textSecondary,
+    ...Typography.sm,
+    fontWeight: '600',
+  },
+  sourceCountText: {
+    color: Colors.overlay.textSecondary,
+    ...Typography.xs,
+    marginTop: Spacing.half,
+  },
+  debugBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.overlay.debugBackground,
+    marginBottom: Spacing.two,
+  },
+  debugBadgeText: {
+    color: Colors.overlay.debugText,
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+});
+
 export function Card({ card }: CardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const strings = useStrings();
@@ -118,82 +197,3 @@ export function Card({ card }: CardProps) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: Colors.overlay.surfaceBlack,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    padding: Spacing.four,
-    paddingBottom: Spacing.six,
-  },
-  topicChip: {
-    alignSelf: 'flex-start',
-    backgroundColor: Colors.overlay.chipBackground,
-    marginBottom: Spacing.three,
-  },
-  topicChipText: {
-    color: Colors.overlay.text,
-    ...Typography.xs,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  translatedBadge: {
-    alignSelf: 'flex-start',
-    borderColor: Colors.overlay.accent,
-    backgroundColor: 'transparent',
-    marginBottom: Spacing.three,
-  },
-  translatedBadgeText: {
-    color: Colors.overlay.accent,
-    ...Typography.xs,
-    fontWeight: '600',
-  },
-  title: {
-    color: Colors.overlay.text,
-    ...Typography.xl,
-    fontWeight: '700',
-    marginBottom: Spacing.two,
-  },
-  summary: {
-    color: Colors.overlay.textMuted,
-    ...Typography.md,
-    marginBottom: Spacing.three,
-  },
-  whyItMatters: {
-    color: Colors.overlay.accent,
-    ...Typography.base,
-    fontStyle: 'italic',
-    marginBottom: Spacing.three,
-  },
-  meta: {
-    flexDirection: 'row',
-  },
-  metaText: {
-    color: Colors.overlay.textSecondary,
-    ...Typography.sm,
-    fontWeight: '600',
-  },
-  sourceCountText: {
-    color: Colors.overlay.textSecondary,
-    ...Typography.xs,
-    marginTop: Spacing.half,
-  },
-  debugBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: Colors.overlay.debugBackground,
-    marginBottom: Spacing.two,
-  },
-  debugBadgeText: {
-    color: Colors.overlay.debugText,
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-});

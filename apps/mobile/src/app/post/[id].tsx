@@ -19,6 +19,12 @@ import { blocksToUtterances } from '@/utils/blocksToUtterances';
 import { translationFeedbackMailto } from '@/utils/feedback';
 import { createStyles } from './[id].styles';
 
+interface ReaderBlockProps {
+  block: CompactBlock;
+  figures: CompactFigure[];
+  styles: ReturnType<typeof createStyles>;
+}
+
 export default function PostScreen() {
   const {
     id,
@@ -194,12 +200,6 @@ export default function PostScreen() {
       </View>
     </ScrollView>
   );
-}
-
-interface ReaderBlockProps {
-  block: CompactBlock;
-  figures: CompactFigure[];
-  styles: ReturnType<typeof createStyles>;
 }
 
 function ReaderBlock({ block, figures, styles }: ReaderBlockProps) {

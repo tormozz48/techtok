@@ -18,27 +18,6 @@ const getTransformQueue = lazy(
   () => new TransformQueue(createSqsClient(), requireEnv('TRANSFORM_QUEUE_URL')),
 );
 
-async function fetchFeed(source: SourceRecord): Promise<FetchFeedResult> {
-  const headers: Record<string, string> = {};
-  if (source.etag) headers['If-None-Match'] = source.etag;
-  if (source.lastModified) headers['If-Modified-Since'] = source.lastModified;
-
-  const response = await fetch(source.rssUrl, { headers });
-  if (response.status === 304) {
-    return { status: 'not-modified' };
-  }
-  if (!response.ok) {
-    throw new Error(`fetch ${source.rssUrl} failed with status ${response.status}`);
-  }
-
-  return {
-    status: 'ok',
-    body: await response.text(),
-    etag: response.headers.get('etag') ?? undefined,
-    lastModified: response.headers.get('last-modified') ?? undefined,
-  };
-}
-
 export async function handler(source: SourceRecord): Promise<IngestResult> {
   const result = await ingestSource(source, {
     fetchFeed,
@@ -60,4 +39,25 @@ export async function handler(source: SourceRecord): Promise<IngestResult> {
   }
 
   return result;
+}
+
+async function fetchFeed(source: SourceRecord): Promise<FetchFeedResult> {
+  const headers: Record<string, string> = {};
+  if (source.etag) headers['If-None-Match'] = source.etag;
+  if (source.lastModified) headers['If-Modified-Since'] = source.lastModified;
+
+  const response = await fetch(source.rssUrl, { headers });
+  if (response.status === 304) {
+    return { status: 'not-modified' };
+  }
+  if (!response.ok) {
+    throw new Error(`fetch ${source.rssUrl} failed with status ${response.status}`);
+  }
+
+  return {
+    status: 'ok',
+    body: await response.text(),
+    etag: response.headers.get('etag') ?? undefined,
+    lastModified: response.headers.get('last-modified') ?? undefined,
+  };
 }

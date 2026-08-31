@@ -12,6 +12,10 @@ import { type AuthContext, extractAuthContext } from './auth';
 
 const logger = new Logger({ serviceName: 'api' });
 
+export type ParseOutcome<S extends z.ZodType> =
+  | { ok: true; data: z.output<S> }
+  | { ok: false; response: APIGatewayProxyStructuredResultV2 };
+
 export function jsonResponse(statusCode: number, body: unknown): APIGatewayProxyStructuredResultV2 {
   return {
     statusCode,
@@ -31,10 +35,6 @@ export function errorResponse(
 export function noContent(): APIGatewayProxyStructuredResultV2 {
   return { statusCode: 204, body: '' };
 }
-
-export type ParseOutcome<S extends z.ZodType> =
-  | { ok: true; data: z.output<S> }
-  | { ok: false; response: APIGatewayProxyStructuredResultV2 };
 
 export function parseQuery<S extends z.ZodType>(
   event: APIGatewayProxyEventV2,
@@ -64,6 +64,26 @@ export function parseJsonBody<S extends z.ZodType>(
   return { ok: true, data: parsed.data };
 }
 
+export function withPublic(
+  handle: (event: APIGatewayProxyEventV2) => Promise<APIGatewayProxyResultV2>,
+): APIGatewayProxyHandlerV2 {
+  return async (event) => runWithLogging(requestContext(event), () => handle(event));
+}
+
+export function withAuth(
+  handle: (event: APIGatewayProxyEventV2, auth: AuthContext) => Promise<APIGatewayProxyResultV2>,
+): APIGatewayProxyHandlerV2 {
+  return async (event) => {
+    const context = requestContext(event);
+    const auth = extractAuthContext(event);
+    if (!auth) {
+      logger.warn('unauthorized request', context);
+      return errorResponse(401, 'unauthorized', 'A valid Google ID token is required');
+    }
+    return runWithLogging({ ...context, userId: auth.userId }, () => handle(event, auth));
+  };
+}
+
 function requestContext(event: APIGatewayProxyEventV2): Record<string, unknown> {
   return {
     requestId: event.requestContext.requestId,
@@ -89,24 +109,4 @@ async function runWithLogging(
     });
     throw err;
   }
-}
-
-export function withPublic(
-  handle: (event: APIGatewayProxyEventV2) => Promise<APIGatewayProxyResultV2>,
-): APIGatewayProxyHandlerV2 {
-  return async (event) => runWithLogging(requestContext(event), () => handle(event));
-}
-
-export function withAuth(
-  handle: (event: APIGatewayProxyEventV2, auth: AuthContext) => Promise<APIGatewayProxyResultV2>,
-): APIGatewayProxyHandlerV2 {
-  return async (event) => {
-    const context = requestContext(event);
-    const auth = extractAuthContext(event);
-    if (!auth) {
-      logger.warn('unauthorized request', context);
-      return errorResponse(401, 'unauthorized', 'A valid Google ID token is required');
-    }
-    return runWithLogging({ ...context, userId: auth.userId }, () => handle(event, auth));
-  };
 }

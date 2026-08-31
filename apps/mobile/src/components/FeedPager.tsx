@@ -20,6 +20,12 @@ export interface FeedPagerProps {
 const NEAR_END_THRESHOLD = 5;
 const SETTLE_DELAY_MS = 1500;
 
+const styles = StyleSheet.create({
+  pager: {
+    flex: 1,
+  },
+});
+
 export function FeedPager({ cards, onNearEnd, onPageChange }: FeedPagerProps) {
   const settleTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -60,9 +66,3 @@ export function FeedPager({ cards, onNearEnd, onPageChange }: FeedPagerProps) {
     </PagerView>
   );
 }
-
-const styles = StyleSheet.create({
-  pager: {
-    flex: 1,
-  },
-});

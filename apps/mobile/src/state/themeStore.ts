@@ -6,15 +6,6 @@ const THEME_MODE_KEY = 'techtok.themeMode';
 
 export type ThemeMode = 'system' | 'light' | 'dark';
 
-function isThemeMode(value: string | undefined): value is ThemeMode {
-  return value === 'system' || value === 'light' || value === 'dark';
-}
-
-function loadCachedThemeMode(): ThemeMode {
-  const raw = storage.getString(THEME_MODE_KEY);
-  return isThemeMode(raw) ? raw : 'system';
-}
-
 interface ThemeState {
   mode: ThemeMode;
   load: () => void;
@@ -32,3 +23,12 @@ export const useThemeStore = create<ThemeState>((set) => ({
     logEvent('theme_mode_changed', { mode });
   },
 }));
+
+function isThemeMode(value: string | undefined): value is ThemeMode {
+  return value === 'system' || value === 'light' || value === 'dark';
+}
+
+function loadCachedThemeMode(): ThemeMode {
+  const raw = storage.getString(THEME_MODE_KEY);
+  return isThemeMode(raw) ? raw : 'system';
+}

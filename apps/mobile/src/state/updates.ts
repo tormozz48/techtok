@@ -9,22 +9,6 @@ let isUpdatePending = false;
 let isFetching = false;
 let backgroundedAtMs: number | null = null;
 
-async function fetchUpdate(): Promise<void> {
-  if (isUpdatePending || isFetching) return;
-  isFetching = true;
-  try {
-    const check = await Updates.checkForUpdateAsync();
-    if (!check.isAvailable && !check.isRollBackToEmbedded) return;
-    const fetched = await Updates.fetchUpdateAsync();
-    isUpdatePending = fetched.isNew || fetched.isRollBackToEmbedded;
-    if (isUpdatePending) logEvent('ota_update_fetched');
-  } catch (error) {
-    logError('ota update fetch failed', { message: String(error) });
-  } finally {
-    isFetching = false;
-  }
-}
-
 export function startOtaUpdates(): void {
   if (started || !Updates.isEnabled) return;
   started = true;
@@ -54,4 +38,20 @@ export function startOtaUpdates(): void {
     }
     if (action === 'check') fetchUpdate();
   });
+}
+
+async function fetchUpdate(): Promise<void> {
+  if (isUpdatePending || isFetching) return;
+  isFetching = true;
+  try {
+    const check = await Updates.checkForUpdateAsync();
+    if (!check.isAvailable && !check.isRollBackToEmbedded) return;
+    const fetched = await Updates.fetchUpdateAsync();
+    isUpdatePending = fetched.isNew || fetched.isRollBackToEmbedded;
+    if (isUpdatePending) logEvent('ota_update_fetched');
+  } catch (error) {
+    logError('ota update fetch failed', { message: String(error) });
+  } finally {
+    isFetching = false;
+  }
 }

@@ -21,22 +21,6 @@ export interface BookmarksPage {
   readonly nextCursor: string | null;
 }
 
-function encodeHistoryCursor(key: Record<string, unknown>): string {
-  return Buffer.from(JSON.stringify(key), 'utf8').toString('base64url');
-}
-
-function decodeHistoryCursor(cursor: string): Record<string, unknown> {
-  return JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
-}
-
-function readSortKey(postId: string): string {
-  return `read#${postId}`;
-}
-
-function bookmarkSortKey(postId: string): string {
-  return `bm#${postId}`;
-}
-
 export class UserActivityRepo {
   constructor(
     private readonly client: DynamoDBDocumentClient,
@@ -175,4 +159,20 @@ export class UserActivityRepo {
       nextCursor: result.LastEvaluatedKey ? encodeHistoryCursor(result.LastEvaluatedKey) : null,
     };
   }
+}
+
+function encodeHistoryCursor(key: Record<string, unknown>): string {
+  return Buffer.from(JSON.stringify(key), 'utf8').toString('base64url');
+}
+
+function decodeHistoryCursor(cursor: string): Record<string, unknown> {
+  return JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
+}
+
+function readSortKey(postId: string): string {
+  return `read#${postId}`;
+}
+
+function bookmarkSortKey(postId: string): string {
+  return `bm#${postId}`;
 }

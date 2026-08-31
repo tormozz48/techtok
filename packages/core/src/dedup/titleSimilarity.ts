@@ -1,5 +1,13 @@
 export const DEFAULT_SIMILARITY_THRESHOLD = 0.6;
 
+export function isLikelyDuplicateTitle(
+  a: string,
+  b: string,
+  threshold: number = DEFAULT_SIMILARITY_THRESHOLD,
+): boolean {
+  return tokenSetJaccard(a, b) >= threshold;
+}
+
 function normalizeTitle(title: string): string {
   return title
     .toLowerCase()
@@ -20,12 +28,4 @@ function tokenSetJaccard(a: string, b: string): number {
   }
   const union = setA.size + setB.size - intersection;
   return intersection / union;
-}
-
-export function isLikelyDuplicateTitle(
-  a: string,
-  b: string,
-  threshold: number = DEFAULT_SIMILARITY_THRESHOLD,
-): boolean {
-  return tokenSetJaccard(a, b) >= threshold;
 }

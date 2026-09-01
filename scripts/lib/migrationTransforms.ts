@@ -102,6 +102,7 @@ export interface ActivityRow {
 export interface TransformResult<T> {
   row: T | null;
   violations: string[];
+  notes: string[];
 }
 
 export function transformSource(item: Record<string, unknown>): TransformResult<SourceRow> {
@@ -117,7 +118,7 @@ export function transformSource(item: Record<string, unknown>): TransformResult<
     violations.push(`invalid lastStatus: ${lastStatusRaw}`);
   }
   if (violations.length > 0 || !sourceId || !defaultTopic || !isTopic(defaultTopic)) {
-    return { row: null, violations };
+    return { row: null, violations, notes: [] };
   }
 
   return {
@@ -138,10 +139,14 @@ export function transformSource(item: Record<string, unknown>): TransformResult<
       failCount: typeof item.failCount === 'number' ? item.failCount : 0,
     },
     violations: [],
+    notes: [],
   };
 }
 
-export function transformPost(item: Record<string, unknown>): TransformResult<PostRows> {
+export function transformPost(
+  item: Record<string, unknown>,
+  validSourceIds: ReadonlySet<string>,
+): TransformResult<PostRows> {
   const violations: string[] = [];
   const postId = asString(item.postId);
   if (!postId) violations.push('missing postId');
@@ -157,6 +162,7 @@ export function transformPost(item: Record<string, unknown>): TransformResult<Po
   }
   const sourceId = asString(item.sourceId);
   if (!sourceId) violations.push('missing sourceId');
+  else if (!validSourceIds.has(sourceId)) violations.push(`unknown sourceId: ${sourceId}`);
   const publishedAt = asString(item.publishedAt);
   if (!publishedAt) violations.push('missing publishedAt');
   const url = asString(item.url);
@@ -199,7 +205,7 @@ export function transformPost(item: Record<string, unknown>): TransformResult<Po
     !origTitle ||
     excerpt === undefined
   ) {
-    return { row: null, violations };
+    return { row: null, violations, notes: [] };
   }
 
   const ingestedAt = asString(item.ingestedAt) ?? publishedAt;
@@ -267,10 +273,27 @@ export function transformPost(item: Record<string, unknown>): TransformResult<Po
       }),
     },
     violations: [],
+    notes: [],
   };
 }
 
-export function transformUser(item: Record<string, unknown>): TransformResult<UserRows> {
+export function dropDanglingDuplicates(rows: PostRows[]): { rows: PostRows[]; notes: string[] } {
+  const validPostIds = new Set(rows.map((r) => r.post.postId));
+  const notes: string[] = [];
+  const fixed = rows.map((r) => {
+    if (!r.post.duplicateOf || validPostIds.has(r.post.duplicateOf)) return r;
+    notes.push(
+      `post ${r.post.postId}: dropped duplicateOf reference to ${r.post.duplicateOf}, which is not among the migrating posts`,
+    );
+    return { ...r, post: { ...r.post, duplicateOf: null } };
+  });
+  return { rows: fixed, notes };
+}
+
+export function transformUser(
+  item: Record<string, unknown>,
+  validSourceIds: ReadonlySet<string>,
+): TransformResult<UserRows> {
   const violations: string[] = [];
   const userId = asString(item.userId);
   if (!userId) violations.push('missing userId');
@@ -297,13 +320,22 @@ export function transformUser(item: Record<string, unknown>): TransformResult<Us
     }
   }
 
-  if (violations.length > 0 || !userId) return { row: null, violations };
+  if (violations.length > 0 || !userId) return { row: null, violations, notes: [] };
 
   const createdAt = asString(item.createdAt) ?? new Date().toISOString();
   const topicsRaw = Array.isArray(item.topics) ? item.topics.map(String) : [];
   const mutedSourcesRaw = Array.isArray(item.mutedSources) ? item.mutedSources.map(String) : [];
   const topicReadsRaw = isPlainObject(item.topicReads) ? item.topicReads : {};
   const quotaRaw = isPlainObject(item.quota) ? item.quota : undefined;
+
+  const notes: string[] = [];
+  const validMutedSources = mutedSourcesRaw.filter((sourceId) => validSourceIds.has(sourceId));
+  const droppedMutedSources = mutedSourcesRaw.filter((sourceId) => !validSourceIds.has(sourceId));
+  if (droppedMutedSources.length > 0) {
+    notes.push(
+      `dropped mutedSources referencing unknown sourceId(s): ${droppedMutedSources.join(', ')}`,
+    );
+  }
 
   return {
     row: {
@@ -317,7 +349,7 @@ export function transformUser(item: Record<string, unknown>): TransformResult<Us
         name: asString(item.name) ?? null,
       },
       topics: topicsRaw.filter(isTopic).map((topic) => ({ userId, topic })),
-      mutedSources: mutedSourcesRaw.map((sourceId) => ({ userId, sourceId })),
+      mutedSources: validMutedSources.map((sourceId) => ({ userId, sourceId })),
       topicReads: Object.entries(topicReadsRaw)
         .filter((entry): entry is [Topic, unknown] => isTopic(entry[0]))
         .map(([topic, count]) => ({
@@ -347,6 +379,7 @@ export function transformUser(item: Record<string, unknown>): TransformResult<Us
           : null,
     },
     violations: [],
+    notes,
   };
 }
 
@@ -375,7 +408,7 @@ export function transformActivity(item: Record<string, unknown>): TransformResul
     sourceName === undefined ||
     url === undefined
   ) {
-    return { row: null, violations };
+    return { row: null, violations, notes: [] };
   }
 
   const primaryTopic = asString(snapshot.primaryTopic);
@@ -390,6 +423,7 @@ export function transformActivity(item: Record<string, unknown>): TransformResul
       primaryTopic: primaryTopic && isTopic(primaryTopic) ? primaryTopic : null,
     },
     violations: [],
+    notes: [],
   };
 }
 

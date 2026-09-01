@@ -153,9 +153,7 @@ export const userMutedSources = pgTable(
     userId: text('user_id')
       .notNull()
       .references(() => users.userId, { onDelete: 'cascade' }),
-    sourceId: text('source_id')
-      .notNull()
-      .references(() => sources.sourceId),
+    sourceId: text('source_id').notNull(),
   },
   (t) => [primaryKey({ columns: [t.userId, t.sourceId] })],
 );

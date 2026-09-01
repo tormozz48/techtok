@@ -212,20 +212,17 @@ describe('dropDanglingDuplicates', () => {
 
 describe('transformUser', () => {
   it('maps a well-formed user with all optional aspects present', () => {
-    const { row, violations } = transformUser(
-      {
-        userId: 'g:123',
-        createdAt: '2026-01-01T00:00:00.000Z',
-        lastSeenAt: '2026-08-01T00:00:00.000Z',
-        language: 'uk',
-        topics: ['ai', 'dev'],
-        mutedSources: ['hn'],
-        topicReads: { ai: 5, dev: 2 },
-        quota: { day: '2026-08-01', cardReads: 3, readerOpens: 1 },
-        entitlement: { plan: 'plus', source: 'manual', verifiedAt: '2026-08-01T00:00:00.000Z' },
-      },
-      VALID_SOURCE_IDS,
-    );
+    const { row, violations } = transformUser({
+      userId: 'g:123',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      lastSeenAt: '2026-08-01T00:00:00.000Z',
+      language: 'uk',
+      topics: ['ai', 'dev'],
+      mutedSources: ['hn'],
+      topicReads: { ai: 5, dev: 2 },
+      quota: { day: '2026-08-01', cardReads: 3, readerOpens: 1 },
+      entitlement: { plan: 'plus', source: 'manual', verifiedAt: '2026-08-01T00:00:00.000Z' },
+    });
 
     expect(violations).toEqual([]);
     expect(row?.topics).toEqual([
@@ -247,7 +244,7 @@ describe('transformUser', () => {
   });
 
   it('maps a bare user with no optional aspects', () => {
-    const { row, violations } = transformUser({ userId: 'g:456' }, VALID_SOURCE_IDS);
+    const { row, violations } = transformUser({ userId: 'g:456' });
 
     expect(violations).toEqual([]);
     expect(row).toMatchObject({
@@ -260,28 +257,26 @@ describe('transformUser', () => {
     });
   });
 
-  it('drops a mutedSources entry referencing an unknown sourceId, keeping the user (real bug: e2e-mutation-test-source)', () => {
-    const { row, violations, notes } = transformUser(
-      { userId: 'g:456', mutedSources: ['hn', 'e2e-mutation-test-source'] },
-      VALID_SOURCE_IDS,
-    );
+  it('passes a mutedSources entry through even when no matching sources row exists -- D49 documents muting as unvalidated, and the live PUT /v1/me/muted-sources endpoint accepts it too (real bug: e2e-mutation-test-source)', () => {
+    const { row, violations, notes } = transformUser({
+      userId: 'g:456',
+      mutedSources: ['hn', 'e2e-mutation-test-source'],
+    });
 
     expect(row).not.toBeNull();
     expect(violations).toEqual([]);
-    expect(row?.mutedSources).toEqual([{ userId: 'g:456', sourceId: 'hn' }]);
-    expect(notes).toEqual([
-      'dropped mutedSources referencing unknown sourceId(s): e2e-mutation-test-source',
+    expect(notes).toEqual([]);
+    expect(row?.mutedSources).toEqual([
+      { userId: 'g:456', sourceId: 'hn' },
+      { userId: 'g:456', sourceId: 'e2e-mutation-test-source' },
     ]);
   });
 
   it('flags an invalid entitlement.plan', () => {
-    const { row, violations } = transformUser(
-      {
-        userId: 'g:456',
-        entitlement: { plan: 'gold', source: 'manual', verifiedAt: '2026-08-01T00:00:00.000Z' },
-      },
-      VALID_SOURCE_IDS,
-    );
+    const { row, violations } = transformUser({
+      userId: 'g:456',
+      entitlement: { plan: 'gold', source: 'manual', verifiedAt: '2026-08-01T00:00:00.000Z' },
+    });
 
     expect(row).toBeNull();
     expect(violations).toContain('invalid entitlement.plan: gold');

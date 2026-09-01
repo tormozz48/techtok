@@ -290,10 +290,7 @@ export function dropDanglingDuplicates(rows: PostRows[]): { rows: PostRows[]; no
   return { rows: fixed, notes };
 }
 
-export function transformUser(
-  item: Record<string, unknown>,
-  validSourceIds: ReadonlySet<string>,
-): TransformResult<UserRows> {
+export function transformUser(item: Record<string, unknown>): TransformResult<UserRows> {
   const violations: string[] = [];
   const userId = asString(item.userId);
   if (!userId) violations.push('missing userId');
@@ -328,15 +325,6 @@ export function transformUser(
   const topicReadsRaw = isPlainObject(item.topicReads) ? item.topicReads : {};
   const quotaRaw = isPlainObject(item.quota) ? item.quota : undefined;
 
-  const notes: string[] = [];
-  const validMutedSources = mutedSourcesRaw.filter((sourceId) => validSourceIds.has(sourceId));
-  const droppedMutedSources = mutedSourcesRaw.filter((sourceId) => !validSourceIds.has(sourceId));
-  if (droppedMutedSources.length > 0) {
-    notes.push(
-      `dropped mutedSources referencing unknown sourceId(s): ${droppedMutedSources.join(', ')}`,
-    );
-  }
-
   return {
     row: {
       user: {
@@ -349,7 +337,7 @@ export function transformUser(
         name: asString(item.name) ?? null,
       },
       topics: topicsRaw.filter(isTopic).map((topic) => ({ userId, topic })),
-      mutedSources: validMutedSources.map((sourceId) => ({ userId, sourceId })),
+      mutedSources: mutedSourcesRaw.map((sourceId) => ({ userId, sourceId })),
       topicReads: Object.entries(topicReadsRaw)
         .filter((entry): entry is [Topic, unknown] => isTopic(entry[0]))
         .map(([topic, count]) => ({
@@ -379,7 +367,7 @@ export function transformUser(
           : null,
     },
     violations: [],
-    notes,
+    notes: [],
   };
 }
 

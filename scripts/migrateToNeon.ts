@@ -150,7 +150,7 @@ async function main(): Promise<void> {
   const validSourceIds = new Set(validSources.map((s) => s.sourceId));
 
   const postResults = postItems.map((item) => transformPost(item, validSourceIds));
-  const userResults = userItems.map((item) => transformUser(item, validSourceIds));
+  const userResults = userItems.map(transformUser);
   const readResults = activityItems.filter(isReadRow).map(transformActivity);
   const bookmarkResults = activityItems.filter(isBookmarkRow).map(transformActivity);
 
@@ -174,10 +174,7 @@ async function main(): Promise<void> {
     if (withViolations.length > 20) console.log(`    ... and ${withViolations.length - 20} more`);
   }
 
-  const noteGroups: [string, { notes: string[] }[]][] = [
-    ['Users', userResults],
-    ['Posts', postResults],
-  ];
+  const noteGroups: [string, { notes: string[] }[]][] = [['Posts', postResults]];
   let totalNotes = 0;
   for (const [label, results] of noteGroups) {
     const withNotes = results.filter((r) => r.notes.length > 0);

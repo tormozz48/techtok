@@ -15,6 +15,13 @@
       "when": 1788253464607,
       "tag": "0001_dusty_devos",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788291171061,
+      "tag": "0002_perpetual_tomas",
+      "breakpoints": true
     }
   ]
 }

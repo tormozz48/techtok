@@ -139,6 +139,12 @@ describe('usersRepo.updateMutedSources', () => {
 
     expect(user.mutedSources).toBeUndefined();
   });
+
+  it('accepts a sourceId with no matching row in sources -- D49 documents muting as unvalidated, matching mutedSourcesRequestSchema', async () => {
+    const user = await repo.updateMutedSources('device-1', ['e2e-mutation-test-source']);
+
+    expect(user.mutedSources).toEqual(['e2e-mutation-test-source']);
+  });
 });
 
 describe('usersRepo.addTopicReads', () => {

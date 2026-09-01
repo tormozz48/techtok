@@ -44,6 +44,17 @@ jobs:
       - name: Unlock SST state
         run: npx sst unlock --stage dev
 
+      # D92: schema migrations run here instead of by hand, so a forgotten
+      # `pnpm db:migrate` after a schema.ts change can't leave dev on a stale
+      # constraint (as the D49 muted-sources FK did). Needs a *direct*
+      # connection — drizzle-kit issues a session's worth of DDL, which the
+      # pooled NeonDatabaseUrl runtime secret (PgBouncer transaction mode)
+      # can't guarantee — so this reads its own repo secret instead.
+      - name: Run database migrations
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL_DEV_DIRECT }}
+        run: pnpm db:migrate
+
       # GOOGLE_OAUTH_WEB_CLIENT_ID (D68) is read by infra/auth.ts as the JWT
       # authorizer's audience — not a secret (an OAuth client ID is public
       # by design), but wiring it as a repo secret keeps it alongside the

@@ -689,7 +689,7 @@ Code (tasks 1–5) is complete and verified via the unit test suite and a full `
 
 1. Create **two** Neon projects — `techtok-dev` and `techtok-production` — both in `aws-eu-central-1` to sit beside the Lambdas. Two projects, not two branches of one: the free plan's 0.5 GB storage and 100 CU-hours are per *project*, while branches share their parent's quota.
 2. Copy each project's **pooled** connection string (the `-pooler` host), even though stage 1 uses the HTTP driver.
-3. `npx sst secret set NeonDatabaseUrl <value> --stage dev`, then again `--stage production`. Same pattern as `OpenRouterApiKey` (D32) — no key is generated, requested, or stored in code.
+3. `npx sst secret set NeonDatabaseUrl <value> --stage dev`, then again `--stage production`. Same pattern as `OpenRouterApiKey` (D32) — no key is generated, requested, or stored in code. Also add each project's **direct** (non-pooled) connection string as GitHub repository secrets `NEON_DATABASE_URL_DEV_DIRECT`/`NEON_DATABASE_URL_PRODUCTION_DIRECT` (D92) — `Deploy dev`/`Deploy production` run `pnpm db:migrate` against these before every `sst deploy`, so schema migrations reach both stages automatically instead of depending on a maintainer remembering to run `pnpm db:migrate` by hand after every `schema.ts` change.
    **Stage 1 does not have to wait for this.** The repo now vendors Neon's own agent skills (`.claude/skills/neon`, `.claude/skills/neon-postgres`, pinned in `skills-lock.json`), and the `neon` skill documents a Claimable Neon throwaway `DATABASE_URL` that needs no account and can be claimed into a real project later — enough to build the schema and run stage 11's go/no-go spike before any credentialed step happens. Use the skills rather than reasoning about Neon from memory.
 4. Confirm the API and pipeline Lambdas are **not** attached to a VPC. They aren't today, and it must stay that way: a VPC would put a NAT gateway between Lambda and Neon and change the cost model from "inside AWS's free 100 GB egress" to a metered per-GB line item.
 
@@ -752,8 +752,8 @@ Code (tasks 1–5) is complete and verified via the unit test suite and a full `
 
 ### Stage 8 — Cutover and soak
 
-41. Deploy `dev`, run the migration on `dev`, then run `packages/e2e`'s full suite against it.
-42. Deploy `production` through CI, run the migration during a quiet window, and verify with the same read-path checks the E2E API suite makes.
+41. Deploy `dev` — `Deploy dev` now runs `pnpm db:migrate` automatically before `sst deploy` (D92), so this no longer needs a separate manual migration step — then run `packages/e2e`'s full suite against it.
+42. Deploy `production` through CI during a quiet window — same automatic `pnpm db:migrate` step (D92) — and verify with the same read-path checks the E2E API suite makes.
 43. Soak two weeks. Watch, specifically: Neon storage as a percentage of 0.5 GB, CU-hours against 100/month, egress against 5 GB, and p95 query latency versus the DynamoDB baseline. **Hitting any free-plan limit suspends compute until the next billing cycle** — that is a hard outage, not a degrade, so alert well below each ceiling. Note that D89 deleted the ops dashboard, so **there is no CloudWatch surface to add these to**: the ceilings are read in Neon's own console (or via its API), and re-adding a dashboard costs a flat $3/mo against a 3-per-account free tier — D89's own reasoning applies unchanged, so decide deliberately rather than reflexively.
 44. **Understand the rollback window.** A revert is one PR revert plus the still-present DynamoDB tables, but it loses everything written to Postgres after cutover. At 8 users and hourly-regenerating posts that is a few hours of reads and bookmarks — acceptable, and the reason no dual-write layer is being built. Say this out loud before cutting over rather than discovering it during an incident.
 

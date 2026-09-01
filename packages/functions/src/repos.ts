@@ -20,9 +20,7 @@ export const getPostsRepo = lazy(
   () => new PostsRepo(getDynamoClient(), requireEnv('POSTS_TABLE_NAME')),
 );
 
-export const getUsersRepo = lazy(
-  () => new UsersRepo(getDynamoClient(), requireEnv('USERS_TABLE_NAME')),
-);
+export const getUsersRepo = lazy(() => new UsersRepo(getSqlClient()));
 
 export const getUserActivityRepo = lazy(
   () => new UserActivityRepo(getDynamoClient(), requireEnv('USER_ACTIVITY_TABLE_NAME')),

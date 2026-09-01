@@ -22,6 +22,7 @@ import {
 } from '../packages/core/src/db/schema';
 import { discoverTableName, REGION } from './lib/discoverTableName';
 import {
+  dropDanglingDuplicates,
   isBookmarkRow,
   isReadRow,
   transformActivity,
@@ -115,8 +116,11 @@ async function main(): Promise<void> {
 
   console.log('\nTransforming and auditing...');
   const sourceResults = sourceItems.map(transformSource);
-  const postResults = postItems.map(transformPost);
-  const userResults = userItems.map(transformUser);
+  const validSources = sourceResults.flatMap((r) => (r.row ? [r.row] : []));
+  const validSourceIds = new Set(validSources.map((s) => s.sourceId));
+
+  const postResults = postItems.map((item) => transformPost(item, validSourceIds));
+  const userResults = userItems.map((item) => transformUser(item, validSourceIds));
   const readResults = activityItems.filter(isReadRow).map(transformActivity);
   const bookmarkResults = activityItems.filter(isBookmarkRow).map(transformActivity);
 
@@ -133,15 +137,38 @@ async function main(): Promise<void> {
     const withViolations = results.filter((r) => r.violations.length > 0);
     if (withViolations.length === 0) continue;
     totalViolations += withViolations.length;
-    console.log(`\n  ${label}: ${withViolations.length} row(s) skipped`);
+    console.log(`\n  ${label}: ${withViolations.length} row(s) rejected`);
     for (const r of withViolations.slice(0, 20)) {
       console.log(`    - ${r.violations.join('; ')}`);
     }
     if (withViolations.length > 20) console.log(`    ... and ${withViolations.length - 20} more`);
   }
 
-  const validSources = sourceResults.flatMap((r) => (r.row ? [r.row] : []));
-  const validPosts = postResults.flatMap((r) => (r.row ? [r.row] : []));
+  const noteGroups: [string, { notes: string[] }[]][] = [
+    ['Users', userResults],
+    ['Posts', postResults],
+  ];
+  let totalNotes = 0;
+  for (const [label, results] of noteGroups) {
+    const withNotes = results.filter((r) => r.notes.length > 0);
+    if (withNotes.length === 0) continue;
+    totalNotes += withNotes.length;
+    console.log(`\n  ${label}: ${withNotes.length} row(s) migrated with a note`);
+    for (const r of withNotes.slice(0, 20)) {
+      console.log(`    - ${r.notes.join('; ')}`);
+    }
+    if (withNotes.length > 20) console.log(`    ... and ${withNotes.length - 20} more`);
+  }
+
+  const rawValidPosts = postResults.flatMap((r) => (r.row ? [r.row] : []));
+  const { rows: validPosts, notes: duplicateNotes } = dropDanglingDuplicates(rawValidPosts);
+  if (duplicateNotes.length > 0) {
+    totalNotes += duplicateNotes.length;
+    console.log(`\n  Posts: ${duplicateNotes.length} dangling duplicateOf reference(s) dropped`);
+    for (const note of duplicateNotes.slice(0, 20)) console.log(`    - ${note}`);
+    if (duplicateNotes.length > 20) console.log(`    ... and ${duplicateNotes.length - 20} more`);
+  }
+
   const validUsers = userResults.flatMap((r) => (r.row ? [r.row] : []));
   const validReads = readResults.flatMap((r) => (r.row ? [r.row] : []));
   const validBookmarks = bookmarkResults.flatMap((r) => (r.row ? [r.row] : []));
@@ -158,7 +185,12 @@ async function main(): Promise<void> {
   );
   if (totalViolations > 0) {
     console.log(
-      `\n${totalViolations} row(s) across all tables were skipped -- review the violations above before deciding whether to --confirm.`,
+      `\n${totalViolations} row(s) across all tables were rejected -- review the violations above before deciding whether to --confirm.`,
+    );
+  }
+  if (totalNotes > 0) {
+    console.log(
+      `${totalNotes} row(s) were migrated with a note (a stale reference was dropped, not the whole row) -- review the notes above.`,
     );
   }
 

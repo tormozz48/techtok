@@ -4,7 +4,6 @@ import { toHistoryItem } from './toHistoryItem';
 
 const record: ActivityRecord = {
   userId: 'device-1',
-  sk: 'read#abc123',
   postId: 'abc123',
   readAt: '2026-07-18T00:00:00.000Z',
   snapshot: {
@@ -12,7 +11,6 @@ const record: ActivityRecord = {
     sourceName: 'Hacker News',
     url: 'https://example.com/a',
   },
-  gsi1sk: '2026-07-18T00:00:00.000Z#abc123',
 };
 
 describe('toHistoryItem', () => {

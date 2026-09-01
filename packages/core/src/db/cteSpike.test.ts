@@ -56,17 +56,11 @@ describe('stage-1 go/no-go CTE spike', () => {
     expect(translations.rows).toHaveLength(1);
   });
 
-  it('markRead: upserting post_snapshots and user_reads together reports whether the read was new via xmax', async () => {
+  it('markRead: upserting user_reads reports whether the read was new via xmax', async () => {
     const markRead = (readAt: string) =>
       db.execute(sql`
-        with snap as (
-          insert into post_snapshots (post_id, card_title, source_name, url, primary_topic)
-          values ('p1', 'Card Title', 'Hacker News', 'https://example.com/a', 'dev')
-          on conflict (post_id) do update set card_title = excluded.card_title
-          returning post_id
-        )
-        insert into user_reads (user_id, post_id, read_at)
-        select 'u1', post_id, ${readAt} from snap
+        insert into user_reads (user_id, post_id, read_at, card_title, source_name, url, primary_topic)
+        values ('u1', 'p1', ${readAt}, 'Card Title', 'Hacker News', 'https://example.com/a', 'dev')
         on conflict (user_id, post_id) do update set read_at = excluded.read_at
         returning (xmax = 0) as was_new
       `);

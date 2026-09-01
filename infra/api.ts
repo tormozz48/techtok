@@ -1,5 +1,5 @@
 import { GOOGLE_OAUTH_WEB_CLIENT_ID } from './auth';
-import { contentBucket, neonDatabaseUrl, postsTable, userActivityTable } from './storage';
+import { contentBucket, neonDatabaseUrl, postsTable } from './storage';
 
 export const api = new sst.aws.ApiGatewayV2('Api', {
   cors: false,
@@ -24,7 +24,6 @@ const googleAuth = { auth: { jwt: { authorizer: googleAuthorizer.id } } };
 
 const feedEnvironment = {
   POSTS_TABLE_NAME: postsTable.name,
-  USER_ACTIVITY_TABLE_NAME: userActivityTable.name,
   DATABASE_URL: neonDatabaseUrl.value,
 };
 
@@ -32,7 +31,7 @@ api.route(
   'GET /v1/feed',
   {
     handler: 'packages/functions/src/api/handlers/feed.handler',
-    link: [postsTable, userActivityTable, neonDatabaseUrl],
+    link: [postsTable, neonDatabaseUrl],
     environment: feedEnvironment,
     runtime: 'nodejs22.x',
   },
@@ -64,10 +63,9 @@ api.route(
   'POST /v1/reads',
   {
     handler: 'packages/functions/src/api/handlers/reads.handler',
-    link: [postsTable, userActivityTable, neonDatabaseUrl],
+    link: [postsTable, neonDatabaseUrl],
     environment: {
       POSTS_TABLE_NAME: postsTable.name,
-      USER_ACTIVITY_TABLE_NAME: userActivityTable.name,
       DATABASE_URL: neonDatabaseUrl.value,
     },
     runtime: 'nodejs22.x',
@@ -90,11 +88,8 @@ api.route(
   'DELETE /v1/me',
   {
     handler: 'packages/functions/src/api/handlers/accountDelete.handler',
-    link: [userActivityTable, neonDatabaseUrl],
-    environment: {
-      USER_ACTIVITY_TABLE_NAME: userActivityTable.name,
-      DATABASE_URL: neonDatabaseUrl.value,
-    },
+    link: [neonDatabaseUrl],
+    environment: { DATABASE_URL: neonDatabaseUrl.value },
     runtime: 'nodejs22.x',
   },
   googleAuth,
@@ -137,11 +132,8 @@ api.route(
   'GET /v1/history',
   {
     handler: 'packages/functions/src/api/handlers/history.handler',
-    link: [userActivityTable, neonDatabaseUrl],
-    environment: {
-      USER_ACTIVITY_TABLE_NAME: userActivityTable.name,
-      DATABASE_URL: neonDatabaseUrl.value,
-    },
+    link: [neonDatabaseUrl],
+    environment: { DATABASE_URL: neonDatabaseUrl.value },
     runtime: 'nodejs22.x',
   },
   googleAuth,
@@ -151,10 +143,9 @@ api.route(
   'POST /v1/bookmarks',
   {
     handler: 'packages/functions/src/api/handlers/bookmarkCreate.handler',
-    link: [postsTable, userActivityTable, neonDatabaseUrl],
+    link: [postsTable, neonDatabaseUrl],
     environment: {
       POSTS_TABLE_NAME: postsTable.name,
-      USER_ACTIVITY_TABLE_NAME: userActivityTable.name,
       DATABASE_URL: neonDatabaseUrl.value,
     },
     runtime: 'nodejs22.x',
@@ -166,11 +157,8 @@ api.route(
   'DELETE /v1/bookmarks/{postId}',
   {
     handler: 'packages/functions/src/api/handlers/bookmarkDelete.handler',
-    link: [userActivityTable, neonDatabaseUrl],
-    environment: {
-      USER_ACTIVITY_TABLE_NAME: userActivityTable.name,
-      DATABASE_URL: neonDatabaseUrl.value,
-    },
+    link: [neonDatabaseUrl],
+    environment: { DATABASE_URL: neonDatabaseUrl.value },
     runtime: 'nodejs22.x',
   },
   googleAuth,
@@ -180,11 +168,8 @@ api.route(
   'GET /v1/bookmarks',
   {
     handler: 'packages/functions/src/api/handlers/bookmarkList.handler',
-    link: [userActivityTable, neonDatabaseUrl],
-    environment: {
-      USER_ACTIVITY_TABLE_NAME: userActivityTable.name,
-      DATABASE_URL: neonDatabaseUrl.value,
-    },
+    link: [neonDatabaseUrl],
+    environment: { DATABASE_URL: neonDatabaseUrl.value },
     runtime: 'nodejs22.x',
   },
   googleAuth,

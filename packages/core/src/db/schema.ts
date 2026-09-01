@@ -126,14 +126,6 @@ export const postFigures = pgTable(
   (t) => [primaryKey({ columns: [t.postId, t.position] })],
 );
 
-export const postSnapshots = pgTable('post_snapshots', {
-  postId: text('post_id').primaryKey(),
-  cardTitle: text('card_title').notNull(),
-  sourceName: text('source_name').notNull(),
-  url: text('url').notNull(),
-  primaryTopic: topicEnum('primary_topic'),
-});
-
 export const users = pgTable('users', {
   userId: text('user_id').primaryKey(),
   createdAt: text('created_at').notNull(),
@@ -211,10 +203,12 @@ export const userReads = pgTable(
     userId: text('user_id')
       .notNull()
       .references(() => users.userId, { onDelete: 'cascade' }),
-    postId: text('post_id')
-      .notNull()
-      .references(() => postSnapshots.postId),
+    postId: text('post_id').notNull(),
     readAt: text('read_at').notNull(),
+    cardTitle: text('card_title').notNull(),
+    sourceName: text('source_name').notNull(),
+    url: text('url').notNull(),
+    primaryTopic: topicEnum('primary_topic'),
   },
   (t) => [
     primaryKey({ columns: [t.userId, t.postId] }),
@@ -228,10 +222,12 @@ export const userBookmarks = pgTable(
     userId: text('user_id')
       .notNull()
       .references(() => users.userId, { onDelete: 'cascade' }),
-    postId: text('post_id')
-      .notNull()
-      .references(() => postSnapshots.postId),
+    postId: text('post_id').notNull(),
     bookmarkedAt: text('bookmarked_at').notNull(),
+    cardTitle: text('card_title').notNull(),
+    sourceName: text('source_name').notNull(),
+    url: text('url').notNull(),
+    primaryTopic: topicEnum('primary_topic'),
   },
   (t) => [
     primaryKey({ columns: [t.userId, t.postId] }),

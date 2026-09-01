@@ -4,7 +4,6 @@ import { toBookmarkItem } from './toBookmarkItem';
 
 const record: BookmarkRecord = {
   userId: 'device-1',
-  sk: 'bm#abc123',
   postId: 'abc123',
   bookmarkedAt: '2026-07-18T00:00:00.000Z',
   snapshot: {
@@ -12,7 +11,6 @@ const record: BookmarkRecord = {
     sourceName: 'Hacker News',
     url: 'https://example.com/a',
   },
-  gsi2sk: '2026-07-18T00:00:00.000Z#abc123',
 };
 
 describe('toBookmarkItem', () => {

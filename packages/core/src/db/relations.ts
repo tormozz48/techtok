@@ -2,7 +2,6 @@ import { relations } from 'drizzle-orm';
 import {
   postCompacts,
   postFigures,
-  postSnapshots,
   posts,
   postTopics,
   postTranslations,
@@ -47,11 +46,6 @@ export const postFiguresRelations = relations(postFigures, ({ one }) => ({
   post: one(posts, { fields: [postFigures.postId], references: [posts.postId] }),
 }));
 
-export const postSnapshotsRelations = relations(postSnapshots, ({ many }) => ({
-  reads: many(userReads),
-  bookmarks: many(userBookmarks),
-}));
-
 export const usersRelations = relations(users, ({ one, many }) => ({
   topics: many(userTopics),
   mutedSources: many(userMutedSources),
@@ -88,13 +82,8 @@ export const userEntitlementsRelations = relations(userEntitlements, ({ one }) =
 
 export const userReadsRelations = relations(userReads, ({ one }) => ({
   user: one(users, { fields: [userReads.userId], references: [users.userId] }),
-  snapshot: one(postSnapshots, { fields: [userReads.postId], references: [postSnapshots.postId] }),
 }));
 
 export const userBookmarksRelations = relations(userBookmarks, ({ one }) => ({
   user: one(users, { fields: [userBookmarks.userId], references: [users.userId] }),
-  snapshot: one(postSnapshots, {
-    fields: [userBookmarks.postId],
-    references: [postSnapshots.postId],
-  }),
 }));

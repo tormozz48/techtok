@@ -12,11 +12,16 @@ import {
 } from '../db/schema';
 import type { Entitlement, Quota } from '../entitlement/entitlement.types';
 import { localDayKey } from '../entitlement/quota';
+import { User } from '../models/user';
 import type { UserRecord } from '../users.types';
 
 type QuotaField = 'cardReads' | 'readerOpens';
 
 const PRUNE_QUOTAS_OLDER_THAN_DAYS = 35;
+
+const DEFAULT_LANGUAGE: Language = 'en';
+
+const DEFAULT_TIMEZONE = 'UTC';
 
 export interface TouchOptions {
   readonly deviceLanguage?: Language;
@@ -29,27 +34,20 @@ export class UsersRepo {
   constructor(private readonly db: SqlClient) {}
 
   async touch(userId: string, opts: TouchOptions = {}): Promise<UserRecord> {
-    const now = new Date().toISOString();
-    await this.db
-      .insert(users)
-      .values({
+    await this.upsertUser(
+      {
         userId,
-        createdAt: now,
-        lastSeenAt: now,
-        language: opts.deviceLanguage ?? 'en',
-        timezone: opts.timezone ?? 'UTC',
+        language: opts.deviceLanguage ?? DEFAULT_LANGUAGE,
+        timezone: opts.timezone ?? DEFAULT_TIMEZONE,
         email: opts.email,
         name: opts.name,
-      })
-      .onConflictDoUpdate({
-        target: users.userId,
-        set: {
-          lastSeenAt: now,
-          ...(opts.email !== undefined ? { email: opts.email } : {}),
-          ...(opts.name !== undefined ? { name: opts.name } : {}),
-        },
-      });
-    return hydrateUser(this.db, userId);
+      },
+      {
+        ...(opts.email !== undefined ? { email: opts.email } : {}),
+        ...(opts.name !== undefined ? { name: opts.name } : {}),
+      },
+    );
+    return this.hydrate(userId);
   }
 
   async deleteUser(userId: string): Promise<void> {
@@ -70,7 +68,7 @@ export class UsersRepo {
       .insert(userEntitlements)
       .values(row)
       .onConflictDoUpdate({ target: userEntitlements.userId, set: row });
-    return hydrateUser(this.db, userId);
+    return this.hydrate(userId);
   }
 
   async incrementQuota(
@@ -79,54 +77,46 @@ export class UsersRepo {
     timezone: string,
     by = 1,
   ): Promise<Quota> {
-    const today = localDayKey(timezone);
     const [row] = await this.db
       .insert(userQuotas)
       .values({
         userId,
-        day: today,
+        day: localDayKey(timezone),
         cardReads: field === 'cardReads' ? by : 0,
         readerOpens: field === 'readerOpens' ? by : 0,
       })
       .onConflictDoUpdate({
         target: [userQuotas.userId, userQuotas.day],
-        set:
-          field === 'cardReads'
-            ? { cardReads: sql`${userQuotas.cardReads} + ${by}` }
-            : { readerOpens: sql`${userQuotas.readerOpens} + ${by}` },
+        set: { [field]: sql`${userQuotas[field]} + ${by}` },
       })
       .returning();
     if (!row) throw new Error(`incrementQuota upsert for ${userId} returned no row`);
-    return { day: row.day, cardReads: row.cardReads, readerOpens: row.readerOpens };
+    return User.toQuota(row);
   }
 
   async updateTopics(userId: string, topics: Topic[]): Promise<UserRecord> {
-    await this.touchLastSeen(userId);
+    await this.upsertUser({ userId });
     await this.db.delete(userTopics).where(eq(userTopics.userId, userId));
     if (topics.length > 0) {
       await this.db.insert(userTopics).values(topics.map((topic) => ({ userId, topic })));
     }
-    return hydrateUser(this.db, userId);
+    return this.hydrate(userId);
   }
 
   async updateLanguage(userId: string, language: Language): Promise<UserRecord> {
-    const now = new Date().toISOString();
-    await this.db
-      .insert(users)
-      .values({ userId, createdAt: now, lastSeenAt: now, language })
-      .onConflictDoUpdate({ target: users.userId, set: { language, lastSeenAt: now } });
-    return hydrateUser(this.db, userId);
+    await this.upsertUser({ userId, language }, { language });
+    return this.hydrate(userId);
   }
 
   async updateMutedSources(userId: string, mutedSources: string[]): Promise<UserRecord> {
-    await this.touchLastSeen(userId);
+    await this.upsertUser({ userId });
     await this.db.delete(userMutedSources).where(eq(userMutedSources.userId, userId));
     if (mutedSources.length > 0) {
       await this.db
         .insert(userMutedSources)
         .values(mutedSources.map((sourceId) => ({ userId, sourceId })));
     }
-    return hydrateUser(this.db, userId);
+    return this.hydrate(userId);
   }
 
   async addTopicReads(userId: string, counts: Partial<Record<Topic, number>>): Promise<void> {
@@ -135,7 +125,7 @@ export class UsersRepo {
 
     await this.db
       .insert(userTopicReads)
-      .values(entries.map(([topic, count]) => ({ userId, topic, readCount: count })))
+      .values(entries.map(([topic, readCount]) => ({ userId, topic, readCount })))
       .onConflictDoUpdate({
         target: [userTopicReads.userId, userTopicReads.topic],
         set: { readCount: sql`${userTopicReads.readCount} + excluded.read_count` },
@@ -148,59 +138,29 @@ export class UsersRepo {
     return result.rowCount ?? 0;
   }
 
-  private async touchLastSeen(userId: string): Promise<void> {
+  private async upsertUser(
+    seed: { userId: string; language?: Language; timezone?: string; email?: string; name?: string },
+    patch: Partial<typeof users.$inferInsert> = {},
+  ): Promise<void> {
     const now = new Date().toISOString();
     await this.db
       .insert(users)
-      .values({ userId, createdAt: now, lastSeenAt: now })
-      .onConflictDoUpdate({ target: users.userId, set: { lastSeenAt: now } });
+      .values({ ...seed, createdAt: now, lastSeenAt: now })
+      .onConflictDoUpdate({ target: users.userId, set: { ...patch, lastSeenAt: now } });
   }
-}
 
-async function hydrateUser(db: SqlClient, userId: string): Promise<UserRecord> {
-  const row = await db.query.users.findFirst({
-    where: eq(users.userId, userId),
-    with: {
-      topics: true,
-      mutedSources: true,
-      topicReads: true,
-      quotas: { orderBy: [desc(userQuotas.day)], limit: 1 },
-      entitlement: true,
-    },
-  });
-  if (!row) throw new Error(`user ${userId} not found after upsert`);
-
-  const topicReadsEntries = row.topicReads.map((r) => [r.topic, r.readCount] as [Topic, number]);
-  const latestQuota = row.quotas[0];
-  const entitlement = row.entitlement;
-
-  return {
-    userId: row.userId,
-    topics: row.topics.map((t) => t.topic),
-    createdAt: row.createdAt,
-    lastSeenAt: row.lastSeenAt,
-    language: row.language ?? undefined,
-    mutedSources: row.mutedSources.length > 0 ? row.mutedSources.map((m) => m.sourceId) : undefined,
-    topicReads: topicReadsEntries.length > 0 ? Object.fromEntries(topicReadsEntries) : undefined,
-    email: row.email ?? undefined,
-    name: row.name ?? undefined,
-    timezone: row.timezone ?? undefined,
-    entitlement: entitlement
-      ? {
-          plan: entitlement.plan,
-          source: entitlement.source,
-          expiresAt: entitlement.expiresAt ?? undefined,
-          productId: entitlement.productId ?? undefined,
-          purchaseToken: entitlement.purchaseToken ?? undefined,
-          verifiedAt: entitlement.verifiedAt,
-        }
-      : undefined,
-    quota: latestQuota
-      ? {
-          day: latestQuota.day,
-          cardReads: latestQuota.cardReads,
-          readerOpens: latestQuota.readerOpens,
-        }
-      : undefined,
-  };
+  private async hydrate(userId: string): Promise<UserRecord> {
+    const row = await this.db.query.users.findFirst({
+      where: eq(users.userId, userId),
+      with: {
+        topics: true,
+        mutedSources: true,
+        topicReads: true,
+        quotas: { orderBy: [desc(userQuotas.day)], limit: 1 },
+        entitlement: true,
+      },
+    });
+    if (!row) throw new Error(`user ${userId} not found after upsert`);
+    return new User(row).toRecord();
+  }
 }

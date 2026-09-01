@@ -112,7 +112,8 @@ techtok/
 ├── packages/
 │   ├── shared/                # zod v4 contracts, topic/language taxonomy — zero runtime deps beyond zod
 │   ├── core/                  # domain logic: RSS mapping, URL canonicalization, feed scoring/merge,
-│   │                          #   entitlement, DynamoDB repos, LLM client/providers, pipeline stages
+│   │                          #   entitlement, db/ schema + repos/ queries over models/ table models,
+│   │                          #   LLM client/providers, pipeline stages
 │   ├── functions/             # thin Lambda handlers: api/*, pipeline/*, ops/* (parse → call core → serialize)
 │   └── e2e/                   # live-stage suites (D34): backend pipeline, API contract, Maestro emulator flows
 ├── apps/

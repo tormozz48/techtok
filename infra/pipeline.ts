@@ -204,6 +204,8 @@ const summarize = sst.aws.StepFunctions.lambdaInvoke({
   name: 'Summarize',
   function: {
     handler: 'packages/functions/src/pipeline/summarize.handler',
+    link: [neonDatabaseUrl],
+    environment: { DATABASE_URL: neonDatabaseUrl.value },
     runtime: 'nodejs22.x',
     timeout: '30 seconds',
   },

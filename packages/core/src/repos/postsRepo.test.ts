@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { sources } from '../db/schema';
 import { createTestDb, type TestSqlClient } from '../db/testDb';
@@ -332,5 +333,46 @@ describe('postsRepo.setDuplicateOf', () => {
 describe('postsRepo.incrementDupCount', () => {
   it('is a harmless no-op (dupCount is derived at read time)', async () => {
     await expect(repo.incrementDupCount('abc123')).resolves.toBeUndefined();
+  });
+});
+
+describe('postsRepo.deleteExpired', () => {
+  it('deletes only posts whose expiresAt has passed', async () => {
+    await repo.putIfNew(samplePost);
+    await db.execute(
+      sql`update posts set expires_at = now() - interval '1 day' where post_id = 'abc123'`,
+    );
+    await repo.putIfNew({ ...samplePost, postId: 'still-fresh' });
+
+    const deleted = await repo.deleteExpired();
+
+    expect(deleted).toBe(1);
+    expect(await repo.getByIds(['abc123'])).toEqual([]);
+    expect(await repo.getByIds(['still-fresh'])).toHaveLength(1);
+  });
+
+  it('cascades to child rows', async () => {
+    await repo.putIfNew(samplePost);
+    await repo.writeTranslation('abc123', 'ru', {
+      cardTitle: 'Заголовок',
+      summary: 'Содержание',
+      translatedAt: '2026-07-19T00:00:00.000Z',
+    });
+    await db.execute(
+      sql`update posts set expires_at = now() - interval '1 day' where post_id = 'abc123'`,
+    );
+
+    await repo.deleteExpired();
+
+    const translations = await db.execute(
+      sql`select 1 from post_translations where post_id = 'abc123'`,
+    );
+    expect(translations.rows).toHaveLength(0);
+  });
+
+  it('returns 0 when nothing is expired', async () => {
+    await repo.putIfNew(samplePost);
+
+    expect(await repo.deleteExpired()).toBe(0);
   });
 });

@@ -229,3 +229,28 @@ describe('usersRepo.incrementQuota', () => {
     expect(quota).toEqual({ day: quota.day, cardReads: 3, readerOpens: 1 });
   });
 });
+
+describe('usersRepo.pruneOldQuotas', () => {
+  it('deletes only quota rows older than 35 days', async () => {
+    await repo.touch('device-1');
+    const now = new Date('2026-08-15T00:00:00.000Z');
+    await db.execute(
+      `insert into user_quotas (user_id, day, card_reads, reader_opens)
+       values ('device-1', '2026-06-01', 5, 1), ('device-1', '2026-08-10', 2, 0)`,
+    );
+
+    const pruned = await repo.pruneOldQuotas(now);
+
+    expect(pruned).toBe(1);
+    const remaining = await db.execute(
+      `select day from user_quotas where user_id = 'device-1' order by day`,
+    );
+    expect(remaining.rows).toEqual([{ day: '2026-08-10' }]);
+  });
+
+  it('returns 0 when nothing is old enough to prune', async () => {
+    await repo.touch('device-1');
+
+    expect(await repo.pruneOldQuotas()).toBe(0);
+  });
+});

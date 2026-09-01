@@ -1,5 +1,6 @@
 import type { Language, Topic } from '@techtok/shared';
-import { desc, eq, sql } from 'drizzle-orm';
+import { format, subDays } from 'date-fns';
+import { desc, eq, lt, sql } from 'drizzle-orm';
 import type { SqlClient } from '../clients/sqlClient';
 import {
   userEntitlements,
@@ -14,6 +15,8 @@ import { localDayKey } from '../entitlement/quota';
 import type { UserRecord } from '../users.types';
 
 type QuotaField = 'cardReads' | 'readerOpens';
+
+const PRUNE_QUOTAS_OLDER_THAN_DAYS = 35;
 
 export interface TouchOptions {
   readonly deviceLanguage?: Language;
@@ -137,6 +140,12 @@ export class UsersRepo {
         target: [userTopicReads.userId, userTopicReads.topic],
         set: { readCount: sql`${userTopicReads.readCount} + excluded.read_count` },
       });
+  }
+
+  async pruneOldQuotas(now: Date = new Date()): Promise<number> {
+    const cutoff = format(subDays(now, PRUNE_QUOTAS_OLDER_THAN_DAYS), 'yyyy-MM-dd');
+    const result = await this.db.delete(userQuotas).where(lt(userQuotas.day, cutoff));
+    return result.rowCount ?? 0;
   }
 
   private async touchLastSeen(userId: string): Promise<void> {

@@ -244,6 +244,11 @@ export class PostsRepo {
   async incrementDupCount(_postId: string): Promise<void> {
     return;
   }
+
+  async deleteExpired(now: Date = new Date()): Promise<number> {
+    const result = await this.db.delete(posts).where(lt(posts.expiresAt, now));
+    return result.rowCount ?? 0;
+  }
 }
 
 function toPostRecord(

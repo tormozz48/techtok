@@ -10,9 +10,14 @@ on:
   pull_request:
   workflow_dispatch:
 
+# D91: cancel-in-progress is on for PRs, off for pushes to main. A caller
+# run's cancellation propagates into the reusable workflows it calls, so
+# deploy-production.yml's own `cancel-in-progress: false` cannot protect a
+# deploy that this workflow's cancellation kills from above — which is how the
+# 2026-08-31 production outage happened. Main-branch runs now queue instead.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # D51 retired the `setup` job that used to install once and hand every check
 # job a tarred `node_modules` artifact. `actions/setup-node`'s pnpm store cache
@@ -303,10 +308,12 @@ jobs:
 
           # D84: the OTA baseline is the last commit whose bundle actually
           # reached the channel, not this one push. The original
-          # `github.event.before..HEAD` window had a hole: this workflow sets
-          # cancel-in-progress, so a mobile-JS push whose run was cancelled by
-          # a following backend-only push never published, and that next run's
-          # window no longer contained the change — it sat unpublished until
+          # `github.event.before..HEAD` window had a hole: a main-branch run
+          # still waiting in this workflow's concurrency queue is cancelled by
+          # the next push behind it (D91 stopped in-progress cancellation, not
+          # this one), so a mobile-JS push whose run never started never
+          # published, and the window of the run that did start no longer
+          # contained the change — it sat unpublished until
           # some later push happened to touch apps/mobile/src again. Two
           # markers can carry the baseline, and whichever is further along
           # main wins: `mobile-ota-latest` (moved by the mobile-ota-update job

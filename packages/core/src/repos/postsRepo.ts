@@ -1,8 +1,8 @@
 import type { CompactFigure, Language, Topic } from '@techtok/shared';
-import { getUnixTime } from 'date-fns';
 import { and, asc, desc, eq, inArray, lt, sql } from 'drizzle-orm';
 import type { SqlClient } from '../clients/sqlClient';
 import { postCompacts, postFigures, posts, postTopics, postTranslations } from '../db/schema';
+import { Post } from '../models/post';
 import type {
   NewPost,
   PostCandidate,
@@ -12,6 +12,10 @@ import type {
   TransformKind,
   TranslatedFields,
 } from '../posts.types';
+
+const BASE_LANGUAGE = 'en';
+
+const DEFAULT_LIMIT = 20;
 
 export interface QueryOpts {
   readonly before?: string;
@@ -38,7 +42,7 @@ export class PostsRepo {
 
   async putIfNew(post: NewPost): Promise<boolean> {
     const now = new Date().toISOString();
-    const topicsFragment =
+    const insertTopics =
       post.topics.length > 0
         ? sql`, ins_topics as (
             insert into post_topics (post_id, topic)
@@ -66,9 +70,10 @@ export class PostsRepo {
         )
         on conflict (post_id) do nothing
         returning post_id
-      )${topicsFragment}, ins_translation as (
+      )${insertTopics}, ins_translation as (
         insert into post_translations (post_id, lang, card_title, summary, why_it_matters, translated_at)
-        select post_id, 'en', ${post.cardTitle}, ${post.summary}, ${post.whyItMatters ?? null}, ${now}
+        select post_id, ${BASE_LANGUAGE}::language, ${post.cardTitle}, ${post.summary},
+          ${post.whyItMatters ?? null}, ${now}
         from ins_post
       )
       select post_id from ins_post
@@ -86,7 +91,7 @@ export class PostsRepo {
         origTitle: posts.origTitle,
         status: posts.status,
         duplicateOf: posts.duplicateOf,
-        compactLangs: sql<string[]>`coalesce((
+        compactLangs: sql<Language[]>`coalesce((
           select json_agg(${postCompacts.lang}) from ${postCompacts}
           where ${postCompacts.postId} = ${posts.postId}
         ), '[]'::json)`,
@@ -99,18 +104,9 @@ export class PostsRepo {
         ),
       )
       .orderBy(desc(posts.publishedAt), desc(posts.postId))
-      .limit(opts.limit ?? 20);
+      .limit(opts.limit ?? DEFAULT_LIMIT);
 
-    return rows.map((row) => ({
-      postId: row.postId,
-      publishedAt: row.publishedAt,
-      primaryTopic: row.primaryTopic,
-      sourceId: row.sourceId,
-      origTitle: row.origTitle,
-      status: row.status,
-      compactLangs: row.compactLangs.length > 0 ? (row.compactLangs as Language[]) : undefined,
-      duplicateOf: row.duplicateOf ?? undefined,
-    }));
+    return rows.map(Post.toCandidate);
   }
 
   async queryRecent(opts: QueryOpts = {}): Promise<PostKey[]> {
@@ -119,7 +115,7 @@ export class PostsRepo {
       .from(posts)
       .where(opts.before ? lt(posts.publishedAt, opts.before) : undefined)
       .orderBy(desc(posts.publishedAt), desc(posts.postId))
-      .limit(opts.limit ?? 20);
+      .limit(opts.limit ?? DEFAULT_LIMIT);
   }
 
   async getByIds(postIds: string[]): Promise<PostRecord[]> {
@@ -144,52 +140,40 @@ export class PostsRepo {
     ]);
 
     const dupCountByOriginal = new Map(dupCounts.map((row) => [row.duplicateOf, row.count]));
-    return rows.map((row) => toPostRecord(row, dupCountByOriginal.get(row.postId)));
+    return rows.map((row) => new Post(row, dupCountByOriginal.get(row.postId)).toRecord());
   }
 
   async updateTransform(postId: string, fields: TransformUpdateFields): Promise<void> {
-    const {
-      status,
-      transform,
-      summary,
-      excerpt,
-      s3RawKey,
-      cardTitle,
-      whyItMatters,
-      primaryTopic,
-      topics,
-      lang,
-      mirroredImageUrl,
-      clearImageUrl,
-    } = fields;
+    await this.db
+      .update(posts)
+      .set({
+        status: fields.status,
+        transform: fields.transform,
+        ...(fields.excerpt !== undefined ? { excerpt: fields.excerpt } : {}),
+        ...(fields.s3RawKey !== undefined ? { s3RawKey: fields.s3RawKey } : {}),
+        ...(fields.primaryTopic !== undefined ? { primaryTopic: fields.primaryTopic } : {}),
+        ...(fields.lang !== undefined ? { lang: fields.lang } : {}),
+        ...(fields.mirroredImageUrl !== undefined
+          ? { mirroredImageUrl: fields.mirroredImageUrl }
+          : {}),
+        ...(fields.clearImageUrl ? { imageUrl: null } : {}),
+      })
+      .where(eq(posts.postId, postId));
 
-    const postsPatch: Partial<typeof posts.$inferInsert> = { status, transform };
-    if (excerpt !== undefined) postsPatch.excerpt = excerpt;
-    if (s3RawKey !== undefined) postsPatch.s3RawKey = s3RawKey;
-    if (primaryTopic !== undefined) postsPatch.primaryTopic = primaryTopic;
-    if (lang !== undefined) postsPatch.lang = lang;
-    if (mirroredImageUrl !== undefined) postsPatch.mirroredImageUrl = mirroredImageUrl;
-    if (clearImageUrl) postsPatch.imageUrl = null;
-    await this.db.update(posts).set(postsPatch).where(eq(posts.postId, postId));
-
-    if (cardTitle !== undefined || summary !== undefined || whyItMatters !== undefined) {
-      const translationPatch: Partial<typeof postTranslations.$inferInsert> = {
-        translatedAt: new Date().toISOString(),
-      };
-      if (cardTitle !== undefined) translationPatch.cardTitle = cardTitle;
-      if (summary !== undefined) translationPatch.summary = summary;
-      if (whyItMatters !== undefined) translationPatch.whyItMatters = whyItMatters;
+    const cardPatch = {
+      ...(fields.cardTitle !== undefined ? { cardTitle: fields.cardTitle } : {}),
+      ...(fields.summary !== undefined ? { summary: fields.summary } : {}),
+      ...(fields.whyItMatters !== undefined ? { whyItMatters: fields.whyItMatters } : {}),
+    };
+    if (Object.keys(cardPatch).length > 0) {
       await this.db
         .update(postTranslations)
-        .set(translationPatch)
-        .where(and(eq(postTranslations.postId, postId), eq(postTranslations.lang, 'en')));
+        .set({ ...cardPatch, translatedAt: new Date().toISOString() })
+        .where(and(eq(postTranslations.postId, postId), eq(postTranslations.lang, BASE_LANGUAGE)));
     }
 
-    if (topics !== undefined) {
-      await this.db.delete(postTopics).where(eq(postTopics.postId, postId));
-      if (topics.length > 0) {
-        await this.db.insert(postTopics).values(topics.map((topic) => ({ postId, topic })));
-      }
+    if (fields.topics !== undefined) {
+      await this.replaceTopics(postId, fields.topics);
     }
   }
 
@@ -198,25 +182,18 @@ export class PostsRepo {
   }
 
   async writeTranslation(postId: string, lang: Language, fields: TranslatedFields): Promise<void> {
+    const row = {
+      postId,
+      lang,
+      cardTitle: fields.cardTitle,
+      summary: fields.summary,
+      whyItMatters: fields.whyItMatters ?? null,
+      translatedAt: fields.translatedAt,
+    };
     await this.db
       .insert(postTranslations)
-      .values({
-        postId,
-        lang,
-        cardTitle: fields.cardTitle,
-        summary: fields.summary,
-        whyItMatters: fields.whyItMatters,
-        translatedAt: fields.translatedAt,
-      })
-      .onConflictDoUpdate({
-        target: [postTranslations.postId, postTranslations.lang],
-        set: {
-          cardTitle: fields.cardTitle,
-          summary: fields.summary,
-          whyItMatters: fields.whyItMatters ?? null,
-          translatedAt: fields.translatedAt,
-        },
-      });
+      .values(row)
+      .onConflictDoUpdate({ target: [postTranslations.postId, postTranslations.lang], set: row });
   }
 
   async appendCompactLang(postId: string, lang: Language): Promise<void> {
@@ -225,16 +202,15 @@ export class PostsRepo {
 
   async setMirroredFigures(postId: string, figures: CompactFigure[]): Promise<void> {
     await this.db.delete(postFigures).where(eq(postFigures.postId, postId));
-    if (figures.length > 0) {
-      await this.db.insert(postFigures).values(
-        figures.map((figure, position) => ({
-          postId,
-          position,
-          url: figure.url,
-          caption: figure.caption,
-        })),
-      );
-    }
+    if (figures.length === 0) return;
+    await this.db.insert(postFigures).values(
+      figures.map((figure, position) => ({
+        postId,
+        position,
+        url: figure.url,
+        caption: figure.caption,
+      })),
+    );
   }
 
   async setDuplicateOf(postId: string, duplicateOf: string): Promise<void> {
@@ -249,82 +225,10 @@ export class PostsRepo {
     const result = await this.db.delete(posts).where(lt(posts.expiresAt, now));
     return result.rowCount ?? 0;
   }
-}
 
-function toPostRecord(
-  row: {
-    postId: string;
-    url: string;
-    canonicalUrl: string;
-    sourceId: string;
-    source: { name: string } | null;
-    origTitle: string;
-    excerpt: string;
-    imageUrl: string | null;
-    mirroredImageUrl: string | null;
-    primaryTopic: Topic;
-    status: PostStatus;
-    transform: TransformKind;
-    lang: string | null;
-    s3RawKey: string | null;
-    duplicateOf: string | null;
-    publishedAt: string;
-    ingestedAt: string;
-    expiresAt: Date;
-    translations: {
-      lang: Language;
-      cardTitle: string;
-      summary: string;
-      whyItMatters: string | null;
-      translatedAt: string;
-    }[];
-    topics: { topic: Topic }[];
-    compacts: { lang: Language }[];
-    figures: { url: string; caption: string | null }[];
-  },
-  dupCount: number | undefined,
-): PostRecord {
-  const enTranslation = row.translations.find((t) => t.lang === 'en');
-  const i18n: PostRecord['i18n'] = {};
-  for (const translation of row.translations) {
-    if (translation.lang === 'en') continue;
-    i18n[translation.lang] = {
-      cardTitle: translation.cardTitle,
-      summary: translation.summary,
-      whyItMatters: translation.whyItMatters ?? undefined,
-      translatedAt: translation.translatedAt,
-    };
+  private async replaceTopics(postId: string, topics: Topic[]): Promise<void> {
+    await this.db.delete(postTopics).where(eq(postTopics.postId, postId));
+    if (topics.length === 0) return;
+    await this.db.insert(postTopics).values(topics.map((topic) => ({ postId, topic })));
   }
-
-  return {
-    postId: row.postId,
-    url: row.url,
-    canonicalUrl: row.canonicalUrl,
-    sourceId: row.sourceId,
-    sourceName: row.source?.name ?? '',
-    origTitle: row.origTitle,
-    cardTitle: enTranslation?.cardTitle ?? '',
-    summary: enTranslation?.summary ?? '',
-    whyItMatters: enTranslation?.whyItMatters ?? undefined,
-    excerpt: row.excerpt,
-    imageUrl: row.imageUrl ?? undefined,
-    primaryTopic: row.primaryTopic,
-    topics: row.topics.map((t) => t.topic),
-    status: row.status,
-    transform: row.transform,
-    publishedAt: row.publishedAt,
-    s3RawKey: row.s3RawKey ?? undefined,
-    lang: row.lang ?? undefined,
-    duplicateOf: row.duplicateOf ?? undefined,
-    ingestedAt: row.ingestedAt,
-    ttl: getUnixTime(row.expiresAt),
-    mirroredImageUrl: row.mirroredImageUrl ?? undefined,
-    i18n,
-    compactLangs: row.compacts.length > 0 ? row.compacts.map((c) => c.lang) : undefined,
-    mirroredFigures:
-      row.figures.length > 0
-        ? row.figures.map((f) => ({ url: f.url, caption: f.caption ?? undefined }))
-        : undefined,
-    dupCount,
-  };
 }

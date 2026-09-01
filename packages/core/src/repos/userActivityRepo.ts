@@ -1,8 +1,16 @@
-import { and, desc, eq, inArray, lt, or, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type { SqlClient } from '../clients/sqlClient';
+import { beforeCursor, decodeCursor, matchesQuery, type Page, paginate } from '../db/cursor';
 import { userBookmarks, userReads } from '../db/schema';
 import type { ActivityRecord, BookmarkRecord, ReadSnapshot } from '../history.types';
+import { Activity, type ActivityRow } from '../models/activity';
+
+type ActivityTable = typeof userReads | typeof userBookmarks;
+
+const DEFAULT_LIMIT = 50;
+
+const WAS_NEW = sql<boolean>`xmax = 0`;
 
 export interface ActivityQueryOpts {
   readonly limit?: number;
@@ -20,11 +28,6 @@ export interface BookmarksPage {
   readonly nextCursor: string | null;
 }
 
-interface Cursor {
-  readonly ts: string;
-  readonly postId: string;
-}
-
 export class UserActivityRepo {
   constructor(private readonly db: SqlClient) {}
 
@@ -34,69 +37,27 @@ export class UserActivityRepo {
     snapshot: ReadSnapshot,
     readAt: string = new Date().toISOString(),
   ): Promise<{ wasNew: boolean }> {
-    const [row] = await this.db
+    const row = { userId, postId, readAt, ...toColumns(snapshot) };
+    const [inserted] = await this.db
       .insert(userReads)
-      .values({
-        userId,
-        postId,
-        readAt,
-        cardTitle: snapshot.cardTitle,
-        sourceName: snapshot.sourceName,
-        url: snapshot.url,
-        primaryTopic: snapshot.primaryTopic,
-      })
-      .onConflictDoUpdate({
-        target: [userReads.userId, userReads.postId],
-        set: {
-          readAt,
-          cardTitle: snapshot.cardTitle,
-          sourceName: snapshot.sourceName,
-          url: snapshot.url,
-          primaryTopic: snapshot.primaryTopic ?? null,
-        },
-      })
-      .returning({ wasNew: sql<boolean>`xmax = 0` });
-    return { wasNew: row?.wasNew ?? false };
+      .values(row)
+      .onConflictDoUpdate({ target: [userReads.userId, userReads.postId], set: row })
+      .returning({ wasNew: WAS_NEW });
+    return { wasNew: inserted?.wasNew ?? false };
   }
 
   async getReadSet(userId: string, postIds: string[]): Promise<Set<string>> {
-    if (postIds.length === 0) return new Set();
-    const rows = await this.db
-      .select({ postId: userReads.postId })
-      .from(userReads)
-      .where(and(eq(userReads.userId, userId), inArray(userReads.postId, postIds)));
-    return new Set(rows.map((r) => r.postId));
+    return this.selectPostIds(userReads, userId, postIds);
   }
 
   async queryHistory(userId: string, opts: ActivityQueryOpts = {}): Promise<HistoryPage> {
-    const limit = opts.limit ?? 50;
-    const cursor = opts.cursor ? decodeCursor(opts.cursor) : undefined;
-    const rows = await this.db
-      .select()
-      .from(userReads)
-      .where(
-        and(
-          eq(userReads.userId, userId),
-          cursor ? beforeCursor(userReads.readAt, userReads.postId, cursor) : undefined,
-          opts.q ? matchesQuery(userReads.cardTitle, userReads.sourceName, opts.q) : undefined,
-        ),
-      )
-      .orderBy(desc(userReads.readAt), desc(userReads.postId))
-      .limit(limit + 1);
-
-    const { page, nextCursor } = paginate(rows, limit, (row) => ({
-      ts: row.readAt,
-      postId: row.postId,
-    }));
-    return {
-      items: page.map((row) => ({
-        userId: row.userId,
-        postId: row.postId,
-        readAt: row.readAt,
-        snapshot: toSnapshot(row),
-      })),
-      nextCursor,
-    };
+    const { rows, nextCursor } = await this.queryActivity(
+      userReads,
+      userReads.readAt,
+      userId,
+      opts,
+    );
+    return { items: rows.map((row) => new Activity(row).toReadRecord()), nextCursor };
   }
 
   async addBookmark(
@@ -105,27 +66,11 @@ export class UserActivityRepo {
     snapshot: ReadSnapshot,
     bookmarkedAt: string = new Date().toISOString(),
   ): Promise<void> {
+    const row = { userId, postId, bookmarkedAt, ...toColumns(snapshot) };
     await this.db
       .insert(userBookmarks)
-      .values({
-        userId,
-        postId,
-        bookmarkedAt,
-        cardTitle: snapshot.cardTitle,
-        sourceName: snapshot.sourceName,
-        url: snapshot.url,
-        primaryTopic: snapshot.primaryTopic,
-      })
-      .onConflictDoUpdate({
-        target: [userBookmarks.userId, userBookmarks.postId],
-        set: {
-          bookmarkedAt,
-          cardTitle: snapshot.cardTitle,
-          sourceName: snapshot.sourceName,
-          url: snapshot.url,
-          primaryTopic: snapshot.primaryTopic ?? null,
-        },
-      });
+      .values(row)
+      .onConflictDoUpdate({ target: [userBookmarks.userId, userBookmarks.postId], set: row });
   }
 
   async removeBookmark(userId: string, postId: string): Promise<void> {
@@ -135,102 +80,73 @@ export class UserActivityRepo {
   }
 
   async getBookmarkSet(userId: string, postIds: string[]): Promise<Set<string>> {
-    if (postIds.length === 0) return new Set();
-    const rows = await this.db
-      .select({ postId: userBookmarks.postId })
-      .from(userBookmarks)
-      .where(and(eq(userBookmarks.userId, userId), inArray(userBookmarks.postId, postIds)));
-    return new Set(rows.map((r) => r.postId));
+    return this.selectPostIds(userBookmarks, userId, postIds);
   }
 
   async queryBookmarks(userId: string, opts: ActivityQueryOpts = {}): Promise<BookmarksPage> {
-    const limit = opts.limit ?? 50;
-    const cursor = opts.cursor ? decodeCursor(opts.cursor) : undefined;
-    const rows = await this.db
-      .select()
-      .from(userBookmarks)
-      .where(
-        and(
-          eq(userBookmarks.userId, userId),
-          cursor
-            ? beforeCursor(userBookmarks.bookmarkedAt, userBookmarks.postId, cursor)
-            : undefined,
-          opts.q
-            ? matchesQuery(userBookmarks.cardTitle, userBookmarks.sourceName, opts.q)
-            : undefined,
-        ),
-      )
-      .orderBy(desc(userBookmarks.bookmarkedAt), desc(userBookmarks.postId))
-      .limit(limit + 1);
-
-    const { page, nextCursor } = paginate(rows, limit, (row) => ({
-      ts: row.bookmarkedAt,
-      postId: row.postId,
-    }));
-    return {
-      items: page.map((row) => ({
-        userId: row.userId,
-        postId: row.postId,
-        bookmarkedAt: row.bookmarkedAt,
-        snapshot: toSnapshot(row),
-      })),
-      nextCursor,
-    };
+    const { rows, nextCursor } = await this.queryActivity(
+      userBookmarks,
+      userBookmarks.bookmarkedAt,
+      userId,
+      opts,
+    );
+    return { items: rows.map((row) => new Activity(row).toBookmarkRecord()), nextCursor };
   }
 
   async deleteAllForUser(userId: string): Promise<void> {
     await this.db.delete(userReads).where(eq(userReads.userId, userId));
     await this.db.delete(userBookmarks).where(eq(userBookmarks.userId, userId));
   }
-}
 
-function toSnapshot(row: {
-  cardTitle: string;
-  sourceName: string;
-  url: string;
-  primaryTopic: ReadSnapshot['primaryTopic'] | null;
-}): ReadSnapshot {
-  return {
-    cardTitle: row.cardTitle,
-    sourceName: row.sourceName,
-    url: row.url,
-    primaryTopic: row.primaryTopic ?? undefined,
-  };
-}
-
-function paginate<T, K extends { ts: string; postId: string }>(
-  rows: T[],
-  limit: number,
-  cursorOf: (row: T) => K,
-): { page: T[]; nextCursor: string | null } {
-  const hasMore = rows.length > limit;
-  const page = hasMore ? rows.slice(0, limit) : rows;
-  const last = page.at(-1);
-  return { page, nextCursor: hasMore && last ? encodeCursor(cursorOf(last)) : null };
-}
-
-function beforeCursor(tsColumn: AnyPgColumn, postIdColumn: AnyPgColumn, cursor: Cursor) {
-  return or(lt(tsColumn, cursor.ts), and(eq(tsColumn, cursor.ts), lt(postIdColumn, cursor.postId)));
-}
-
-function matchesQuery(cardTitleColumn: AnyPgColumn, sourceNameColumn: AnyPgColumn, q: string) {
-  return sql`(${cardTitleColumn} || ' ' || ${sourceNameColumn}) ilike ${`%${escapeLikePattern(q)}%`}`;
-}
-
-function escapeLikePattern(value: string): string {
-  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
-}
-
-function encodeCursor(cursor: Cursor): string {
-  return Buffer.from(JSON.stringify(cursor), 'utf8').toString('base64url');
-}
-
-function decodeCursor(cursor: string): Cursor | undefined {
-  try {
-    const parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
-    if (typeof parsed?.ts === 'string' && typeof parsed?.postId === 'string') return parsed;
-    return undefined;
-  } catch {
-    return undefined;
+  private async selectPostIds(
+    table: ActivityTable,
+    userId: string,
+    postIds: string[],
+  ): Promise<Set<string>> {
+    if (postIds.length === 0) return new Set();
+    const rows = await this.db
+      .select({ postId: table.postId })
+      .from(table)
+      .where(and(eq(table.userId, userId), inArray(table.postId, postIds)));
+    return new Set(rows.map((row) => row.postId));
   }
+
+  private async queryActivity(
+    table: ActivityTable,
+    tsColumn: AnyPgColumn,
+    userId: string,
+    opts: ActivityQueryOpts,
+  ): Promise<Page<ActivityRow>> {
+    const limit = opts.limit ?? DEFAULT_LIMIT;
+    const rows = await this.db
+      .select({
+        userId: table.userId,
+        postId: table.postId,
+        ts: tsColumn,
+        cardTitle: table.cardTitle,
+        sourceName: table.sourceName,
+        url: table.url,
+        primaryTopic: table.primaryTopic,
+      })
+      .from(table)
+      .where(
+        and(
+          eq(table.userId, userId),
+          beforeCursor(tsColumn, table.postId, decodeCursor(opts.cursor)),
+          matchesQuery(opts.q, table.cardTitle, table.sourceName),
+        ),
+      )
+      .orderBy(desc(tsColumn), desc(table.postId))
+      .limit(limit + 1);
+    return paginate(rows, limit);
+  }
+}
+
+function toColumns(snapshot: ReadSnapshot) {
+  return {
+    cardTitle: snapshot.cardTitle,
+    sourceName: snapshot.sourceName,
+    url: snapshot.url,
+    primaryTopic: snapshot.primaryTopic ?? null,
+  };
 }

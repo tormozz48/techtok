@@ -1,5 +1,4 @@
-import { createDynamoClient, type Entitlement, UsersRepo } from '@techtok/core';
-import { discoverTableName } from './lib/discoverTableName';
+import { createSqlClient, type Entitlement, UsersRepo } from '@techtok/core';
 
 interface Args {
   stage: string;
@@ -30,11 +29,15 @@ function parseArgs(argv: string[]): Args {
 async function main(): Promise<void> {
   const { stage, userId, plan, expiresAt } = parseArgs(process.argv.slice(2));
 
-  console.log(`Discovering the Users table for stage "${stage}"...`);
-  const usersTableName = await discoverTableName(stage, 'Users');
-  console.log(`  Users: ${usersTableName}`);
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    throw new Error(
+      `DATABASE_URL is not set. Export the "${stage}" stage's Neon connection string first ` +
+        '(the same value set via `sst secret set NeonDatabaseUrl`).',
+    );
+  }
 
-  const repo = new UsersRepo(createDynamoClient(), usersTableName);
+  const repo = new UsersRepo(createSqlClient(databaseUrl));
   const entitlement: Entitlement = {
     plan,
     source: 'manual',

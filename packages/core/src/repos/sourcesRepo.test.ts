@@ -1,21 +1,14 @@
-import { ConditionalCheckFailedException } from '@aws-sdk/client-dynamodb';
-import {
-  DynamoDBDocumentClient,
-  GetCommand,
-  PutCommand,
-  ScanCommand,
-  UpdateCommand,
-} from '@aws-sdk/lib-dynamodb';
-import { mockClient } from 'aws-sdk-client-mock';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { createTestDb, type TestSqlClient } from '../db/testDb';
 import type { SourceRecord } from '../sources.types';
 import { SourcesRepo } from './sourcesRepo';
 
-const ddbMock = mockClient(DynamoDBDocumentClient);
-const client = ddbMock as unknown as DynamoDBDocumentClient;
+let db: TestSqlClient;
+let repo: SourcesRepo;
 
-beforeEach(() => {
-  ddbMock.reset();
+beforeEach(async () => {
+  db = await createTestDb();
+  repo = new SourcesRepo(db);
 });
 
 const sampleSource: SourceRecord = {
@@ -28,125 +21,111 @@ const sampleSource: SourceRecord = {
   failCount: 0,
 };
 
+const disabledSource: SourceRecord = {
+  ...sampleSource,
+  sourceId: 'disabled-source',
+  enabled: false,
+};
+
 describe('sourcesRepo.listEnabled', () => {
-  it('scans with an enabled filter', async () => {
-    ddbMock.on(ScanCommand).resolves({ Items: [sampleSource] });
-    const repo = new SourcesRepo(client, 'Sources');
+  it('returns only enabled sources', async () => {
+    await repo.putIfNew(sampleSource);
+    await repo.putIfNew(disabledSource);
 
     const items = await repo.listEnabled();
 
     expect(items).toEqual([sampleSource]);
-    const input = ddbMock.commandCalls(ScanCommand)[0]?.args[0]?.input;
-    expect(input?.FilterExpression).toBe('enabled = :true');
-    expect(input?.ExpressionAttributeValues).toMatchObject({ ':true': true });
   });
 });
 
 describe('sourcesRepo.getById', () => {
   it('returns the item when found', async () => {
-    ddbMock.on(GetCommand).resolves({ Item: sampleSource });
-    const repo = new SourcesRepo(client, 'Sources');
+    await repo.putIfNew(sampleSource);
 
-    const source = await repo.getById('hn');
-
-    expect(source).toEqual(sampleSource);
-    const input = ddbMock.commandCalls(GetCommand)[0]?.args[0]?.input;
-    expect(input?.Key).toEqual({ sourceId: 'hn' });
+    expect(await repo.getById('hn')).toEqual(sampleSource);
   });
 
   it('returns undefined when not found', async () => {
-    ddbMock.on(GetCommand).resolves({});
-    const repo = new SourcesRepo(client, 'Sources');
-
     expect(await repo.getById('missing')).toBeUndefined();
   });
 });
 
 describe('sourcesRepo.putIfNew', () => {
-  it('writes a conditional put', async () => {
-    ddbMock.on(PutCommand).resolves({});
-    const repo = new SourcesRepo(client, 'Sources');
-
-    const created = await repo.putIfNew(sampleSource);
-
-    expect(created).toBe(true);
-    const input = ddbMock.commandCalls(PutCommand)[0]?.args[0]?.input;
-    expect(input?.ConditionExpression).toBe('attribute_not_exists(sourceId)');
+  it('inserts a new source and returns true', async () => {
+    expect(await repo.putIfNew(sampleSource)).toBe(true);
+    expect(await repo.getById('hn')).toEqual(sampleSource);
   });
 
   it('returns false without throwing when the source already exists', async () => {
-    ddbMock.on(PutCommand).rejects(
-      new ConditionalCheckFailedException({
-        message: 'The conditional request failed',
-        $metadata: {},
-      }),
-    );
-    const repo = new SourcesRepo(client, 'Sources');
+    await repo.putIfNew(sampleSource);
 
-    await expect(repo.putIfNew(sampleSource)).resolves.toBe(false);
+    await expect(repo.putIfNew({ ...sampleSource, name: 'Renamed' })).resolves.toBe(false);
+    expect(await repo.getById('hn')).toMatchObject({ name: 'Hacker News' });
   });
 });
 
 describe('sourcesRepo.recordFetchResult', () => {
-  it('resets failCount and stores etag/lastModified on success', async () => {
-    ddbMock.on(UpdateCommand).resolves({});
-    const repo = new SourcesRepo(client, 'Sources');
+  beforeEach(async () => {
+    await repo.putIfNew(sampleSource);
+  });
 
+  it('resets failCount and stores etag/lastModified on success', async () => {
     await repo.recordFetchResult('hn', {
       status: 'ok',
       etag: 'W/"abc"',
       lastModified: 'Sat, 18 Jul 2026 00:00:00 GMT',
     });
 
-    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
-    expect(input?.UpdateExpression).toContain('failCount = :zero');
-    expect(input?.UpdateExpression).toContain('etag = :etag');
-    expect(input?.UpdateExpression).toContain('lastModified = :lastModified');
-    expect(input?.ExpressionAttributeValues).toMatchObject({
-      ':status': 'ok',
-      ':zero': 0,
-      ':etag': 'W/"abc"',
-      ':lastModified': 'Sat, 18 Jul 2026 00:00:00 GMT',
+    const source = await repo.getById('hn');
+    expect(source).toMatchObject({
+      lastStatus: 'ok',
+      failCount: 0,
+      etag: 'W/"abc"',
+      lastModified: 'Sat, 18 Jul 2026 00:00:00 GMT',
     });
   });
 
   it('stores newestSeenPublishedAt when provided', async () => {
-    ddbMock.on(UpdateCommand).resolves({});
-    const repo = new SourcesRepo(client, 'Sources');
-
     await repo.recordFetchResult('hn', {
       status: 'ok',
       newestSeenPublishedAt: '2026-07-18T17:53:05.000Z',
     });
 
-    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
-    expect(input?.UpdateExpression).toContain('newestSeenPublishedAt = :newestSeenPublishedAt');
-    expect(input?.ExpressionAttributeValues).toMatchObject({
-      ':newestSeenPublishedAt': '2026-07-18T17:53:05.000Z',
+    expect(await repo.getById('hn')).toMatchObject({
+      newestSeenPublishedAt: '2026-07-18T17:53:05.000Z',
     });
   });
 
   it('records not-modified without requiring etag/lastModified', async () => {
-    ddbMock.on(UpdateCommand).resolves({});
-    const repo = new SourcesRepo(client, 'Sources');
-
     await repo.recordFetchResult('hn', { status: 'not-modified' });
 
-    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
-    expect(input?.UpdateExpression).not.toContain('etag');
-    expect(input?.ExpressionAttributeValues).toMatchObject({ ':status': 'not-modified' });
+    const source = await repo.getById('hn');
+    expect(source?.lastStatus).toBe('not-modified');
+    expect(source?.etag).toBeUndefined();
   });
 
   it('increments failCount on error and leaves etag/lastModified untouched', async () => {
-    ddbMock.on(UpdateCommand).resolves({});
-    const repo = new SourcesRepo(client, 'Sources');
+    await repo.recordFetchResult('hn', {
+      status: 'ok',
+      etag: 'W/"abc"',
+      lastModified: 'Sat, 18 Jul 2026 00:00:00 GMT',
+    });
 
     await repo.recordFetchResult('hn', { status: 'error' });
 
-    const input = ddbMock.commandCalls(UpdateCommand)[0]?.args[0]?.input;
-    expect(input?.UpdateExpression).toBe(
-      'SET lastFetchAt = :now, lastStatus = :status ADD failCount :one',
-    );
-    expect(input?.ExpressionAttributeValues).toMatchObject({ ':status': 'error', ':one': 1 });
+    const source = await repo.getById('hn');
+    expect(source).toMatchObject({
+      lastStatus: 'error',
+      failCount: 1,
+      etag: 'W/"abc"',
+      lastModified: 'Sat, 18 Jul 2026 00:00:00 GMT',
+    });
+  });
+
+  it('increments failCount again on a second consecutive error', async () => {
+    await repo.recordFetchResult('hn', { status: 'error' });
+    await repo.recordFetchResult('hn', { status: 'error' });
+
+    expect(await repo.getById('hn')).toMatchObject({ failCount: 2 });
   });
 });

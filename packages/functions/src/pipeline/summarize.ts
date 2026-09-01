@@ -1,6 +1,7 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics, MetricUnit } from '@aws-lambda-powertools/metrics';
 import type { IngestResult } from '@techtok/core';
+import { getPostsRepo, getUsersRepo } from '../repos';
 
 const logger = new Logger({ serviceName: 'summarize' });
 const metrics = new Metrics({ namespace: 'TechTok', serviceName: 'ingest' });
@@ -21,4 +22,10 @@ export async function handler(results: IngestResult[]): Promise<void> {
     created,
     sourcesWithErrors,
   });
+
+  const [expiredPosts, prunedQuotas] = await Promise.all([
+    getPostsRepo().deleteExpired(),
+    getUsersRepo().pruneOldQuotas(),
+  ]);
+  logger.info('expiry sweep complete', { expiredPosts, prunedQuotas });
 }

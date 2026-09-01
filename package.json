@@ -16,7 +16,10 @@
     "dev": "sst dev --stage dev",
     "deploy:dev": "sst deploy --stage dev",
     "wipe-users": "tsx scripts/wipeUsers.ts",
-    "grant-entitlement": "tsx scripts/grantEntitlement.ts"
+    "grant-entitlement": "tsx scripts/grantEntitlement.ts",
+    "migrate-to-neon": "tsx scripts/migrateToNeon.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
   },
   "devDependencies": {
     "@aws-sdk/client-dynamodb": "3.1090.0",
@@ -24,7 +27,9 @@
     "@aws-sdk/lib-dynamodb": "3.1090.0",
     "@biomejs/biome": "2.5.4",
     "@techtok/core": "workspace:*",
+    "@techtok/shared": "workspace:*",
     "@types/node": "22.20.1",
+    "drizzle-kit": "^0.31.10",
     "sst": "4.17.1",
     "tsx": "^4.23.1",
     "typescript": "5.9.3",

@@ -3,7 +3,6 @@ import {
   imagesBucket,
   imagesRouter,
   neonDatabaseUrl,
-  postsTable,
   rawArticlesBucket,
 } from './storage';
 
@@ -64,7 +63,6 @@ transformQueue.subscribe(
   {
     handler: 'packages/functions/src/pipeline/transform.handler',
     link: [
-      postsTable,
       rawArticlesBucket,
       imagesBucket,
       translateQueue,
@@ -73,7 +71,6 @@ transformQueue.subscribe(
       neonDatabaseUrl,
     ],
     environment: {
-      POSTS_TABLE_NAME: postsTable.name,
       RAW_ARTICLES_BUCKET_NAME: rawArticlesBucket.name,
       IMAGES_BUCKET_NAME: imagesBucket.name,
       IMAGES_CDN_BASE_URL: imagesRouter.url,
@@ -92,9 +89,8 @@ transformQueue.subscribe(
 translateQueue.subscribe(
   {
     handler: 'packages/functions/src/pipeline/translate.handler',
-    link: [postsTable, openRouterApiKey, neonDatabaseUrl],
+    link: [openRouterApiKey, neonDatabaseUrl],
     environment: {
-      POSTS_TABLE_NAME: postsTable.name,
       ...llmEnvironment,
       DATABASE_URL: neonDatabaseUrl.value,
     },
@@ -115,16 +111,8 @@ translateQueue.subscribe(
 contentQueue.subscribe(
   {
     handler: 'packages/functions/src/pipeline/content.handler',
-    link: [
-      postsTable,
-      rawArticlesBucket,
-      imagesBucket,
-      contentBucket,
-      openRouterApiKey,
-      neonDatabaseUrl,
-    ],
+    link: [rawArticlesBucket, imagesBucket, contentBucket, openRouterApiKey, neonDatabaseUrl],
     environment: {
-      POSTS_TABLE_NAME: postsTable.name,
       RAW_ARTICLES_BUCKET_NAME: rawArticlesBucket.name,
       IMAGES_BUCKET_NAME: imagesBucket.name,
       IMAGES_CDN_BASE_URL: imagesRouter.url,
@@ -141,9 +129,8 @@ contentQueue.subscribe(
 
 export const backfillLlmFn = new sst.aws.Function('BackfillLlm', {
   handler: 'packages/functions/src/ops/backfillLlm.handler',
-  link: [postsTable, transformQueue, neonDatabaseUrl],
+  link: [transformQueue, neonDatabaseUrl],
   environment: {
-    POSTS_TABLE_NAME: postsTable.name,
     TRANSFORM_QUEUE_URL: transformQueue.url,
     DATABASE_URL: neonDatabaseUrl.value,
   },
@@ -153,9 +140,8 @@ export const backfillLlmFn = new sst.aws.Function('BackfillLlm', {
 
 export const backfillImagesFn = new sst.aws.Function('BackfillImages', {
   handler: 'packages/functions/src/ops/backfillImages.handler',
-  link: [postsTable, rawArticlesBucket, imagesBucket, neonDatabaseUrl],
+  link: [rawArticlesBucket, imagesBucket, neonDatabaseUrl],
   environment: {
-    POSTS_TABLE_NAME: postsTable.name,
     RAW_ARTICLES_BUCKET_NAME: rawArticlesBucket.name,
     IMAGES_BUCKET_NAME: imagesBucket.name,
     IMAGES_CDN_BASE_URL: imagesRouter.url,
@@ -193,9 +179,8 @@ const fetchSource = sst.aws.StepFunctions.lambdaInvoke({
   name: 'FetchSource',
   function: {
     handler: 'packages/functions/src/pipeline/fetchSource.handler',
-    link: [postsTable, transformQueue, neonDatabaseUrl],
+    link: [transformQueue, neonDatabaseUrl],
     environment: {
-      POSTS_TABLE_NAME: postsTable.name,
       TRANSFORM_QUEUE_URL: transformQueue.url,
       DATABASE_URL: neonDatabaseUrl.value,
     },

@@ -1,4 +1,4 @@
-import { LANGUAGES, TOPICS, transformKindSchema } from '@techtok/shared';
+import { LANGUAGES, TOPICS, type TransformKind, transformKindSchema } from '@techtok/shared';
 import { sql } from 'drizzle-orm';
 import {
   type AnyPgColumn,
@@ -19,7 +19,7 @@ export const topicEnum = pgEnum('topic', TOPICS);
 export const languageEnum = pgEnum('language', LANGUAGES);
 export const transformKindEnum = pgEnum(
   'transform_kind',
-  transformKindSchema.options as [string, ...string[]],
+  transformKindSchema.options as [TransformKind, ...TransformKind[]],
 );
 export const postStatusEnum = pgEnum('post_status', ['discovered', 'ready', 'failed']);
 export const fetchStatusEnum = pgEnum('fetch_status', ['ok', 'not-modified', 'error']);

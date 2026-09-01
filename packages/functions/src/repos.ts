@@ -1,6 +1,5 @@
 import {
   ContentQueue,
-  createDynamoClient,
   createSourceWeightsCache,
   createSqlClient,
   createSqsClient,
@@ -13,12 +12,9 @@ import {
 import { requireEnv } from './env';
 import { lazy } from './lazy';
 
-const getDynamoClient = lazy(createDynamoClient);
 const getSqlClient = lazy(() => createSqlClient(requireEnv('DATABASE_URL')));
 
-export const getPostsRepo = lazy(
-  () => new PostsRepo(getDynamoClient(), requireEnv('POSTS_TABLE_NAME')),
-);
+export const getPostsRepo = lazy(() => new PostsRepo(getSqlClient()));
 
 export const getUsersRepo = lazy(() => new UsersRepo(getSqlClient()));
 

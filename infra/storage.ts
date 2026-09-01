@@ -45,6 +45,8 @@ export const userActivityTable = new sst.aws.Dynamo('UserActivity', {
   },
 });
 
+export const neonDatabaseUrl = new sst.Secret('NeonDatabaseUrl');
+
 const contentExpiresIn = $app.stage === 'production' ? '90 days' : '7 days';
 
 export const rawArticlesBucket = new sst.aws.Bucket('RawArticles', {

@@ -30,6 +30,7 @@
     "@techtok/shared": "workspace:*",
     "@types/node": "22.20.1",
     "drizzle-kit": "^0.31.10",
+    "drizzle-orm": "^0.45.2",
     "sst": "4.17.1",
     "tsx": "^4.23.1",
     "typescript": "5.9.3",

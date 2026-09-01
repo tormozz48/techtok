@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { createSqlClient } from '@techtok/core';
+import { eq, sql } from 'drizzle-orm';
 import {
   postCompacts,
   postFigures,
@@ -38,15 +39,36 @@ const INSERT_BATCH_SIZE = 500;
 interface Args {
   stage: string;
   confirm: boolean;
+  reset: boolean;
 }
 
 function parseArgs(argv: string[]): Args {
   const stageIndex = argv.indexOf('--stage');
   const stage = stageIndex >= 0 ? argv[stageIndex + 1] : undefined;
   if (!stage) {
-    throw new Error('Usage: tsx scripts/migrateToNeon.ts --stage <dev|production> [--confirm]');
+    throw new Error(
+      'Usage: tsx scripts/migrateToNeon.ts --stage <dev|production> [--confirm] [--reset]',
+    );
   }
-  return { stage, confirm: argv.includes('--confirm') };
+  return { stage, confirm: argv.includes('--confirm'), reset: argv.includes('--reset') };
+}
+
+const RESET_TABLES = ['posts', 'sources', 'users'] as const;
+
+async function resetPostgres(db: ReturnType<typeof createSqlClient>): Promise<void> {
+  const counts = await db.execute<{ table_name: string; n: number }>(sql`
+    select 'sources' as table_name, count(*)::int as n from sources
+    union all select 'posts', count(*)::int from posts
+    union all select 'users', count(*)::int from users
+  `);
+  console.log('Current Postgres row counts (before truncate):');
+  for (const row of counts.rows) console.log(`  ${row.table_name}: ${row.n}`);
+
+  console.log(
+    `\nTruncating ${RESET_TABLES.join(', ')} (CASCADE also clears every table with an FK into them)...`,
+  );
+  await db.execute(sql.raw(`truncate table ${RESET_TABLES.join(', ')} restart identity cascade`));
+  console.log('Done. Postgres is empty. Re-run without --reset to migrate.');
 }
 
 async function scanAll(
@@ -72,7 +94,7 @@ function chunk<T>(items: T[], size: number): T[][] {
 }
 
 async function main(): Promise<void> {
-  const { stage, confirm } = parseArgs(process.argv.slice(2));
+  const { stage, confirm, reset } = parseArgs(process.argv.slice(2));
 
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
@@ -81,6 +103,14 @@ async function main(): Promise<void> {
     );
   }
   const db = createSqlClient(databaseUrl);
+
+  if (reset) {
+    if (!confirm) {
+      throw new Error('--reset requires --confirm too -- this truncates every migrated table.');
+    }
+    await resetPostgres(db);
+    return;
+  }
 
   console.log(`Discovering DynamoDB table names for stage "${stage}"...`);
   const [sourcesTableName, postsTableName, usersTableName, userActivityTableName] =
@@ -232,8 +262,15 @@ async function main(): Promise<void> {
   for (const batch of chunk(validPosts, INSERT_BATCH_SIZE)) {
     await db
       .insert(posts)
-      .values(batch.map((p) => p.post))
+      .values(batch.map((p) => ({ ...p.post, duplicateOf: null })))
       .onConflictDoNothing();
+  }
+  const postsWithDuplicateOfToBackfill = validPosts.filter((p) => p.post.duplicateOf);
+  for (const post of postsWithDuplicateOfToBackfill) {
+    await db
+      .update(posts)
+      .set({ duplicateOf: post.post.duplicateOf })
+      .where(eq(posts.postId, post.post.postId));
   }
   for (const batch of chunk(
     validPosts.flatMap((p) => p.translations),
@@ -259,7 +296,9 @@ async function main(): Promise<void> {
   )) {
     await db.insert(postFigures).values(batch).onConflictDoNothing();
   }
-  console.log(`  Posts written: ${validPosts.length}`);
+  console.log(
+    `  Posts written: ${validPosts.length} (${postsWithDuplicateOfToBackfill.length} duplicateOf link(s) backfilled)`,
+  );
 
   for (const batch of chunk(
     validReads.map((r) => ({

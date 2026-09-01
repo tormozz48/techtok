@@ -55,7 +55,12 @@ jobs:
       - name: Run database migrations
         env:
           DATABASE_URL: ${{ secrets.NEON_DATABASE_URL_PRODUCTION_DIRECT }}
-        run: pnpm db:migrate
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::NEON_DATABASE_URL_PRODUCTION_DIRECT repository secret is not set — see README.md's Required repository secrets table (D92)."
+            exit 1
+          fi
+          pnpm db:migrate
 
       # `sst deploy` writes the stack's stage outputs (defined in
       # sst.config.ts's `run()` return value, including the real API Gateway

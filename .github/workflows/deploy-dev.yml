@@ -53,7 +53,12 @@ jobs:
       - name: Run database migrations
         env:
           DATABASE_URL: ${{ secrets.NEON_DATABASE_URL_DEV_DIRECT }}
-        run: pnpm db:migrate
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::NEON_DATABASE_URL_DEV_DIRECT repository secret is not set — see README.md's Required repository secrets table (D92)."
+            exit 1
+          fi
+          pnpm db:migrate
 
       # GOOGLE_OAUTH_WEB_CLIENT_ID (D68) is read by infra/auth.ts as the JWT
       # authorizer's audience — not a secret (an OAuth client ID is public

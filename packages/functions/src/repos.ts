@@ -2,6 +2,7 @@ import {
   ContentQueue,
   createDynamoClient,
   createSourceWeightsCache,
+  createSqlClient,
   createSqsClient,
   PostsRepo,
   SourcesRepo,
@@ -13,6 +14,7 @@ import { requireEnv } from './env';
 import { lazy } from './lazy';
 
 const getDynamoClient = lazy(createDynamoClient);
+const getSqlClient = lazy(() => createSqlClient(requireEnv('DATABASE_URL')));
 
 export const getPostsRepo = lazy(
   () => new PostsRepo(getDynamoClient(), requireEnv('POSTS_TABLE_NAME')),
@@ -26,9 +28,7 @@ export const getUserActivityRepo = lazy(
   () => new UserActivityRepo(getDynamoClient(), requireEnv('USER_ACTIVITY_TABLE_NAME')),
 );
 
-export const getSourcesRepo = lazy(
-  () => new SourcesRepo(getDynamoClient(), requireEnv('SOURCES_TABLE_NAME')),
-);
+export const getSourcesRepo = lazy(() => new SourcesRepo(getSqlClient()));
 
 export const getSourceWeightsCache = lazy(() => createSourceWeightsCache(getSourcesRepo()));
 

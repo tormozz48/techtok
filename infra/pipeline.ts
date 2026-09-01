@@ -5,7 +5,6 @@ import {
   neonDatabaseUrl,
   postsTable,
   rawArticlesBucket,
-  sourcesTable,
 } from './storage';
 
 export const BEDROCK_MODEL_ID =
@@ -31,9 +30,8 @@ const bedrockInvokePermission = {
 
 export const seedSourcesFn = new sst.aws.Function('SeedSources', {
   handler: 'packages/functions/src/ops/seedSources.handler',
-  link: [sourcesTable, neonDatabaseUrl],
+  link: [neonDatabaseUrl],
   environment: {
-    SOURCES_TABLE_NAME: sourcesTable.name,
     STAGE: $app.stage,
     DATABASE_URL: neonDatabaseUrl.value,
   },
@@ -69,7 +67,6 @@ transformQueue.subscribe(
       postsTable,
       rawArticlesBucket,
       imagesBucket,
-      sourcesTable,
       translateQueue,
       contentQueue,
       openRouterApiKey,
@@ -80,7 +77,6 @@ transformQueue.subscribe(
       RAW_ARTICLES_BUCKET_NAME: rawArticlesBucket.name,
       IMAGES_BUCKET_NAME: imagesBucket.name,
       IMAGES_CDN_BASE_URL: imagesRouter.url,
-      SOURCES_TABLE_NAME: sourcesTable.name,
       ...llmEnvironment,
       TRANSLATE_QUEUE_URL: translateQueue.url,
       CONTENT_QUEUE_URL: contentQueue.url,
@@ -121,7 +117,6 @@ contentQueue.subscribe(
     handler: 'packages/functions/src/pipeline/content.handler',
     link: [
       postsTable,
-      sourcesTable,
       rawArticlesBucket,
       imagesBucket,
       contentBucket,
@@ -130,7 +125,6 @@ contentQueue.subscribe(
     ],
     environment: {
       POSTS_TABLE_NAME: postsTable.name,
-      SOURCES_TABLE_NAME: sourcesTable.name,
       RAW_ARTICLES_BUCKET_NAME: rawArticlesBucket.name,
       IMAGES_BUCKET_NAME: imagesBucket.name,
       IMAGES_CDN_BASE_URL: imagesRouter.url,
@@ -175,9 +169,8 @@ const loadSources = sst.aws.StepFunctions.lambdaInvoke({
   name: 'LoadSources',
   function: {
     handler: 'packages/functions/src/pipeline/loadSources.handler',
-    link: [sourcesTable, neonDatabaseUrl],
+    link: [neonDatabaseUrl],
     environment: {
-      SOURCES_TABLE_NAME: sourcesTable.name,
       DATABASE_URL: neonDatabaseUrl.value,
     },
     runtime: 'nodejs22.x',
@@ -200,10 +193,9 @@ const fetchSource = sst.aws.StepFunctions.lambdaInvoke({
   name: 'FetchSource',
   function: {
     handler: 'packages/functions/src/pipeline/fetchSource.handler',
-    link: [postsTable, sourcesTable, transformQueue, neonDatabaseUrl],
+    link: [postsTable, transformQueue, neonDatabaseUrl],
     environment: {
       POSTS_TABLE_NAME: postsTable.name,
-      SOURCES_TABLE_NAME: sourcesTable.name,
       TRANSFORM_QUEUE_URL: transformQueue.url,
       DATABASE_URL: neonDatabaseUrl.value,
     },

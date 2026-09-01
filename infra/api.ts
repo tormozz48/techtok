@@ -3,7 +3,6 @@ import {
   contentBucket,
   neonDatabaseUrl,
   postsTable,
-  sourcesTable,
   userActivityTable,
   usersTable,
 } from './storage';
@@ -33,7 +32,6 @@ const feedEnvironment = {
   POSTS_TABLE_NAME: postsTable.name,
   USERS_TABLE_NAME: usersTable.name,
   USER_ACTIVITY_TABLE_NAME: userActivityTable.name,
-  SOURCES_TABLE_NAME: sourcesTable.name,
   DATABASE_URL: neonDatabaseUrl.value,
 };
 
@@ -41,7 +39,7 @@ api.route(
   'GET /v1/feed',
   {
     handler: 'packages/functions/src/api/handlers/feed.handler',
-    link: [postsTable, usersTable, userActivityTable, sourcesTable, neonDatabaseUrl],
+    link: [postsTable, usersTable, userActivityTable, neonDatabaseUrl],
     environment: feedEnvironment,
     runtime: 'nodejs22.x',
   },
@@ -55,8 +53,8 @@ api.route('GET /v1/topics', {
 
 api.route('GET /v1/sources', {
   handler: 'packages/functions/src/api/handlers/sources.handler',
-  link: [sourcesTable, neonDatabaseUrl],
-  environment: { SOURCES_TABLE_NAME: sourcesTable.name, DATABASE_URL: neonDatabaseUrl.value },
+  link: [neonDatabaseUrl],
+  environment: { DATABASE_URL: neonDatabaseUrl.value },
   runtime: 'nodejs22.x',
 });
 
@@ -206,10 +204,9 @@ api.route(
   'GET /v1/posts/{postId}/content',
   {
     handler: 'packages/functions/src/api/handlers/content.handler',
-    link: [postsTable, sourcesTable, contentBucket, usersTable, neonDatabaseUrl],
+    link: [postsTable, contentBucket, usersTable, neonDatabaseUrl],
     environment: {
       POSTS_TABLE_NAME: postsTable.name,
-      SOURCES_TABLE_NAME: sourcesTable.name,
       CONTENT_BUCKET_NAME: contentBucket.name,
       USERS_TABLE_NAME: usersTable.name,
       DATABASE_URL: neonDatabaseUrl.value,

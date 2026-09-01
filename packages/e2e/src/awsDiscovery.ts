@@ -12,7 +12,6 @@ export interface DevResources {
   translateQueueUrl: string;
   contentQueueUrl: string;
   postsTableName: string;
-  sourcesTableName: string;
   apiId: string;
 }
 
@@ -47,11 +46,6 @@ export async function discoverDevResources(stage = 'dev'): Promise<DevResources>
     (arn) => arn.startsWith('arn:aws:dynamodb:') && arn.includes('PostsTable'),
     'Posts table',
   );
-  const sourcesTableArn = findArn(
-    arns,
-    (arn) => arn.startsWith('arn:aws:dynamodb:') && arn.includes('SourcesTable'),
-    'Sources table',
-  );
   const apiArn = findArn(
     arns,
     (arn) => arn.startsWith('arn:aws:apigateway:') && /\/apis\/[^/]+$/.test(arn),
@@ -66,7 +60,6 @@ export async function discoverDevResources(stage = 'dev'): Promise<DevResources>
     translateQueueUrl: queueUrlFromArn(translateQueueArn),
     contentQueueUrl: queueUrlFromArn(contentQueueArn),
     postsTableName: dynamoTableNameFromArn(postsTableArn),
-    sourcesTableName: dynamoTableNameFromArn(sourcesTableArn),
     apiId,
   };
 }

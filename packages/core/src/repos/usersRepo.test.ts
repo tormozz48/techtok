@@ -1,17 +1,14 @@
+import { sql } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { sources } from '../db/schema';
 import { createTestDb, type TestSqlClient } from '../db/testDb';
 import { UsersRepo } from './usersRepo';
 
 async function seedSource(db: TestSqlClient, sourceId: string): Promise<void> {
-  await db.insert(sources).values({
-    sourceId,
-    name: sourceId,
-    rssUrl: `https://example.com/${sourceId}/rss`,
-    defaultTopic: 'dev',
-    weight: 1,
-    enabled: true,
-  });
+  await db.execute(sql`
+    insert into sources (slug, name, rss_url, default_topic_id, weight, enabled)
+    select ${sourceId}, ${sourceId}, ${`https://example.com/${sourceId}/rss`}, topics.id, 1, true
+    from topics where topics.slug = 'dev'
+  `);
 }
 
 let db: TestSqlClient;
@@ -84,7 +81,7 @@ describe('usersRepo.deleteUser', () => {
     await repo.deleteUser('device-1');
 
     const found = await db.query.users.findFirst({
-      where: (u, { eq }) => eq(u.userId, 'device-1'),
+      where: (u, { eq }) => eq(u.externalId, 'device-1'),
     });
     expect(found).toBeUndefined();
   });
@@ -240,17 +237,23 @@ describe('usersRepo.pruneOldQuotas', () => {
   it('deletes only quota rows older than 35 days', async () => {
     await repo.touch('device-1');
     const now = new Date('2026-08-15T00:00:00.000Z');
-    await db.execute(
-      `insert into user_quotas (user_id, day, card_reads, reader_opens)
-       values ('device-1', '2026-06-01', 5, 1), ('device-1', '2026-08-10', 2, 0)`,
-    );
+    await db.execute(sql`
+      insert into user_quotas (user_id, day, card_reads, reader_opens)
+      select id, day, card_reads, reader_opens
+      from users, (values ('2026-06-01', 5, 1), ('2026-08-10', 2, 0))
+        as v(day, card_reads, reader_opens)
+      where users.external_id = 'device-1'
+    `);
 
     const pruned = await repo.pruneOldQuotas(now);
 
     expect(pruned).toBe(1);
-    const remaining = await db.execute(
-      `select day from user_quotas where user_id = 'device-1' order by day`,
-    );
+    const remaining = await db.execute(sql`
+      select day from user_quotas
+      join users on users.id = user_quotas.user_id
+      where users.external_id = 'device-1'
+      order by day
+    `);
     expect(remaining.rows).toEqual([{ day: '2026-08-10' }]);
   });
 

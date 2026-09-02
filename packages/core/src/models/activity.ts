@@ -1,9 +1,9 @@
 import type { Topic } from '@techtok/shared';
+import { encodeId } from '../db/ids';
 import type { ActivityRecord, BookmarkRecord, ReadSnapshot } from '../history.types';
 
-export interface ActivityRow {
-  readonly userId: string;
-  readonly postId: string;
+export interface ActivitySelection {
+  readonly postId: number;
   readonly ts: string;
   readonly cardTitle: string;
   readonly sourceName: string;
@@ -12,12 +12,15 @@ export interface ActivityRow {
 }
 
 export class Activity {
-  constructor(private readonly row: ActivityRow) {}
+  constructor(
+    private readonly userId: string,
+    private readonly row: ActivitySelection,
+  ) {}
 
   toReadRecord(): ActivityRecord {
     return {
-      userId: this.row.userId,
-      postId: this.row.postId,
+      userId: this.userId,
+      postId: encodeId(this.row.postId),
       readAt: this.row.ts,
       snapshot: this.snapshot,
     };
@@ -25,8 +28,8 @@ export class Activity {
 
   toBookmarkRecord(): BookmarkRecord {
     return {
-      userId: this.row.userId,
-      postId: this.row.postId,
+      userId: this.userId,
+      postId: encodeId(this.row.postId),
       bookmarkedAt: this.row.ts,
       snapshot: this.snapshot,
     };

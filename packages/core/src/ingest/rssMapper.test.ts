@@ -136,13 +136,13 @@ describe('mapEntryToPost — physorg.xml (RSS 2.0, media:thumbnail only)', () =>
 describe('mapEntryToPost — dedup and edge cases', () => {
   const source = { sourceId: 'x', name: 'X', defaultTopic: 'dev' as const };
 
-  it('produces the same postId for URLs that only differ by tracking params', () => {
+  it('produces the same canonical url for URLs that only differ by tracking params', () => {
     const a = mapEntryToPost(
       { title: 'A', link: 'https://example.com/a?utm_source=digest' },
       source,
     );
     const b = mapEntryToPost({ title: 'A again', link: 'https://example.com/a' }, source);
-    expect(a?.postId).toBe(b?.postId);
+    expect(a?.canonicalUrl).toBe(b?.canonicalUrl);
   });
 
   it('returns undefined when the entry has no link', () => {

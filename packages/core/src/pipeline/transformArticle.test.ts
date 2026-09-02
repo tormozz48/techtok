@@ -37,7 +37,7 @@ function fakeDeps() {
   return {
     fetchRobotsTxt: vi.fn(async (): Promise<string | undefined> => undefined),
     fetchPage: vi.fn(async (): Promise<string> => ARTICLE_HTML),
-    archiveRaw: vi.fn(async (_postId: string, _html: string) => {}),
+    archiveRaw: vi.fn(async (_contentKey: string, _html: string) => {}),
     generateCard: vi.fn(async (): Promise<GenerateCardResult> => SAMPLE_CARD),
     updatePost: vi.fn(async (_postId: string, _fields: TransformFields) => {}),
     mirrorImage: vi.fn(async (): Promise<MirrorImageResult> => ({ status: 'failed' })),
@@ -48,6 +48,7 @@ function fakeDeps() {
 
 const input = {
   postId: 'post1',
+  contentKey: 'key1',
   url: 'https://example.com/article',
   title: 'Test Article',
   sourceName: 'Example News',
@@ -60,7 +61,7 @@ describe('transformArticle', () => {
     const outcome = await transformArticle(input, deps);
 
     expect(outcome).toEqual({ degraded: false });
-    expect(deps.archiveRaw).toHaveBeenCalledWith('post1', ARTICLE_HTML);
+    expect(deps.archiveRaw).toHaveBeenCalledWith('key1', ARTICLE_HTML);
     expect(deps.generateCard).toHaveBeenCalledWith({
       title: 'Test Article',
       sourceName: 'Example News',
@@ -70,7 +71,7 @@ describe('transformArticle', () => {
     const fields = deps.updatePost.mock.calls[0]?.[1];
     expect(fields?.status).toBe('ready');
     expect(fields?.transform).toBe('llm');
-    expect(fields?.s3RawKey).toBe('raw/post1.html');
+    expect(fields?.s3RawKey).toBe('raw/key1.html');
     expect(fields?.excerpt).toContain('Test Article Headline');
     expect(fields?.summary).toBe('An LLM-written summary of the article.');
     expect(fields?.cardTitle).toBe('A Punchy Hook Title');
@@ -140,7 +141,7 @@ describe('transformArticle', () => {
     expect(outcome.reason).toContain('extraction');
     expect(deps.archiveRaw).toHaveBeenCalledTimes(1);
     const fields = deps.updatePost.mock.calls[0]?.[1];
-    expect(fields?.s3RawKey).toBe('raw/post1.html');
+    expect(fields?.s3RawKey).toBe('raw/key1.html');
     expect(fields?.excerpt).toBeUndefined();
   });
 
@@ -193,7 +194,7 @@ describe('transformArticle', () => {
     const outcome = await transformArticle(inputWithImage, deps);
 
     expect(outcome).toEqual({ degraded: false });
-    expect(deps.mirrorImage).toHaveBeenCalledWith('post1', 'https://source.example.com/a.jpg');
+    expect(deps.mirrorImage).toHaveBeenCalledWith('key1', 'https://source.example.com/a.jpg');
     const fields = deps.updatePost.mock.calls[0]?.[1];
     expect(fields?.mirroredImageUrl).toBe('https://cdn.example.com/images/post1.jpg');
   });
@@ -222,7 +223,7 @@ describe('transformArticle', () => {
     const outcome = await transformArticle(input, deps);
 
     expect(outcome).toEqual({ degraded: false });
-    expect(deps.mirrorImage).toHaveBeenCalledWith('post1', 'https://example.com/og-lead-image.jpg');
+    expect(deps.mirrorImage).toHaveBeenCalledWith('key1', 'https://example.com/og-lead-image.jpg');
     const fields = deps.updatePost.mock.calls[0]?.[1];
     expect(fields?.mirroredImageUrl).toBe('https://cdn.example.com/images/post1.jpg');
   });
@@ -235,7 +236,7 @@ describe('transformArticle', () => {
     await transformArticle(inputWithImage, deps);
 
     expect(deps.mirrorImage).toHaveBeenCalledTimes(1);
-    expect(deps.mirrorImage).toHaveBeenCalledWith('post1', 'https://source.example.com/a.jpg');
+    expect(deps.mirrorImage).toHaveBeenCalledWith('key1', 'https://source.example.com/a.jpg');
   });
 
   it('never mirrors a known-generic og:image (arXiv logo)', async () => {
@@ -265,12 +266,12 @@ describe('transformArticle', () => {
       expect(outcome).toEqual({ degraded: false });
       expect(deps.mirrorImage).toHaveBeenNthCalledWith(
         1,
-        'post1',
+        'key1',
         'https://source.example.com/a.jpg',
       );
       expect(deps.mirrorImage).toHaveBeenNthCalledWith(
         2,
-        'post1',
+        'key1',
         'https://example.com/og-lead-image.jpg',
       );
       const fields = deps.updatePost.mock.calls[0]?.[1];

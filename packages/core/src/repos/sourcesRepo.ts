@@ -1,6 +1,6 @@
 import { eq, sql } from 'drizzle-orm';
 import type { SqlClient } from '../clients/sqlClient';
-import { sources } from '../db/schema';
+import { sourceStates, sources } from '../db/schema';
 import { Source } from '../models/source';
 import type { SourceRecord } from '../sources.types';
 
@@ -17,32 +17,53 @@ export class SourcesRepo {
   constructor(private readonly db: SqlClient) {}
 
   async listEnabled(): Promise<SourceRecord[]> {
-    const rows = await this.db.select().from(sources).where(eq(sources.enabled, true));
+    const rows = await this.db.query.sources.findMany({
+      where: eq(sources.enabled, true),
+      with: { defaultTopic: true, state: true },
+    });
     return rows.map((row) => new Source(row).toRecord());
   }
 
   async getById(sourceId: string): Promise<SourceRecord | undefined> {
-    const [row] = await this.db.select().from(sources).where(eq(sources.sourceId, sourceId));
+    const row = await this.db.query.sources.findFirst({
+      where: eq(sources.slug, sourceId),
+      with: { defaultTopic: true, state: true },
+    });
     return row ? new Source(row).toRecord() : undefined;
   }
 
   async putIfNew(source: SourceRecord): Promise<boolean> {
-    const inserted = await this.db
-      .insert(sources)
-      .values(Source.toRow(source))
-      .onConflictDoNothing()
-      .returning({ sourceId: sources.sourceId });
-    return inserted.length > 0;
+    const result = await this.db.execute(sql`
+      with ins_source as (
+        insert into sources (slug, name, rss_url, site_url, default_topic_id, weight, enabled, compact_enabled)
+        select ${source.sourceId}, ${source.name}, ${source.rssUrl}, ${source.siteUrl ?? null},
+          topics.id, ${source.weight}, ${source.enabled}, ${source.compactEnabled ?? null}
+        from topics where topics.slug = ${source.defaultTopic}
+        on conflict (slug) do nothing
+        returning id
+      ), ins_state as (
+        insert into source_states (
+          source_id, etag, last_modified, last_fetch_at, last_status,
+          newest_seen_published_at, fail_count
+        )
+        select id, ${source.etag ?? null}, ${source.lastModified ?? null},
+          ${source.lastFetchAt ?? null}, ${source.lastStatus ?? null}::fetch_status,
+          ${source.newestSeenPublishedAt ?? null}, ${source.failCount}
+        from ins_source
+      )
+      select id from ins_source
+    `);
+    return result.rows.length > 0;
   }
 
   async recordFetchResult(sourceId: string, outcome: FetchOutcome): Promise<void> {
     await this.db
-      .update(sources)
+      .update(sourceStates)
       .set({
         lastFetchAt: new Date().toISOString(),
         lastStatus: outcome.status,
         ...(outcome.status === 'error'
-          ? { failCount: sql`${sources.failCount} + 1` }
+          ? { failCount: sql`${sourceStates.failCount} + 1` }
           : {
               failCount: 0,
               ...(outcome.etag ? { etag: outcome.etag } : {}),
@@ -52,6 +73,11 @@ export class SourcesRepo {
                 : {}),
             }),
       })
-      .where(eq(sources.sourceId, sourceId));
+      .where(
+        eq(
+          sourceStates.sourceId,
+          sql`(select id from ${sources} where ${sources.slug} = ${sourceId})`,
+        ),
+      );
   }
 }

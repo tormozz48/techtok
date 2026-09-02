@@ -5,7 +5,7 @@ const LIKE_SPECIAL_CHARS = /[\\%_]/g;
 
 export interface Cursor {
   readonly ts: string;
-  readonly postId: string;
+  readonly postId: number;
 }
 
 export interface Page<T> {
@@ -17,7 +17,7 @@ export function decodeCursor(raw: string | undefined): Cursor | undefined {
   if (!raw) return undefined;
   try {
     const parsed = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8'));
-    if (typeof parsed?.ts === 'string' && typeof parsed?.postId === 'string') {
+    if (typeof parsed?.ts === 'string' && Number.isInteger(parsed?.postId)) {
       return { ts: parsed.ts, postId: parsed.postId };
     }
     return undefined;

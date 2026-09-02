@@ -1,5 +1,6 @@
 import type { Topic } from '@techtok/shared';
 import type {
+  topics,
   userEntitlements,
   userMutedSources,
   userQuotas,
@@ -13,12 +14,14 @@ import { emptyToUndefined } from '../util/emptyToUndefined';
 
 type UserRow = typeof users.$inferSelect;
 
+type TopicRow = typeof topics.$inferSelect;
+
 export type QuotaRow = typeof userQuotas.$inferSelect;
 
 export type UserAggregateRow = UserRow & {
-  topics: (typeof userTopics.$inferSelect)[];
+  topics: (typeof userTopics.$inferSelect & { topic: TopicRow })[];
   mutedSources: (typeof userMutedSources.$inferSelect)[];
-  topicReads: (typeof userTopicReads.$inferSelect)[];
+  topicReads: (typeof userTopicReads.$inferSelect & { topic: TopicRow })[];
   quotas: QuotaRow[];
   entitlement: typeof userEntitlements.$inferSelect | null;
 };
@@ -33,12 +36,12 @@ export class User {
   toRecord(): UserRecord {
     const { row } = this;
     return {
-      userId: row.userId,
-      topics: row.topics.map((topic) => topic.topic),
+      userId: row.externalId,
+      topics: row.topics.map((link) => link.topic.slug),
       createdAt: row.createdAt,
       lastSeenAt: row.lastSeenAt,
       language: row.language ?? undefined,
-      mutedSources: emptyToUndefined(row.mutedSources.map((muted) => muted.sourceId)),
+      mutedSources: emptyToUndefined(row.mutedSources.map((muted) => muted.sourceSlug)),
       topicReads: this.topicReads,
       email: row.email ?? undefined,
       name: row.name ?? undefined,
@@ -51,7 +54,7 @@ export class User {
   private get topicReads(): Partial<Record<Topic, number>> | undefined {
     const { topicReads } = this.row;
     if (topicReads.length === 0) return undefined;
-    return Object.fromEntries(topicReads.map((read) => [read.topic, read.readCount]));
+    return Object.fromEntries(topicReads.map((read) => [read.topic.slug, read.readCount]));
   }
 
   private get entitlement(): Entitlement | undefined {

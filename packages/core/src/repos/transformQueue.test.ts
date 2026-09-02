@@ -1,7 +1,7 @@
 import { SendMessageBatchCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { mockClient } from 'aws-sdk-client-mock';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { NewPost } from '../posts.types';
+import type { CreatedPost } from '../posts.types';
 import { TransformQueue } from './transformQueue';
 
 const sqsMock = mockClient(SQSClient);
@@ -11,23 +11,8 @@ beforeEach(() => {
   sqsMock.reset();
 });
 
-function samplePost(postId: string): NewPost {
-  return {
-    postId,
-    url: `https://example.com/${postId}`,
-    canonicalUrl: `https://example.com/${postId}`,
-    sourceId: 'hn',
-    sourceName: 'Hacker News',
-    origTitle: 'Title',
-    cardTitle: 'Title',
-    summary: 'Summary',
-    excerpt: 'Summary',
-    primaryTopic: 'dev',
-    topics: ['dev'],
-    status: 'discovered',
-    transform: 'excerpt',
-    publishedAt: '2026-07-18T00:00:00.000Z',
-  };
+function samplePost(postId: string): CreatedPost {
+  return { postId, url: `https://example.com/${postId}` };
 }
 
 describe('transformQueue.enqueueNew', () => {

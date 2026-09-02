@@ -38,7 +38,7 @@ export function canonicalizeUrl(rawUrl: string): string {
   return url.toString();
 }
 
-export function hashPostId(canonicalUrl: string): string {
+export function contentKey(canonicalUrl: string): string {
   return createHash('sha256').update(canonicalUrl).digest('hex');
 }
 

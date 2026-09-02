@@ -1,5 +1,6 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import {
+  contentKey,
   createS3Client,
   errorMessage,
   DEFAULT_TIMEOUT_MS as FETCH_TIMEOUT_MS,
@@ -42,14 +43,14 @@ function fetchImageBytes(url: string) {
   return fetchBytesWithCap(url, { maxBytes: MAX_IMAGE_BYTES, timeoutMs: FETCH_TIMEOUT_MS });
 }
 
-async function mirrorImage(postId: string, imageUrl: string): Promise<string | undefined> {
+async function mirrorImage(objectKey: string, imageUrl: string): Promise<string | undefined> {
   try {
     const { body, contentType } = await fetchImageBytes(imageUrl);
-    const key = await getImageStore().putImage(postId, body, contentType ?? 'image/jpeg');
+    const key = await getImageStore().putImage(objectKey, body, contentType ?? 'image/jpeg');
     return `${requireEnv('IMAGES_CDN_BASE_URL')}/${key}`;
   } catch (err) {
     logger.warn('image mirror failed during backfill', {
-      postId,
+      objectKey,
       imageUrl,
       error: errorMessage(err),
     });
@@ -64,7 +65,14 @@ async function nextCandidates(before: string | undefined) {
   const records = await getPostsRepo().getByIds(page.map((post) => post.postId));
   const candidates = records.flatMap((post) => {
     if (post.imageUrl || post.mirroredImageUrl || !post.s3RawKey) return [];
-    return [{ postId: post.postId, url: post.url, s3RawKey: post.s3RawKey }];
+    return [
+      {
+        postId: post.postId,
+        contentKey: contentKey(post.canonicalUrl),
+        url: post.url,
+        s3RawKey: post.s3RawKey,
+      },
+    ];
   });
 
   const last = page[page.length - 1];

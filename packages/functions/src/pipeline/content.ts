@@ -3,6 +3,7 @@ import {
   type ContentDeps,
   ContentStore,
   compactArticle as compactArticleViaLlm,
+  contentKey,
   createConfiguredLlmProvider,
   createS3Client,
   type ExtractedFigure,
@@ -53,15 +54,16 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
       }
 
       const source = await getSourcesRepo().getById(post.sourceId);
+      const objectKey = contentKey(post.canonicalUrl);
 
       const deps: ContentDeps = {
         compactEnabled: async () => isCompactEnabled(source),
         loadArticleHtml: () => loadArticleHtml(post),
-        mirrorFigures: (figures) => mirrorFigures(postId, figures),
+        mirrorFigures: (figures) => mirrorFigures(objectKey, figures),
         saveMirroredFigures: (figures) => postsRepo.setMirroredFigures(postId, figures),
         generateCompact: (input) => compactArticleViaLlm(input, provider),
         writeContent: async (blocks, figures) => {
-          await contentStore.putContent(postId, lang, { blocks, figures });
+          await contentStore.putContent(objectKey, lang, { blocks, figures });
           await postsRepo.appendCompactLang(postId, lang);
         },
       };
@@ -96,14 +98,17 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
   return { batchItemFailures };
 };
 
-async function mirrorFigures(postId: string, figures: ExtractedFigure[]): Promise<CompactFigure[]> {
+async function mirrorFigures(
+  objectKey: string,
+  figures: ExtractedFigure[],
+): Promise<CompactFigure[]> {
   const cdnBaseUrl = requireEnv('IMAGES_CDN_BASE_URL');
   const mirrored = await Promise.all(
     figures.map(async (figure, index): Promise<CompactFigure | undefined> => {
       try {
         const { body, contentType } = await fetchBytes(figure.url, MAX_IMAGE_BYTES);
         const key = await getImageStore().putImage(
-          postId,
+          objectKey,
           body,
           contentType ?? 'image/jpeg',
           `-fig${index}`,
@@ -111,7 +116,7 @@ async function mirrorFigures(postId: string, figures: ExtractedFigure[]): Promis
         return { url: `${cdnBaseUrl}/${key}`, caption: figure.caption };
       } catch (err) {
         logger.warn('figure mirror failed, dropping figure', {
-          postId,
+          objectKey,
           url: figure.url,
           error: errorMessage(err),
         });

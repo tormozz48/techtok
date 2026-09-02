@@ -55,7 +55,7 @@ jobs:
           DATABASE_URL: ${{ secrets.NEON_DATABASE_URL_DEV_DIRECT }}
         run: |
           if [ -z "$DATABASE_URL" ]; then
-            echo "::error::NEON_DATABASE_URL_DEV_DIRECT repository secret is not set -- the backend pipeline E2E would silently skip (D96)."
+            echo "::error::NEON_DATABASE_URL_DEV_DIRECT repository secret is not set -- the backend pipeline E2E would silently skip (D97)."
             exit 1
           fi
           pnpm --filter @techtok/e2e run backend-pipeline

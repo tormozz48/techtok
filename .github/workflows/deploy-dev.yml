@@ -70,3 +70,21 @@ jobs:
         env:
           GOOGLE_OAUTH_WEB_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_WEB_CLIENT_ID }}
         run: npx sst deploy --stage dev
+
+      # A destructive migration (D94's 0003 dropped every table) leaves the
+      # stage with zero sources, and nothing else re-seeds them: LoadSources
+      # only lists what is already there, so the ingest pipeline maps over an
+      # empty set and the feed never refills. SeedSources is idempotent
+      # (putIfNew over the stage's presets), so running it on every deploy is
+      # a no-op once seeded — the same argument D92 makes for db:migrate.
+      - name: Seed source presets
+        run: |
+          FN=$(node -e "console.log(require('./.sst/outputs.json').seedSources)")
+          ERR=$(aws lambda invoke --function-name "$FN" \
+            --cli-binary-format raw-in-base64-out --payload '{}' \
+            --query 'FunctionError' --output text /tmp/seedSources.json)
+          cat /tmp/seedSources.json
+          if [ "$ERR" != "None" ]; then
+            echo "::error::SeedSources returned $ERR — this stage may have no sources."
+            exit 1
+          fi

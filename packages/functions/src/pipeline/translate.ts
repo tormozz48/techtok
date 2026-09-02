@@ -19,14 +19,6 @@ interface MessageBody {
   readonly lang: Language;
 }
 
-function parseMessageBody(body: string): MessageBody {
-  const parsed = JSON.parse(body) as Partial<Record<'postId' | 'lang', string>>;
-  if (!parsed.postId || !parsed.lang || !isLanguage(parsed.lang)) {
-    throw new Error('translate message missing postId/lang');
-  }
-  return { postId: parsed.postId, lang: parsed.lang };
-}
-
 export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
   const repo = getPostsRepo();
   const provider = getLlmProvider();
@@ -69,3 +61,11 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
 
   return { batchItemFailures };
 };
+
+function parseMessageBody(body: string): MessageBody {
+  const parsed = JSON.parse(body) as Partial<Record<'postId' | 'lang', string>>;
+  if (!parsed.postId || !parsed.lang || !isLanguage(parsed.lang)) {
+    throw new Error('translate message missing postId/lang');
+  }
+  return { postId: parsed.postId, lang: parsed.lang };
+}

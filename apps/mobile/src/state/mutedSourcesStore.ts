@@ -1,22 +1,9 @@
 import { create } from 'zustand';
 import { fetchMe, putMutedSources } from '@/api/client';
+import { logError, logEvent } from './eventsQueue';
 import { storage } from './storage';
 
 const MUTED_SOURCES_KEY = 'techtok.mutedSources';
-
-function loadCachedMutedSources(): string[] {
-  const raw = storage.getString(MUTED_SOURCES_KEY);
-  if (!raw) return [];
-  try {
-    return JSON.parse(raw) as string[];
-  } catch {
-    return [];
-  }
-}
-
-function saveCachedMutedSources(sourceIds: string[]): void {
-  storage.set(MUTED_SOURCES_KEY, JSON.stringify(sourceIds));
-}
 
 interface MutedSourcesState {
   mutedSources: string[];
@@ -35,6 +22,8 @@ export const useMutedSourcesStore = create<MutedSourcesState>((set) => ({
       const me = await fetchMe();
       saveCachedMutedSources(me.mutedSources);
       set({ mutedSources: me.mutedSources });
+    } catch (error) {
+      logError('muted sources load failed', { message: String(error) });
     } finally {
       set({ isLoading: false });
     }
@@ -43,8 +32,28 @@ export const useMutedSourcesStore = create<MutedSourcesState>((set) => ({
   setMutedSources: async (sourceIds: string[]) => {
     set({ mutedSources: sourceIds });
     saveCachedMutedSources(sourceIds);
-    const me = await putMutedSources(sourceIds);
-    saveCachedMutedSources(me.mutedSources);
-    set({ mutedSources: me.mutedSources });
+    logEvent('muted_sources_changed', { sourceIds });
+    try {
+      const me = await putMutedSources(sourceIds);
+      saveCachedMutedSources(me.mutedSources);
+      set({ mutedSources: me.mutedSources });
+    } catch (error) {
+      logError('muted sources update failed', { message: String(error) });
+      throw error;
+    }
   },
 }));
+
+function loadCachedMutedSources(): string[] {
+  const raw = storage.getString(MUTED_SOURCES_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as string[];
+  } catch {
+    return [];
+  }
+}
+
+function saveCachedMutedSources(sourceIds: string[]): void {
+  storage.set(MUTED_SOURCES_KEY, JSON.stringify(sourceIds));
+}

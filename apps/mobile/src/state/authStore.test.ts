@@ -133,19 +133,49 @@ describe('authStore.refreshToken', () => {
   });
 });
 
+describe('authStore silent sign-in de-duplication', () => {
+  it('shares one Google call between a concurrent restore and refresh, with no clobber', async () => {
+    (GoogleSignin.hasPreviousSignIn as jest.Mock).mockReturnValue(true);
+    (GoogleSignin.signInSilently as jest.Mock).mockResolvedValue({
+      type: 'success',
+      data: { idToken: 'tok-4', user: { email: 'd@example.com', name: 'Dee' } },
+    });
+
+    const [, token] = await Promise.all([
+      useAuthStore.getState().restore(),
+      useAuthStore.getState().refreshToken(),
+    ]);
+
+    expect(GoogleSignin.signInSilently).toHaveBeenCalledTimes(1);
+    expect(token).toBe('tok-4');
+    expect(useAuthStore.getState()).toMatchObject({
+      status: 'signedIn',
+      user: { idToken: 'tok-4', email: 'd@example.com', name: 'Dee' },
+    });
+  });
+
+  it('releases the shared attempt once it settles, so a later refresh re-asks Google', async () => {
+    (GoogleSignin.hasPreviousSignIn as jest.Mock).mockReturnValue(true);
+    (GoogleSignin.signInSilently as jest.Mock).mockResolvedValue({
+      type: 'success',
+      data: { idToken: 'tok-5', user: { email: 'e@example.com', name: 'Eve' } },
+    });
+
+    await useAuthStore.getState().restore();
+    await useAuthStore.getState().refreshToken();
+
+    expect(GoogleSignin.signInSilently).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('authStore configuration', () => {
   it('throws a clear error when EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set', async () => {
-    // A fresh module instance is required: the real `useAuthStore` module
-    // memoizes `GoogleSignin.configure()` behind a module-level flag once
-    // any earlier test in this file has configured it successfully.
     let isolatedStore: typeof import('./authStore').useAuthStore | undefined;
     jest.isolateModules(() => {
       isolatedStore = (require('./authStore') as typeof import('./authStore')).useAuthStore;
     });
 
     const original = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-    // `process.env.X = undefined` stringifies to "undefined" (truthy) rather
-    // than deleting the key — `delete` is required to actually unset it.
     delete process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
 
     await expect(isolatedStore?.getState().signIn()).rejects.toThrow(

@@ -13,8 +13,6 @@ export const TOPICS = [
 
 export type Topic = (typeof TOPICS)[number];
 
-/** Per-language display labels (D20) — one map per served language, English
- * always complete since it's the source-of-truth fallback. */
 export const TOPIC_LABELS: Record<Language, Record<Topic, string>> = {
   en: {
     ai: 'AI',
@@ -60,8 +58,4 @@ export const TOPIC_LABELS: Record<Language, Record<Topic, string>> = {
 
 export function getTopicLabel(topic: Topic, lang: Language): string {
   return TOPIC_LABELS[lang][topic];
-}
-
-export function isTopic(value: string): value is Topic {
-  return (TOPICS as readonly string[]).includes(value);
 }

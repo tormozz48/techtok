@@ -1,16 +1,6 @@
 ---
 import MascotSilhouette from './MascotSilhouette.astro';
 
-// Decorative only (aria-hidden): the 8 topic mascots drift in slow circular
-// orbits around a large center "Buddy", each tinted to its topic's accent
-// color — mirrors TopicMascot.tsx's TOPIC_CONFIG accents (mobile). Kept as a
-// local copy since these are design tokens duplicated across app/site, not
-// shared business logic worth a packages/shared export.
-//
-// Pure CSS (no client JS, matching the rest of this zero-JS site): each
-// orbit is a rotating ring div with the mascot placed at its top edge and
-// counter-rotated at the same speed so it stays upright while tracing the
-// circle — the classic "moon around a planet" trick.
 const ORBITS = [
   { topic: 'space', color: '#7C8CE0', radius: 120, size: 22, duration: 28, delay: -2 },
   { topic: 'ai', color: '#00C2D1', radius: 145, size: 30, duration: 34, delay: -9 },

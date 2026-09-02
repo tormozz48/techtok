@@ -4,8 +4,8 @@ TikTok-style swipe feed for tech & science news: Expo/React Native Android app +
 
 The two documents that govern this repo:
 
-- [docs/DESIGN.md](docs/DESIGN.md) — architecture, API, data model. §2 is the **decision log** (D1–D74), §12 the deferred defaults.
-- [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) — 23 phases (0–22), each gated by acceptance criteria.
+- [docs/DESIGN.md](docs/DESIGN.md) — architecture, API, data model. §2 is the **decision log** (D1–D97), §12 the deferred defaults.
+- [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) — phases 0–24 (no phase 6), each gated by acceptance criteria.
 
 Never re-decide something already in the decision log. If a decision must change, update the log entry with the reason (`/log-decision`), then implement.
 
@@ -52,8 +52,8 @@ Beyond the 17 numbered phases: a follow-up initiative proposed in response to "l
 | C1 | Search over history & bookmarks (`?q=` on the existing list endpoints) | Merged (#58) | — |
 | C2 | Reading stats screen (streak, top topics/sources — client-computed from history pages) | Merged (#59), logged as D62 | — |
 | C3 | Listen mode: `expo-speech` TTS in the feed action bar and the compact reader | Merged (#61) | Maintainer: on-device voice-availability check for ru/uk/pl |
-| C4 | Offline saved articles: wifi-gated content prefetch on bookmark + on Saved-screen load | Merged (#62), logged as D55 | — |
-| C5 | Feed read-ahead content prefetch, extending C4/D55 from explicit bookmarks to scroll position, + a fix so prefetch actually covers in-body figures, + a 50-entry eviction cap (D61) | Code complete | Maintainer: commit, push, open a PR from the branch's compare link and merge. No on-device Expo Go pass possible in this environment (same constraint as every prior mobile phase) |
+| C4 | Offline saved articles: wifi-gated content prefetch on bookmark + on Saved-screen load | Merged (#62), logged as D55 — **removed again by D82** (2026-08-21) | — |
+| C5 | Feed read-ahead content prefetch, extending C4/D55 from explicit bookmarks to scroll position, + a fix so prefetch actually covers in-body figures, + a 50-entry eviction cap (D61) | Merged, then **removed by D82** (2026-08-21) — only the image read-ahead remains | — |
 
 ### Going public and paid (2026-08-10, D67–D75, phases 19–23)
 
@@ -71,7 +71,13 @@ The project's posture changes here: D1's "me + friends" and §1's "Play Store pu
 
 **Release gate (parallel, maintainer-side; re-scoped by D75).** *Blocks the free launch:* rights review at free-launch scope (assumption #4/D23/§11, deferred since day one — now due); Play Console account (personal, $25, so **no exemption** from the 12-testers-for-14-continuous-days gate); privacy policy + Data Safety + a **public web** account-deletion URL (the in-app `DELETE /v1/me` alone does not satisfy Play). *Blocks monetization only:* subscription products, terms of service, and the paid-scope half of the rights review. The tester window is the longest-lead item in the project — start it the day phase 23 produces an uploadable AAB.
 
+### Relational data layer (2026-08-31, D90/D93/D94, phase 24)
+
+Done. DynamoDB is replaced by **Neon Postgres + Drizzle** on a normalized 16-table schema; the four repos in `packages/core/src/repos/` keep their class names and method signatures, so `packages/shared`, every handler, `buildFeed` and the mobile app are untouched (the schema snapshot must stay byte-identical). Row-to-domain mapping lives in `packages/core/src/models/` (D93). **D94 (2026-09-02)** then reshaped the schema itself: `integer generated always as identity` `id` primary keys everywhere, `<singular>_id` foreign keys that are all indexed and all carry an explicit referential action, `topics` as a table instead of a pg enum, and `sources` split into stable `sources` + volatile `source_states` — see DESIGN §6 for the table-by-table layout. All existing data was dropped rather than migrated (maintainer's call); migration `0003_integer_keys.sql` drops and recreates everything and runs itself on both stages via D92. Measured 2026-08-31, `production` is ~56 MB total, and D88 already removed the one real DynamoDB cost (write amplification, $2.75/mo), so **this is not a cost migration** — the motive is queryability, self-enforcing invariants, and real-Postgres unit tests via PGlite. The binding new constraint is Neon's **5 GB/month egress**, since every row now crosses the internet; D88's `PostCandidate`/`hydrate` split already cuts a feed request to ~130 KB and **must be preserved by the port**, with the single-language join taking it to ~48 KB. Full plan in [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) phase 24; slot it after phase 23 closes and before phase 21.
+
 **Two permanent changes land in phase 19:** the **Expo Go loop ends** (native modules for sign-in and billing; D18's committed `android/` is what makes it survivable), and the app **stores personal data for the first time** (email/name), which pulls GDPR, Data Safety and account deletion into scope.
+
+Three things D94 deliberately did **not** normalize, and must stay that way: `user_muted_sources.source_slug` carries no FK (D49 specifies muting as unvalidated; a stray FK broke it once already), `user_reads.post_id`/`user_bookmarks.post_id` carry no FK (posts expire at 90 days, history must outlive them), and S3/CDN object keys use `contentKey(canonicalUrl)` — the sha-256 the old `postId` held — rather than `posts.id`, because §11's guessable-CDN-URL acceptance depends on the key being unguessable and D72's paid extended compacts share that router.
 
 Notable cross-phase gotchas worth remembering: DynamoDB reserved keywords (`language`, `status`, `transform`) must be aliased in `UpdateExpression`s — `aws-sdk-client-mock` won't catch this, only a live call will (bit both phase 2 and phase 8). Schema narrowing needs a pre-flight row count against live stages (see Schema & Data Migrations below) — phase 12/D31 shipped without this and 500'd on 1,740 stale `dev` rows. In `apps/site` (phase 17), Astro's `getStaticPaths()` runs in an isolated scope that can see imports but not a sibling top-level `const` in the same file (compute locale lists from an imported binding, not a local constant, or the build throws a `ReferenceError` at generate time); and `import.meta.env.BASE_URL` has no trailing slash (`/techtok`, not `/techtok/`) — use the `withBase()` helper in `src/lib/locale.ts` rather than a raw `${base}${path}` concatenation.
 
@@ -81,7 +87,8 @@ Notable cross-phase gotchas worth remembering: DynamoDB reserved keywords (`lang
 
 ```
 pnpm install
-pnpm lint        # Biome — this repo has NO ESLint/Prettier (D7)
+pnpm lint        # Biome + the no-comments check; this repo has NO ESLint/Prettier (D7)
+pnpm lint:comments           # just the no-comments check (optionally: <files...>)
 pnpm typecheck   # tsc --noEmit across workspaces + sst.config.ts/infra (the latter only after a first `pnpm dev`)
 pnpm test        # vitest (shared/core/functions) + jest (mobile)
 pnpm dev         # sst dev --stage dev — live Lambda on your personal "dev" stage
@@ -107,11 +114,46 @@ Definition of done for any change: lint + typecheck + tests green, then exercise
 - Tests never call live AWS or Bedrock: `aws-sdk-client-mock` + recorded LLM golden fixtures. CI must run with no AWS credentials. *(Exception, DESIGN §2 D34, amended D38: `.github/workflows/e2e.yml` authenticates via AWS OIDC to exercise the real `dev` stage — triggered by schedule/`workflow_dispatch`, and as a required step of `ci.yml`'s main-branch pipeline (between the dev and production deploys). Never triggered by a PR. Every PR-triggered job stays credential-free.)*
 - Pipeline failure split (DESIGN §7.2): content-level failures **degrade** (excerpt card, feed never starves); infra-level failures **throw** → SQS retry → DLQ → alarm. Never invert this.
 - LLM calls go only through the **four** defined paths — card transform, translate (eager as of D27), compact-article (eager for all 4 languages as of D36, phase 15), and extended compact (on demand, paid, entitlement-gated, D72/phase 22 — the only request-triggered path, and the only one with an enforced ceiling via D73's fair-use cap). No ad-hoc LLM-provider calls anywhere else (OpenRouter primary / Bedrock dormant fallback per DESIGN §2 D32, phase 13). Daily caps/per-source quotas on these paths were removed for simplicity (DESIGN §2 D31, phase 12) — the $10/mo AWS Budget alarm (D11) is a monitoring-only signal now, not an enforced ceiling, and doesn't see OpenRouter spend at all (D32 — separate bill, no AWS-side visibility). (Reserved concurrency 2 on the transform Lambda remains deferred pending an AWS account quota fix — see DESIGN §2 D16.)
-- Feed access follows the key design in DESIGN §6 (primaryTopic GSI, read-markers via BatchGet). No table scans or filter-expression shortcuts on `Posts`.
+- Feed access follows the key design in DESIGN §6: the `posts_feed_idx` partial index on `(primary_topic_id, published_at desc, id desc)`, D88's narrow-candidate-then-hydrate split, and read-markers via `user_reads`. No sequential scans of `posts` on the feed path.
 - Keep React Native code cross-platform (D12): no Android-only APIs without a `Platform` guard.
+- Screens in `apps/mobile/src/app/` keep their `StyleSheet.create`/`createStyles(colors)` styles in a sibling `<route>.styles.tsx` file (e.g. `account.tsx` → `account.styles.tsx`), exported and imported back into the screen — never defined inline in the route file. New screens follow this from the start; when editing an existing screen's styles, extract them into the sibling file in the same change.
 - Keep `apps/mobile` Storybook in sync with real components/screens: every file in `apps/mobile/src/components/*.tsx` needs a matching `*.stories.tsx` in the same directory, and every route in `apps/mobile/src/app/` needs a page story in `apps/mobile/src/stories/pages/` that imports the real screen via `@/app/<route>` (not a re-implementation). When you add a component/screen, add its story in the same change; when you change a component's props/variants or a screen's states, update its story to match — a PostToolUse hook flags missing coverage on Edit/Write, but it can't catch stale prop shapes, only missing files.
+- Keep `README.md` reflecting the application's *current* settings, not its history. Any change that alters something the README states — root/package scripts, workflow names or the CI pipeline chain, required secrets and env vars, `infra/` resources, API routes, plan/quota constants, the budget number, prerequisites, directory layout, or phase status — updates the README in the same change. Verify README claims by reading the source of truth (`package.json`, `.github/workflows/*`, `infra/*`, `packages/shared`), never by trusting the prose already there; the README describes what the code does today, while the *why* and the superseded decisions stay in DESIGN.md's log.
 - Conventional commits: `feat:` / `fix:` / `docs:` / `chore:` / `test:` / `refactor:`. *(Mobile app versioning is manual, not commit-driven — DESIGN §2 D41 retired D35's automated semver bump.)*
 - Every request/response shape change to `packages/shared`'s zod schemas gets checked against the committed schema snapshot before merge (DESIGN §2 D34) — a removed field, narrowed/changed type, or removed enum value fails CI unless the snapshot is regenerated deliberately.
+- Don't export a function solely so a test can import it. If nothing outside the test file calls it, keep it internal (unexported) and either test it through the real exported function that uses it, or drop the export and inline the check. Tests should exercise the exports that other modules actually consume, not test-only surface area.
+
+### No comments in code
+
+**Never write a comment in `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs`, or `.astro`.** No line comments, no block comments, no JSDoc, no section banners, no `TODO`/`FIXME`, no commented-out code, no file-header preambles, no JSX `{/* … */}`, no CSS `/* … */` inside `.astro` `<style>` blocks. This is absolute — not "keep comments minimal", not "only comment non-obvious things". Zero.
+
+The **only** permitted exceptions are comments a tool actually reads, where deleting the text changes build, lint, or test behaviour: `biome-ignore`, `/// <reference … />`, `@ts-expect-error` / `@ts-ignore` / `@ts-nocheck` / `@ts-check`, `eslint-disable*`, `@jest-environment` / `@vitest-environment`, coverage pragmas (`istanbul`/`c8`/`v8 ignore`), `prettier-ignore`, `@type`/`@typedef` casts in `.js`, `sourceMappingURL`, `webpackIgnore`, and `/* @__PURE__ */`. A `biome-ignore` still needs its real reason string — that reason is the suppression's payload, not prose. Never reach for one of these forms as a loophole to smuggle in an explanation.
+
+Put the information where it belongs instead:
+
+- **The "what"** goes in names. If a block needs a comment to be readable, extract it into a well-named function or named intermediate constant. A comment explaining unclear code is a bug report against that code — fix the code.
+- **The "why"** goes in `docs/DESIGN.md`'s decision log (`/log-decision`) and is referenced by decision id in the commit message. Architectural rationale, rejected alternatives, and the cross-phase gotchas this file lists are documentation, never inline text.
+- **Non-obvious external behaviour** (an upstream library quirk, a DynamoDB reserved-keyword alias, a platform workaround) goes in the commit message plus a DESIGN.md decision entry, so `git log`/`git blame` still surfaces it at the line.
+- **Operational and setup facts** go in `README.md`.
+- **Test intent** goes in the `describe`/`it` name, which is already prose and already printed on failure.
+
+Enforcement is mechanical, not advisory: `pnpm lint` runs `scripts/checkNoComments.ts` (a TypeScript-scanner walk, so it can't be fooled by `//` inside a string, template literal, or regex; `.astro` gets a line-based pass since Biome can't parse it), and it gates the CI `lint` job. A PostToolUse hook (`.claude/hooks/no-comments-check.sh`) **blocks** the edit and reports the offending line the moment a comment is written. Run `pnpm lint:comments` to check the whole tree, or pass file paths to check just those. Biome has no rule for this and its GritQL plugins can't match comments at all (they're CST trivia, not nodes) — that's why the check is a script rather than a `biome.json` entry.
+
+Out of scope for the checker today, and therefore still comment-bearing: `.github/workflows/*.yml`, Maestro `.yaml` flows, `.sh` scripts (including the hooks themselves), `android/` native sources, and Markdown. Don't add comments there gratuitously, but they aren't policed.
+
+### File organization
+
+Order top-level declarations in every `packages/*/src/**/*.ts(x)` and `apps/*/src/**/*.ts(x)` file into three groups, top to bottom:
+
+1. **Constants and types** — `const`/`let` whose initializer isn't a function/arrow/class, `interface`, `type`, `enum`. Relative order within this group is free (e.g. keep a tight cluster of regex constants together, un-blank-lined, if that's how they read best).
+2. **Exported functions and classes** — top-level `function`/`class` declarations, and `const`s assigned an arrow/function/class expression, that carry an `export` modifier (including `export default`).
+3. **Private (non-exported) functions and classes** — the same shapes as group 2, without `export`.
+
+Imports stay untouched at the very top, before group 1. Inside a `class` body, apply the same public-before-private split to its methods. A hook name assigned via a factory call (`export const useFooStore = create(...)`) is a constant (group 1), not a function — it's the value being exported, not a function declaration.
+
+This governs top-level *declaration* order, not everything in a file: `describe`/`it` blocks in `*.test.ts(x)`, Storybook `*.stories.tsx` exports, `infra/*.ts` (SST resources are declared in a dependency-ordered chain, not grouped by kind), and root-level `scripts/*.ts` (procedural CLI entry points) are exempt — none of them fit the constants/types → exported → private model this rule describes.
+
+Enforcement mirrors the no-comments check: `pnpm lint` runs `scripts/checkFileOrganization.ts` (walks each file's top-level statements via the TypeScript compiler API and flags any statement whose group appears after a later group), and a PostToolUse hook (`.claude/hooks/file-organization-check.sh`) **blocks** an Edit/Write to a checked file the moment it violates the order. Run `pnpm lint:organization` to check the whole tree, or pass file paths to check just those.
 
 ## AWS
 
@@ -145,13 +187,44 @@ Before every commit: `pnpm lint`, then `pnpm typecheck`, then `pnpm test` — al
 
 ## Schema & Data Migrations
 
-- Never narrow or otherwise change a `packages/shared` zod schema (or a DynamoDB item shape) without first counting existing rows in every live stage that would violate the new shape, and writing an explicit migration or cleanup plan for them. (D31's `TransformKind` narrowing shipped without this check and 500'd `GET /v1/feed` on 1,740 pre-existing `dev` rows.)
+- Never narrow or otherwise change a `packages/shared` zod schema (or a table's row shape) without first counting existing rows in every live stage that would violate the new shape, and writing an explicit migration or cleanup plan for them. (D31's `TransformKind` narrowing shipped without this check and 500'd `GET /v1/feed` on 1,740 pre-existing `dev` rows.)
+- Adding or removing a value in `packages/shared`'s `TOPICS` needs a **hand-written data statement** in the migration — since D94 topics are rows in a `topics` table, not a pg enum, and `drizzle-kit generate` diffs DDL only, so it will produce an empty migration and the new topic will simply not exist. Removing one additionally has to clear the `restrict` references from `posts.primary_topic_id`/`sources.default_topic_id` first.
 - Watch for DynamoDB reserved keywords (e.g. `language`, `status`, `name`) in any `UpdateExpression`/`ProjectionExpression` — always alias them via `ExpressionAttributeNames`. `aws-sdk-client-mock` does not catch this; it only surfaces live.
 
 ## Claude config in this repo
 
-- `.claude/settings.json` — permission allowlist for the common loop + three PostToolUse hooks on Edit/Write: one auto-formats with Biome (no-ops until Biome is installed in Phase 0), one runs a scoped `typecheck` for the edited file's workspace package and surfaces errors immediately instead of waiting for `/check`, and one (`storybook-sync-check.sh`) flags `apps/mobile` components/screens that lack Storybook coverage — informational only, and it only catches missing files, not stale ones (see Hard rules).
+- `.claude/settings.json` — permission allowlist for the common loop + four PostToolUse hooks on Edit/Write: one auto-formats with Biome (no-ops until Biome is installed in Phase 0), one runs a scoped `typecheck` for the edited file's workspace package and surfaces errors immediately instead of waiting for `/check`, one (`storybook-sync-check.sh`) flags `apps/mobile` components/screens that lack Storybook coverage — informational only, and it only catches missing files, not stale ones (see Hard rules) — and one (`no-comments-check.sh`) which, unlike the other three, **blocks** the edit when it finds a comment in the just-written file (see Hard rules, No comments in code).
+- `.claude/skills/` — vendored agent skills, pinned by content hash in the root `skills-lock.json`: `neon` + `neon-postgres` from `neondatabase/agent-skills`, installed with `npx neon@latest skills -s neon -s neon-postgres -y` (re-run to refresh). Skills are discovered at session start, so a new session is needed after installing one.
 - `/check` — run all quality gates and fix until green
 - `/phase` — report progress against the implementation plan, propose next increment
 - `/log-decision` — append a decision to the DESIGN.md decision log
 - `/ship` — run `/check`, commit, push, and print a PR compare link (gh pr create is not usable here — read-only account)
+
+## AWS Agent Toolkit
+
+- Prefer the AWS MCP Server for AWS interactions — it provides sandboxed
+  execution, observability, and audit logging. If unavailable, use the
+  AWS CLI directly.
+- Before starting a task, check whether a relevant AWS skill is available.
+  Load the skill with `retrieve_skill` and prefer its guidance over
+  general knowledge.
+- When uncertain about specific AWS details (API parameters, permissions,
+  limits, error codes), verify against documentation rather than guessing.
+  State uncertainty explicitly if you cannot confirm.
+- When creating infrastructure, prefer infrastructure-as-code (AWS CDK or
+  CloudFormation) over direct CLI commands. **This repo is the exception:
+  its IaC is SST v4/Ion (`infra/`, `sst.config.ts`), a documented decision
+  — do not introduce CDK/CloudFormation here.**
+- When working with infrastructure, follow AWS Well-Architected Framework
+  principles.
+- Do not use em dashes in AWS resource names or descriptions. Use
+  hyphens instead.
+
+### Secret Safety
+
+- MUST load the `aws-secrets-manager` skill first for any secret,
+  credential, API key, token, or password task. MUST NOT call
+  `secretsmanager get-secret-value` or `batch-get-secret-value`, and MUST
+  NOT hit the Secrets Manager Agent daemon directly. MUST use
+  `{{resolve:secretsmanager:secret-id:SecretString:json-key}}` with
+  `asm-exec` so the secret resolves at runtime without entering context.

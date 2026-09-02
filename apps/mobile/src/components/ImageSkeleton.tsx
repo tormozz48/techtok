@@ -4,6 +4,12 @@ import { Colors } from '@/constants/theme';
 
 const PULSE_DURATION_MS = 800;
 
+const styles = StyleSheet.create({
+  shimmer: {
+    backgroundColor: Colors.overlay.surfaceDim,
+  },
+});
+
 export function ImageSkeleton() {
   const opacity = useRef(new Animated.Value(0.4)).current;
 
@@ -28,9 +34,3 @@ export function ImageSkeleton() {
 
   return <Animated.View style={[StyleSheet.absoluteFill, styles.shimmer, { opacity }]} />;
 }
-
-const styles = StyleSheet.create({
-  shimmer: {
-    backgroundColor: Colors.overlay.surfaceDim,
-  },
-});

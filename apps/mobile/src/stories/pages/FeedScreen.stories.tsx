@@ -7,9 +7,9 @@ const FREE_ENTITLEMENT: EntitlementResponse = {
   plan: 'free',
   quota: {
     cardReads: 12,
-    cardReadsLimit: 50,
+    cardReadsLimit: 100,
     readerOpens: 3,
-    readerOpensLimit: 10,
+    readerOpensLimit: 20,
     resetsAt: new Date(Date.now() + 8 * 3_600_000).toISOString(),
   },
 };
@@ -51,7 +51,7 @@ type Story = StoryObj<typeof FeedScreen>;
 export const Populated: Story = {
   decorators: [
     withSeededQueries([
-      { queryKey: ['feed'], data: infinitePage({ items: buildCards(6), nextBefore: null }) },
+      { queryKey: ['feed', 'en'], data: infinitePage({ items: buildCards(6), nextBefore: null }) },
       { queryKey: ['entitlement'], data: FREE_ENTITLEMENT },
     ]),
   ],
@@ -60,8 +60,23 @@ export const Populated: Story = {
 export const Empty: Story = {
   decorators: [
     withSeededQueries([
-      { queryKey: ['feed'], data: infinitePage({ items: [], nextBefore: null }) },
+      { queryKey: ['feed', 'en'], data: infinitePage({ items: [], nextBefore: null }) },
       { queryKey: ['entitlement'], data: FREE_ENTITLEMENT },
+    ]),
+  ],
+};
+
+export const QuotaExhausted: Story = {
+  decorators: [
+    withSeededQueries([
+      { queryKey: ['feed', 'en'], data: infinitePage({ items: buildCards(6), nextBefore: null }) },
+      {
+        queryKey: ['entitlement'],
+        data: {
+          ...FREE_ENTITLEMENT,
+          quota: { ...FREE_ENTITLEMENT.quota, cardReads: 100 },
+        } satisfies EntitlementResponse,
+      },
     ]),
   ],
 };

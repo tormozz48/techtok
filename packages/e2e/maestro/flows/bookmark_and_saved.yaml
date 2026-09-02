@@ -1,0 +1,27 @@
+# Sign in -> skip onboarding -> bookmark the active card from the feed's
+# action bar -> open Saved -> the bookmark is there -> remove it -> Saved
+# reflects the removal. Exercises POST/DELETE /v1/bookmarks and the
+# optimistic-overlay + cache-patch logic in BookmarkButton.tsx.
+appId: ${APP_ID}
+---
+- runFlow: ../subflows/_signIn.yaml
+# Skips onboarding when reached (see _signIn.yaml's comment on the confirmed
+# real-device bug that currently bypasses it on every fresh sign-in anyway).
+- tapOn:
+    id: "onboarding-cta"
+    optional: true
+- assertVisible:
+    id: "feed-screen"
+
+- tapOn:
+    id: "action-bar-bookmark"
+
+- tapOn:
+    id: "action-bar-saved"
+- assertVisible:
+    id: "saved-list"
+- assertVisible:
+    id: "saved-row-.*"
+
+- tapOn:
+    id: "saved-remove-.*"

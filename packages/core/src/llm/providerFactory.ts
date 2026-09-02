@@ -9,11 +9,6 @@ export interface LlmProviderEnv {
   readonly BEDROCK_MODEL_ID?: string;
 }
 
-/**
- * Selects the active LLM provider for the transform/translate/compact
- * pipeline paths (D32, amends D6). Defaults to OpenRouter; `LLM_PROVIDER=bedrock`
- * switches to the dormant Bedrock fallback per stage.
- */
 export function createConfiguredLlmProvider(env: LlmProviderEnv): LlmProvider {
   const provider = env.LLM_PROVIDER ?? 'openrouter';
 

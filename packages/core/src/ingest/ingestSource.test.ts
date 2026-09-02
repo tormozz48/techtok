@@ -2,23 +2,24 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
-import type { NewPost } from '../posts.types';
+import type { CreatedPost, NewPost } from '../posts.types';
 import type { SourceRecord } from '../sources.types';
 import type { FetchFeedResult } from './ingestSource';
-import { ingestSource } from './ingestSource';
+import { ingestSource, MAX_CANDIDATES_PER_FETCH } from './ingestSource';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const HN_FIXTURE = path.join(dirname, '__fixtures__/hn.xml');
 const NATURE_MALFORMED_FIXTURE = path.join(dirname, '__fixtures__/nature-malformed.xml');
 
 function fakeDeps(xml: string) {
-  const seen = new Set<string>();
-  const putIfNew = vi.fn(async (post: NewPost) => {
-    if (seen.has(post.postId)) return false;
-    seen.add(post.postId);
-    return true;
+  const idsByCanonicalUrl = new Map<string, string>();
+  const putIfNew = vi.fn(async (post: NewPost): Promise<string | undefined> => {
+    if (idsByCanonicalUrl.has(post.canonicalUrl)) return undefined;
+    const postId = String(idsByCanonicalUrl.size + 1);
+    idsByCanonicalUrl.set(post.canonicalUrl, postId);
+    return postId;
   });
-  const enqueueNew = vi.fn(async (_posts: NewPost[]) => {});
+  const enqueueNew = vi.fn(async (_posts: CreatedPost[]) => {});
   const recordFetchResult = vi.fn(async (_sourceId: string, _outcome: unknown) => {});
   const fetchFeed = vi.fn(
     async (): Promise<FetchFeedResult> => ({ status: 'ok', body: xml, etag: '"v1"' }),
@@ -35,6 +36,14 @@ function fakeDeps(xml: string) {
     markDuplicate,
     recordDuplicate,
   };
+}
+
+function manyItemsXml(itemCount: number): string {
+  const items = Array.from({ length: itemCount }, (_, i) => {
+    const pubDate = new Date(Date.UTC(2026, 6, 18, 0, 0, itemCount - i)).toUTCString();
+    return `<item><title>Item ${i}</title><link>https://example.com/${i}</link><pubDate>${pubDate}</pubDate></item>`;
+  }).join('\n');
+  return `<?xml version="1.0"?><rss version="2.0"><channel><title>Many</title><link>https://example.com</link><description>d</description>${items}</channel></rss>`;
 }
 
 const source: SourceRecord = {
@@ -62,6 +71,7 @@ describe('ingestSource', () => {
       status: 'ok',
       etag: '"v1"',
       lastModified: undefined,
+      newestSeenPublishedAt: expect.any(String),
     });
   });
 
@@ -106,10 +116,10 @@ describe('ingestSource', () => {
     const xml = await readFile(HN_FIXTURE, 'utf8');
     const deps = fakeDeps(xml);
     let calls = 0;
-    deps.putIfNew.mockImplementation(async (): Promise<boolean> => {
+    deps.putIfNew.mockImplementation(async (): Promise<string> => {
       calls += 1;
       if (calls === 1) throw new Error('conditional write blew up');
-      return true;
+      return String(calls);
     });
 
     const result = await ingestSource(source, deps);
@@ -137,15 +147,12 @@ describe('ingestSource', () => {
     const result = await ingestSource(source, deps);
 
     expect(result.created).toBe(3);
-    // putIfNew writes before dedup resolves, so it never sees duplicateOf —
-    // markDuplicate patches it on afterward instead.
     for (const [post] of deps.putIfNew.mock.calls) {
       expect(post.duplicateOf).toBeUndefined();
     }
-    const flaggedPost = deps.enqueueNew.mock.calls[0]?.[0][0];
-    expect(flaggedPost).toMatchObject({ duplicateOf: 'existing-post-id' });
-    expect(deps.markDuplicate).toHaveBeenCalledWith(flaggedPost?.postId, 'existing-post-id');
-    // Only the one entry findDuplicate flagged should bump the original's count.
+    const enqueued = deps.enqueueNew.mock.calls[0]?.[0];
+    expect(enqueued).toHaveLength(3);
+    expect(deps.markDuplicate).toHaveBeenCalledWith(enqueued?.[0]?.postId, 'existing-post-id');
     expect(deps.recordDuplicate).toHaveBeenCalledTimes(1);
     expect(deps.recordDuplicate).toHaveBeenCalledWith('existing-post-id');
   });
@@ -170,13 +177,11 @@ describe('ingestSource', () => {
   it('skips the dedup lookup entirely for a post putIfNew says is not new', async () => {
     const xml = await readFile(HN_FIXTURE, 'utf8');
     const deps = fakeDeps(xml);
-    deps.putIfNew.mockResolvedValueOnce(false); // pretend this entry was already seen
+    deps.putIfNew.mockResolvedValueOnce(undefined);
 
     const result = await ingestSource(source, deps);
 
     expect(result.created).toBe(2);
-    // The core fix: findDuplicate must never run for an already-known entry —
-    // only for the 2 genuinely new ones, not all 3 seen.
     expect(deps.findDuplicate).toHaveBeenCalledTimes(2);
     expect(deps.markDuplicate).not.toHaveBeenCalled();
     expect(deps.recordDuplicate).not.toHaveBeenCalled();
@@ -190,15 +195,11 @@ describe('ingestSource', () => {
 
     const result = await ingestSource(source, deps);
 
-    // The duplicate post itself was still created and enqueued — only the
-    // counter bump on the original failed.
     expect(result.created).toBe(3);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]).toContain('recordDuplicate failed for existing-post-id');
     expect(deps.markDuplicate).toHaveBeenCalledWith(expect.any(String), 'existing-post-id');
-    expect(deps.enqueueNew.mock.calls[0]?.[0][0]).toMatchObject({
-      duplicateOf: 'existing-post-id',
-    });
+    expect(deps.enqueueNew.mock.calls[0]?.[0]).toHaveLength(3);
   });
 
   it('records a soft error but keeps the run clean when markDuplicate fails', async () => {
@@ -209,21 +210,14 @@ describe('ingestSource', () => {
 
     const result = await ingestSource(source, deps);
 
-    // The post is still enqueued with duplicateOf, and recordDuplicate still
-    // runs — the counter bump doesn't depend on the patch write succeeding.
     expect(result.created).toBe(3);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]).toContain('markDuplicate failed for');
     expect(deps.recordDuplicate).toHaveBeenCalledWith('existing-post-id');
-    expect(deps.enqueueNew.mock.calls[0]?.[0][0]).toMatchObject({
-      duplicateOf: 'existing-post-id',
-    });
+    expect(deps.enqueueNew.mock.calls[0]?.[0]).toHaveLength(3);
   });
 
   it('recovers every entry from a feed with a valueless attribute instead of dropping the poll', async () => {
-    // Nature intermittently emits `<prism:issn rdf:resource\n    />`, which
-    // sax rejects outright — before the repair fallback this cost us all 75
-    // items in the poll, with nothing but a log line to show for it.
     const xml = await readFile(NATURE_MALFORMED_FIXTURE, 'utf8');
     const deps = fakeDeps(xml);
 
@@ -237,7 +231,71 @@ describe('ingestSource', () => {
       status: 'ok',
       etag: '"v1"',
       lastModified: undefined,
+      newestSeenPublishedAt: expect.any(String),
     });
+  });
+
+  it('skips writes for items older than the source watermark, without calling putIfNew', async () => {
+    const xml = await readFile(HN_FIXTURE, 'utf8');
+    const deps = fakeDeps(xml);
+    const watermarked: SourceRecord = {
+      ...source,
+      newestSeenPublishedAt: new Date('Sat, 18 Jul 2026 17:53:06 +0000').toISOString(),
+    };
+
+    const result = await ingestSource(watermarked, deps);
+
+    expect(result).toEqual({ sourceId: 'hn', seen: 3, created: 0, errors: [] });
+    expect(deps.putIfNew).not.toHaveBeenCalled();
+    expect(deps.enqueueNew).not.toHaveBeenCalled();
+    expect(deps.recordFetchResult).toHaveBeenCalledWith('hn', {
+      status: 'ok',
+      etag: '"v1"',
+      lastModified: undefined,
+      newestSeenPublishedAt: watermarked.newestSeenPublishedAt,
+    });
+  });
+
+  it('still ingests items stamped exactly at the source watermark', async () => {
+    const pubDate = new Date(Date.UTC(2026, 6, 18, 4, 0, 0)).toUTCString();
+    const items = Array.from(
+      { length: 3 },
+      (_, i) =>
+        `<item><title>Paper ${i}</title><link>https://example.com/${i}</link><pubDate>${pubDate}</pubDate></item>`,
+    ).join('\n');
+    const xml = `<?xml version="1.0"?><rss version="2.0"><channel><title>Batch</title><link>https://example.com</link><description>d</description>${items}</channel></rss>`;
+    const deps = fakeDeps(xml);
+    const watermarked: SourceRecord = {
+      ...source,
+      newestSeenPublishedAt: new Date(pubDate).toISOString(),
+    };
+
+    const result = await ingestSource(watermarked, deps);
+
+    expect(result.created).toBe(3);
+    expect(deps.putIfNew).toHaveBeenCalledTimes(3);
+  });
+
+  it('caps candidates per fetch at MAX_CANDIDATES_PER_FETCH', async () => {
+    const deps = fakeDeps(manyItemsXml(MAX_CANDIDATES_PER_FETCH + 5));
+
+    await ingestSource(source, deps);
+
+    expect(deps.putIfNew).toHaveBeenCalledTimes(MAX_CANDIDATES_PER_FETCH);
+  });
+
+  it('does not spend the candidate budget on items below the watermark', async () => {
+    const itemCount = MAX_CANDIDATES_PER_FETCH + 5;
+    const deps = fakeDeps(manyItemsXml(itemCount));
+    const watermarked: SourceRecord = {
+      ...source,
+      newestSeenPublishedAt: new Date(Date.UTC(2026, 6, 18, 0, 0, itemCount - 2)).toISOString(),
+    };
+
+    const result = await ingestSource(watermarked, deps);
+
+    expect(result.seen).toBe(itemCount);
+    expect(deps.putIfNew).toHaveBeenCalledTimes(3);
   });
 
   it('reports the original parse error when the body is too broken to repair', async () => {

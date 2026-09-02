@@ -13,8 +13,21 @@ export interface LanguageFlagRowProps<T extends string> {
   readonly buttonSelectedStyle: StyleProp<ViewStyle>;
 }
 
-/** A single-line row of flag-only buttons — the language picker used by the
- * settings and onboarding screens. */
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+  },
+  button: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flag: {
+    fontSize: 28,
+  },
+});
+
 export function LanguageFlagRow<T extends string>({
   items,
   isSelected,
@@ -46,18 +59,3 @@ export function LanguageFlagRow<T extends string>({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-  },
-  button: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  flag: {
-    fontSize: 28,
-  },
-});

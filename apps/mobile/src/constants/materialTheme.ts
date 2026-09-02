@@ -6,11 +6,6 @@ import {
   themeFromSourceColor,
 } from '@material/material-color-utilities';
 
-// Brand seeds from the app icon (DESIGN §2 D37, "Orbit"): navy background,
-// amber ring-and-dot mark. The navy seed drives the neutral/secondary/
-// tertiary/error palettes (M3's algorithm desaturates a seed hue into
-// harmonious supporting tones); the amber seed is swapped in as its own
-// primary palette so brand actions/accents read as amber, not navy-derived.
 const NAVY_SEED = '#111A33';
 const AMBER_SEED = '#FF9F1C';
 
@@ -26,36 +21,8 @@ const palettes = {
   neutralVariant: seeded.palettes.neutralVariant,
 };
 
-function tone(palette: TonalPalette, t: number): string {
-  return hexFromArgb(palette.tone(t));
-}
-
-function rgba(hex: string, alpha: number): string {
-  const argb = argbFromHex(hex);
-  const r = (argb >> 16) & 0xff;
-  const g = (argb >> 8) & 0xff;
-  const b = argb & 0xff;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-// Pre-blends `fg` over `bg` into a solid color, matching Paper's own stock
-// MD3 themes: RN transfers shadows to children instead of the Surface view
-// when the elevation "tint" carries transparency, so it must be opaque.
-function mix(fgHex: string, bgHex: string, alpha: number): string {
-  const fg = argbFromHex(fgHex);
-  const bg = argbFromHex(bgHex);
-  const blend = (shift: number) => {
-    const f = (fg >> shift) & 0xff;
-    const b = (bg >> shift) & 0xff;
-    return Math.round(f * alpha + b * (1 - alpha));
-  };
-  return `rgb(${blend(16)}, ${blend(8)}, ${blend(0)})`;
-}
-
 export type ThemeTone = 'light' | 'dark';
 
-// Standard M3 tone-role mapping (the same tone numbers stock Paper's
-// MD3LightTheme/MD3DarkTheme use) applied to our own seeded palettes.
 export function buildMD3Colors(themeTone: ThemeTone) {
   const isDark = themeTone === 'dark';
   const t = (light: number, dark: number) => (isDark ? dark : light);
@@ -106,4 +73,27 @@ export function buildMD3Colors(themeTone: ThemeTone) {
       level5: mix(primary, surface, 0.14),
     },
   };
+}
+
+function tone(palette: TonalPalette, t: number): string {
+  return hexFromArgb(palette.tone(t));
+}
+
+function rgba(hex: string, alpha: number): string {
+  const argb = argbFromHex(hex);
+  const r = (argb >> 16) & 0xff;
+  const g = (argb >> 8) & 0xff;
+  const b = argb & 0xff;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function mix(fgHex: string, bgHex: string, alpha: number): string {
+  const fg = argbFromHex(fgHex);
+  const bg = argbFromHex(bgHex);
+  const blend = (shift: number) => {
+    const f = (fg >> shift) & 0xff;
+    const b = (bg >> shift) & 0xff;
+    return Math.round(f * alpha + b * (1 - alpha));
+  };
+  return `rgb(${blend(16)}, ${blend(8)}, ${blend(0)})`;
 }

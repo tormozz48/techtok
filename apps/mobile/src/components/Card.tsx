@@ -3,7 +3,7 @@ import { getTopicLabel } from '@techtok/shared';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Linking, StyleSheet, Text, View } from 'react-native';
 import { Chip, TouchableRipple } from 'react-native-paper';
 import { Colors, Spacing, Typography } from '@/constants/theme';
@@ -19,114 +19,8 @@ export interface CardProps {
   card: CardData;
 }
 
-export function Card({ card }: CardProps) {
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const strings = useStrings();
-  const language = useLanguageStore((state) => state.language);
-  const longPressedRef = useRef(false);
-
-  return (
-    <View style={styles.container}>
-      {card.imageUrl ? (
-        <>
-          <Image
-            source={{ uri: card.imageUrl }}
-            placeholder={card.blurhash ? { blurhash: card.blurhash } : undefined}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            transition={150}
-            onLoad={() => setImageLoaded(true)}
-            onError={() => setImageLoaded(true)}
-          />
-          {!imageLoaded && !card.blurhash ? <ImageSkeleton /> : null}
-        </>
-      ) : (
-        <ImageStub postId={card.id} topic={card.primaryTopic} />
-      )}
-
-      <LinearGradient
-        colors={[Colors.overlay.scrimStart, Colors.overlay.scrimEnd]}
-        locations={[0.4, 1]}
-        style={StyleSheet.absoluteFill}
-      />
-
-      <TouchableRipple
-        style={styles.content}
-        onPress={() => {
-          if (longPressedRef.current) {
-            longPressedRef.current = false;
-            return;
-          }
-          enqueueRead(card.id);
-          router.push({
-            pathname: '/post/[id]',
-            params: {
-              id: card.id,
-              title: card.title,
-              sourceName: card.sourceName,
-              url: card.url,
-              isBookmarked: String(card.isBookmarked ?? false),
-            },
-          });
-        }}
-        onLongPress={
-          card.isTranslated
-            ? () => {
-                longPressedRef.current = true;
-                Linking.openURL(translationFeedbackMailto(card.id, card.servedLang));
-              }
-            : undefined
-        }
-      >
-        {/* biome-ignore lint/complexity/noUselessFragments: TouchableRipple calls React.Children.only, so multiple children need a single wrapping element. */}
-        <>
-          {__DEV__ && card.transform ? (
-            <Chip compact style={styles.debugBadge} textStyle={styles.debugBadgeText}>
-              {card.transform}
-            </Chip>
-          ) : null}
-          <Chip compact style={styles.topicChip} textStyle={styles.topicChipText}>
-            {getTopicLabel(card.primaryTopic, language)}
-          </Chip>
-          {card.isTranslated ? (
-            <Chip
-              compact
-              mode="outlined"
-              style={styles.translatedBadge}
-              textStyle={styles.translatedBadgeText}
-            >
-              {strings.card.translatedBadge}
-            </Chip>
-          ) : null}
-          <Text style={styles.title}>{card.title}</Text>
-          <Text style={styles.summary} numberOfLines={4}>
-            {card.summary}
-          </Text>
-          {card.whyItMatters ? (
-            <Text style={styles.whyItMatters} numberOfLines={2}>
-              {card.whyItMatters}
-            </Text>
-          ) : null}
-          <View style={styles.meta}>
-            <Text style={styles.metaText}>{card.sourceName}</Text>
-            <Text style={styles.metaText}> · {timeAgo(card.publishedAt, strings.time)}</Text>
-          </View>
-          {card.sourceCount ? (
-            <Text style={styles.sourceCountText}>{strings.card.sourceCount(card.sourceCount)}</Text>
-          ) : null}
-        </>
-      </TouchableRipple>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
-    // react-native-pager-view's own docs: `flex: 1` does not size a page's
-    // children correctly, use an explicit width/height instead — 100% then
-    // resolves against whatever height the pager itself is given by its
-    // parent (FeedScreen's layout, D25), so the pager shrinking for the
-    // bottom action bar "just works" without any bar-height arithmetic here.
     width: '100%',
     height: '100%',
     backgroundColor: Colors.overlay.surfaceBlack,
@@ -203,3 +97,103 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 });
+
+export function Card({ card }: CardProps) {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const strings = useStrings();
+  const language = useLanguageStore((state) => state.language);
+
+  return (
+    <View style={styles.container}>
+      {card.imageUrl ? (
+        <>
+          <Image
+            source={{ uri: card.imageUrl }}
+            placeholder={card.blurhash ? { blurhash: card.blurhash } : undefined}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            transition={150}
+            onLoad={() => setImageLoaded(true)}
+            onError={() => setImageLoaded(true)}
+          />
+          {!imageLoaded && !card.blurhash ? <ImageSkeleton /> : null}
+        </>
+      ) : (
+        <ImageStub postId={card.id} topic={card.primaryTopic} />
+      )}
+
+      <LinearGradient
+        colors={[Colors.overlay.scrimStart, Colors.overlay.scrimEnd]}
+        locations={[0.4, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+
+      <TouchableRipple
+        style={styles.content}
+        testID="feed-card"
+        onPress={() => {
+          enqueueRead(card.id);
+          router.push({
+            pathname: '/post/[id]',
+            params: {
+              id: card.id,
+              title: card.title,
+              sourceName: card.sourceName,
+              url: card.url,
+              isBookmarked: String(card.isBookmarked ?? false),
+            },
+          });
+        }}
+        onLongPress={
+          card.isTranslated
+            ? () => {
+                Linking.openURL(translationFeedbackMailto(card.id, card.servedLang)).catch(
+                  () => {},
+                );
+              }
+            : undefined
+        }
+      >
+        {/* biome-ignore lint/complexity/noUselessFragments: TouchableRipple calls React.Children.only, so multiple children need a single wrapping element. */}
+        <>
+          {__DEV__ && card.transform ? (
+            <Chip compact style={styles.debugBadge} textStyle={styles.debugBadgeText}>
+              {card.transform}
+            </Chip>
+          ) : null}
+          <Chip compact style={styles.topicChip} textStyle={styles.topicChipText}>
+            {getTopicLabel(card.primaryTopic, language)}
+          </Chip>
+          {card.isTranslated ? (
+            <Chip
+              compact
+              mode="outlined"
+              style={styles.translatedBadge}
+              textStyle={styles.translatedBadgeText}
+            >
+              {strings.card.translatedBadge}
+            </Chip>
+          ) : null}
+          <Text style={styles.title} testID="feed-card-title">
+            {card.title}
+          </Text>
+          <Text style={styles.summary} numberOfLines={4}>
+            {card.summary}
+          </Text>
+          {card.whyItMatters ? (
+            <Text style={styles.whyItMatters} numberOfLines={2}>
+              {card.whyItMatters}
+            </Text>
+          ) : null}
+          <View style={styles.meta}>
+            <Text style={styles.metaText}>{card.sourceName}</Text>
+            <Text style={styles.metaText}> · {timeAgo(card.publishedAt, strings.time)}</Text>
+          </View>
+          {card.sourceCount ? (
+            <Text style={styles.sourceCountText}>{strings.card.sourceCount(card.sourceCount)}</Text>
+          ) : null}
+        </>
+      </TouchableRipple>
+    </View>
+  );
+}

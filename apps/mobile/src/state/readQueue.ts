@@ -10,19 +10,7 @@ interface QueuedRead {
   readAt: string;
 }
 
-function loadQueue(): QueuedRead[] {
-  const raw = storage.getString(QUEUE_KEY);
-  if (!raw) return [];
-  try {
-    return JSON.parse(raw) as QueuedRead[];
-  } catch {
-    return [];
-  }
-}
-
-function saveQueue(queue: QueuedRead[]): void {
-  storage.set(QUEUE_KEY, JSON.stringify(queue));
-}
+let started = false;
 
 export function enqueueRead(postId: string): void {
   const queue = loadQueue();
@@ -39,12 +27,8 @@ export async function flushReadQueue(): Promise<void> {
     await postReads(queue.map((entry) => entry.postId));
     const sentIds = new Set(queue.map((entry) => entry.postId));
     saveQueue(loadQueue().filter((entry) => !sentIds.has(entry.postId)));
-  } catch {
-    // Network hiccup — leave the queue in place, the next timer tick retries.
-  }
+  } catch {}
 }
-
-let started = false;
 
 export function startReadQueueFlushing(): void {
   if (started) return;
@@ -55,4 +39,18 @@ export function startReadQueueFlushing(): void {
   AppState.addEventListener('change', (state) => {
     if (state === 'background') flushReadQueue();
   });
+}
+
+function loadQueue(): QueuedRead[] {
+  const raw = storage.getString(QUEUE_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as QueuedRead[];
+  } catch {
+    return [];
+  }
+}
+
+function saveQueue(queue: QueuedRead[]): void {
+  storage.set(QUEUE_KEY, JSON.stringify(queue));
 }

@@ -1,7 +1,7 @@
 import {
   ContentQueue,
-  createDynamoClient,
   createSourceWeightsCache,
+  createSqlClient,
   createSqsClient,
   PostsRepo,
   SourcesRepo,
@@ -12,29 +12,15 @@ import {
 import { requireEnv } from './env';
 import { lazy } from './lazy';
 
-/**
- * Per-container singletons for the DynamoDB-backed repos. Every handler in
- * this package shares one document client, and each repo reads its table
- * name only when first used — so a Lambda that lacks an env var it never
- * touches keeps working.
- */
-export const getDynamoClient = lazy(createDynamoClient);
+const getSqlClient = lazy(() => createSqlClient(requireEnv('DATABASE_URL')));
 
-export const getPostsRepo = lazy(
-  () => new PostsRepo(getDynamoClient(), requireEnv('POSTS_TABLE_NAME')),
-);
+export const getPostsRepo = lazy(() => new PostsRepo(getSqlClient()));
 
-export const getUsersRepo = lazy(
-  () => new UsersRepo(getDynamoClient(), requireEnv('USERS_TABLE_NAME')),
-);
+export const getUsersRepo = lazy(() => new UsersRepo(getSqlClient()));
 
-export const getUserActivityRepo = lazy(
-  () => new UserActivityRepo(getDynamoClient(), requireEnv('USER_ACTIVITY_TABLE_NAME')),
-);
+export const getUserActivityRepo = lazy(() => new UserActivityRepo(getSqlClient()));
 
-export const getSourcesRepo = lazy(
-  () => new SourcesRepo(getDynamoClient(), requireEnv('SOURCES_TABLE_NAME')),
-);
+export const getSourcesRepo = lazy(() => new SourcesRepo(getSqlClient()));
 
 export const getSourceWeightsCache = lazy(() => createSourceWeightsCache(getSourcesRepo()));
 

@@ -1,5 +1,6 @@
 import {
   ContentStore,
+  contentKey,
   createS3Client,
   effectiveQuota,
   FREE_READER_OPENS_PER_DAY,
@@ -17,19 +18,6 @@ const getContentStore = lazy(
   () => new ContentStore(getS3Client(), requireEnv('CONTENT_BUCKET_NAME')),
 );
 
-/**
- * Reads a compact article (D23; eager generation as of D36) — a plain S3
- * cache read, no job ids or polling. Generation already happened during
- * ingest (`transformArticle`'s eager per-language enqueue), so a miss here is
- * either a source with the compact-reader kill switch on, or the rare case a
- * just-ingested post's eager job hasn't finished yet. Never calls the LLM on
- * this request path.
- *
- * D69: also the free tier's reader-opens gate. Counts as an "open" the
- * moment the request is allowed through, regardless of whether the content
- * turns out to be cached, not-ready, or compact-disabled — the user still
- * spent one of their daily opens tapping into the reader.
- */
 export const handler = withAuth(async (event, auth) => {
   const postId = event.pathParameters?.postId;
   if (!postId) {
@@ -38,11 +26,12 @@ export const handler = withAuth(async (event, auth) => {
 
   const query = parseQuery(event, contentQuerySchema);
   if (!query.ok) return query.response;
-  const { lang } = query.data;
+  const { lang, intent } = query.data;
+  const isPrefetch = intent === 'prefetch';
 
   const user = await getUsersRepo().touch(auth.userId, { email: auth.email, name: auth.name });
   const timezone = user.timezone ?? 'UTC';
-  if (!isPlus(user)) {
+  if (!isPrefetch && !isPlus(user)) {
     const quota = effectiveQuota(user.quota, timezone);
     if (quota.readerOpens >= FREE_READER_OPENS_PER_DAY) {
       return errorResponse(402, 'quota_exceeded', 'Daily reader-open limit reached.');
@@ -54,11 +43,11 @@ export const handler = withAuth(async (event, auth) => {
     return errorResponse(404, 'not_found', `post ${postId} not found`);
   }
 
-  if (!isPlus(user)) {
+  if (!isPrefetch && !isPlus(user)) {
     await getUsersRepo().incrementQuota(auth.userId, 'readerOpens', timezone);
   }
 
-  const cached = await getContentStore().getContent(postId, lang);
+  const cached = await getContentStore().getContent(contentKey(post.canonicalUrl), lang);
   if (cached) {
     return jsonResponse(200, {
       available: true,

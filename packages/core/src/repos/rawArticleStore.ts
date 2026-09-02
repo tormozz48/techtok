@@ -6,21 +6,17 @@ export class RawArticleStore {
     private readonly bucketName: string,
   ) {}
 
-  async archiveRaw(postId: string, html: string): Promise<void> {
+  async archiveRaw(objectKey: string, html: string): Promise<void> {
     await this.client.send(
       new PutObjectCommand({
         Bucket: this.bucketName,
-        Key: `raw/${postId}.html`,
+        Key: `raw/${objectKey}.html`,
         Body: html,
         ContentType: 'text/html',
       }),
     );
   }
 
-  /** Reads back a previously-archived page (image backfill, phase 7 task 3).
-   * Throws on any failure (missing key, past its 90-day lifecycle, S3
-   * outage) — the caller decides how to degrade, same as every other S3/DDB
-   * call in this repo layer. */
   async getRaw(key: string): Promise<string> {
     const result = await this.client.send(
       new GetObjectCommand({ Bucket: this.bucketName, Key: key }),

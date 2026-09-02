@@ -10,8 +10,6 @@ const SNAPSHOT_PATH = resolve(__dirname, '../schema-snapshot.json');
 type JsonSchema = Record<string, unknown>;
 type Snapshot = Record<string, JsonSchema>;
 
-/** Every exported `*Schema` zod value in schemas.ts, serialized via zod's own
- * `toJSONSchema` — field names, optionality, primitive/enum shapes. */
 export function buildSnapshot(): Snapshot {
   const snapshot: Snapshot = {};
   for (const [name, value] of Object.entries(schemas)) {
@@ -32,9 +30,6 @@ function branchTag(branch: JsonSchema): string | undefined {
   return typeof tag === 'string' ? tag : undefined;
 }
 
-/** Matches old/new `oneOf`/`anyOf` branches by their discriminator `const`
- * (falling back to position for untagged unions, e.g. `T | null`) so each
- * branch can be diffed against its counterpart rather than compared blind. */
 function matchBranches(
   oldBranches: JsonSchema[],
   newBranches: JsonSchema[],
@@ -50,10 +45,6 @@ function matchBranches(
   return oldBranches.map((branch, i) => [branch, newBranches[i]]);
 }
 
-/** Walks a pair of JSON-schema nodes and collects breaking changes: a
- * removed field, a field that went from required to optional, a field/node
- * whose `type` changed, or a removed enum value. Purely additive changes
- * (new optional field, new enum value, new union branch) are not flagged. */
 function diffNode(
   path: string,
   oldNode: JsonSchema | undefined,
@@ -117,9 +108,6 @@ function diffNode(
   }
 }
 
-/** Diffs a previously-committed snapshot against the current one. Only the
- * committed snapshot's schemas are walked — a schema newly added in `next`
- * that doesn't exist in `previous` is purely additive and never flagged. */
 export function diffSnapshots(previous: Snapshot, next: Snapshot): string[] {
   const breaking: string[] = [];
   for (const [name, oldRoot] of Object.entries(previous)) {
@@ -161,8 +149,6 @@ function main(): void {
   console.log(`Wrote ${SNAPSHOT_PATH}`);
 }
 
-// Only run when executed directly (`tsx schemaSnapshot.ts`), not when the
-// test file imports `buildSnapshot`/`diffSnapshots` from this module.
 if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
   main();
 }

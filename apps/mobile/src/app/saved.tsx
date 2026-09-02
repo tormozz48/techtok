@@ -1,16 +1,15 @@
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { FlatList, View } from 'react-native';
 import { IconButton, List, Searchbar } from 'react-native-paper';
 import { deleteBookmark, fetchBookmarksPage } from '@/api/client';
-import { prefetchPostContent } from '@/api/prefetchContent';
-import { Spacing, type ThemeColors } from '@/constants/theme';
+import { ScreenState } from '@/components/ScreenState';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
-import { useLanguageStore } from '@/state/languageStore';
-import { getIsWifi } from '@/state/network';
+import { logError } from '@/state/eventsQueue';
 import { timeAgo } from '@/utils/timeAgo';
+import { createStyles } from './saved.styles';
 
 export default function SavedScreen() {
   const queryClient = useQueryClient();
@@ -30,22 +29,6 @@ export default function SavedScreen() {
   const items = data?.pages.flatMap((page) => page.items) ?? [];
   const isSearching = submittedQuery.length > 0;
 
-  // Best-effort offline prep for whatever's currently loaded on this screen
-  // (including further pages as the user scrolls). Reads straight from
-  // `data` rather than the derived `items` array so the effect's own
-  // dependency (`data`) matches what it actually reads — `items` is a fresh
-  // array reference on every render even when the underlying pages haven't
-  // changed, which would otherwise re-run this on every render too.
-  useEffect(() => {
-    if (!getIsWifi() || !data) return;
-    const language = useLanguageStore.getState().language;
-    for (const page of data.pages) {
-      for (const item of page.items) {
-        prefetchPostContent(queryClient, item.postId, language);
-      }
-    }
-  }, [data, queryClient]);
-
   const removeBookmark = async (postId: string) => {
     queryClient.setQueryData(['bookmarks', submittedQuery], (current: typeof data) => {
       if (!current) return current;
@@ -59,6 +42,8 @@ export default function SavedScreen() {
     });
     try {
       await deleteBookmark(postId);
+    } catch (error) {
+      logError('removeBookmark failed', { message: String(error) });
     } finally {
       queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
     }
@@ -73,24 +58,18 @@ export default function SavedScreen() {
         onSubmitEditing={() => setSubmittedQuery(searchText.trim())}
         onClearIconPress={() => setSubmittedQuery('')}
         style={styles.searchbar}
+        testID="saved-search"
       />
       {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.textSecondary} />
-        </View>
+        <ScreenState loading />
       ) : isError ? (
-        <View style={styles.center}>
-          <Text style={styles.emptyText}>{strings.saved.error}</Text>
-        </View>
+        <ScreenState message={strings.saved.error} />
       ) : items.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.emptyText}>
-            {isSearching ? strings.saved.noResults : strings.saved.empty}
-          </Text>
-        </View>
+        <ScreenState message={isSearching ? strings.saved.noResults : strings.saved.empty} />
       ) : (
         <FlatList
           style={styles.list}
+          testID="saved-list"
           data={items}
           keyExtractor={(item) => item.postId}
           onEndReached={() => {
@@ -118,6 +97,7 @@ export default function SavedScreen() {
                   })
                 }
                 style={styles.rowContent}
+                testID={`saved-row-${item.postId}`}
               />
               <IconButton
                 icon="close"
@@ -125,6 +105,7 @@ export default function SavedScreen() {
                 iconColor={colors.textSecondary}
                 onPress={() => removeBookmark(item.postId)}
                 accessibilityLabel={strings.a11y.removeSaved}
+                testID={`saved-remove-${item.postId}`}
               />
             </View>
           )}
@@ -132,55 +113,4 @@ export default function SavedScreen() {
       )}
     </View>
   );
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    searchbar: {
-      margin: Spacing.three,
-      backgroundColor: colors.backgroundElement,
-    },
-    list: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    center: {
-      flex: 1,
-      backgroundColor: colors.background,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: Spacing.four,
-    },
-    emptyText: {
-      color: colors.textSecondary,
-      textAlign: 'center',
-      fontSize: 16,
-    },
-    row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderBottomColor: colors.backgroundElement,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      paddingHorizontal: Spacing.four,
-    },
-    rowContent: {
-      flex: 1,
-      paddingVertical: Spacing.three,
-    },
-    title: {
-      color: colors.text,
-      fontSize: 16,
-      fontWeight: '600',
-      marginBottom: Spacing.one,
-    },
-    metaText: {
-      color: colors.textSecondary,
-      fontSize: 13,
-      fontWeight: '600',
-    },
-  });
 }

@@ -1,7 +1,5 @@
 import type { SourceRecord } from '../sources.types';
 
-/** Preset rows carry only their identity; the operational fields all start
- * from the same defaults (weight 1, enabled, clean failCount) applied below. */
 type SourcePreset = Omit<SourceRecord, 'weight' | 'enabled' | 'failCount'>;
 
 const PRESETS: SourcePreset[] = [
@@ -84,14 +82,20 @@ const PRESETS: SourcePreset[] = [
   },
 ];
 
-/**
- * The full ~11-feed preset list from DESIGN.md §2, seeded into the `Sources`
- * table (Phase 2). Editable afterwards via the table itself — this is only
- * the initial data.
- */
 export const FULL_SOURCE_PRESETS: SourceRecord[] = PRESETS.map((preset) => ({
   ...preset,
   weight: 1,
   enabled: true,
   failCount: 0,
 }));
+
+export const NON_PRODUCTION_SOURCE_IDS = ['verge', 'quanta'];
+
+export function sourcePresetsForStage(stage: string): SourceRecord[] {
+  if (stage === 'production') return FULL_SOURCE_PRESETS;
+
+  return FULL_SOURCE_PRESETS.map((source) => ({
+    ...source,
+    enabled: NON_PRODUCTION_SOURCE_IDS.includes(source.sourceId),
+  }));
+}

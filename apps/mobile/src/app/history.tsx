@@ -1,13 +1,14 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, View } from 'react-native';
 import { List, Searchbar } from 'react-native-paper';
 import { fetchHistoryPage } from '@/api/client';
-import { Spacing, type ThemeColors } from '@/constants/theme';
+import { ScreenState } from '@/components/ScreenState';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { timeAgo } from '@/utils/timeAgo';
+import { createStyles } from './history.styles';
 
 export default function HistoryScreen() {
   const [searchText, setSearchText] = useState('');
@@ -35,24 +36,18 @@ export default function HistoryScreen() {
         onSubmitEditing={() => setSubmittedQuery(searchText.trim())}
         onClearIconPress={() => setSubmittedQuery('')}
         style={styles.searchbar}
+        testID="history-search"
       />
       {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.textSecondary} />
-        </View>
+        <ScreenState loading />
       ) : isError ? (
-        <View style={styles.center}>
-          <Text style={styles.emptyText}>{strings.history.error}</Text>
-        </View>
+        <ScreenState message={strings.history.error} />
       ) : items.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.emptyText}>
-            {isSearching ? strings.history.noResults : strings.history.empty}
-          </Text>
-        </View>
+        <ScreenState message={isSearching ? strings.history.noResults : strings.history.empty} />
       ) : (
         <FlatList
           style={styles.list}
+          testID="history-list"
           data={items}
           keyExtractor={(item) => item.postId}
           onEndReached={() => {
@@ -78,56 +73,11 @@ export default function HistoryScreen() {
                 })
               }
               style={styles.row}
+              testID={`history-row-${item.postId}`}
             />
           )}
         />
       )}
     </View>
   );
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    searchbar: {
-      margin: Spacing.three,
-      backgroundColor: colors.backgroundElement,
-    },
-    list: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    center: {
-      flex: 1,
-      backgroundColor: colors.background,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: Spacing.four,
-    },
-    emptyText: {
-      color: colors.textSecondary,
-      textAlign: 'center',
-      fontSize: 16,
-    },
-    row: {
-      borderBottomColor: colors.backgroundElement,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      paddingHorizontal: Spacing.four,
-      paddingVertical: Spacing.three,
-    },
-    title: {
-      color: colors.text,
-      fontSize: 16,
-      fontWeight: '600',
-      marginBottom: Spacing.one,
-    },
-    metaText: {
-      color: colors.textSecondary,
-      fontSize: 13,
-      fontWeight: '600',
-    },
-  });
 }

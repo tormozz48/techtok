@@ -1,12 +1,6 @@
 import { cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react';
 import { Pressable } from 'react-native';
 
-// Storybook renders outside expo-router's navigation tree entirely, so the
-// real package (and everything it drags in — expo's Metro-only dev-client
-// bootstrap) never needs to load. This mock covers only the exports our
-// components/pages actually touch: Link (asChild + plain), router.push, and
-// useLocalSearchParams.
-
 export interface LinkProps {
   href: unknown;
   asChild?: boolean;

@@ -49,7 +49,12 @@ jobs:
 
       # ubuntu-latest ships an Android SDK/NDK; this pins cmdline-tools and
       # accepts licenses so Gradle can fetch any missing package for the build.
+      # packages: 'platform-tools' overrides the action's default ('tools
+      # platform-tools') — the legacy 'tools' package drags in the Android
+      # emulator (~20s download/unzip we never use for a headless APK build).
       - uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools"
 
       # Installs eas-cli and authenticates via EXPO_TOKEN (a free Expo account).
       - uses: expo/expo-github-action@v8
@@ -87,7 +92,7 @@ jobs:
               break
             fi
             VERSION=$(node -e "console.log(require('./apps/mobile/app.json').expo.version)")
-            git add apps/mobile/app.json apps/mobile/package.json apps/mobile/android/app/build.gradle
+            git add apps/mobile/app.json apps/mobile/package.json apps/mobile/android/app/build.gradle apps/mobile/android/app/src/main/res/values/strings.xml
             git commit -m "chore(mobile): bump version to $VERSION [skip ci]"
             if git push origin HEAD:main; then
               echo "Pushed version bump to $VERSION."
@@ -158,13 +163,19 @@ jobs:
       # Reuse the Gradle distribution + Maven deps + build-cache across runs.
       # `eas build --local` runs Gradle from the home GRADLE_USER_HOME (~/.gradle),
       # so caching that here skips the big first-time downloads and recompiles.
+      # Deliberately excludes apps/mobile/android/app/build.gradle from the
+      # hash: the version-bump step above rewrites its versionCode/versionName
+      # on every release, which used to bust the primary cache key on every
+      # single run (falling back to a stale restore-key and re-saving the
+      # full ~2.3GB cache each time). Hashing only the files that actually
+      # gate build-cache-relevant config keeps the key stable across releases.
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('apps/mobile/android/**/*.gradle*', 'apps/mobile/android/gradle/wrapper/gradle-wrapper.properties', 'pnpm-lock.yaml') }}
+          key: gradle-${{ runner.os }}-${{ hashFiles('apps/mobile/android/build.gradle', 'apps/mobile/android/settings.gradle', 'apps/mobile/android/gradle.properties', 'apps/mobile/android/gradle/wrapper/gradle-wrapper.properties', 'pnpm-lock.yaml') }}
           restore-keys: |
             gradle-${{ runner.os }}-
 
@@ -178,11 +189,27 @@ jobs:
       # sensitive (an OAuth client ID is public by design) but is wired the
       # same way as the deploy workflows' GOOGLE_OAUTH_WEB_CLIENT_ID — without
       # it, Google Sign-In fails to configure in every APK this workflow ships.
+      # SENTRY_AUTH_TOKEN authenticates the sentry-android-gradle-plugin's
+      # source-map/native-symbol upload (android/app/build.gradle's `sentry {}`
+      # block); SENTRY_ORG/SENTRY_PROJECT are its non-secret org/project slugs.
+      # Without the token the build still succeeds, it just skips the upload.
+      # EAS_LOCAL_BUILD_WORKINGDIR pins the build to a fixed path instead of
+      # `eas-cli`'s default random tmp dir per run. Gradle's build cache keys
+      # several task types (Kotlin compile classpaths, KSP, CMake
+      # configure/build) off absolute input paths, so a fresh UUID directory
+      # every run meant the restored ~/.gradle cache above mostly missed even
+      # for untouched third-party modules — a random-path run only hit ~28%
+      # of tasks from cache (405 executed / 178 from cache) despite restoring
+      # the full cache. A stable path lets those tasks actually cache-hit.
       - name: Build Android APK (eas build --local)
         working-directory: apps/mobile
         env:
+          EAS_LOCAL_BUILD_WORKINGDIR: /home/runner/eas-local-build
           EXPO_PUBLIC_API_URL: ${{ inputs.api_url }}
           EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_WEB_CLIENT_ID }}
+          SENTRY_ORG: tormozz48
+          SENTRY_PROJECT: react-native
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: eas build --platform android --profile preview --local --non-interactive --output "${{ github.workspace }}/techtok.apk"
 
       # D60: publishes this build's JS/asset bundle to the "preview" EAS
@@ -196,11 +223,13 @@ jobs:
       # committed `android/` project has no per-build prebuild step, so a
       # fingerprint policy would never actually be recomputed by CI — see
       # D60) — publishing here is only safe for the current runtimeVersion.
-      # Any native-affecting change (new native dependency, app.json
-      # plugin/permission/icon change, Expo SDK bump) MUST bump
-      # runtimeVersion in both app.json and this generated
-      # strings.xml/expo_runtime_version by hand first, or this step would
-      # silently offer an incompatible JS bundle to already-installed apps.
+      # D87: the "bump it by hand first" rule above this comment is exactly
+      # what got skipped for the expo-clipboard native dependency, so every
+      # run of this job now unconditionally bumps runtimeVersion (in both
+      # app.json and this generated strings.xml/expo_runtime_version) via the
+      # version-bump step above — this job only runs on a native-affecting
+      # change (D53's `should_build`), so there's no case where it runs
+      # without one.
       - name: Publish OTA update (eas update)
         working-directory: apps/mobile
         env:

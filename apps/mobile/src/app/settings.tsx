@@ -1,28 +1,24 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  getTopicLabel,
-  LANGUAGE_FLAGS,
-  LANGUAGE_LABELS,
-  LANGUAGES,
-  type Language,
-  TOPICS,
-  type Topic,
-} from '@techtok/shared';
+import type { Language, Topic } from '@techtok/shared';
 import { Link } from 'expo-router';
 import { useEffect, useMemo } from 'react';
-import { ScrollView, StyleSheet, Text } from 'react-native';
-import { List } from 'react-native-paper';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { List, Switch } from 'react-native-paper';
 import { fetchSources } from '@/api/client';
 import { useEntitlementQuery } from '@/api/useEntitlementQuery';
-import { LanguageFlagRow } from '@/components/LanguageFlagRow';
+import { BuildInfo } from '@/components/BuildInfo';
+import { LanguagePicker } from '@/components/LanguagePicker';
 import { SelectableList } from '@/components/SelectableList';
-import { Spacing, type ThemeColors } from '@/constants/theme';
+import { TopicPicker } from '@/components/TopicPicker';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
+import { logError } from '@/state/eventsQueue';
+import { useHapticsStore } from '@/state/hapticsStore';
 import { useLanguageStore } from '@/state/languageStore';
 import { useMutedSourcesStore } from '@/state/mutedSourcesStore';
 import { type ThemeMode, useThemeStore } from '@/state/themeStore';
 import { useTopicsStore } from '@/state/topicsStore';
+import { createStyles } from './settings.styles';
 
 const THEME_MODES: readonly ThemeMode[] = ['system', 'light', 'dark'];
 
@@ -31,6 +27,7 @@ export default function SettingsScreen() {
   const { topics, isLoading, load, setTopics } = useTopicsStore();
   const { language, setLanguage } = useLanguageStore();
   const { mode, setMode } = useThemeStore();
+  const { enabled: hapticsEnabled, setEnabled: setHapticsEnabled } = useHapticsStore();
   const {
     mutedSources,
     isLoading: isMutedSourcesLoading,
@@ -55,23 +52,34 @@ export default function SettingsScreen() {
     loadMutedSources();
   }, [load, loadMutedSources]);
 
-  const toggleTopic = async (topic: Topic) => {
-    const next = topics.includes(topic) ? topics.filter((t) => t !== topic) : [...topics, topic];
-    await setTopics(next);
-    queryClient.invalidateQueries({ queryKey: ['feed'] });
+  const applyTopics = async (next: Topic[]) => {
+    try {
+      await setTopics(next);
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+    } catch (error) {
+      logError('applyTopics failed', { message: String(error) });
+    }
   };
 
-  const chooseLanguage = async (next: Language) => {
-    await setLanguage(next);
-    queryClient.invalidateQueries({ queryKey: ['feed'] });
+  const applyLanguage = async (next: Language) => {
+    try {
+      await setLanguage(next);
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+    } catch (error) {
+      logError('applyLanguage failed', { message: String(error) });
+    }
   };
 
   const toggleMutedSource = async (sourceId: string) => {
     const next = mutedSources.includes(sourceId)
       ? mutedSources.filter((id) => id !== sourceId)
       : [...mutedSources, sourceId];
-    await setMutedSources(next);
-    queryClient.invalidateQueries({ queryKey: ['feed'] });
+    try {
+      await setMutedSources(next);
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+    } catch (error) {
+      logError('toggleMutedSource failed', { message: String(error) });
+    }
   };
 
   const themeLabel = (themeMode: ThemeMode) =>
@@ -93,25 +101,36 @@ export default function SettingsScreen() {
         rowSelectedStyle={styles.rowSelected}
         rowTextStyle={styles.rowText}
         checkIconColor={colors.text}
+        testIDPrefix="settings-theme"
       />
       <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>
         {strings.settings.languageSectionTitle}
       </Text>
-      <LanguageFlagRow
-        items={LANGUAGES}
-        isSelected={(lang) => language === lang}
-        flag={(lang) => LANGUAGE_FLAGS[lang]}
-        accessibilityLabel={(lang) => LANGUAGE_LABELS[lang]}
-        onSelect={chooseLanguage}
-        buttonStyle={styles.flagButton}
-        buttonSelectedStyle={styles.flagButtonSelected}
+      <LanguagePicker language={language} onChange={applyLanguage} />
+      <List.Item
+        title={strings.settings.hapticsLabel}
+        description={strings.settings.hapticsHint}
+        titleStyle={styles.rowText}
+        descriptionStyle={styles.rowDescription}
+        style={StyleSheet.flatten([styles.row, styles.sectionTitleSpaced])}
+        onPress={() => setHapticsEnabled(!hapticsEnabled)}
+        right={() => (
+          <Switch
+            value={hapticsEnabled}
+            onValueChange={setHapticsEnabled}
+            accessibilityLabel={strings.settings.hapticsLabel}
+            testID="settings-haptics-switch"
+          />
+        )}
+        testID="settings-haptics-row"
       />
       <Link href="/stats" asChild>
         <List.Item
           title={strings.stats.title}
           titleStyle={styles.rowText}
-          style={StyleSheet.flatten([styles.row, styles.sectionTitleSpaced])}
+          style={styles.row}
           right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.text} />}
+          testID="settings-stats-link"
         />
       </Link>
       <Link href="/account" asChild>
@@ -120,6 +139,7 @@ export default function SettingsScreen() {
           titleStyle={styles.rowText}
           style={styles.row}
           right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.text} />}
+          testID="settings-account-link"
         />
       </Link>
       <Link href="/paywall" asChild>
@@ -130,23 +150,17 @@ export default function SettingsScreen() {
           descriptionStyle={styles.rowDescription}
           style={styles.row}
           right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.text} />}
+          testID="settings-paywall-link"
         />
       </Link>
-      <Text style={styles.hint}>
-        {topics.length === 0
-          ? strings.settings.hintAll
-          : strings.settings.hintSome(topics.length, TOPICS.length)}
-      </Text>
-      <SelectableList
-        items={TOPICS}
-        isSelected={(topic) => topics.includes(topic)}
-        label={(topic) => getTopicLabel(topic, language)}
-        onSelect={toggleTopic}
-        disabled={isLoading}
-        rowStyle={styles.row}
-        rowSelectedStyle={styles.rowSelected}
-        rowTextStyle={styles.rowText}
-        checkIconColor={colors.text}
+      <TopicPicker
+        topics={topics}
+        language={language}
+        isLoading={isLoading}
+        hintAll={strings.settings.hintAll}
+        hintSome={strings.settings.hintSome}
+        onChange={applyTopics}
+        testIDPrefix="settings-topic"
       />
       {sourcesQuery.data ? (
         <>
@@ -156,7 +170,7 @@ export default function SettingsScreen() {
           <Text style={styles.hint}>{strings.settings.sourcesHint}</Text>
           <SelectableList
             items={sourcesQuery.data.sources.map((source) => source.sourceId)}
-            isSelected={(sourceId) => mutedSources.includes(sourceId)}
+            isSelected={(sourceId) => !mutedSources.includes(sourceId)}
             label={(sourceId) =>
               sourcesQuery.data.sources.find((source) => source.sourceId === sourceId)?.name ??
               sourceId
@@ -167,64 +181,13 @@ export default function SettingsScreen() {
             rowSelectedStyle={styles.rowSelected}
             rowTextStyle={styles.rowText}
             checkIconColor={colors.text}
+            testIDPrefix="settings-source"
           />
         </>
       ) : null}
+      <View style={styles.sectionTitleSpaced}>
+        <BuildInfo />
+      </View>
     </ScrollView>
   );
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    content: {
-      padding: Spacing.four,
-      paddingBottom: Spacing.six,
-    },
-    sectionTitle: {
-      color: colors.textSecondary,
-      fontSize: 13,
-      fontWeight: '700',
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginBottom: Spacing.two,
-    },
-    sectionTitleSpaced: {
-      marginTop: Spacing.four,
-    },
-    hint: {
-      color: colors.textSecondary,
-      fontSize: 14,
-      marginTop: Spacing.three,
-      marginBottom: Spacing.three,
-    },
-    row: {
-      backgroundColor: colors.backgroundElement,
-      borderRadius: 12,
-      marginBottom: Spacing.two,
-    },
-    rowSelected: {
-      backgroundColor: colors.backgroundSelected,
-    },
-    rowText: {
-      color: colors.text,
-      fontSize: 16,
-      fontWeight: '600',
-    },
-    rowDescription: {
-      color: colors.textSecondary,
-      fontSize: 13,
-    },
-    flagButton: {
-      backgroundColor: colors.backgroundElement,
-      borderRadius: 12,
-      paddingVertical: Spacing.three,
-    },
-    flagButtonSelected: {
-      backgroundColor: colors.backgroundSelected,
-    },
-  });
 }

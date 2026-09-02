@@ -1,6 +1,7 @@
 import {
   type BookmarksResponse,
   bookmarksResponseSchema,
+  type ClientRecord,
   type ContentResponse,
   contentResponseSchema,
   DEVICE_LANGUAGE_HEADER,
@@ -14,19 +15,38 @@ import {
   type Language,
   type MeResponse,
   meResponseSchema,
+  REQUEST_ID_HEADER,
   type SourcesResponse,
   sourcesResponseSchema,
   type Topic,
 } from '@techtok/shared';
+import * as Crypto from 'expo-crypto';
 import { useAuthStore } from '@/state/authStore';
 import { detectDeviceLanguage, detectDeviceTimezone } from '@/state/deviceLanguage';
+import { logError } from '@/state/logStore';
+import { queryClient } from '@/state/queryClient';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
-/** Carries the response status/error code through a failed request so
- * callers can distinguish "quota exceeded" (402, D69) from any other
- * failure — e.g. the reader routes to `/paywall` on 402 instead of showing
- * its generic error state. */
+const DEFAULT_PAGE_LIMIT = 50;
+
+export interface FetchFeedPageParams {
+  before?: string;
+  limit?: number;
+}
+
+export interface FetchHistoryPageParams {
+  cursor?: string;
+  limit?: number;
+  q?: string;
+}
+
+export interface FetchBookmarksPageParams {
+  cursor?: string;
+  limit?: number;
+  q?: string;
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -38,63 +58,6 @@ export class ApiError extends Error {
   }
 }
 
-function apiUrl(path: string): URL {
-  if (!API_URL) {
-    throw new Error(
-      'EXPO_PUBLIC_API_URL is not set. Copy .env.example to .env and point it at your sst dev API URL.',
-    );
-  }
-  return new URL(path, API_URL);
-}
-
-function buildHeaders(init: RequestInit): HeadersInit {
-  const idToken = useAuthStore.getState().user?.idToken;
-  return {
-    ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
-    [DEVICE_LANGUAGE_HEADER]: detectDeviceLanguage() ?? 'en',
-    [DEVICE_TIMEZONE_HEADER]: detectDeviceTimezone() ?? 'UTC',
-    ...(init.body ? { 'content-type': 'application/json' } : {}),
-    ...init.headers,
-  };
-}
-
-/**
- * Google ID tokens expire in ~1h (D68), so a 401 triggers exactly one silent
- * re-sign-in + retry before giving up — the same shape as any other
- * transient-auth-failure retry, not a sign-out loop. `GET /v1/topics` and
- * `GET /v1/sources` never 401 (no authorizer attached, DESIGN §5), so this
- * only ever fires for the authenticated routes.
- */
-async function apiFetch(url: URL, init: RequestInit = {}): Promise<Response> {
-  let response = await fetch(url.toString(), { ...init, headers: buildHeaders(init) });
-
-  if (response.status === 401) {
-    const refreshedIdToken = await useAuthStore.getState().refreshToken();
-    if (refreshedIdToken) {
-      response = await fetch(url.toString(), { ...init, headers: buildHeaders(init) });
-    }
-  }
-
-  if (!response.ok) {
-    let code: string | undefined;
-    let message = `${init.method ?? 'GET'} ${url.pathname} failed with status ${response.status}`;
-    try {
-      const body = (await response.json()) as { error?: { code?: string; message?: string } };
-      code = body.error?.code;
-      message = body.error?.message ?? message;
-    } catch {
-      // Non-JSON error body (e.g. an API Gateway-level rejection) — keep the generic message.
-    }
-    throw new ApiError(response.status, code, message);
-  }
-  return response;
-}
-
-export interface FetchFeedPageParams {
-  before?: string;
-  limit?: number;
-}
-
 export async function fetchFeedPage({
   before,
   limit = 20,
@@ -104,7 +67,11 @@ export async function fetchFeedPage({
   if (before) url.searchParams.set('before', before);
 
   const response = await apiFetch(url);
-  return feedResponseSchema.parse(await response.json());
+  const parsed = feedResponseSchema.parse(await response.json());
+  if (parsed.quotaExhausted) {
+    queryClient.invalidateQueries({ queryKey: ['entitlement'] });
+  }
+  return parsed;
 }
 
 export async function fetchMe(): Promise<MeResponse> {
@@ -136,8 +103,6 @@ export async function putMutedSources(sourceIds: string[]): Promise<MeResponse> 
   return meResponseSchema.parse(await response.json());
 }
 
-/** Public source catalog (no device id needed) — lets the app render a mute
- * picker without hardcoding the source list. */
 export async function fetchSources(): Promise<SourcesResponse> {
   const response = await apiFetch(apiUrl('/v1/sources'));
   return sourcesResponseSchema.parse(await response.json());
@@ -148,19 +113,19 @@ export async function postReads(postIds: string[]): Promise<void> {
     method: 'POST',
     body: JSON.stringify({ postIds }),
   });
+  queryClient.invalidateQueries({ queryKey: ['entitlement'] });
 }
 
-export interface FetchHistoryPageParams {
-  cursor?: string;
-  limit?: number;
-  /** When set, searches cardTitle/sourceName instead of paginating — the
-   * response's nextCursor always comes back null. */
-  q?: string;
+export async function postEvents(records: ClientRecord[]): Promise<void> {
+  await apiFetch(apiUrl('/v1/events'), {
+    method: 'POST',
+    body: JSON.stringify({ records }),
+  });
 }
 
 export async function fetchHistoryPage({
   cursor,
-  limit = 50,
+  limit = DEFAULT_PAGE_LIMIT,
   q,
 }: FetchHistoryPageParams = {}): Promise<HistoryResponse> {
   const url = apiUrl('/v1/history');
@@ -172,16 +137,9 @@ export async function fetchHistoryPage({
   return historyResponseSchema.parse(await response.json());
 }
 
-export interface FetchBookmarksPageParams {
-  cursor?: string;
-  limit?: number;
-  /** Same search contract as fetchHistoryPage's q. */
-  q?: string;
-}
-
 export async function fetchBookmarksPage({
   cursor,
-  limit = 50,
+  limit = DEFAULT_PAGE_LIMIT,
   q,
 }: FetchBookmarksPageParams = {}): Promise<BookmarksResponse> {
   const url = apiUrl('/v1/bookmarks');
@@ -206,26 +164,97 @@ export async function deleteBookmark(postId: string): Promise<void> {
   });
 }
 
-/** Reads a compact article (D23; eager generation as of D36) — a plain cache
- * read, no job ids or polling. */
 export async function fetchPostContent(postId: string, lang: Language): Promise<ContentResponse> {
   const url = apiUrl(`/v1/posts/${encodeURIComponent(postId)}/content`);
   url.searchParams.set('lang', lang);
 
-  const response = await apiFetch(url);
-  return contentResponseSchema.parse(await response.json());
+  try {
+    const response = await apiFetch(url);
+    const parsed = contentResponseSchema.parse(await response.json());
+    queryClient.invalidateQueries({ queryKey: ['entitlement'] });
+    return parsed;
+  } catch (err) {
+    if (isReaderOpensCapReached(err)) {
+      queryClient.invalidateQueries({ queryKey: ['entitlement'] });
+    }
+    throw err;
+  }
 }
 
-/** Deletes the signed-in user's account and all their data (D68) — required
- * by Google Play policy for any app with accounts. Irreversible. */
 export async function deleteAccount(): Promise<void> {
   await apiFetch(apiUrl('/v1/me'), { method: 'DELETE' });
 }
 
-/** Current plan + today's quota usage/limits (D69/D70) — the single call
- * every paywall surface (the feed/reader exhaustion states, the paywall
- * screen itself, the settings quota row) reads from. */
 export async function fetchEntitlement(): Promise<EntitlementResponse> {
   const response = await apiFetch(apiUrl('/v1/me/entitlement'));
   return entitlementResponseSchema.parse(await response.json());
+}
+
+function isReaderOpensCapReached(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 402;
+}
+
+function apiUrl(path: string): URL {
+  if (!API_URL) {
+    throw new Error(
+      'EXPO_PUBLIC_API_URL is not set. Copy .env.example to .env and point it at your sst dev API URL.',
+    );
+  }
+  return new URL(path, API_URL);
+}
+
+function buildHeaders(init: RequestInit, requestId: string): HeadersInit {
+  const idToken = useAuthStore.getState().user?.idToken;
+  return {
+    ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+    [DEVICE_LANGUAGE_HEADER]: detectDeviceLanguage() ?? 'en',
+    [DEVICE_TIMEZONE_HEADER]: detectDeviceTimezone() ?? 'UTC',
+    [REQUEST_ID_HEADER]: requestId,
+    ...(init.body ? { 'content-type': 'application/json' } : {}),
+    ...init.headers,
+  };
+}
+
+async function apiFetch(url: URL, init: RequestInit = {}): Promise<Response> {
+  const requestId = Crypto.randomUUID();
+  const method = init.method ?? 'GET';
+  const wasAuthenticated = useAuthStore.getState().user !== null;
+  let response: Response;
+  try {
+    response = await fetch(url.toString(), { ...init, headers: buildHeaders(init, requestId) });
+  } catch (err) {
+    logError('api network request failed', {
+      requestId,
+      method,
+      path: url.pathname,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    throw err;
+  }
+
+  if (response.status === 401 && wasAuthenticated) {
+    const refreshedIdToken = await useAuthStore.getState().refreshToken();
+    if (refreshedIdToken) {
+      response = await fetch(url.toString(), { ...init, headers: buildHeaders(init, requestId) });
+    }
+  }
+
+  if (!response.ok) {
+    let code: string | undefined;
+    let message = `${method} ${url.pathname} failed with status ${response.status}`;
+    try {
+      const body = (await response.json()) as { error?: { code?: string; message?: string } };
+      code = body.error?.code;
+      message = body.error?.message ?? message;
+    } catch {}
+    logError('api request failed', {
+      requestId,
+      method,
+      path: url.pathname,
+      status: response.status,
+      code,
+    });
+    throw new ApiError(response.status, code, message);
+  }
+  return response;
 }

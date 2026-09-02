@@ -1,9 +1,21 @@
 import type { CompactFigure, Language, Topic, TransformKind } from '@techtok/shared';
 
-export type { TransformKind };
 export type PostStatus = 'discovered' | 'ready' | 'failed';
 
-/** One language's translated card fields (D21) — lives at `Posts.i18n[lang]`. */
+export interface PostKey {
+  readonly postId: string;
+  readonly publishedAt: string;
+}
+
+export interface PostCandidate extends PostKey {
+  readonly primaryTopic: Topic;
+  readonly sourceId: string;
+  readonly origTitle: string;
+  readonly status: PostStatus;
+  readonly compactLangs?: Language[];
+  readonly duplicateOf?: string;
+}
+
 export interface TranslatedFields {
   readonly cardTitle: string;
   readonly summary: string;
@@ -11,8 +23,12 @@ export interface TranslatedFields {
   readonly translatedAt: string;
 }
 
-export interface NewPost {
+export interface CreatedPost {
   readonly postId: string;
+  readonly url: string;
+}
+
+export interface NewPost {
   readonly url: string;
   readonly canonicalUrl: string;
   readonly sourceId: string;
@@ -30,41 +46,18 @@ export interface NewPost {
   readonly publishedAt: string;
   readonly s3RawKey?: string;
   readonly lang?: string;
-  /** Set at ingest time (phase 4 experiment) when a cross-source title match
-   * is found within the dedup window — the post is still created (data is
-   * never lost) but excluded from feed queries by `buildFeed`. */
   readonly duplicateOf?: string;
 }
 
 export interface PostRecord extends NewPost {
+  readonly postId: string;
   readonly ingestedAt: string;
   readonly ttl: number;
-  /** CDN URL of the mirrored article image (phase 4), set post-transform.
-   * Falls back to the original hotlinked `imageUrl` when unset or on any
-   * mirror failure — never blocks the post. */
   readonly mirroredImageUrl?: string;
-  /** Translated card variants (D21/D27), keyed by language. Seeded to `{}` by
-   * `PostsRepo.putIfNew` on every new post — per D22, posts ingested before
-   * this map existed are simply never translated (no backfill). */
   readonly i18n: Partial<Record<Language, TranslatedFields>>;
-  /** Languages with a compact-article variant cached on the CDN (D23),
-   * seeded to `[]` by `PostsRepo.putIfNew`. Posts ingested before this field
-   * existed simply lack it (no backfill, same precedent as `i18n`) — read
-   * sites default with `post.compactLangs ?? []`. */
   readonly compactLangs?: Language[];
-  /** This post's mirrored in-body figures (D23), extracted + mirrored once
-   * per post rather than once per language (D36) — absent means no
-   * language's content job has processed this post yet; every subsequent
-   * per-language job reuses this list instead of re-extracting/re-mirroring.
-   * Deliberately not seeded by `PostsRepo.putIfNew` (unlike `i18n`/
-   * `compactLangs`) since absence itself is the "not yet mirrored" signal —
-   * an empty array means mirroring ran and found nothing. */
   readonly mirroredFigures?: CompactFigure[];
-  /** Count of *other* posts marked `duplicateOf` this one (cross-source
-   * dedup, phase 4 experiment) — only ever set on the original/root post,
-   * never on a duplicate. Absent means zero; the card's "covered by N
-   * sources" badge (toCard.ts) renders as `dupCount + 1`. No backfill for
-   * posts marked duplicate before this field existed, same precedent as
-   * `i18n`/`compactLangs`. */
   readonly dupCount?: number;
 }
+
+export type { TransformKind };

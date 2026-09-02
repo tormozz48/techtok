@@ -8,6 +8,7 @@ const ROOT = resolve(__dirname, '..');
 const APP_JSON_PATH = resolve(ROOT, 'apps/mobile/app.json');
 const PACKAGE_JSON_PATH = resolve(ROOT, 'apps/mobile/package.json');
 const BUILD_GRADLE_PATH = resolve(ROOT, 'apps/mobile/android/app/build.gradle');
+const STRINGS_XML_PATH = resolve(ROOT, 'apps/mobile/android/app/src/main/res/values/strings.xml');
 const APP_JSON_GIT_PATH = 'apps/mobile/app.json';
 const BUILD_GRADLE_GIT_PATH = 'apps/mobile/android/app/build.gradle';
 
@@ -17,9 +18,6 @@ const BREAKING_FOOTER_RE = /^BREAKING CHANGE:/m;
 const HEADER_RE = /^(\w+)(?:\([^)]*\))?(!)?:/;
 const BUMP_RANK: Record<BumpType, number> = { none: 0, patch: 1, minor: 2, major: 3 };
 
-/** Conventional-commit bump classification (CLAUDE.md's existing commit
- * types): a `BREAKING CHANGE:` footer or a `!` after the type/scope is
- * major, `feat` is minor, `fix` is patch, anything else doesn't bump. */
 export function classifyCommit(message: string): BumpType {
   if (BREAKING_FOOTER_RE.test(message)) return 'major';
   const header = message.split('\n')[0] ?? '';
@@ -32,7 +30,6 @@ export function classifyCommit(message: string): BumpType {
   return 'none';
 }
 
-/** The highest-ranked bump across every commit message in the range. */
 export function highestBump(messages: string[]): BumpType {
   let highest: BumpType = 'none';
   for (const message of messages) {
@@ -66,6 +63,18 @@ function appJsonVersionAtRef(ref: string): string {
 
 function currentAppJsonVersion(): string {
   return JSON.parse(readFileSync(APP_JSON_PATH, 'utf8')).expo.version as string;
+}
+
+function runtimeVersionAtRef(ref: string): string {
+  const content = execFileSync('git', ['show', `${ref}:${APP_JSON_GIT_PATH}`], {
+    cwd: ROOT,
+    encoding: 'utf8',
+  });
+  return JSON.parse(content).expo.runtimeVersion as string;
+}
+
+function currentRuntimeVersion(): string {
+  return JSON.parse(readFileSync(APP_JSON_PATH, 'utf8')).expo.runtimeVersion as string;
 }
 
 function versionCodeAtRef(ref: string): number {
@@ -108,9 +117,18 @@ function writeBuildGradle(version: string, versionCode: number): void {
   writeFileSync(BUILD_GRADLE_PATH, gradle);
 }
 
-/** Most recent `mobile-v*` tag reachable from HEAD (D42 creates one on every
- * mobile-build run), or null if none exists yet. Sorted by semver descending
- * so this picks the true latest even if tags weren't created in commit order. */
+function writeRuntimeVersion(version: string): void {
+  const appJson = JSON.parse(readFileSync(APP_JSON_PATH, 'utf8'));
+  appJson.expo.runtimeVersion = version;
+  writeFileSync(APP_JSON_PATH, `${JSON.stringify(appJson, null, 2)}\n`);
+
+  const strings = readFileSync(STRINGS_XML_PATH, 'utf8').replace(
+    /(<string name="expo_runtime_version">)[^<]*(<\/string>)/,
+    `$1${version}$2`,
+  );
+  writeFileSync(STRINGS_XML_PATH, strings);
+}
+
 function latestVersionTag(): string | null {
   const output = execFileSync('git', ['tag', '--list', 'mobile-v*', '--sort=-v:refname'], {
     cwd: ROOT,
@@ -120,18 +138,25 @@ function latestVersionTag(): string | null {
   return output.split('\n')[0] ?? null;
 }
 
-/** Post-merge bump on `main` (D44, amends D41/D42/D43): baselines against the
- * last `mobile-v*` tag rather than a PR's base branch, since this now runs
- * after merge, not on a PR branch. A manual bump already landed since that
- * tag always wins over automation. Writes the three files only — the
- * commit/push (with retry against a concurrent merge) is the caller's job in
- * CI, so this stays a pure, testable, no-git-write operation beyond the
- * version files themselves. */
 export function main(): void {
   const tag = latestVersionTag();
   if (!tag) {
     console.log('No mobile-v* tag found yet — skipping automated bump.');
     return;
+  }
+
+  const baseRuntimeVersion = runtimeVersionAtRef(tag);
+  const currentRuntime = currentRuntimeVersion();
+  if (currentRuntime === baseRuntimeVersion) {
+    const nextRuntimeVersion = applyBump(baseRuntimeVersion, 'patch');
+    writeRuntimeVersion(nextRuntimeVersion);
+    console.log(
+      `Bumped runtimeVersion ${baseRuntimeVersion} -> ${nextRuntimeVersion} (this script only runs on a native rebuild, so any already-installed build must stop matching it)`,
+    );
+  } else {
+    console.log(
+      `runtimeVersion (${currentRuntime}) already differs from ${tag} (${baseRuntimeVersion}) — manual bump present, skipping.`,
+    );
   }
 
   const baseVersion = appJsonVersionAtRef(tag);

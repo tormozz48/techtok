@@ -3,20 +3,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const cache = new Map<string, string>();
 let hydrated: Promise<void> | null = null;
 
-async function hydrate(): Promise<void> {
-  const keys = await AsyncStorage.getAllKeys();
-  const entries = await AsyncStorage.multiGet(keys);
-  for (const [key, value] of entries) {
-    if (value !== null) cache.set(key, value);
-  }
-}
-
-/** Resolves once AsyncStorage has been read into the in-memory cache. Await this before the first read. */
-export function ready(): Promise<void> {
-  hydrated ??= hydrate();
-  return hydrated;
-}
-
 export const storage = {
   getString(key: string): string | undefined {
     return cache.get(key);
@@ -34,3 +20,16 @@ export const storage = {
     void AsyncStorage.clear();
   },
 };
+
+export function ready(): Promise<void> {
+  hydrated ??= hydrate();
+  return hydrated;
+}
+
+async function hydrate(): Promise<void> {
+  const keys = await AsyncStorage.getAllKeys();
+  const entries = await AsyncStorage.multiGet(keys);
+  for (const [key, value] of entries) {
+    if (value !== null) cache.set(key, value);
+  }
+}

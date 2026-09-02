@@ -16,12 +16,6 @@ jest.mock('@/api/client', () => ({
   fetchMe: jest.fn(),
   putLanguage: jest.fn(),
 }));
-jest.mock('@/api/prefetchContent', () => ({
-  prefetchPostContent: jest.fn(),
-}));
-jest.mock('@/state/network', () => ({
-  getIsWifi: jest.fn(() => false),
-}));
 jest.mock(
   'react-native-safe-area-context',
   () => require('react-native-safe-area-context/jest/mock').default,
@@ -141,9 +135,6 @@ describe('BottomActionBar', () => {
       expect.objectContaining({ language: 'en-US' }),
     );
 
-    // speak() itself calls Speech.stop() defensively before starting (see
-    // speechStore.test.ts) -- clear that call so this only asserts on what
-    // the second (stop) press itself triggers.
     stopMock.mockClear();
     const stopButton = await screen.findByLabelText(speechStrings.stopListening);
     await fireEvent.press(stopButton);

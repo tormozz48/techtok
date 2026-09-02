@@ -2,7 +2,7 @@
   "expo": {
     "name": "TechTok",
     "slug": "techtok",
-    "version": "0.17.0",
+    "version": "0.26.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "techtok",
@@ -31,7 +31,14 @@
           "imageWidth": 76
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "tormozz48",
+          "project": "react-native"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
@@ -44,7 +51,7 @@
       }
     },
     "owner": "tormozz48-dev",
-    "runtimeVersion": "1.0.0",
+    "runtimeVersion": "1.0.2",
     "updates": {
       "url": "https://u.expo.dev/f1138689-8319-4582-8d85-ce75b3ef36cf"
     }

@@ -1,41 +1,20 @@
 import type { Topic } from '@techtok/shared';
-import type { PostRecord } from '../posts.types';
+import { differenceInMilliseconds, parseISO } from 'date-fns';
+import type { PostCandidate } from '../posts.types';
+import { MS_PER_HOUR } from '../util/time';
 
-/** Hours for a post's recency score to halve. Tunable — this is explicitly a phase-4 experiment. */
+type RankableFields = Pick<PostCandidate, 'publishedAt' | 'sourceId' | 'primaryTopic'>;
+
 export const RECENCY_HALF_LIFE_HOURS = 6;
 
-/** Weight applied to a source with no entry in the weights map (matches the seeded default of 1). */
 export const DEFAULT_SOURCE_WEIGHT = 1;
 
-/** Cold-start guard: below this many total reads, topicAffinityBoosts
- * returns no boosts at all — a couple of reads shouldn't lock in a
- * preference. */
 export const MIN_AFFINITY_READS = 10;
 
-/** How strongly a topic's read share pulls its boost toward MAX_AFFINITY_BOOST. */
 export const AFFINITY_GAIN = 0.5;
 
-/** Boost ceiling. log2(1.5) * RECENCY_HALF_LIFE_HOURS ~= 3.5 hours of
- * recency — a maximally-boosted post can leapfrog at most that much age, so
- * recency keeps dominating for anything meaningfully older. */
 export const MAX_AFFINITY_BOOST = 1.5;
 
-const MS_PER_HOUR = 60 * 60 * 1000;
-
-/** Exponential recency decay: 1 at age 0, 0.5 at one half-life, 0.25 at two, etc. */
-export function recencyDecay(publishedAt: string, now: Date = new Date()): number {
-  const ageHours = Math.max(0, now.getTime() - new Date(publishedAt).getTime()) / MS_PER_HOUR;
-  return 2 ** (-ageHours / RECENCY_HALF_LIFE_HOURS);
-}
-
-/**
- * Bounded per-topic ranking boost from implicit read-affinity (Users.topicReads,
- * see usersRepo.addTopicReads). Boost-only — never below 1 — so a topic the
- * user hasn't read yet is never penalized, only topics they read a lot are
- * lifted. Bounded by MAX_AFFINITY_BOOST so recency + source weight still
- * dominate; interleaveByTopic (unaffected by this) remains the structural
- * guard against a single topic crowding out the rest.
- */
 export function topicAffinityBoosts(
   topicReads: Partial<Record<Topic, number>> | undefined,
 ): Map<Topic, number> {
@@ -51,8 +30,26 @@ export function topicAffinityBoosts(
   );
 }
 
-export function scorePost(
-  post: Pick<PostRecord, 'publishedAt' | 'sourceId' | 'primaryTopic'>,
+export function rankCandidates<T extends RankableFields>(
+  candidates: T[],
+  sourceWeights: Map<string, number>,
+  now: Date = new Date(),
+  affinityBoosts?: Map<Topic, number>,
+): T[] {
+  const scored = candidates
+    .map((post) => ({ post, score: scorePost(post, sourceWeights, now, affinityBoosts) }))
+    .sort((a, b) => b.score - a.score)
+    .map(({ post }) => post);
+  return interleaveBySource(interleaveByTopic(scored));
+}
+
+function recencyDecay(publishedAt: string, now: Date = new Date()): number {
+  const ageHours = Math.max(0, differenceInMilliseconds(now, parseISO(publishedAt))) / MS_PER_HOUR;
+  return 2 ** (-ageHours / RECENCY_HALF_LIFE_HOURS);
+}
+
+function scorePost(
+  post: RankableFields,
   sourceWeights: Map<string, number>,
   now: Date = new Date(),
   affinityBoosts?: Map<Topic, number>,
@@ -62,29 +59,25 @@ export function scorePost(
   return recencyDecay(post.publishedAt, now) * weight * boost;
 }
 
-/**
- * Round-robin by `primaryTopic`, preserving each topic's internal (score) order.
- * Keeps a single topic from dominating consecutive slots when several topics
- * are in play, without discarding any candidate.
- */
-export function interleaveByTopic(sorted: PostRecord[]): PostRecord[] {
-  const queues = new Map<string, PostRecord[]>();
-  const topicOrder: string[] = [];
+function interleaveByKey<T extends RankableFields>(sorted: T[], keyOf: (post: T) => string): T[] {
+  const queues = new Map<string, T[]>();
+  const keyOrder: string[] = [];
   for (const post of sorted) {
-    let queue = queues.get(post.primaryTopic);
+    const key = keyOf(post);
+    let queue = queues.get(key);
     if (!queue) {
       queue = [];
-      queues.set(post.primaryTopic, queue);
-      topicOrder.push(post.primaryTopic);
+      queues.set(key, queue);
+      keyOrder.push(key);
     }
     queue.push(post);
   }
 
-  const result: PostRecord[] = [];
+  const result: T[] = [];
   let remaining = sorted.length;
   while (remaining > 0) {
-    for (const topic of topicOrder) {
-      const queue = queues.get(topic);
+    for (const key of keyOrder) {
+      const queue = queues.get(key);
       const next = queue?.shift();
       if (next) {
         result.push(next);
@@ -95,17 +88,10 @@ export function interleaveByTopic(sorted: PostRecord[]): PostRecord[] {
   return result;
 }
 
-/** Scores candidates by recency x source weight x topic affinity, then
- * interleaves by topic. */
-export function rankCandidates(
-  candidates: PostRecord[],
-  sourceWeights: Map<string, number>,
-  now: Date = new Date(),
-  affinityBoosts?: Map<Topic, number>,
-): PostRecord[] {
-  const scored = candidates
-    .map((post) => ({ post, score: scorePost(post, sourceWeights, now, affinityBoosts) }))
-    .sort((a, b) => b.score - a.score)
-    .map(({ post }) => post);
-  return interleaveByTopic(scored);
+function interleaveByTopic<T extends RankableFields>(sorted: T[]): T[] {
+  return interleaveByKey(sorted, (post) => post.primaryTopic);
+}
+
+function interleaveBySource<T extends RankableFields>(sorted: T[]): T[] {
+  return interleaveByKey(sorted, (post) => post.sourceId);
 }

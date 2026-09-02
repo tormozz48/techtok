@@ -9,6 +9,7 @@ import {
   contentQuerySchema,
   contentResponseSchema,
   entitlementResponseSchema,
+  eventsRequestSchema,
   feedQuerySchema,
   feedResponseSchema,
   historyQuerySchema,
@@ -174,6 +175,49 @@ describe('readsRequestSchema', () => {
   });
 });
 
+describe('eventsRequestSchema', () => {
+  it('accepts a log record and an event record in the same batch', () => {
+    const records = [
+      {
+        kind: 'log',
+        level: 'error',
+        message: 'feed fetch failed',
+        context: { status: 500 },
+        occurredAt: '2026-08-15T12:00:00.000Z',
+      },
+      {
+        kind: 'event',
+        name: 'card_settled',
+        props: { postId: 'abc123' },
+        occurredAt: '2026-08-15T12:00:01.000Z',
+      },
+    ];
+    expect(eventsRequestSchema.parse({ records })).toEqual({ records });
+  });
+
+  it('rejects an empty records array', () => {
+    expect(() => eventsRequestSchema.parse({ records: [] })).toThrow();
+  });
+
+  it('rejects more than 50 records', () => {
+    const records = Array.from({ length: 51 }, (_, i) => ({
+      kind: 'event',
+      name: 'card_settled',
+      occurredAt: '2026-08-15T12:00:00.000Z',
+      props: { i },
+    }));
+    expect(() => eventsRequestSchema.parse({ records })).toThrow();
+  });
+
+  it('rejects a record whose kind matches neither log nor event', () => {
+    expect(() =>
+      eventsRequestSchema.parse({
+        records: [{ kind: 'crash', message: 'oops', occurredAt: '2026-08-15T12:00:00.000Z' }],
+      }),
+    ).toThrow();
+  });
+});
+
 describe('bookmarkCreateRequestSchema', () => {
   it('accepts a postId', () => {
     expect(bookmarkCreateRequestSchema.parse({ postId: 'abc123' })).toEqual({ postId: 'abc123' });
@@ -236,8 +280,15 @@ describe('compactBlockSchema', () => {
 });
 
 describe('contentQuerySchema', () => {
-  it('defaults lang to en', () => {
-    expect(contentQuerySchema.parse({})).toEqual({ lang: 'en' });
+  it('defaults lang to en and intent to read', () => {
+    expect(contentQuerySchema.parse({})).toEqual({ lang: 'en', intent: 'read' });
+  });
+
+  it('accepts intent=prefetch', () => {
+    expect(contentQuerySchema.parse({ intent: 'prefetch' })).toEqual({
+      lang: 'en',
+      intent: 'prefetch',
+    });
   });
 });
 
@@ -278,6 +329,11 @@ describe('feedResponseSchema', () => {
     expect(() =>
       feedResponseSchema.parse({ items: [], nextBefore: null, quotaExhausted: false }),
     ).toThrow();
+  });
+
+  it('parses the language the server rendered the page in (D79)', () => {
+    const response = { items: [], nextBefore: null, language: 'ru' };
+    expect(feedResponseSchema.parse(response)).toEqual(response);
   });
 });
 

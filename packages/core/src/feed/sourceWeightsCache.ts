@@ -5,18 +5,9 @@ const DEFAULT_TTL_MS = 5 * 60 * 1000;
 
 export interface SourceWeightsCache {
   getSourceWeights(): Promise<Map<string, number>>;
-  /** sourceIds with the D23 compact-reader kill switch explicitly off — posts
-   * from these sources can never produce a short version, so the feed excludes
-   * them entirely rather than serving a card that always falls back to link-out. */
   getCompactDisabledSourceIds(): Promise<Set<string>>;
 }
 
-/**
- * Caches `Sources.weight`/`compactEnabled` per sourceId for `ttlMs` (Sources is a
- * tiny scan-friendly table, so a short in-memory cache avoids a scan on every feed
- * request without risking meaningfully stale data). Both derived maps share one
- * underlying scan/TTL.
- */
 export function createSourceWeightsCache(
   sourcesRepo: Pick<SourcesRepo, 'listEnabled'>,
   ttlMs = DEFAULT_TTL_MS,

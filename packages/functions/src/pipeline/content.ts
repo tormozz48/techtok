@@ -3,12 +3,11 @@ import {
   type ContentDeps,
   ContentStore,
   compactArticle as compactArticleViaLlm,
+  contentKey,
   createConfiguredLlmProvider,
   createS3Client,
   type ExtractedFigure,
   errorMessage,
-  fetchBytesWithCap,
-  fetchTextWithCap,
   generateContentArticle,
   ImageStore,
   isAllowedByRobots,
@@ -18,14 +17,12 @@ import {
 import { type CompactFigure, isLanguage, type Language } from '@techtok/shared';
 import type { SQSBatchResponse, SQSEvent, SQSHandler } from 'aws-lambda';
 import { requireEnv } from '../env';
+import { fetchBytes, fetchRobotsTxt, fetchText } from '../httpFetch';
 import { lazy } from '../lazy';
+import { MAX_IMAGE_BYTES } from '../limits';
 import { getPostsRepo, getSourcesRepo } from '../repos';
 
 const logger = new Logger({ serviceName: 'content' });
-
-const FETCH_TIMEOUT_MS = 10_000;
-const MAX_BYTES = 2 * 1024 * 1024;
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 const getS3Client = lazy(createS3Client);
 const getRawArticleStore = lazy(
@@ -37,84 +34,11 @@ const getContentStore = lazy(
 );
 const getLlmProvider = lazy(() => createConfiguredLlmProvider(process.env));
 
-function fetchBytes(url: string, maxBytes: number) {
-  return fetchBytesWithCap(url, { maxBytes, timeoutMs: FETCH_TIMEOUT_MS });
-}
-
-function fetchText(url: string, maxBytes = MAX_BYTES) {
-  return fetchTextWithCap(url, { maxBytes, timeoutMs: FETCH_TIMEOUT_MS });
-}
-
-async function mirrorFigures(postId: string, figures: ExtractedFigure[]): Promise<CompactFigure[]> {
-  const mirrored = await Promise.all(
-    figures.map(async (figure, index): Promise<CompactFigure | undefined> => {
-      try {
-        const { body, contentType } = await fetchBytes(figure.url, MAX_IMAGE_BYTES);
-        const key = await getImageStore().putImage(
-          postId,
-          body,
-          contentType ?? 'image/jpeg',
-          `-fig${index}`,
-        );
-        return { url: `${requireEnv('IMAGES_CDN_BASE_URL')}/${key}`, caption: figure.caption };
-      } catch (err) {
-        logger.warn('figure mirror failed, dropping figure', {
-          postId,
-          url: figure.url,
-          error: errorMessage(err),
-        });
-        return undefined;
-      }
-    }),
-  );
-  return mirrored.filter((figure): figure is CompactFigure => figure !== undefined);
-}
-
-/** Archive-first (D23): the archived raw HTML this post's transform already
- * saved, one live fetch attempt (robots-respecting, same caps as transform)
- * only when the archive is missing or unreadable. */
-async function loadArticleHtml(post: { s3RawKey?: string; url: string }): Promise<string> {
-  if (post.s3RawKey) {
-    try {
-      return await getRawArticleStore().getRaw(post.s3RawKey);
-    } catch (err) {
-      logger.warn('archived html unavailable, attempting live fetch', {
-        url: post.url,
-        error: errorMessage(err),
-      });
-    }
-  }
-
-  const robotsUrl = new URL('/robots.txt', post.url).toString();
-  const robotsTxt = await fetchText(robotsUrl).catch(() => undefined);
-  const allowed = await isAllowedByRobots(post.url, async () => robotsTxt);
-  if (!allowed) throw new Error('disallowed by robots.txt');
-  return fetchText(post.url);
-}
-
 interface MessageBody {
   readonly postId: string;
   readonly lang: Language;
 }
 
-function parseMessageBody(body: string): MessageBody {
-  const parsed = JSON.parse(body) as Partial<Record<'postId' | 'lang', string>>;
-  if (!parsed.postId || !parsed.lang || !isLanguage(parsed.lang)) {
-    throw new Error('content message missing postId/lang');
-  }
-  return { postId: parsed.postId, lang: parsed.lang };
-}
-
-/**
- * Consumes eager per-language compact-generation messages enqueued by
- * `transformArticle` (D36) — one per language, for every post. On the first
- * message it processes for a given post (`Posts.mirroredFigures` absent), it
- * extracts + mirrors that post's in-body figures once and persists them;
- * every other language reuses the stored list. Two language jobs racing on a
- * brand-new post's first message may both see `mirroredFigures` absent and
- * both mirror — last-write-wins, an accepted narrow-race tradeoff (D36), not
- * guarded against.
- */
 export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
   const postsRepo = getPostsRepo();
   const contentStore = getContentStore();
@@ -129,17 +53,17 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
         throw new Error(`post ${postId} not found for content job`);
       }
 
+      const source = await getSourcesRepo().getById(post.sourceId);
+      const objectKey = contentKey(post.canonicalUrl);
+
       const deps: ContentDeps = {
-        compactEnabled: async () => {
-          const source = await getSourcesRepo().getById(post.sourceId);
-          return isCompactEnabled(source);
-        },
+        compactEnabled: async () => isCompactEnabled(source),
         loadArticleHtml: () => loadArticleHtml(post),
-        mirrorFigures: (figures) => mirrorFigures(postId, figures),
+        mirrorFigures: (figures) => mirrorFigures(objectKey, figures),
         saveMirroredFigures: (figures) => postsRepo.setMirroredFigures(postId, figures),
         generateCompact: (input) => compactArticleViaLlm(input, provider),
         writeContent: async (blocks, figures) => {
-          await contentStore.putContent(postId, lang, { blocks, figures });
+          await contentStore.putContent(objectKey, lang, { blocks, figures });
           await postsRepo.appendCompactLang(postId, lang);
         },
       };
@@ -173,3 +97,58 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
 
   return { batchItemFailures };
 };
+
+async function mirrorFigures(
+  objectKey: string,
+  figures: ExtractedFigure[],
+): Promise<CompactFigure[]> {
+  const cdnBaseUrl = requireEnv('IMAGES_CDN_BASE_URL');
+  const mirrored = await Promise.all(
+    figures.map(async (figure, index): Promise<CompactFigure | undefined> => {
+      try {
+        const { body, contentType } = await fetchBytes(figure.url, MAX_IMAGE_BYTES);
+        const key = await getImageStore().putImage(
+          objectKey,
+          body,
+          contentType ?? 'image/jpeg',
+          `-fig${index}`,
+        );
+        return { url: `${cdnBaseUrl}/${key}`, caption: figure.caption };
+      } catch (err) {
+        logger.warn('figure mirror failed, dropping figure', {
+          objectKey,
+          url: figure.url,
+          error: errorMessage(err),
+        });
+        return undefined;
+      }
+    }),
+  );
+  return mirrored.filter((figure): figure is CompactFigure => figure !== undefined);
+}
+
+async function loadArticleHtml(post: { s3RawKey?: string; url: string }): Promise<string> {
+  if (post.s3RawKey) {
+    try {
+      return await getRawArticleStore().getRaw(post.s3RawKey);
+    } catch (err) {
+      logger.warn('archived html unavailable, attempting live fetch', {
+        url: post.url,
+        error: errorMessage(err),
+      });
+    }
+  }
+
+  const robotsUrl = new URL('/robots.txt', post.url).toString();
+  const allowed = await isAllowedByRobots(post.url, () => fetchRobotsTxt(robotsUrl));
+  if (!allowed) throw new Error('disallowed by robots.txt');
+  return fetchText(post.url);
+}
+
+function parseMessageBody(body: string): MessageBody {
+  const parsed = JSON.parse(body) as Partial<Record<'postId' | 'lang', string>>;
+  if (!parsed.postId || !parsed.lang || !isLanguage(parsed.lang)) {
+    throw new Error('content message missing postId/lang');
+  }
+  return { postId: parsed.postId, lang: parsed.lang };
+}

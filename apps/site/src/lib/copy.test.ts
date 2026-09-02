@@ -21,11 +21,6 @@ describe('SITE_COPY', () => {
   });
 });
 
-// SiteStrings is a fixed interface, so Record<Language, SiteStrings> already
-// makes TypeScript reject a locale missing a key (mirrors the D20 discipline
-// in apps/mobile/src/i18n/strings.ts). What types can't catch is a leaf that
-// compiles but is blank — this walks every string (and function-leaf result)
-// across the whole tree and reports its path if it's empty after trimming.
 function findEmptyLeaves(value: unknown, path = ''): string[] {
   if (typeof value === 'string') {
     return value.trim().length === 0 ? [path] : [];

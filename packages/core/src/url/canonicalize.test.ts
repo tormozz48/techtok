@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canonicalizeUrl, hashPostId } from './canonicalize';
+import { canonicalizeUrl, contentKey } from './canonicalize';
 
 describe('canonicalizeUrl', () => {
   it('strips utm_ and known tracking params', () => {
@@ -41,17 +41,17 @@ describe('canonicalizeUrl', () => {
   });
 });
 
-describe('hashPostId', () => {
+describe('contentKey', () => {
   it('is deterministic for the same input', () => {
     const url = 'https://example.com/article';
-    expect(hashPostId(url)).toBe(hashPostId(url));
+    expect(contentKey(url)).toBe(contentKey(url));
   });
 
   it('produces a 64-char hex sha-256 digest', () => {
-    expect(hashPostId('https://example.com/article')).toMatch(/^[0-9a-f]{64}$/);
+    expect(contentKey('https://example.com/article')).toMatch(/^[0-9a-f]{64}$/);
   });
 
   it('differs for different canonical URLs', () => {
-    expect(hashPostId('https://example.com/a')).not.toBe(hashPostId('https://example.com/b'));
+    expect(contentKey('https://example.com/a')).not.toBe(contentKey('https://example.com/b'));
   });
 });

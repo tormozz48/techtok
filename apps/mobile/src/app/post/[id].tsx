@@ -1,23 +1,38 @@
 import { useQuery } from '@tanstack/react-query';
 import type { CompactBlock, CompactFigure, Language } from '@techtok/shared';
+import * as Clipboard from 'expo-clipboard';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useMemo, useState } from 'react';
-import { Linking, Platform, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
-import { ActivityIndicator, Button, IconButton, TouchableRipple } from 'react-native-paper';
+import { Linking, Platform, ScrollView, Share, Text, View } from 'react-native';
+import { Button, IconButton, TouchableRipple } from 'react-native-paper';
 import { ApiError, fetchPostContent } from '@/api/client';
 import { BookmarkButton } from '@/components/BookmarkButton';
-import { Radius, Spacing, type ThemeColors, Typography } from '@/constants/theme';
+import { ScreenState } from '@/components/ScreenState';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
 import { useSpeechStore } from '@/state/speechStore';
+import { blocksToPlainText } from '@/utils/blocksToPlainText';
 import { blocksToUtterances } from '@/utils/blocksToUtterances';
 import { translationFeedbackMailto } from '@/utils/feedback';
+import { createStyles } from './[id].styles';
+
+interface ReaderBlockProps {
+  block: CompactBlock;
+  figures: CompactFigure[];
+  styles: ReturnType<typeof createStyles>;
+}
 
 export default function PostScreen() {
-  const { id, title, sourceName, url, isBookmarked } = useLocalSearchParams<{
+  const {
+    id,
+    title,
+    sourceName,
+    url,
+    isBookmarked: initialIsBookmarked,
+  } = useLocalSearchParams<{
     id: string;
     title?: string;
     sourceName?: string;
@@ -29,12 +44,12 @@ export default function PostScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const language = useLanguageStore((state) => state.language);
   const [viewLang, setViewLang] = useState<Language>(language);
+  const [isBookmarked, setIsBookmarked] = useState(initialIsBookmarked === 'true');
+  const [justCopied, setJustCopied] = useState(false);
 
   const contentQuery = useQuery({
     queryKey: ['content', id, viewLang],
     queryFn: () => fetchPostContent(id, viewLang),
-    // A 402 (D69's reader-opens quota) means "go to the paywall", not a
-    // transient failure worth TanStack Query's default retry.
     retry: (failureCount, error) =>
       !(error instanceof ApiError && error.status === 402) && failureCount < 3,
   });
@@ -51,19 +66,11 @@ export default function PostScreen() {
     useSpeechStore.getState().checkVoiceAvailability();
   }, []);
 
-  // The displayed text just changed out from under any in-flight speech —
-  // stop rather than keep reading the language the user just switched away
-  // from. viewLang is a deliberate trigger-only dependency: the effect
-  // re-runs on every toggle even though its body doesn't read the value.
   // biome-ignore lint/correctness/useExhaustiveDependencies: see above.
   useEffect(() => {
     useSpeechStore.getState().stop();
   }, [viewLang]);
 
-  // Kill switch / content-level generation failures (D23), and the rare case
-  // a just-ingested post's eager compact job hasn't finished yet (D36), all
-  // come back as `available: false` — this reads as "routes straight to the
-  // browser" from the user's perspective.
   useEffect(() => {
     if (content && content.available === false) {
       WebBrowser.openBrowserAsync(url);
@@ -71,42 +78,42 @@ export default function PostScreen() {
     }
   }, [content, url]);
 
-  // D69: reader-opens quota exhausted (402) routes to the paywall instead of
-  // the generic error state — `replace`, not `push`, so the paywall's own
-  // back button returns to the feed, not to this now-unusable reader.
   useEffect(() => {
     if (isQuotaExceeded) {
       router.replace('/paywall');
     }
   }, [isQuotaExceeded]);
 
+  useEffect(() => {
+    if (!justCopied) return;
+    const timer = setTimeout(() => setJustCopied(false), 1500);
+    return () => clearTimeout(timer);
+  }, [justCopied]);
+
   const openOriginal = () => WebBrowser.openBrowserAsync(url);
-  // Android ignores `url` (iOS-only field), so the link must ride in `message`
-  // or the share intent goes out empty (see BottomActionBar).
   const share = () =>
     Share.share({
       title,
       url,
       message: Platform.OS === 'android' ? (title ? `${title}\n${url}` : url) : title,
     });
+  const copyText = async () => {
+    if (content?.available !== true) return;
+    await Clipboard.setStringAsync(blocksToPlainText(content.blocks, content.figures));
+    setJustCopied(true);
+  };
 
   if (contentQuery.isPending || content?.available === false || isQuotaExceeded) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.primary} />
-        <Text style={styles.stageText}>{strings.reader.loading}</Text>
-      </View>
-    );
+    return <ScreenState loading spinnerColor={colors.primary} caption={strings.reader.loading} />;
   }
 
   if (!content || contentQuery.isError || content.available !== true) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>{strings.reader.error}</Text>
-        <Button mode="contained" onPress={openOriginal}>
-          {strings.reader.readOriginal}
-        </Button>
-      </View>
+      <ScreenState
+        message={strings.reader.error}
+        retryLabel={strings.reader.readOriginal}
+        onRetry={openOriginal}
+      />
     );
   }
 
@@ -114,7 +121,11 @@ export default function PostScreen() {
   const isViewingTranslation = content.lang !== 'en';
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      testID="reader-screen"
+    >
       <TouchableRipple
         style={styles.header}
         onLongPress={
@@ -150,9 +161,18 @@ export default function PostScreen() {
         </Button>
         <BookmarkButton
           postId={id}
-          isBookmarked={isBookmarked === 'true'}
+          isBookmarked={isBookmarked}
           iconColor={colors.text}
+          testID="reader-bookmark"
           snapshot={title && sourceName ? { cardTitle: title, sourceName, url } : undefined}
+          onToggled={setIsBookmarked}
+        />
+        <IconButton
+          icon={justCopied ? 'check' : 'content-copy'}
+          iconColor={colors.text}
+          testID="reader-copy"
+          onPress={copyText}
+          accessibilityLabel={justCopied ? strings.a11y.copyTextDone : strings.a11y.copyText}
         />
         <IconButton
           icon="share-variant"
@@ -180,12 +200,6 @@ export default function PostScreen() {
       </View>
     </ScrollView>
   );
-}
-
-interface ReaderBlockProps {
-  block: CompactBlock;
-  figures: CompactFigure[];
-  styles: ReturnType<typeof createStyles>;
 }
 
 function ReaderBlock({ block, figures, styles }: ReaderBlockProps) {
@@ -220,101 +234,4 @@ function ReaderBlock({ block, figures, styles }: ReaderBlockProps) {
     default:
       return null;
   }
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    content: {
-      padding: Spacing.four,
-      paddingBottom: Spacing.six,
-    },
-    center: {
-      flex: 1,
-      backgroundColor: colors.background,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: Spacing.four,
-    },
-    errorText: {
-      color: colors.textSecondary,
-      ...Typography.md,
-      textAlign: 'center',
-      marginBottom: Spacing.four,
-    },
-    stageText: {
-      color: colors.textSecondary,
-      ...Typography.sm,
-      marginTop: Spacing.three,
-    },
-    header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: Spacing.four,
-    },
-    sourceName: {
-      color: colors.textSecondary,
-      ...Typography.sm,
-      fontWeight: '600',
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-    },
-    toggleText: {
-      color: colors.primary,
-      ...Typography.sm,
-      fontWeight: '600',
-    },
-    heading: {
-      color: colors.text,
-      ...Typography.lg,
-      fontWeight: '700',
-      marginTop: Spacing.three,
-      marginBottom: Spacing.two,
-    },
-    paragraph: {
-      color: colors.text,
-      ...Typography.md,
-      marginBottom: Spacing.three,
-    },
-    quote: {
-      color: colors.textSecondary,
-      ...Typography.md,
-      fontStyle: 'italic',
-      borderLeftColor: colors.primary,
-      borderLeftWidth: 2,
-      paddingLeft: Spacing.three,
-      marginBottom: Spacing.three,
-    },
-    list: {
-      marginBottom: Spacing.three,
-    },
-    listItem: {
-      color: colors.text,
-      ...Typography.md,
-      marginBottom: Spacing.one,
-    },
-    figure: {
-      marginBottom: Spacing.three,
-    },
-    figureImage: {
-      width: '100%',
-      aspectRatio: 16 / 9,
-      borderRadius: Radius.md,
-    },
-    figureCaption: {
-      color: colors.textSecondary,
-      ...Typography.sm,
-      marginTop: Spacing.one,
-    },
-    actions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: Spacing.three,
-      marginTop: Spacing.four,
-    },
-  });
 }

@@ -1,26 +1,4 @@
-import { createDynamoClient, type Entitlement, UsersRepo } from '@techtok/core';
-import { discoverTableName } from './lib/discoverTableName';
-
-/**
- * Grant/revoke `plus` for one user (D70) — this is how the maintainer tests
- * the paid path in phase 20 (no payment code exists yet) and comps accounts
- * afterward. Writes through the exact same `UsersRepo.grantEntitlement` path
- * Play's verify callback will use in phase 21, so nothing here is
- * throwaway scaffolding.
- *
- * Usage (from repo root, with AWS credentials for the target stage active —
- * e.g. `AWS_PROFILE=techtok`):
- *
- *   pnpm exec tsx scripts/grantEntitlement.ts --stage dev --user-id g:1234567890 --plan plus
- *     Grants Plus with no expiry (an open-ended manual grant).
- *
- *   pnpm exec tsx scripts/grantEntitlement.ts --stage dev --user-id g:1234567890 --plan plus --expires-at 2026-09-01T00:00:00.000Z
- *     Grants Plus until a specific instant — useful for testing the
- *     expiry-lapses-back-to-free path without waiting a month.
- *
- *   pnpm exec tsx scripts/grantEntitlement.ts --stage dev --user-id g:1234567890 --plan free
- *     Revokes Plus (sets plan back to free).
- */
+import { createSqlClient, type Entitlement, UsersRepo } from '@techtok/core';
 
 interface Args {
   stage: string;
@@ -51,11 +29,15 @@ function parseArgs(argv: string[]): Args {
 async function main(): Promise<void> {
   const { stage, userId, plan, expiresAt } = parseArgs(process.argv.slice(2));
 
-  console.log(`Discovering the Users table for stage "${stage}"...`);
-  const usersTableName = await discoverTableName(stage, 'Users');
-  console.log(`  Users: ${usersTableName}`);
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    throw new Error(
+      `DATABASE_URL is not set. Export the "${stage}" stage's Neon connection string first ` +
+        '(the same value set via `sst secret set NeonDatabaseUrl`).',
+    );
+  }
 
-  const repo = new UsersRepo(createDynamoClient(), usersTableName);
+  const repo = new UsersRepo(createSqlClient(databaseUrl));
   const entitlement: Entitlement = {
     plan,
     source: 'manual',

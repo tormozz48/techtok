@@ -10,16 +10,6 @@ const TRACKING_PARAMS = new Set([
   'igshid',
 ]);
 
-function isTrackingParam(key: string): boolean {
-  const lower = key.toLowerCase();
-  return lower.startsWith('utm_') || TRACKING_PARAMS.has(lower);
-}
-
-/**
- * Normalizes a URL for dedup purposes: strips tracking params and the
- * fragment, lowercases scheme/host, drops default ports and trailing
- * slashes, and sorts the remaining query params.
- */
 export function canonicalizeUrl(rawUrl: string): string {
   const url = new URL(rawUrl);
   url.hash = '';
@@ -48,6 +38,11 @@ export function canonicalizeUrl(rawUrl: string): string {
   return url.toString();
 }
 
-export function hashPostId(canonicalUrl: string): string {
+export function contentKey(canonicalUrl: string): string {
   return createHash('sha256').update(canonicalUrl).digest('hex');
+}
+
+function isTrackingParam(key: string): boolean {
+  const lower = key.toLowerCase();
+  return lower.startsWith('utm_') || TRACKING_PARAMS.has(lower);
 }

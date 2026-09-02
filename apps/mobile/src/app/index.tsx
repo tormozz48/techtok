@@ -2,56 +2,68 @@ import { useIsRestoring, useQueryClient } from '@tanstack/react-query';
 import type { Card as CardData } from '@techtok/shared';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { Button } from 'react-native-paper';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { useEntitlementQuery } from '@/api/useEntitlementQuery';
 import { useFeedQuery } from '@/api/useFeedQuery';
 import { BottomActionBar } from '@/components/BottomActionBar';
 import { FeedPager } from '@/components/FeedPager';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { QuotaBadge } from '@/components/QuotaBadge';
-import { Colors, Spacing, type ThemeColors } from '@/constants/theme';
+import { ScreenState } from '@/components/ScreenState';
+import { Colors } from '@/constants/theme';
+import { useQuotaReset } from '@/hooks/useQuotaReset';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
+import { useLanguageStore } from '@/state/languageStore';
+import { formatResetTime } from '@/utils/formatResetTime';
+import { hasQuotaResetPassed } from '@/utils/quotaReset';
+import { styles } from './index.styles';
 
 export default function FeedScreen() {
-  const { data, isLoading, isError, refetch, fetchNextPage, isFetchingNextPage } = useFeedQuery();
+  const {
+    data,
+    dataUpdatedAt,
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+    fetchNextPage,
+    isFetchingNextPage,
+  } = useFeedQuery();
   const entitlementQuery = useEntitlementQuery();
   const isRestoring = useIsRestoring();
   const [activeCard, setActiveCard] = useState<CardData | undefined>(undefined);
   const strings = useStrings();
   const queryClient = useQueryClient();
   const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-  // Guards against re-navigating to /paywall on every subsequent onNearEnd
-  // call while the user keeps swiping through already-cached cards.
-  const hasPromptedPaywall = useRef(false);
+  const [mountedAt] = useState(() => Date.now());
 
   const cards = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data]);
-  // D69: the *last* fetched page, not any page, since only the newest tells
-  // us today's cardReads quota is actually exhausted right now.
-  const isQuotaExhausted = data?.pages.at(-1)?.quotaExhausted === true;
+  const entitlement = entitlementQuery.data;
+  const lastPage = data?.pages.at(-1);
+  const isExpiredQuotaPage =
+    lastPage?.quotaExhausted === true && hasQuotaResetPassed(lastPage.resetsAt);
+  const isQuotaExhausted =
+    (entitlement?.plan === 'free' &&
+      entitlement.quota.cardReads >= entitlement.quota.cardReadsLimit) ||
+    (lastPage?.quotaExhausted === true && !isExpiredQuotaPage);
+  const quotaResetsAt = entitlement?.quota.resetsAt ?? lastPage?.resetsAt;
 
-  // A brand-new fetch (no cards cached yet — e.g. a fresh install already at
-  // the daily limit from another device) has nothing to swipe through at
-  // all, so go straight to the paywall instead of showing an empty feed.
   useEffect(() => {
-    if (isQuotaExhausted && cards.length === 0 && !hasPromptedPaywall.current) {
-      hasPromptedPaywall.current = true;
-      router.replace('/paywall');
-    }
-  }, [isQuotaExhausted, cards.length]);
+    if (isExpiredQuotaPage) queryClient.resetQueries({ queryKey: ['feed'] });
+  }, [isExpiredQuotaPage, queryClient]);
 
-  // Keeps the action bar's per-card actions in sync with the visible card
-  // without waiting for a swipe: seeds activeCard on first load, and
-  // re-seeds it if the feed is fully replaced (e.g. a topic/language change)
-  // while the old activeCard no longer exists in the new set. Also re-points
-  // to the refreshed object for the same id on every `cards` update (not just
-  // when the id disappears) — otherwise a refetch triggered by a bookmark
-  // toggle never reaches the action bar, since the id itself doesn't change,
-  // and the bookmark icon reverts to its pre-toggle state once the optimistic
-  // overlay clears.
+  useQuotaReset(entitlementQuery.data?.quota.resetsAt, () => {
+    entitlementQuery.refetch();
+    if (isQuotaExhausted) queryClient.resetQueries({ queryKey: ['feed'] });
+  });
+
+  const serverLanguage = lastPage?.language;
+  useEffect(() => {
+    if (serverLanguage) useLanguageStore.getState().adoptServerLanguage(serverLanguage);
+  }, [serverLanguage]);
+
   useEffect(() => {
     setActiveCard((current) => {
       if (cards.length === 0) return undefined;
@@ -60,22 +72,49 @@ export default function FeedScreen() {
     });
   }, [cards]);
 
-  if (isLoading || isRestoring) {
+  const isShowingPreMountData = dataUpdatedAt < mountedAt;
+  if (isLoading || isRestoring || (isShowingPreMountData && isFetching)) {
     return <LoadingScreen />;
+  }
+
+  if (isQuotaExhausted) {
+    return (
+      <View style={styles.root} testID="feed-quota-exhausted">
+        <ScreenState
+          title={strings.paywall.quotaExhaustedTitle}
+          message={
+            quotaResetsAt
+              ? strings.paywall.quotaExhaustedMessage(formatResetTime(quotaResetsAt))
+              : undefined
+          }
+          retryLabel={strings.quota.upgradeCta}
+          onRetry={() => router.push('/paywall')}
+          retryTestID="feed-quota-upgrade"
+        />
+        <BottomActionBar
+          activeCard={undefined}
+          onRefresh={() => {
+            queryClient.invalidateQueries({ queryKey: ['entitlement'] });
+            queryClient.resetQueries({ queryKey: ['feed'] });
+          }}
+        />
+      </View>
+    );
   }
 
   if (isError) {
     return (
-      <View style={styles.root}>
-        <View style={styles.center}>
-          <Text style={styles.errorText}>{strings.feed.error}</Text>
-          <Button mode="contained" onPress={() => refetch()} style={styles.retryButton}>
-            {strings.feed.retry}
-          </Button>
-        </View>
+      <View style={styles.root} testID="feed-error">
+        <ScreenState
+          message={strings.feed.error}
+          messageColor={colors.error}
+          retryLabel={strings.feed.retry}
+          onRetry={() => refetch()}
+          retryTestID="feed-retry"
+        />
         <BottomActionBar
           activeCard={undefined}
-          onRefresh={() => queryClient.resetQueries({ queryKey: ['feed'], exact: true })}
+          onRefresh={() => queryClient.resetQueries({ queryKey: ['feed'] })}
         />
       </View>
     );
@@ -83,36 +122,23 @@ export default function FeedScreen() {
 
   if (cards.length === 0) {
     return (
-      <View style={styles.root}>
-        <View style={styles.center}>
-          <Text style={styles.emptyText}>{strings.feed.empty}</Text>
-        </View>
+      <View style={styles.root} testID="feed-empty">
+        <ScreenState message={strings.feed.empty} />
         <BottomActionBar
           activeCard={undefined}
-          onRefresh={() => queryClient.resetQueries({ queryKey: ['feed'], exact: true })}
+          onRefresh={() => queryClient.resetQueries({ queryKey: ['feed'] })}
         />
       </View>
     );
   }
 
   return (
-    <View style={styles.root}>
-      {/* The feed itself is always a full-bleed dark photo overlay (Card.tsx,
-       * scheme-independent) with light text, so it needs light status-bar
-       * icons regardless of the device's theme — unlike the plain chrome
-       * states above, which inherit _layout.tsx's theme-following default. */}
+    <View style={styles.root} testID="feed-screen">
       <StatusBar style="light" />
       <FeedPager
         cards={cards}
         onPageChange={setActiveCard}
         onNearEnd={() => {
-          if (isQuotaExhausted) {
-            if (!hasPromptedPaywall.current) {
-              hasPromptedPaywall.current = true;
-              router.push('/paywall');
-            }
-            return;
-          }
           if (!isFetchingNextPage) fetchNextPage();
         }}
       />
@@ -122,55 +148,22 @@ export default function FeedScreen() {
         </View>
       ) : null}
       {entitlementQuery.data?.plan === 'free' ? (
-        <View style={styles.quotaBadge} pointerEvents="none">
+        <View style={styles.quotaBadge} pointerEvents="none" testID="quota-badge">
           <QuotaBadge
             used={entitlementQuery.data.quota.cardReads}
             limit={entitlementQuery.data.quota.cardReadsLimit}
+          />
+          <QuotaBadge
+            used={entitlementQuery.data.quota.readerOpens}
+            limit={entitlementQuery.data.quota.readerOpensLimit}
+            label={strings.quota.readerOpensLabel}
           />
         </View>
       ) : null}
       <BottomActionBar
         activeCard={activeCard ?? cards[0]}
-        onRefresh={() => queryClient.resetQueries({ queryKey: ['feed'], exact: true })}
+        onRefresh={() => queryClient.resetQueries({ queryKey: ['feed'] })}
       />
     </View>
   );
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-    center: {
-      flex: 1,
-      backgroundColor: colors.background,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 24,
-    },
-    errorText: {
-      color: colors.error,
-      textAlign: 'center',
-      fontSize: 16,
-    },
-    retryButton: {
-      marginTop: Spacing.four,
-    },
-    emptyText: {
-      color: colors.textSecondary,
-      textAlign: 'center',
-      fontSize: 16,
-    },
-    root: {
-      flex: 1,
-    },
-    fetchingIndicator: {
-      position: 'absolute',
-      top: Spacing.six,
-      alignSelf: 'center',
-    },
-    quotaBadge: {
-      position: 'absolute',
-      top: Spacing.six,
-      right: Spacing.three,
-    },
-  });
 }

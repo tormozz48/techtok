@@ -1,10 +1,13 @@
 import type { Topic } from '@techtok/shared';
+import { isBefore, parseISO } from 'date-fns';
 import { describe, expect, it, vi } from 'vitest';
 import type { PostRecord } from '../posts.types';
 import { buildFeed } from './buildFeed';
 
+const registry = new Map<string, PostRecord>();
+
 function post(id: string, topic: Topic, publishedAt: string, sourceId = 'hn'): PostRecord {
-  return {
+  const record: PostRecord = {
     postId: id,
     url: `https://example.com/${id}`,
     canonicalUrl: `https://example.com/${id}`,
@@ -23,6 +26,19 @@ function post(id: string, topic: Topic, publishedAt: string, sourceId = 'hn'): P
     ttl: 0,
     i18n: {},
   };
+  registry.set(id, record);
+  return record;
+}
+
+function hydrateFromRegistry() {
+  return vi.fn((postIds: string[]) =>
+    Promise.resolve(
+      postIds.flatMap((postId) => {
+        const record = registry.get(postId);
+        return record ? [record] : [];
+      }),
+    ),
+  );
 }
 
 function noWeights() {
@@ -35,7 +51,7 @@ describe('buildFeed', () => {
     const getReadSet = vi.fn().mockResolvedValue(new Set());
 
     await buildFeed(
-      { queryByTopic, getReadSet, getSourceWeights: noWeights() },
+      { queryByTopic, getReadSet, hydrate: hydrateFromRegistry(), getSourceWeights: noWeights() },
       { userTopics: [], limit: 20 },
     );
 
@@ -47,7 +63,7 @@ describe('buildFeed', () => {
     const getReadSet = vi.fn().mockResolvedValue(new Set());
 
     await buildFeed(
-      { queryByTopic, getReadSet, getSourceWeights: noWeights() },
+      { queryByTopic, getReadSet, hydrate: hydrateFromRegistry(), getSourceWeights: noWeights() },
       { userTopics: ['ai', 'dev'], limit: 20 },
     );
 
@@ -68,7 +84,7 @@ describe('buildFeed', () => {
     const getReadSet = vi.fn().mockResolvedValue(new Set());
 
     const page = await buildFeed(
-      { queryByTopic, getReadSet, getSourceWeights: noWeights() },
+      { queryByTopic, getReadSet, hydrate: hydrateFromRegistry(), getSourceWeights: noWeights() },
       { userTopics: ['ai', 'dev'], limit: 20 },
     );
 
@@ -82,7 +98,7 @@ describe('buildFeed', () => {
     const getReadSet = vi.fn().mockResolvedValue(new Set(['b']));
 
     const page = await buildFeed(
-      { queryByTopic, getReadSet, getSourceWeights: noWeights() },
+      { queryByTopic, getReadSet, hydrate: hydrateFromRegistry(), getSourceWeights: noWeights() },
       { userTopics: ['ai'], limit: 20 },
     );
 
@@ -97,7 +113,7 @@ describe('buildFeed', () => {
     const getReadSet = vi.fn().mockResolvedValue(new Set());
 
     await buildFeed(
-      { queryByTopic, getReadSet, getSourceWeights: noWeights() },
+      { queryByTopic, getReadSet, hydrate: hydrateFromRegistry(), getSourceWeights: noWeights() },
       { userTopics: ['ai', 'dev', 'gadgets'], limit: 20 },
     );
 
@@ -111,7 +127,7 @@ describe('buildFeed', () => {
     const getReadSet = vi.fn().mockResolvedValue(new Set());
 
     const page = await buildFeed(
-      { queryByTopic, getReadSet, getSourceWeights: noWeights() },
+      { queryByTopic, getReadSet, hydrate: hydrateFromRegistry(), getSourceWeights: noWeights() },
       { userTopics: ['ai'], limit: 20 },
     );
 
@@ -126,7 +142,7 @@ describe('buildFeed', () => {
     const getReadSet = vi.fn().mockResolvedValue(new Set(posts.map((p) => p.postId)));
 
     const page = await buildFeed(
-      { queryByTopic, getReadSet, getSourceWeights: noWeights() },
+      { queryByTopic, getReadSet, hydrate: hydrateFromRegistry(), getSourceWeights: noWeights() },
       { userTopics: ['ai'], limit: 20 },
     );
 
@@ -142,7 +158,7 @@ describe('buildFeed', () => {
     const getReadSet = vi.fn().mockResolvedValue(new Set());
 
     const page = await buildFeed(
-      { queryByTopic, getReadSet, getSourceWeights: noWeights() },
+      { queryByTopic, getReadSet, hydrate: hydrateFromRegistry(), getSourceWeights: noWeights() },
       { userTopics: ['ai'], limit: 3 },
     );
 
@@ -162,7 +178,7 @@ describe('buildFeed', () => {
     );
 
     const page = await buildFeed(
-      { queryByTopic, getReadSet, getSourceWeights },
+      { queryByTopic, getReadSet, hydrate: hydrateFromRegistry(), getSourceWeights },
       { userTopics: ['ai'], limit: 20 },
     );
 
@@ -184,21 +200,15 @@ describe('buildFeed', () => {
     const getSourceWeights = vi.fn().mockResolvedValue(new Map([['high', 10]]));
 
     const page = await buildFeed(
-      { queryByTopic, getReadSet, getSourceWeights },
+      { queryByTopic, getReadSet, hydrate: hydrateFromRegistry(), getSourceWeights },
       { userTopics: ['ai'], limit: 20 },
     );
 
-    // 'b' (high weight, oldest) is ranked first in items, not last — but
-    // nextBefore must still equal the oldest post by publishedAt ('b'),
-    // proving the cursor ignores rank order.
     expect(page.items[0]?.postId).toBe('b');
     expect(page.nextBefore).toBe(oldestHighWeight.publishedAt);
   });
 
   it('applies a topicReads affinity boost to outrank an equally-fresh, equally-weighted post in an unread topic', async () => {
-    // Same publishedAt, same (default) sourceId -- without affinity these
-    // would score identically. A strong 'ai' read history (well above the
-    // cold-start threshold) should be the only thing breaking the tie.
     const aiPost = post('ai-post', 'ai', '2026-07-19T00:00:00.000Z');
     const devPost = post('dev-post', 'dev', '2026-07-19T00:00:00.000Z');
     const queryByTopic = vi.fn(async (topic: Topic) => {
@@ -209,7 +219,7 @@ describe('buildFeed', () => {
     const getReadSet = vi.fn().mockResolvedValue(new Set());
 
     const page = await buildFeed(
-      { queryByTopic, getReadSet, getSourceWeights: noWeights() },
+      { queryByTopic, getReadSet, hydrate: hydrateFromRegistry(), getSourceWeights: noWeights() },
       { userTopics: ['ai', 'dev'], limit: 20, topicReads: { ai: 40 } },
     );
 
@@ -223,7 +233,7 @@ describe('buildFeed', () => {
     const getReadSet = vi.fn().mockResolvedValue(new Set());
 
     const page = await buildFeed(
-      { queryByTopic, getReadSet, getSourceWeights: noWeights() },
+      { queryByTopic, getReadSet, hydrate: hydrateFromRegistry(), getSourceWeights: noWeights() },
       { userTopics: ['ai'], limit: 20 },
     );
 
@@ -237,7 +247,7 @@ describe('buildFeed', () => {
     const getReadSet = vi.fn().mockResolvedValue(new Set());
 
     const page = await buildFeed(
-      { queryByTopic, getReadSet, getSourceWeights: noWeights() },
+      { queryByTopic, getReadSet, hydrate: hydrateFromRegistry(), getSourceWeights: noWeights() },
       { userTopics: ['ai'], limit: 20, mutedSourceIds: new Set(['hn']) },
     );
 
@@ -253,7 +263,7 @@ describe('buildFeed', () => {
     const getReadSet = vi.fn().mockResolvedValue(new Set());
 
     const page = await buildFeed(
-      { queryByTopic, getReadSet, getSourceWeights: noWeights() },
+      { queryByTopic, getReadSet, hydrate: hydrateFromRegistry(), getSourceWeights: noWeights() },
       { userTopics: ['ai'], limit: 20, mutedSourceIds: new Set(['hn']) },
     );
 
@@ -267,7 +277,7 @@ describe('buildFeed', () => {
     const getReadSet = vi.fn().mockResolvedValue(new Set());
 
     const page = await buildFeed(
-      { queryByTopic, getReadSet, getSourceWeights: noWeights() },
+      { queryByTopic, getReadSet, hydrate: hydrateFromRegistry(), getSourceWeights: noWeights() },
       { userTopics: ['ai'], limit: 20 },
     );
 
@@ -282,7 +292,40 @@ describe('buildFeed', () => {
     const getCompactDisabledSourceIds = vi.fn().mockResolvedValue(new Set(['paywalled']));
 
     const page = await buildFeed(
-      { queryByTopic, getReadSet, getSourceWeights: noWeights(), getCompactDisabledSourceIds },
+      {
+        queryByTopic,
+        getReadSet,
+        hydrate: hydrateFromRegistry(),
+        getSourceWeights: noWeights(),
+        getCompactDisabledSourceIds,
+      },
+      { userTopics: ['ai'], limit: 20 },
+    );
+
+    expect(page.items.map((p) => p.postId)).toEqual(['a']);
+  });
+
+  it("excludes posts missing the requested language's compact article when lang is given", async () => {
+    const ready = { ...post('a', 'ai', '2026-07-19T02:00:00.000Z'), compactLangs: ['en', 'ru'] };
+    const stuck = { ...post('b', 'ai', '2026-07-19T01:00:00.000Z'), compactLangs: [] };
+    const queryByTopic = vi.fn().mockResolvedValue([ready, stuck]);
+    const getReadSet = vi.fn().mockResolvedValue(new Set());
+
+    const page = await buildFeed(
+      { queryByTopic, getReadSet, hydrate: hydrateFromRegistry(), getSourceWeights: noWeights() },
+      { userTopics: ['ai'], limit: 20, lang: 'en' },
+    );
+
+    expect(page.items.map((p) => p.postId)).toEqual(['a']);
+  });
+
+  it('does not filter on compactLangs when lang is omitted', async () => {
+    const stuck = { ...post('a', 'ai', '2026-07-19T02:00:00.000Z'), compactLangs: [] };
+    const queryByTopic = vi.fn().mockResolvedValue([stuck]);
+    const getReadSet = vi.fn().mockResolvedValue(new Set());
+
+    const page = await buildFeed(
+      { queryByTopic, getReadSet, hydrate: hydrateFromRegistry(), getSourceWeights: noWeights() },
       { userTopics: ['ai'], limit: 20 },
     );
 
@@ -300,7 +343,7 @@ describe('buildFeed', () => {
     const getReadSet = vi.fn().mockResolvedValue(new Set());
 
     const page = await buildFeed(
-      { queryByTopic, getReadSet, getSourceWeights: noWeights() },
+      { queryByTopic, getReadSet, hydrate: hydrateFromRegistry(), getSourceWeights: noWeights() },
       { userTopics: ['ai'], limit: 20 },
     );
 
@@ -308,9 +351,6 @@ describe('buildFeed', () => {
   });
 
   it('leaves a discovered post inside the page window permanently behind once the cursor advances past it', async () => {
-    // 24 ready posts spanning 00:01:00 (oldest) .. 00:01:23 (newest), plus a
-    // still-discovered post at 00:01:11.5 — timestamped *inside* that range,
-    // not at either edge.
     const readyPosts = Array.from({ length: 24 }, (_, i) =>
       post(`p${i}`, 'ai', `2026-07-18T00:01:${String(i).padStart(2, '0')}.000Z`),
     );
@@ -322,20 +362,75 @@ describe('buildFeed', () => {
     const getReadSet = vi.fn().mockResolvedValue(new Set());
 
     const page = await buildFeed(
-      { queryByTopic, getReadSet, getSourceWeights: noWeights() },
+      { queryByTopic, getReadSet, hydrate: hydrateFromRegistry(), getSourceWeights: noWeights() },
       { userTopics: ['ai'], limit: 20 },
     );
 
     expect(page.items.map((p) => p.postId)).not.toContain('stuck');
-    // The cursor is drawn from the *filtered* candidate list, so it
-    // watermarks at the oldest ready post (p0) — which is older than
-    // `stuck`. Any further page in this session queries strictly before
-    // that watermark, so it can never reach `stuck` again even though
-    // `stuck` sat inside the window just paginated past. This is the
-    // documented, accepted skip: it self-heals only on a fresh feed load.
     expect(page.nextBefore).toBe(readyPosts[0]?.publishedAt);
-    expect(new Date(page.nextBefore as string).getTime()).toBeLessThan(
-      new Date(stuckDiscovered.publishedAt).getTime(),
+    expect(
+      isBefore(parseISO(page.nextBefore as string), parseISO(stuckDiscovered.publishedAt)),
+    ).toBe(true);
+  });
+
+  it('hydrates only the posts that survive ranking, not every candidate', async () => {
+    const candidates = Array.from({ length: 30 }, (_, i) =>
+      post(`p${i}`, 'ai', `2026-07-19T00:${String(i).padStart(2, '0')}:00.000Z`),
     );
+    const queryByTopic = vi.fn().mockResolvedValue(candidates);
+    const getReadSet = vi.fn().mockResolvedValue(new Set());
+    const hydrate = hydrateFromRegistry();
+
+    await buildFeed(
+      { queryByTopic, getReadSet, hydrate, getSourceWeights: noWeights() },
+      { userTopics: ['ai'], limit: 5 },
+    );
+
+    expect(hydrate).toHaveBeenCalledTimes(1);
+    expect(hydrate.mock.calls[0]?.[0]).toHaveLength(5);
+  });
+
+  it('returns hydrated records in rank order, not in the order the fetch resolved them', async () => {
+    const older = post('older', 'ai', '2026-07-19T01:00:00.000Z');
+    const newer = post('newer', 'ai', '2026-07-19T03:00:00.000Z');
+    const queryByTopic = vi.fn().mockResolvedValue([older, newer]);
+    const getReadSet = vi.fn().mockResolvedValue(new Set());
+    const hydrate = vi.fn().mockResolvedValue([older, newer]);
+
+    const page = await buildFeed(
+      { queryByTopic, getReadSet, hydrate, getSourceWeights: noWeights() },
+      { userTopics: ['ai'], limit: 20 },
+    );
+
+    expect(page.items.map((p) => p.postId)).toEqual(['newer', 'older']);
+  });
+
+  it('drops a ranked post that no longer exists when hydrated', async () => {
+    const kept = post('kept', 'ai', '2026-07-19T03:00:00.000Z');
+    const expired = post('expired', 'ai', '2026-07-19T01:00:00.000Z');
+    const queryByTopic = vi.fn().mockResolvedValue([kept, expired]);
+    const getReadSet = vi.fn().mockResolvedValue(new Set());
+    const hydrate = vi.fn().mockResolvedValue([kept]);
+
+    const page = await buildFeed(
+      { queryByTopic, getReadSet, hydrate, getSourceWeights: noWeights() },
+      { userTopics: ['ai'], limit: 20 },
+    );
+
+    expect(page.items.map((p) => p.postId)).toEqual(['kept']);
+  });
+
+  it('skips the hydrate fetch entirely when nothing survives ranking', async () => {
+    const queryByTopic = vi.fn().mockResolvedValue([]);
+    const getReadSet = vi.fn().mockResolvedValue(new Set());
+    const hydrate = hydrateFromRegistry();
+
+    const page = await buildFeed(
+      { queryByTopic, getReadSet, hydrate, getSourceWeights: noWeights() },
+      { userTopics: ['ai'], limit: 20 },
+    );
+
+    expect(hydrate).not.toHaveBeenCalled();
+    expect(page.items).toEqual([]);
   });
 });

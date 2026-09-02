@@ -2,34 +2,17 @@ import { useQuery } from '@tanstack/react-query';
 import { getTopicLabel, type HistoryItem } from '@techtok/shared';
 import type { ReactNode } from 'react';
 import { useMemo } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { fetchHistoryPage } from '@/api/client';
-import { Spacing, type ThemeColors, Typography } from '@/constants/theme';
+import { ScreenState } from '@/components/ScreenState';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { useLanguageStore } from '@/state/languageStore';
 import { computeReadingStats } from '@/utils/readingStats';
+import { createStyles, type StatsStyles } from './stats.styles';
 
-// Same bound as the history/bookmarks search (C1) — an honest "based on
-// your most recent ~500 reads" contract instead of paging to exhaustion.
 const MAX_ITEMS = 500;
 const PAGE_SIZE = 100;
-
-async function fetchHistoryForStats(): Promise<HistoryItem[]> {
-  const items: HistoryItem[] = [];
-  let cursor: string | undefined;
-
-  while (items.length < MAX_ITEMS) {
-    const page = await fetchHistoryPage({ cursor, limit: PAGE_SIZE });
-    items.push(...page.items);
-    if (!page.nextCursor) break;
-    cursor = page.nextCursor;
-  }
-
-  return items;
-}
-
-type StatsStyles = ReturnType<typeof createStyles>;
 
 export default function StatsScreen() {
   const strings = useStrings();
@@ -42,27 +25,15 @@ export default function StatsScreen() {
   });
 
   if (isLoading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.textSecondary} />
-      </View>
-    );
+    return <ScreenState loading />;
   }
 
   if (isError || !data) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.emptyText}>{strings.stats.error}</Text>
-      </View>
-    );
+    return <ScreenState message={strings.stats.error} />;
   }
 
   if (data.length === 0) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.emptyText}>{strings.stats.empty}</Text>
-      </View>
-    );
+    return <ScreenState message={strings.stats.empty} />;
   }
 
   const stats = computeReadingStats(data);
@@ -97,6 +68,20 @@ export default function StatsScreen() {
       ) : null}
     </ScrollView>
   );
+}
+
+async function fetchHistoryForStats(): Promise<HistoryItem[]> {
+  const items: HistoryItem[] = [];
+  let cursor: string | undefined;
+
+  while (items.length < MAX_ITEMS) {
+    const page = await fetchHistoryPage({ cursor, limit: PAGE_SIZE });
+    items.push(...page.items);
+    if (!page.nextCursor) break;
+    cursor = page.nextCursor;
+  }
+
+  return items;
 }
 
 function StatTile({ styles, value, label }: { styles: StatsStyles; value: number; label: string }) {
@@ -140,85 +125,4 @@ function RankedRow({
       <Text style={styles.rowCount}>{count}</Text>
     </View>
   );
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    content: {
-      padding: Spacing.four,
-    },
-    center: {
-      flex: 1,
-      backgroundColor: colors.background,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: Spacing.four,
-    },
-    emptyText: {
-      color: colors.textSecondary,
-      textAlign: 'center',
-      fontSize: 16,
-    },
-    tileRow: {
-      flexDirection: 'row',
-      gap: Spacing.two,
-      marginBottom: Spacing.five,
-    },
-    tile: {
-      flex: 1,
-      backgroundColor: colors.backgroundElement,
-      borderRadius: 12,
-      paddingVertical: Spacing.three,
-      alignItems: 'center',
-    },
-    tileValue: {
-      color: colors.text,
-      ...Typography.xxl,
-      fontWeight: '700',
-    },
-    tileLabel: {
-      color: colors.textSecondary,
-      ...Typography.xs,
-      fontWeight: '600',
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginTop: Spacing.one,
-      textAlign: 'center',
-    },
-    section: {
-      marginBottom: Spacing.four,
-    },
-    sectionTitle: {
-      color: colors.textSecondary,
-      fontSize: 13,
-      fontWeight: '700',
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginBottom: Spacing.two,
-    },
-    row: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      backgroundColor: colors.backgroundElement,
-      borderRadius: 12,
-      paddingHorizontal: Spacing.three,
-      paddingVertical: Spacing.three,
-      marginBottom: Spacing.two,
-    },
-    rowLabel: {
-      color: colors.text,
-      fontSize: 16,
-      fontWeight: '600',
-    },
-    rowCount: {
-      color: colors.textSecondary,
-      fontSize: 16,
-      fontWeight: '700',
-    },
-  });
 }

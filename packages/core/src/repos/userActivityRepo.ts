@@ -1,17 +1,24 @@
-import {
-  BatchWriteCommand,
-  DeleteCommand,
-  type DynamoDBDocumentClient,
-  PutCommand,
-  QueryCommand,
-} from '@aws-sdk/lib-dynamodb';
-import { batchGetChunked } from '../clients/dynamoClient';
+import type { Topic } from '@techtok/shared';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import type { AnyPgColumn } from 'drizzle-orm/pg-core';
+import type { SqlClient } from '../clients/sqlClient';
+import { beforeCursor, decodeCursor, matchesQuery, type Page, paginate } from '../db/cursor';
+import { decodeId, decodeIds, encodeId } from '../db/ids';
+import { topics, userBookmarks, userReads, users } from '../db/schema';
 import type { ActivityRecord, BookmarkRecord, ReadSnapshot } from '../history.types';
-import { chunk } from '../util/chunk';
+import { Activity, type ActivitySelection } from '../models/activity';
 
-const BATCH_GET_CHUNK_SIZE = 100;
-/** DynamoDB's BatchWriteItem hard cap. */
-const BATCH_WRITE_CHUNK_SIZE = 25;
+type ActivityTable = typeof userReads | typeof userBookmarks;
+
+const DEFAULT_LIMIT = 50;
+
+const WAS_NEW = sql<boolean>`xmax = 0`;
+
+export interface ActivityQueryOpts {
+  readonly limit?: number;
+  readonly cursor?: string;
+  readonly q?: string;
+}
 
 export interface HistoryPage {
   readonly items: ActivityRecord[];
@@ -23,62 +30,38 @@ export interface BookmarksPage {
   readonly nextCursor: string | null;
 }
 
-export function encodeHistoryCursor(key: Record<string, unknown>): string {
-  return Buffer.from(JSON.stringify(key), 'utf8').toString('base64url');
-}
-
-export function decodeHistoryCursor(cursor: string): Record<string, unknown> {
-  return JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
-}
-
-function readSortKey(postId: string): string {
-  return `read#${postId}`;
-}
-
-function bookmarkSortKey(postId: string): string {
-  return `bm#${postId}`;
-}
-
 export class UserActivityRepo {
-  constructor(
-    private readonly client: DynamoDBDocumentClient,
-    private readonly tableName: string,
-  ) {}
+  constructor(private readonly db: SqlClient) {}
 
-  /** `wasNew` is true only when no read-marker existed for this postId
-   * before this call — POST /v1/reads is documented idempotent (a retried
-   * or re-sent postId just overwrites readAt/snapshot), but the topic-read
-   * affinity counter it drives (usersRepo.addTopicReads) is not, so the
-   * handler uses this to count each post's first read exactly once. */
   async markRead(
     userId: string,
     postId: string,
     snapshot: ReadSnapshot,
     readAt: string = new Date().toISOString(),
   ): Promise<{ wasNew: boolean }> {
-    const record: ActivityRecord = {
-      userId,
-      sk: readSortKey(postId),
-      postId,
-      readAt,
-      snapshot,
-      gsi1sk: `${readAt}#${postId}`,
-    };
-    const result = await this.client.send(
-      new PutCommand({ TableName: this.tableName, Item: record, ReturnValues: 'ALL_OLD' }),
-    );
-    return { wasNew: result.Attributes === undefined };
+    const id = decodeId(postId);
+    if (id === undefined) return { wasNew: false };
+    const row = { userId: userIdOf(userId), postId: id, readAt, ...toColumns(snapshot) };
+    const [inserted] = await this.db
+      .insert(userReads)
+      .values(row)
+      .onConflictDoUpdate({ target: [userReads.userId, userReads.postId], set: row })
+      .returning({ wasNew: WAS_NEW });
+    return { wasNew: inserted?.wasNew ?? false };
   }
 
   async getReadSet(userId: string, postIds: string[]): Promise<Set<string>> {
-    return this.batchGetMarkedIds(userId, postIds, readSortKey);
+    return this.selectPostIds(userReads, userId, postIds);
   }
 
-  async queryHistory(
-    userId: string,
-    opts: { limit?: number; cursor?: string } = {},
-  ): Promise<HistoryPage> {
-    return this.queryNewestFirstPage<ActivityRecord>('byReadAt', userId, opts);
+  async queryHistory(userId: string, opts: ActivityQueryOpts = {}): Promise<HistoryPage> {
+    const { rows, nextCursor } = await this.queryActivity(
+      userReads,
+      userReads.readAt,
+      userId,
+      opts,
+    );
+    return { items: rows.map((row) => new Activity(userId, row).toReadRecord()), nextCursor };
   }
 
   async addBookmark(
@@ -87,105 +70,101 @@ export class UserActivityRepo {
     snapshot: ReadSnapshot,
     bookmarkedAt: string = new Date().toISOString(),
   ): Promise<void> {
-    const record: BookmarkRecord = {
-      userId,
-      sk: bookmarkSortKey(postId),
-      postId,
-      bookmarkedAt,
-      snapshot,
-      gsi2sk: `${bookmarkedAt}#${postId}`,
-    };
-    await this.client.send(new PutCommand({ TableName: this.tableName, Item: record }));
+    const id = decodeId(postId);
+    if (id === undefined) return;
+    const row = { userId: userIdOf(userId), postId: id, bookmarkedAt, ...toColumns(snapshot) };
+    await this.db
+      .insert(userBookmarks)
+      .values(row)
+      .onConflictDoUpdate({ target: [userBookmarks.userId, userBookmarks.postId], set: row });
   }
 
   async removeBookmark(userId: string, postId: string): Promise<void> {
-    await this.client.send(
-      new DeleteCommand({
-        TableName: this.tableName,
-        Key: { userId, sk: bookmarkSortKey(postId) },
-      }),
-    );
+    const id = decodeId(postId);
+    if (id === undefined) return;
+    await this.db
+      .delete(userBookmarks)
+      .where(and(eq(userBookmarks.userId, userIdOf(userId)), eq(userBookmarks.postId, id)));
   }
 
   async getBookmarkSet(userId: string, postIds: string[]): Promise<Set<string>> {
-    return this.batchGetMarkedIds(userId, postIds, bookmarkSortKey);
+    return this.selectPostIds(userBookmarks, userId, postIds);
   }
 
-  async queryBookmarks(
-    userId: string,
-    opts: { limit?: number; cursor?: string } = {},
-  ): Promise<BookmarksPage> {
-    return this.queryNewestFirstPage<BookmarkRecord>('byBookmarkedAt', userId, opts);
+  async queryBookmarks(userId: string, opts: ActivityQueryOpts = {}): Promise<BookmarksPage> {
+    const { rows, nextCursor } = await this.queryActivity(
+      userBookmarks,
+      userBookmarks.bookmarkedAt,
+      userId,
+      opts,
+    );
+    return { items: rows.map((row) => new Activity(userId, row).toBookmarkRecord()), nextCursor };
   }
 
-  /** Deletes every row (reads and bookmarks alike — both live in this same
-   * base-table partition, `read#`/`bm#` sort-key prefixes) for a user. Used
-   * only by `DELETE /v1/me` (D68), a Play policy requirement — paginates the
-   * full partition via the base table's key (no GSI needed, since `userId`
-   * is already the partition key) and issues chunked `BatchWriteItem`
-   * deletes, 25 at a time. */
   async deleteAllForUser(userId: string): Promise<void> {
-    let exclusiveStartKey: Record<string, unknown> | undefined;
-    do {
-      const page = await this.client.send(
-        new QueryCommand({
-          TableName: this.tableName,
-          KeyConditionExpression: 'userId = :userId',
-          ExpressionAttributeValues: { ':userId': userId },
-          ProjectionExpression: 'userId, sk',
-          ExclusiveStartKey: exclusiveStartKey,
-        }),
-      );
-      const keys = (page.Items ?? []) as { userId: string; sk: string }[];
-      for (const batch of chunk(keys, BATCH_WRITE_CHUNK_SIZE)) {
-        if (batch.length === 0) continue;
-        await this.client.send(
-          new BatchWriteCommand({
-            RequestItems: {
-              [this.tableName]: batch.map((key) => ({ DeleteRequest: { Key: key } })),
-            },
-          }),
-        );
-      }
-      exclusiveStartKey = page.LastEvaluatedKey;
-    } while (exclusiveStartKey);
+    await this.db.delete(userReads).where(eq(userReads.userId, userIdOf(userId)));
+    await this.db.delete(userBookmarks).where(eq(userBookmarks.userId, userIdOf(userId)));
   }
 
-  private async batchGetMarkedIds(
+  private async selectPostIds(
+    table: ActivityTable,
     userId: string,
     postIds: string[],
-    sortKey: (postId: string) => string,
   ): Promise<Set<string>> {
-    const items = await batchGetChunked<string, ActivityRecord | BookmarkRecord>(
-      this.client,
-      this.tableName,
-      postIds,
-      (postId) => ({ userId, sk: sortKey(postId) }),
-      BATCH_GET_CHUNK_SIZE,
-    );
-    return new Set(items.map((item) => item.postId));
+    const ids = decodeIds(postIds);
+    if (ids.length === 0) return new Set();
+    const rows = await this.db
+      .select({ postId: table.postId })
+      .from(table)
+      .where(and(eq(table.userId, userIdOf(userId)), inArray(table.postId, ids)));
+    return new Set(rows.map((row) => encodeId(row.postId)));
   }
 
-  private async queryNewestFirstPage<T>(
-    indexName: string,
+  private async queryActivity(
+    table: ActivityTable,
+    tsColumn: AnyPgColumn,
     userId: string,
-    opts: { limit?: number; cursor?: string },
-  ): Promise<{ items: T[]; nextCursor: string | null }> {
-    const result = await this.client.send(
-      new QueryCommand({
-        TableName: this.tableName,
-        IndexName: indexName,
-        KeyConditionExpression: 'userId = :userId',
-        ExpressionAttributeValues: { ':userId': userId },
-        ScanIndexForward: false,
-        Limit: opts.limit ?? 50,
-        ExclusiveStartKey: opts.cursor ? decodeHistoryCursor(opts.cursor) : undefined,
-      }),
-    );
-
-    return {
-      items: (result.Items ?? []) as T[],
-      nextCursor: result.LastEvaluatedKey ? encodeHistoryCursor(result.LastEvaluatedKey) : null,
-    };
+    opts: ActivityQueryOpts,
+  ): Promise<Page<ActivitySelection>> {
+    const limit = opts.limit ?? DEFAULT_LIMIT;
+    const rows = await this.db
+      .select({
+        postId: table.postId,
+        ts: tsColumn,
+        cardTitle: table.cardTitle,
+        sourceName: table.sourceName,
+        url: table.url,
+        primaryTopic: topics.slug,
+      })
+      .from(table)
+      .leftJoin(topics, eq(table.primaryTopicId, topics.id))
+      .where(
+        and(
+          eq(table.userId, userIdOf(userId)),
+          beforeCursor(tsColumn, table.postId, decodeCursor(opts.cursor)),
+          matchesQuery(opts.q, table.cardTitle, table.sourceName),
+        ),
+      )
+      .orderBy(desc(tsColumn), desc(table.postId))
+      .limit(limit + 1);
+    return paginate(rows, limit);
   }
+}
+
+function userIdOf(externalId: string) {
+  return sql<number>`(select id from ${users} where ${users.externalId} = ${externalId})`;
+}
+
+function toColumns(snapshot: ReadSnapshot) {
+  return {
+    cardTitle: snapshot.cardTitle,
+    sourceName: snapshot.sourceName,
+    url: snapshot.url,
+    primaryTopicId: topicIdOf(snapshot.primaryTopic),
+  };
+}
+
+function topicIdOf(topic: Topic | undefined) {
+  if (!topic) return null;
+  return sql<number>`(select id from ${topics} where ${topics.slug} = ${topic})`;
 }

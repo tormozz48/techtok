@@ -6,19 +6,13 @@ export interface FetchedBytes {
 }
 
 export interface FetchWithCapOptions {
-  /** Aborts the fetch once the streamed response body exceeds this size. */
   readonly maxBytes: number;
   readonly timeoutMs?: number;
   readonly userAgent?: string;
 }
 
-const DEFAULT_TIMEOUT_MS = 10_000;
+export const DEFAULT_TIMEOUT_MS = 10_000;
 
-/**
- * Fetches `url` with a request timeout and a streamed byte cap — shared by
- * every Lambda that fetches third-party content (article pages, images,
- * robots.txt), so the cap/timeout/UA behavior only needs to be right once.
- */
 export async function fetchBytesWithCap(
   url: string,
   options: FetchWithCapOptions,

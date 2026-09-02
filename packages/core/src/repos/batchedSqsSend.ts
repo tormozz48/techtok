@@ -3,9 +3,6 @@ import { chunk } from '../util/chunk';
 
 const SQS_BATCH_LIMIT = 10;
 
-/** Sends `items` to `queueUrl` in batches of 10, deriving each message's
- * dedup id and body via `toEntry`. Shared by every queue repo that enqueues
- * plain job records (transform/translate/content). */
 export async function sendBatched<T>(
   client: SQSClient,
   queueUrl: string,

@@ -1,10 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { type BackfillImagesDeps, backfillImages } from './backfillImages';
 
-// Long enough to clear @extractus/article-extractor's own content-length
-// threshold (200 chars) — below that it returns null for the whole result,
-// image included, same constraint transformArticle.test.ts's fixture works
-// around.
 const ARTICLE_HTML_WITH_IMAGE = `<!doctype html><html><head><title>Archived Article</title>
 <meta property="og:image" content="https://example.com/lead.jpg">
 </head><body><article>
@@ -23,8 +19,18 @@ const ARTICLE_HTML_ARXIV_IMAGE = ARTICLE_HTML_WITH_IMAGE.replace(
   'https://arxiv.org/static/browse/0.3.4/images/arxiv-logo-fb.png',
 );
 
-const candidateA = { postId: 'post-a', url: 'https://example.com/a', s3RawKey: 'raw/post-a.html' };
-const candidateB = { postId: 'post-b', url: 'https://example.com/b', s3RawKey: 'raw/post-b.html' };
+const candidateA = {
+  postId: 'post-a',
+  contentKey: 'key-a',
+  url: 'https://example.com/a',
+  s3RawKey: 'raw/post-a.html',
+};
+const candidateB = {
+  postId: 'post-b',
+  contentKey: 'key-b',
+  url: 'https://example.com/b',
+  s3RawKey: 'raw/post-b.html',
+};
 
 function fakeDeps(): BackfillImagesDeps & {
   nextCandidates: ReturnType<typeof vi.fn>;
@@ -52,7 +58,7 @@ describe('backfillImages', () => {
 
     expect(result).toEqual({ scanned: 1, mirrored: 1, skipped: 0 });
     expect(deps.getRawHtml).toHaveBeenCalledWith('raw/post-a.html');
-    expect(deps.mirrorImage).toHaveBeenCalledWith('post-a', 'https://example.com/lead.jpg');
+    expect(deps.mirrorImage).toHaveBeenCalledWith('key-a', 'https://example.com/lead.jpg');
     expect(deps.updateMirroredImage).toHaveBeenCalledWith(
       'post-a',
       'https://cdn.example.com/a.jpg',
@@ -103,7 +109,7 @@ describe('backfillImages', () => {
 
     expect(result).toEqual({ scanned: 2, mirrored: 1, skipped: 1 });
     expect(deps.onError).toHaveBeenCalledWith('post-a', expect.any(Error));
-    expect(deps.mirrorImage).toHaveBeenCalledWith('post-b', 'https://example.com/lead.jpg');
+    expect(deps.mirrorImage).toHaveBeenCalledWith('key-b', 'https://example.com/lead.jpg');
   });
 
   it('continues paginating past a page with zero eligible candidates', async () => {

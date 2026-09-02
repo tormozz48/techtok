@@ -36,7 +36,7 @@ exports[`LoadingScreen renders the branded logo + spinner without crashing (snap
     source={
       [
         {
-          "testUri": "../../../../../../apps/mobile/assets/images/splash-icon.png",
+          "testUri": "../../../../../../apps/mobile/assets/images/loading-logo.png",
         },
       ]
     }

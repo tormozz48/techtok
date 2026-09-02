@@ -1,0 +1,105 @@
+name: Mobile release (Play Store)
+
+# Builds the `production` eas.json profile as a Play-uploadable AAB. Deliberately
+# workflow_dispatch-only, unlike mobile-build.yml's on-every-push preview APK:
+# a Play submission is a reviewed, infrequent, deliberate action, not something
+# that should fire on every merge to main. Produces a downloadable Actions
+# artifact only — no auto-submission to Play (that needs D71's
+# PlayServiceAccountKey secret, phase 21, not yet set up) and no OTA publish
+# (the production update channel isn't bound yet either — see D65's amendment
+# and IMPLEMENTATION_PLAN.md phase 23 track C task 15; `eas update:configure`
+# is a separate one-time maintainer step, not part of this build).
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: Production API URL to bake into the build (EXPO_PUBLIC_API_URL)
+        required: true
+        type: string
+
+concurrency:
+  group: mobile-release
+  cancel-in-progress: false # never cancel a Play-bound build mid-run
+
+jobs:
+  production-aab:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # RN 0.86 / Android Gradle Plugin require JDK 17.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # ubuntu-latest ships an Android SDK/NDK; this pins cmdline-tools and
+      # accepts licenses so Gradle can fetch any missing package for the build.
+      - uses: android-actions/setup-android@v3
+
+      # Installs eas-cli and authenticates via EXPO_TOKEN (a free Expo account).
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # `eas build --local` doesn't run apps/mobile's own package.json scripts
+      # (it drives Gradle directly), so the guard normally wired into
+      # build:android/build:android:apk has to run as its own explicit step
+      # here — same script, same env var, checked before it's baked in rather
+      # than after.
+      - name: Check production API URL
+        env:
+          EXPO_PUBLIC_API_URL: ${{ inputs.api_url }}
+        run: pnpm check-api-url
+
+      # Reuse the Gradle distribution + Maven deps + build-cache across runs.
+      # `eas build --local` runs Gradle from the home GRADLE_USER_HOME (~/.gradle),
+      # so caching that here skips the big first-time downloads and recompiles.
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('apps/mobile/android/**/*.gradle*', 'apps/mobile/android/gradle/wrapper/gradle-wrapper.properties', 'pnpm-lock.yaml') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      # `--local` runs the build on this runner (no EAS cloud-build credit
+      # consumed). Signing credentials come from EAS's remote credential store
+      # (credentialsSource defaults to "remote") via EXPO_TOKEN — no keystore
+      # file or keystore secret in GitHub. Before this can succeed once, the
+      # `production` profile needs credentials established on EAS: run
+      # `npx eas credentials --platform android` once (maintainer, needs an
+      # EAS login), select the `production` profile, let EAS generate/store a
+      # keystore for it. That keystore is what becomes the permanent Play
+      # upload key.
+      - name: Build Android App Bundle (eas build --local)
+        working-directory: apps/mobile
+        env:
+          EXPO_PUBLIC_API_URL: ${{ inputs.api_url }}
+          EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_WEB_CLIENT_ID }}
+        run: eas build --platform android --profile production --local --non-interactive --output "${{ github.workspace }}/techtok.aab"
+
+      # No auto-submit and no GitHub Release — this is a Play Console upload,
+      # not a public download. The maintainer downloads this artifact and
+      # uploads it to Play Console by hand (Internal testing, promoted from
+      # there per IMPLEMENTATION_PLAN.md phase 23 track D).
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: techtok-${{ github.run_number }}.aab
+          path: ${{ github.workspace }}/techtok.aab

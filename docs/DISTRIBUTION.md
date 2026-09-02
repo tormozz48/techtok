@@ -43,7 +43,7 @@ profiles, env vars, and EAS-managed signing all apply.)
    keystore in GitHub. From `apps/mobile/`:
 
    ```
-   npx eas credentials --platform android
+   npx eas-cli credentials --platform android
    ```
 
    Pick the `preview` profile and let EAS generate/store a keystore. The build
@@ -75,8 +75,8 @@ pre-release). Send that release URL to a friend.
 
 ## One-time setup (maintainer)
 
-1. `npx eas login` (creates/uses an Expo account — free tier is enough).
-2. ~~From `apps/mobile/`, run `npx eas init` to link the project.~~ **Already
+1. `npx eas-cli login` (creates/uses an Expo account — free tier is enough).
+2. ~~From `apps/mobile/`, run `npx eas-cli init` to link the project.~~ **Already
    done** — `app.json`'s `expo.extra.eas.projectId` is a real, committed
    value, and `expo-updates` is wired up (`updates.url` points at
    `u.expo.dev`). Only re-run `eas init` if the project is ever re-linked to
@@ -94,7 +94,7 @@ pre-release). Send that release URL to a friend.
 
 ```
 cd apps/mobile
-npx eas build --platform android --profile preview
+npx eas-cli build --platform android --profile preview
 ```
 
 This uploads a build to Expo's servers and prints a page URL
@@ -178,7 +178,7 @@ credentials on EAS (separate from the `preview` profile's, established
 earlier in this doc):
 
 ```
-npx eas credentials --platform android
+npx eas-cli credentials --platform android
 ```
 
 Select the `production` profile and let EAS generate/store a keystore

@@ -83,7 +83,7 @@ jobs:
       # (credentialsSource defaults to "remote") via EXPO_TOKEN — no keystore
       # file or keystore secret in GitHub. Before this can succeed once, the
       # `production` profile needs credentials established on EAS: run
-      # `npx eas credentials --platform android` once (maintainer, needs an
+      # `npx eas-cli credentials --platform android` once (maintainer, needs an
       # EAS login), select the `production` profile, let EAS generate/store a
       # keystore for it. That keystore is what becomes the permanent Play
       # upload key.

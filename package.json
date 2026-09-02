@@ -17,6 +17,7 @@
     "deploy:dev": "sst deploy --stage dev",
     "wipe-users": "tsx scripts/wipeUsers.ts",
     "grant-entitlement": "tsx scripts/grantEntitlement.ts",
+    "check-api-url": "tsx scripts/checkProductionApiUrl.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"
   },

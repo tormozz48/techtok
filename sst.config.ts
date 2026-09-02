@@ -28,7 +28,7 @@ export default $config({
     const { imagesRouter, postsTable, sourcesTable, userActivityTable, usersTable } = await import(
       './infra/storage'
     );
-    const { ingestPipeline } = await import('./infra/pipeline');
+    const { ingestPipeline, seedSourcesFn } = await import('./infra/pipeline');
     const { api } = await import('./infra/api');
     await import('./infra/monitoring');
 
@@ -39,6 +39,7 @@ export default $config({
       usersTable: usersTable.name,
       userActivityTable: userActivityTable.name,
       ingestPipeline: ingestPipeline.arn,
+      seedSources: seedSourcesFn.arn,
       imagesCdn: imagesRouter.url,
     };
   },

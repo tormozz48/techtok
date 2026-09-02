@@ -36,6 +36,8 @@ const persister = createAsyncStoragePersister({
   key: 'techtok.queryCache',
 });
 
+export default Sentry.wrap(AppRoot);
+
 function RootLayout() {
   const systemScheme = useColorScheme();
   const themeMode = useThemeStore((state) => state.mode);
@@ -51,6 +53,10 @@ function RootLayout() {
   }, [navigationRef]);
 
   useEffect(() => {
+    startOtaUpdates();
+  }, []);
+
+  useEffect(() => {
     ready().then(async () => {
       startNetworkMonitoring();
       useTopicsStore.getState().load();
@@ -61,7 +67,6 @@ function RootLayout() {
       await useAuthStore.getState().restore();
       startReadQueueFlushing();
       startEventsQueueFlushing();
-      startOtaUpdates();
       setIsHydrated(true);
     });
   }, []);
@@ -163,5 +168,3 @@ function AppRoot() {
     </Sentry.ErrorBoundary>
   );
 }
-
-export default Sentry.wrap(AppRoot);

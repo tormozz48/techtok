@@ -1,14 +1,15 @@
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, View } from 'react-native';
 import { IconButton, List, Searchbar } from 'react-native-paper';
 import { deleteBookmark, fetchBookmarksPage } from '@/api/client';
 import { ScreenState } from '@/components/ScreenState';
-import { Spacing, type ThemeColors } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
+import { logError } from '@/state/eventsQueue';
 import { timeAgo } from '@/utils/timeAgo';
+import { createStyles } from './saved.styles';
 
 export default function SavedScreen() {
   const queryClient = useQueryClient();
@@ -41,6 +42,8 @@ export default function SavedScreen() {
     });
     try {
       await deleteBookmark(postId);
+    } catch (error) {
+      logError('removeBookmark failed', { message: String(error) });
     } finally {
       queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
     }
@@ -110,43 +113,4 @@ export default function SavedScreen() {
       )}
     </View>
   );
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    searchbar: {
-      margin: Spacing.three,
-      backgroundColor: colors.backgroundElement,
-    },
-    list: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderBottomColor: colors.backgroundElement,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      paddingHorizontal: Spacing.four,
-    },
-    rowContent: {
-      flex: 1,
-      paddingVertical: Spacing.three,
-    },
-    title: {
-      color: colors.text,
-      fontSize: 16,
-      fontWeight: '600',
-      marginBottom: Spacing.one,
-    },
-    metaText: {
-      color: colors.textSecondary,
-      fontSize: 13,
-      fontWeight: '600',
-    },
-  });
 }

@@ -10,9 +10,14 @@ on:
   pull_request:
   workflow_dispatch:
 
+# D91: cancel-in-progress is on for PRs, off for pushes to main. A caller
+# run's cancellation propagates into the reusable workflows it calls, so
+# deploy-production.yml's own `cancel-in-progress: false` cannot protect a
+# deploy that this workflow's cancellation kills from above — which is how the
+# 2026-08-31 production outage happened. Main-branch runs now queue instead.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # D51 retired the `setup` job that used to install once and hand every check
 # job a tarred `node_modules` artifact. `actions/setup-node`'s pnpm store cache
@@ -303,10 +308,12 @@ jobs:
 
           # D84: the OTA baseline is the last commit whose bundle actually
           # reached the channel, not this one push. The original
-          # `github.event.before..HEAD` window had a hole: this workflow sets
-          # cancel-in-progress, so a mobile-JS push whose run was cancelled by
-          # a following backend-only push never published, and that next run's
-          # window no longer contained the change — it sat unpublished until
+          # `github.event.before..HEAD` window had a hole: a main-branch run
+          # still waiting in this workflow's concurrency queue is cancelled by
+          # the next push behind it (D91 stopped in-progress cancellation, not
+          # this one), so a mobile-JS push whose run never started never
+          # published, and the window of the run that did start no longer
+          # contained the change — it sat unpublished until
           # some later push happened to touch apps/mobile/src again. Two
           # markers can carry the baseline, and whichever is further along
           # main wins: `mobile-ota-latest` (moved by the mobile-ota-update job
@@ -354,6 +361,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # move the mobile-ota-latest baseline tag
+    env:
+      # secrets can't be referenced directly in a step-level `if:` — mirror
+      # it into env so the Sentry steps below can check it there instead.
+      HAS_SENTRY_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN != '' }}
     steps:
       # fetch-depth: 0 so the baseline tag below can be force-updated against
       # a repo that actually has its tags.
@@ -384,6 +395,31 @@ jobs:
         run: |
           VERSION=$(node -e "console.log(require('./app.json').expo.version)")
           eas update --channel preview --platform android --non-interactive --message "v$VERSION (JS-only: ${{ github.sha }})"
+
+      # This job has no native build, so the sentry-android-gradle-plugin
+      # never runs and never uploads a sourcemap for the bundle just published
+      # above — unlike mobile-build.yml, where it runs as part of the Gradle
+      # build. Re-export the same bundle here (same env vars, so its content
+      # and Sentry debug ID match what eas update just shipped) and upload its
+      # sourcemap explicitly. Both steps are skipped, not failed, when
+      # SENTRY_AUTH_TOKEN isn't set, matching the Gradle plugin's optional
+      # behaviour in mobile-build.yml.
+      - name: Export bundle + sourcemaps for Sentry
+        if: ${{ env.HAS_SENTRY_TOKEN == 'true' }}
+        working-directory: apps/mobile
+        env:
+          EXPO_PUBLIC_API_URL: ${{ needs.deploy-production.outputs.api_url }}
+          EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_WEB_CLIENT_ID }}
+        run: npx expo export --platform android --source-maps
+
+      - name: Upload Sentry sourcemaps
+        if: ${{ env.HAS_SENTRY_TOKEN == 'true' }}
+        working-directory: apps/mobile
+        env:
+          SENTRY_ORG: tormozz48
+          SENTRY_PROJECT: react-native
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: npx sentry-expo-upload-sourcemaps dist
 
       # D84: the marker mobile-changes reads as its OTA baseline. Moved only
       # after the publish above succeeds, so a failed or cancelled run leaves

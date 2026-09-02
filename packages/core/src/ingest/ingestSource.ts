@@ -1,5 +1,5 @@
 import Parser from 'rss-parser';
-import type { NewPost } from '../posts.types';
+import type { CreatedPost, NewPost } from '../posts.types';
 import type { FetchOutcome } from '../repos/sourcesRepo';
 import type { SourceRecord } from '../sources.types';
 import { errorMessage } from '../util/errors';
@@ -14,13 +14,14 @@ export interface FetchFeedResult {
 }
 
 export const DEDUP_ENABLED = true;
+export const MAX_CANDIDATES_PER_FETCH = 1000;
 
 export interface IngestDeps {
   readonly fetchFeed: (source: SourceRecord) => Promise<FetchFeedResult>;
-  readonly putIfNew: (post: NewPost) => Promise<boolean>;
-  readonly enqueueNew: (posts: NewPost[]) => Promise<void>;
+  readonly putIfNew: (post: NewPost) => Promise<string | undefined>;
+  readonly enqueueNew: (posts: CreatedPost[]) => Promise<void>;
   readonly recordFetchResult: (sourceId: string, outcome: FetchOutcome) => Promise<void>;
-  readonly findDuplicate: (post: NewPost) => Promise<string | undefined>;
+  readonly findDuplicate: (post: NewPost & { postId: string }) => Promise<string | undefined>;
   readonly markDuplicate: (postId: string, duplicateOf: string) => Promise<void>;
   readonly recordDuplicate: (originalPostId: string) => Promise<void>;
 }
@@ -36,7 +37,7 @@ export async function ingestSource(source: SourceRecord, deps: IngestDeps): Prom
   const errors: string[] = [];
   let seen = 0;
   let created = 0;
-  const newPosts: NewPost[] = [];
+  const newPosts: CreatedPost[] = [];
 
   let fetched: FetchFeedResult;
   try {
@@ -52,6 +53,9 @@ export async function ingestSource(source: SourceRecord, deps: IngestDeps): Prom
     return { sourceId: source.sourceId, seen, created, errors };
   }
 
+  let newestSeenPublishedAt = source.newestSeenPublishedAt;
+  let candidates = 0;
+
   try {
     const feed = await parseFeed(fetched.body ?? '');
 
@@ -60,27 +64,36 @@ export async function ingestSource(source: SourceRecord, deps: IngestDeps): Prom
       const post = mapEntryToPost(entry, source);
       if (!post) continue;
 
-      let isNew: boolean;
-      try {
-        isNew = await deps.putIfNew(post);
-      } catch (err) {
-        errors.push(`putIfNew failed for ${post.postId}: ${errorMessage(err)}`);
+      if (source.newestSeenPublishedAt && post.publishedAt < source.newestSeenPublishedAt) {
         continue;
       }
-      if (!isNew) continue;
+
+      candidates += 1;
+      if (candidates > MAX_CANDIDATES_PER_FETCH) break;
+
+      if (!newestSeenPublishedAt || post.publishedAt > newestSeenPublishedAt) {
+        newestSeenPublishedAt = post.publishedAt;
+      }
+
+      let postId: string | undefined;
+      try {
+        postId = await deps.putIfNew(post);
+      } catch (err) {
+        errors.push(`putIfNew failed for ${post.canonicalUrl}: ${errorMessage(err)}`);
+        continue;
+      }
+      if (!postId) continue;
 
       created += 1;
-      let enqueuedPost = post;
 
       if (DEDUP_ENABLED) {
         try {
-          const duplicateOf = await deps.findDuplicate(post);
+          const duplicateOf = await deps.findDuplicate({ ...post, postId });
           if (duplicateOf) {
-            enqueuedPost = { ...post, duplicateOf };
             try {
-              await deps.markDuplicate(post.postId, duplicateOf);
+              await deps.markDuplicate(postId, duplicateOf);
             } catch (err) {
-              errors.push(`markDuplicate failed for ${post.postId}: ${errorMessage(err)}`);
+              errors.push(`markDuplicate failed for ${postId}: ${errorMessage(err)}`);
             }
             try {
               await deps.recordDuplicate(duplicateOf);
@@ -89,11 +102,11 @@ export async function ingestSource(source: SourceRecord, deps: IngestDeps): Prom
             }
           }
         } catch (err) {
-          errors.push(`dedup lookup failed for ${post.postId}: ${errorMessage(err)}`);
+          errors.push(`dedup lookup failed for ${postId}: ${errorMessage(err)}`);
         }
       }
 
-      newPosts.push(enqueuedPost);
+      newPosts.push({ postId, url: post.url });
     }
   } catch (err) {
     errors.push(`parse failed for ${source.sourceId}: ${errorMessage(err)}`);
@@ -107,6 +120,7 @@ export async function ingestSource(source: SourceRecord, deps: IngestDeps): Prom
     status: 'ok',
     etag: fetched.etag,
     lastModified: fetched.lastModified,
+    newestSeenPublishedAt,
   });
 
   return { sourceId: source.sourceId, seen, created, errors };

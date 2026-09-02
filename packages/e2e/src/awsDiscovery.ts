@@ -12,8 +12,63 @@ export interface DevResources {
   translateQueueUrl: string;
   contentQueueUrl: string;
   postsTableName: string;
-  sourcesTableName: string;
   apiId: string;
+}
+
+export async function discoverDevResources(stage = 'dev'): Promise<DevResources> {
+  const arns = await listTaggedArns(stage);
+
+  const ingestPipelineArn = findArn(
+    arns,
+    (arn) =>
+      arn.startsWith('arn:aws:states:') &&
+      arn.includes(':stateMachine:') &&
+      arn.includes('IngestPipeline'),
+    'IngestPipeline state machine',
+  );
+  const transformQueueArn = findArn(
+    arns,
+    (arn) => arn.startsWith('arn:aws:sqs:') && arn.includes('TransformQueueQueue'),
+    'TransformQueue',
+  );
+  const translateQueueArn = findArn(
+    arns,
+    (arn) => arn.startsWith('arn:aws:sqs:') && arn.includes('TranslateQueueQueue'),
+    'TranslateQueue',
+  );
+  const contentQueueArn = findArn(
+    arns,
+    (arn) => arn.startsWith('arn:aws:sqs:') && arn.includes('ContentQueueQueue'),
+    'ContentQueue',
+  );
+  const postsTableArn = findArn(
+    arns,
+    (arn) => arn.startsWith('arn:aws:dynamodb:') && arn.includes('PostsTable'),
+    'Posts table',
+  );
+  const apiArn = findArn(
+    arns,
+    (arn) => arn.startsWith('arn:aws:apigateway:') && /\/apis\/[^/]+$/.test(arn),
+    'HTTP API',
+  );
+  const apiId = apiArn.split('/').pop();
+  if (!apiId) throw new Error(`Could not parse an API id out of ARN: ${apiArn}`);
+
+  return {
+    ingestPipelineArn,
+    transformQueueUrl: queueUrlFromArn(transformQueueArn),
+    translateQueueUrl: queueUrlFromArn(translateQueueArn),
+    contentQueueUrl: queueUrlFromArn(contentQueueArn),
+    postsTableName: dynamoTableNameFromArn(postsTableArn),
+    apiId,
+  };
+}
+
+export async function getApiEndpoint(apiId: string): Promise<string> {
+  const client = new ApiGatewayV2Client({ region: REGION });
+  const result = await client.send(new GetApiCommand({ ApiId: apiId }));
+  if (!result.ApiEndpoint) throw new Error(`API ${apiId} has no ApiEndpoint`);
+  return result.ApiEndpoint;
 }
 
 function queueUrlFromArn(arn: string): string {
@@ -51,66 +106,4 @@ function findArn(arns: string[], predicate: (arn: string) => boolean, label: str
   if (!match)
     throw new Error(`Could not discover the ${label} among the tagged dev-stage resources`);
   return match;
-}
-
-export async function discoverDevResources(stage = 'dev'): Promise<DevResources> {
-  const arns = await listTaggedArns(stage);
-
-  const ingestPipelineArn = findArn(
-    arns,
-    (arn) =>
-      arn.startsWith('arn:aws:states:') &&
-      arn.includes(':stateMachine:') &&
-      arn.includes('IngestPipeline'),
-    'IngestPipeline state machine',
-  );
-  const transformQueueArn = findArn(
-    arns,
-    (arn) => arn.startsWith('arn:aws:sqs:') && arn.includes('TransformQueueQueue'),
-    'TransformQueue',
-  );
-  const translateQueueArn = findArn(
-    arns,
-    (arn) => arn.startsWith('arn:aws:sqs:') && arn.includes('TranslateQueueQueue'),
-    'TranslateQueue',
-  );
-  const contentQueueArn = findArn(
-    arns,
-    (arn) => arn.startsWith('arn:aws:sqs:') && arn.includes('ContentQueueQueue'),
-    'ContentQueue',
-  );
-  const postsTableArn = findArn(
-    arns,
-    (arn) => arn.startsWith('arn:aws:dynamodb:') && arn.includes('PostsTable'),
-    'Posts table',
-  );
-  const sourcesTableArn = findArn(
-    arns,
-    (arn) => arn.startsWith('arn:aws:dynamodb:') && arn.includes('SourcesTable'),
-    'Sources table',
-  );
-  const apiArn = findArn(
-    arns,
-    (arn) => arn.startsWith('arn:aws:apigateway:') && /\/apis\/[^/]+$/.test(arn),
-    'HTTP API',
-  );
-  const apiId = apiArn.split('/').pop();
-  if (!apiId) throw new Error(`Could not parse an API id out of ARN: ${apiArn}`);
-
-  return {
-    ingestPipelineArn,
-    transformQueueUrl: queueUrlFromArn(transformQueueArn),
-    translateQueueUrl: queueUrlFromArn(translateQueueArn),
-    contentQueueUrl: queueUrlFromArn(contentQueueArn),
-    postsTableName: dynamoTableNameFromArn(postsTableArn),
-    sourcesTableName: dynamoTableNameFromArn(sourcesTableArn),
-    apiId,
-  };
-}
-
-export async function getApiEndpoint(apiId: string): Promise<string> {
-  const client = new ApiGatewayV2Client({ region: REGION });
-  const result = await client.send(new GetApiCommand({ ApiId: apiId }));
-  if (!result.ApiEndpoint) throw new Error(`API ${apiId} has no ApiEndpoint`);
-  return result.ApiEndpoint;
 }

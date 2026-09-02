@@ -2,9 +2,8 @@ import {
   contentBucket,
   imagesBucket,
   imagesRouter,
-  postsTable,
+  neonDatabaseUrl,
   rawArticlesBucket,
-  sourcesTable,
 } from './storage';
 
 export const BEDROCK_MODEL_ID =
@@ -30,8 +29,11 @@ const bedrockInvokePermission = {
 
 export const seedSourcesFn = new sst.aws.Function('SeedSources', {
   handler: 'packages/functions/src/ops/seedSources.handler',
-  link: [sourcesTable],
-  environment: { SOURCES_TABLE_NAME: sourcesTable.name, STAGE: $app.stage },
+  link: [neonDatabaseUrl],
+  environment: {
+    STAGE: $app.stage,
+    DATABASE_URL: neonDatabaseUrl.value,
+  },
   runtime: 'nodejs22.x',
   timeout: '30 seconds',
 });
@@ -61,23 +63,21 @@ transformQueue.subscribe(
   {
     handler: 'packages/functions/src/pipeline/transform.handler',
     link: [
-      postsTable,
       rawArticlesBucket,
       imagesBucket,
-      sourcesTable,
       translateQueue,
       contentQueue,
       openRouterApiKey,
+      neonDatabaseUrl,
     ],
     environment: {
-      POSTS_TABLE_NAME: postsTable.name,
       RAW_ARTICLES_BUCKET_NAME: rawArticlesBucket.name,
       IMAGES_BUCKET_NAME: imagesBucket.name,
       IMAGES_CDN_BASE_URL: imagesRouter.url,
-      SOURCES_TABLE_NAME: sourcesTable.name,
       ...llmEnvironment,
       TRANSLATE_QUEUE_URL: translateQueue.url,
       CONTENT_QUEUE_URL: contentQueue.url,
+      DATABASE_URL: neonDatabaseUrl.value,
     },
     permissions: [bedrockInvokePermission],
     runtime: 'nodejs22.x',
@@ -89,10 +89,10 @@ transformQueue.subscribe(
 translateQueue.subscribe(
   {
     handler: 'packages/functions/src/pipeline/translate.handler',
-    link: [postsTable, openRouterApiKey],
+    link: [openRouterApiKey, neonDatabaseUrl],
     environment: {
-      POSTS_TABLE_NAME: postsTable.name,
       ...llmEnvironment,
+      DATABASE_URL: neonDatabaseUrl.value,
     },
     permissions: [bedrockInvokePermission],
     runtime: 'nodejs22.x',
@@ -111,22 +111,14 @@ translateQueue.subscribe(
 contentQueue.subscribe(
   {
     handler: 'packages/functions/src/pipeline/content.handler',
-    link: [
-      postsTable,
-      sourcesTable,
-      rawArticlesBucket,
-      imagesBucket,
-      contentBucket,
-      openRouterApiKey,
-    ],
+    link: [rawArticlesBucket, imagesBucket, contentBucket, openRouterApiKey, neonDatabaseUrl],
     environment: {
-      POSTS_TABLE_NAME: postsTable.name,
-      SOURCES_TABLE_NAME: sourcesTable.name,
       RAW_ARTICLES_BUCKET_NAME: rawArticlesBucket.name,
       IMAGES_BUCKET_NAME: imagesBucket.name,
       IMAGES_CDN_BASE_URL: imagesRouter.url,
       CONTENT_BUCKET_NAME: contentBucket.name,
       ...llmEnvironment,
+      DATABASE_URL: neonDatabaseUrl.value,
     },
     permissions: [bedrockInvokePermission],
     runtime: 'nodejs22.x',
@@ -137,10 +129,10 @@ contentQueue.subscribe(
 
 export const backfillLlmFn = new sst.aws.Function('BackfillLlm', {
   handler: 'packages/functions/src/ops/backfillLlm.handler',
-  link: [postsTable, transformQueue],
+  link: [transformQueue, neonDatabaseUrl],
   environment: {
-    POSTS_TABLE_NAME: postsTable.name,
     TRANSFORM_QUEUE_URL: transformQueue.url,
+    DATABASE_URL: neonDatabaseUrl.value,
   },
   runtime: 'nodejs22.x',
   timeout: '60 seconds',
@@ -148,12 +140,12 @@ export const backfillLlmFn = new sst.aws.Function('BackfillLlm', {
 
 export const backfillImagesFn = new sst.aws.Function('BackfillImages', {
   handler: 'packages/functions/src/ops/backfillImages.handler',
-  link: [postsTable, rawArticlesBucket, imagesBucket],
+  link: [rawArticlesBucket, imagesBucket, neonDatabaseUrl],
   environment: {
-    POSTS_TABLE_NAME: postsTable.name,
     RAW_ARTICLES_BUCKET_NAME: rawArticlesBucket.name,
     IMAGES_BUCKET_NAME: imagesBucket.name,
     IMAGES_CDN_BASE_URL: imagesRouter.url,
+    DATABASE_URL: neonDatabaseUrl.value,
   },
   runtime: 'nodejs22.x',
   timeout: '900 seconds',
@@ -163,8 +155,10 @@ const loadSources = sst.aws.StepFunctions.lambdaInvoke({
   name: 'LoadSources',
   function: {
     handler: 'packages/functions/src/pipeline/loadSources.handler',
-    link: [sourcesTable],
-    environment: { SOURCES_TABLE_NAME: sourcesTable.name },
+    link: [neonDatabaseUrl],
+    environment: {
+      DATABASE_URL: neonDatabaseUrl.value,
+    },
     runtime: 'nodejs22.x',
     timeout: '30 seconds',
   },
@@ -185,11 +179,10 @@ const fetchSource = sst.aws.StepFunctions.lambdaInvoke({
   name: 'FetchSource',
   function: {
     handler: 'packages/functions/src/pipeline/fetchSource.handler',
-    link: [postsTable, sourcesTable, transformQueue],
+    link: [transformQueue, neonDatabaseUrl],
     environment: {
-      POSTS_TABLE_NAME: postsTable.name,
-      SOURCES_TABLE_NAME: sourcesTable.name,
       TRANSFORM_QUEUE_URL: transformQueue.url,
+      DATABASE_URL: neonDatabaseUrl.value,
     },
     runtime: 'nodejs22.x',
     timeout: '30 seconds',
@@ -211,6 +204,8 @@ const summarize = sst.aws.StepFunctions.lambdaInvoke({
   name: 'Summarize',
   function: {
     handler: 'packages/functions/src/pipeline/summarize.handler',
+    link: [neonDatabaseUrl],
+    environment: { DATABASE_URL: neonDatabaseUrl.value },
     runtime: 'nodejs22.x',
     timeout: '30 seconds',
   },

@@ -21,16 +21,6 @@ export type BuildInfo = {
 const UNKNOWN = '—';
 const UPDATE_ID_LENGTH = 8;
 
-function text(value: string | null | undefined): string {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : UNKNOWN;
-}
-
-function formatPublishedAt(createdAt: Date | null | undefined): string {
-  if (!createdAt || Number.isNaN(createdAt.getTime())) return UNKNOWN;
-  return createdAt.toISOString().slice(0, 16).replace('T', ' ');
-}
-
 export function describeBuild(input: BuildInfoInput): BuildInfo {
   const updateId = input.updateId?.trim();
 
@@ -42,4 +32,14 @@ export function describeBuild(input: BuildInfoInput): BuildInfo {
     updateId: updateId ? updateId.slice(0, UPDATE_ID_LENGTH) : UNKNOWN,
     publishedAt: formatPublishedAt(input.createdAt),
   };
+}
+
+function text(value: string | null | undefined): string {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : UNKNOWN;
+}
+
+function formatPublishedAt(createdAt: Date | null | undefined): string {
+  if (!createdAt || Number.isNaN(createdAt.getTime())) return UNKNOWN;
+  return createdAt.toISOString().slice(0, 16).replace('T', ' ');
 }

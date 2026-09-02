@@ -19,10 +19,12 @@
     "@aws-sdk/client-sqs": "3.1090.0",
     "@aws-sdk/lib-dynamodb": "3.1090.0",
     "@extractus/article-extractor": "8.1.0",
+    "@neondatabase/serverless": "^1.1.0",
     "@techtok/shared": "workspace:*",
     "cheerio": "1.2.0",
     "date-fns": "^4.4.0",
     "date-fns-tz": "^3.2.0",
+    "drizzle-orm": "^0.45.2",
     "he": "1.2.0",
     "image-size": "2.0.2",
     "robots-parser": "3.0.1",
@@ -30,6 +32,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@types/he": "1.2.3",
     "aws-sdk-client-mock": "4.1.0"
   }

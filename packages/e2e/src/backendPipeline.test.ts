@@ -1,8 +1,10 @@
 import { DescribeExecutionCommand, SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn';
 import { GetQueueAttributesCommand, SQSClient } from '@aws-sdk/client-sqs';
-import { createDynamoClient, SourcesRepo } from '@techtok/core';
+import { createSqlClient, SourcesRepo } from '@techtok/core';
 import { describe, expect, it } from 'vitest';
 import { discoverDevResources, REGION } from './awsDiscovery';
+
+const databaseUrl = process.env.DATABASE_URL;
 
 const EXECUTION_TIMEOUT_MS = 5 * 60_000;
 const QUEUE_DRAIN_TIMEOUT_MS = 3 * 60_000;
@@ -52,15 +54,15 @@ async function waitForQueueDrain(
   }
 }
 
-describe('backend pipeline E2E', () => {
+describe.skipIf(!databaseUrl)('backend pipeline E2E', () => {
   it(
     'runs a real IngestPipeline execution and drains the Transform/Translate queues',
     async () => {
       const resources = await discoverDevResources();
       const sfn = new SFNClient({ region: REGION });
       const sqs = new SQSClient({ region: REGION });
-      const dynamo = createDynamoClient();
-      const sourcesRepo = new SourcesRepo(dynamo, resources.sourcesTableName);
+      // biome-ignore lint/style/noNonNullAssertion: describe.skipIf above guarantees this block only runs when databaseUrl is set.
+      const sourcesRepo = new SourcesRepo(createSqlClient(databaseUrl!));
 
       const beforeSources = await sourcesRepo.listEnabled();
       const startedAt = Date.now();
@@ -75,6 +77,7 @@ describe('backend pipeline E2E', () => {
       expect(status).toBe('SUCCEEDED');
 
       const afterSources = await sourcesRepo.listEnabled();
+      expect(afterSources.length).toBeGreaterThan(0);
       const staleSources = afterSources.filter((source) => {
         const before = beforeSources.find((b) => b.sourceId === source.sourceId);
         const lastFetchAt = source.lastFetchAt ? Date.parse(source.lastFetchAt) : undefined;

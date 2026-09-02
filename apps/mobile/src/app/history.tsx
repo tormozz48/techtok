@@ -1,14 +1,14 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, View } from 'react-native';
 import { List, Searchbar } from 'react-native-paper';
 import { fetchHistoryPage } from '@/api/client';
 import { ScreenState } from '@/components/ScreenState';
-import { Spacing, type ThemeColors } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { timeAgo } from '@/utils/timeAgo';
+import { createStyles } from './history.styles';
 
 export default function HistoryScreen() {
   const [searchText, setSearchText] = useState('');
@@ -80,38 +80,4 @@ export default function HistoryScreen() {
       )}
     </View>
   );
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    searchbar: {
-      margin: Spacing.three,
-      backgroundColor: colors.backgroundElement,
-    },
-    list: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    row: {
-      borderBottomColor: colors.backgroundElement,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      paddingHorizontal: Spacing.four,
-      paddingVertical: Spacing.three,
-    },
-    title: {
-      color: colors.text,
-      fontSize: 16,
-      fontWeight: '600',
-      marginBottom: Spacing.one,
-    },
-    metaText: {
-      color: colors.textSecondary,
-      fontSize: 13,
-      fontWeight: '600',
-    },
-  });
 }

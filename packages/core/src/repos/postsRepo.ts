@@ -1,22 +1,30 @@
-import {
-  type DynamoDBDocumentClient,
-  PutCommand,
-  QueryCommand,
-  UpdateCommand,
-} from '@aws-sdk/lib-dynamodb';
 import type { CompactFigure, Language, Topic } from '@techtok/shared';
-import { getUnixTime } from 'date-fns';
-import { batchGetChunked, conditionalWrite, DYNAMO_BATCH_GET_LIMIT } from '../clients/dynamoClient';
+import { and, asc, desc, eq, inArray, lt, sql } from 'drizzle-orm';
+import type { SqlClient } from '../clients/sqlClient';
+import { decodeId, decodeIds, encodeId } from '../db/ids';
+import {
+  postCompacts,
+  postFigures,
+  posts,
+  postTopics,
+  postTranslations,
+  sources,
+  topics,
+} from '../db/schema';
+import { Post } from '../models/post';
 import type {
   NewPost,
+  PostCandidate,
+  PostKey,
   PostRecord,
   PostStatus,
   TransformKind,
   TranslatedFields,
 } from '../posts.types';
 
-const POST_TTL_SECONDS = 90 * 24 * 60 * 60;
-const BY_TIME_PARTITION = 'POST';
+const BASE_LANGUAGE = 'en';
+
+const DEFAULT_LIMIT = 20;
 
 export interface QueryOpts {
   readonly before?: string;
@@ -39,177 +47,234 @@ export interface TransformUpdateFields {
 }
 
 export class PostsRepo {
-  constructor(
-    private readonly client: DynamoDBDocumentClient,
-    private readonly tableName: string,
-  ) {}
+  constructor(private readonly db: SqlClient) {}
 
-  async putIfNew(post: NewPost): Promise<boolean> {
-    const now = new Date();
-    const record: PostRecord & { gsi1pk: string } = {
-      ...post,
-      ingestedAt: now.toISOString(),
-      ttl: getUnixTime(now) + POST_TTL_SECONDS,
-      gsi1pk: BY_TIME_PARTITION,
-      i18n: {},
-      compactLangs: [],
-    };
+  async putIfNew(post: NewPost): Promise<string | undefined> {
+    const now = new Date().toISOString();
+    const insertTopics =
+      post.topics.length > 0
+        ? sql`, ins_topics as (
+            insert into post_topics (post_id, topic_id)
+            select ins_post.id, t.id from ins_post, topics t
+            where t.slug in (${topicSlugs(post.topics)})
+          )`
+        : sql``;
 
-    return conditionalWrite(() =>
-      this.client.send(
-        new PutCommand({
-          TableName: this.tableName,
-          Item: record,
-          ConditionExpression: 'attribute_not_exists(postId)',
-        }),
-      ),
-    );
+    const result = await this.db.execute<{ id: number }>(sql`
+      with ins_post as (
+        insert into posts (
+          url, canonical_url, source_id, orig_title, excerpt, image_url,
+          primary_topic_id, status, transform, lang, s3_raw_key, duplicate_of_post_id,
+          published_at, ingested_at, expires_at
+        )
+        select
+          ${post.url}, ${post.canonicalUrl}, s.id, ${post.origTitle}, ${post.excerpt},
+          ${post.imageUrl ?? null}, pt.id, ${post.status}::post_status,
+          ${post.transform}::transform_kind, ${post.lang ?? null}, ${post.s3RawKey ?? null},
+          ${post.duplicateOf ? decodeId(post.duplicateOf) : null}, ${post.publishedAt}, ${now},
+          now() + interval '90 days'
+        from sources s, topics pt
+        where s.slug = ${post.sourceId} and pt.slug = ${post.primaryTopic}
+        on conflict (canonical_url) do nothing
+        returning id
+      )${insertTopics}, ins_translation as (
+        insert into post_translations (post_id, lang, card_title, summary, why_it_matters, translated_at)
+        select id, ${BASE_LANGUAGE}::language, ${post.cardTitle}, ${post.summary},
+          ${post.whyItMatters ?? null}, ${now}
+        from ins_post
+      )
+      select id from ins_post
+    `);
+    const [row] = result.rows;
+    return row ? encodeId(row.id) : undefined;
   }
 
-  async queryByTopic(topic: Topic, opts: QueryOpts = {}): Promise<PostRecord[]> {
-    return this.queryNewestFirst('byTopic', 'primaryTopic', topic, opts);
+  async queryByTopic(topic: Topic, opts: QueryOpts = {}): Promise<PostCandidate[]> {
+    const rows = await this.db
+      .select({
+        id: posts.id,
+        publishedAt: posts.publishedAt,
+        primaryTopic: topics.slug,
+        sourceId: sources.slug,
+        origTitle: posts.origTitle,
+        status: posts.status,
+        duplicateOfPostId: posts.duplicateOfPostId,
+        compactLangs: sql<Language[]>`coalesce((
+          select json_agg(${postCompacts.lang}) from ${postCompacts}
+          where ${postCompacts.postId} = ${posts.id}
+        ), '[]'::json)`,
+      })
+      .from(posts)
+      .innerJoin(topics, eq(posts.primaryTopicId, topics.id))
+      .innerJoin(sources, eq(posts.sourceId, sources.id))
+      .where(
+        and(eq(topics.slug, topic), opts.before ? lt(posts.publishedAt, opts.before) : undefined),
+      )
+      .orderBy(desc(posts.publishedAt), desc(posts.id))
+      .limit(opts.limit ?? DEFAULT_LIMIT);
+
+    return rows.map(Post.toCandidate);
   }
 
-  async queryRecent(opts: QueryOpts = {}): Promise<PostRecord[]> {
-    return this.queryNewestFirst('byTime', 'gsi1pk', BY_TIME_PARTITION, opts);
+  async queryRecent(opts: QueryOpts = {}): Promise<PostKey[]> {
+    const rows = await this.db
+      .select({ id: posts.id, publishedAt: posts.publishedAt })
+      .from(posts)
+      .where(opts.before ? lt(posts.publishedAt, opts.before) : undefined)
+      .orderBy(desc(posts.publishedAt), desc(posts.id))
+      .limit(opts.limit ?? DEFAULT_LIMIT);
+    return rows.map((row) => ({ postId: encodeId(row.id), publishedAt: row.publishedAt }));
   }
 
   async getByIds(postIds: string[]): Promise<PostRecord[]> {
-    return batchGetChunked<string, PostRecord>(
-      this.client,
-      this.tableName,
-      postIds,
-      (postId) => ({ postId }),
-      DYNAMO_BATCH_GET_LIMIT,
-    );
+    const ids = decodeIds(postIds);
+    if (ids.length === 0) return [];
+
+    const [rows, dupCounts] = await Promise.all([
+      this.db.query.posts.findMany({
+        where: inArray(posts.id, ids),
+        with: {
+          source: { columns: { slug: true, name: true } },
+          primaryTopic: true,
+          translations: true,
+          topics: { with: { topic: true } },
+          compacts: true,
+          figures: { orderBy: [asc(postFigures.position)] },
+        },
+      }),
+      this.db
+        .select({ duplicateOfPostId: posts.duplicateOfPostId, count: sql<number>`count(*)::int` })
+        .from(posts)
+        .where(inArray(posts.duplicateOfPostId, ids))
+        .groupBy(posts.duplicateOfPostId),
+    ]);
+
+    const dupCountByOriginal = new Map(dupCounts.map((row) => [row.duplicateOfPostId, row.count]));
+    return rows.map((row) => new Post(row, dupCountByOriginal.get(row.id)).toRecord());
   }
 
   async updateTransform(postId: string, fields: TransformUpdateFields): Promise<void> {
-    const { status, transform, clearImageUrl, ...optional } = fields;
-    const assigned: Record<string, unknown> = { status, transform };
-    for (const [name, value] of Object.entries(optional)) {
-      if (value !== undefined) assigned[name] = value;
+    const id = decodeId(postId);
+    if (id === undefined) return;
+
+    await this.db
+      .update(posts)
+      .set({
+        status: fields.status,
+        transform: fields.transform,
+        ...(fields.excerpt !== undefined ? { excerpt: fields.excerpt } : {}),
+        ...(fields.s3RawKey !== undefined ? { s3RawKey: fields.s3RawKey } : {}),
+        ...(fields.primaryTopic !== undefined
+          ? { primaryTopicId: topicIdOf(fields.primaryTopic) }
+          : {}),
+        ...(fields.lang !== undefined ? { lang: fields.lang } : {}),
+        ...(fields.mirroredImageUrl !== undefined
+          ? { mirroredImageUrl: fields.mirroredImageUrl }
+          : {}),
+        ...(fields.clearImageUrl ? { imageUrl: null } : {}),
+      })
+      .where(eq(posts.id, id));
+
+    const cardPatch = {
+      ...(fields.cardTitle !== undefined ? { cardTitle: fields.cardTitle } : {}),
+      ...(fields.summary !== undefined ? { summary: fields.summary } : {}),
+      ...(fields.whyItMatters !== undefined ? { whyItMatters: fields.whyItMatters } : {}),
+    };
+    if (Object.keys(cardPatch).length > 0) {
+      await this.db
+        .update(postTranslations)
+        .set({ ...cardPatch, translatedAt: new Date().toISOString() })
+        .where(and(eq(postTranslations.postId, id), eq(postTranslations.lang, BASE_LANGUAGE)));
     }
-    const names = Object.keys(assigned);
 
-    const setClause = `SET ${names.map((name) => `#${name} = :${name}`).join(', ')}`;
-    const removeClause = clearImageUrl ? ' REMOVE #imageUrl' : '';
-
-    await this.client.send(
-      new UpdateCommand({
-        TableName: this.tableName,
-        Key: { postId },
-        UpdateExpression: `${setClause}${removeClause}`,
-        ExpressionAttributeNames: {
-          ...Object.fromEntries(names.map((name) => [`#${name}`, name])),
-          ...(clearImageUrl ? { '#imageUrl': 'imageUrl' } : {}),
-        },
-        ExpressionAttributeValues: Object.fromEntries(
-          names.map((name) => [`:${name}`, assigned[name]]),
-        ),
-      }),
-    );
+    if (fields.topics !== undefined) {
+      await this.replaceTopics(id, fields.topics);
+    }
   }
 
   async updateMirroredImage(postId: string, mirroredImageUrl: string): Promise<void> {
-    await this.client.send(
-      new UpdateCommand({
-        TableName: this.tableName,
-        Key: { postId },
-        UpdateExpression: 'SET #mirroredImageUrl = :mirroredImageUrl',
-        ExpressionAttributeNames: { '#mirroredImageUrl': 'mirroredImageUrl' },
-        ExpressionAttributeValues: { ':mirroredImageUrl': mirroredImageUrl },
-      }),
-    );
+    const id = decodeId(postId);
+    if (id === undefined) return;
+    await this.db.update(posts).set({ mirroredImageUrl }).where(eq(posts.id, id));
   }
 
   async writeTranslation(postId: string, lang: Language, fields: TranslatedFields): Promise<void> {
-    await this.client.send(
-      new UpdateCommand({
-        TableName: this.tableName,
-        Key: { postId },
-        UpdateExpression: 'SET #i18n.#lang = :fields',
-        ExpressionAttributeNames: {
-          '#i18n': 'i18n',
-          '#lang': lang,
-        },
-        ExpressionAttributeValues: { ':fields': fields },
-      }),
-    );
+    const id = decodeId(postId);
+    if (id === undefined) return;
+    const row = {
+      postId: id,
+      lang,
+      cardTitle: fields.cardTitle,
+      summary: fields.summary,
+      whyItMatters: fields.whyItMatters ?? null,
+      translatedAt: fields.translatedAt,
+    };
+    await this.db
+      .insert(postTranslations)
+      .values(row)
+      .onConflictDoUpdate({ target: [postTranslations.postId, postTranslations.lang], set: row });
   }
 
   async appendCompactLang(postId: string, lang: Language): Promise<void> {
-    await conditionalWrite(() =>
-      this.client.send(
-        new UpdateCommand({
-          TableName: this.tableName,
-          Key: { postId },
-          UpdateExpression:
-            'SET #compactLangs = list_append(if_not_exists(#compactLangs, :empty), :lang)',
-          ConditionExpression:
-            'attribute_not_exists(#compactLangs) OR NOT contains(#compactLangs, :langValue)',
-          ExpressionAttributeNames: { '#compactLangs': 'compactLangs' },
-          ExpressionAttributeValues: { ':empty': [], ':lang': [lang], ':langValue': lang },
-        }),
-      ),
-    );
+    const id = decodeId(postId);
+    if (id === undefined) return;
+    await this.db.insert(postCompacts).values({ postId: id, lang }).onConflictDoNothing();
   }
 
   async setMirroredFigures(postId: string, figures: CompactFigure[]): Promise<void> {
-    await this.client.send(
-      new UpdateCommand({
-        TableName: this.tableName,
-        Key: { postId },
-        UpdateExpression: 'SET #mirroredFigures = :figures',
-        ExpressionAttributeNames: { '#mirroredFigures': 'mirroredFigures' },
-        ExpressionAttributeValues: { ':figures': figures },
-      }),
-    );
+    const id = decodeId(postId);
+    if (id === undefined) return;
+    await this.db.delete(postFigures).where(eq(postFigures.postId, id));
+    if (figures.length === 0) return;
+    await this.db
+      .insert(postFigures)
+      .values(
+        figures.map((figure, position) => ({
+          postId: id,
+          position,
+          url: figure.url,
+          caption: figure.caption,
+        })),
+      )
+      .onConflictDoUpdate({
+        target: [postFigures.postId, postFigures.position],
+        set: { url: sql`excluded.url`, caption: sql`excluded.caption` },
+      });
   }
 
   async setDuplicateOf(postId: string, duplicateOf: string): Promise<void> {
-    await this.client.send(
-      new UpdateCommand({
-        TableName: this.tableName,
-        Key: { postId },
-        UpdateExpression: 'SET #duplicateOf = :duplicateOf',
-        ExpressionAttributeNames: { '#duplicateOf': 'duplicateOf' },
-        ExpressionAttributeValues: { ':duplicateOf': duplicateOf },
-      }),
-    );
+    const id = decodeId(postId);
+    const originalId = decodeId(duplicateOf);
+    if (id === undefined || originalId === undefined) return;
+    await this.db.update(posts).set({ duplicateOfPostId: originalId }).where(eq(posts.id, id));
   }
 
-  async incrementDupCount(postId: string): Promise<void> {
-    await this.client.send(
-      new UpdateCommand({
-        TableName: this.tableName,
-        Key: { postId },
-        UpdateExpression: 'ADD #dupCount :one',
-        ExpressionAttributeNames: { '#dupCount': 'dupCount' },
-        ExpressionAttributeValues: { ':one': 1 },
-      }),
-    );
+  async incrementDupCount(_postId: string): Promise<void> {
+    return;
   }
 
-  private async queryNewestFirst(
-    indexName: string,
-    partitionKey: string,
-    partitionValue: string,
-    opts: QueryOpts,
-  ): Promise<PostRecord[]> {
-    const result = await this.client.send(
-      new QueryCommand({
-        TableName: this.tableName,
-        IndexName: indexName,
-        KeyConditionExpression: opts.before ? '#pk = :pk AND publishedAt < :before' : '#pk = :pk',
-        ExpressionAttributeNames: { '#pk': partitionKey },
-        ExpressionAttributeValues: opts.before
-          ? { ':pk': partitionValue, ':before': opts.before }
-          : { ':pk': partitionValue },
-        ScanIndexForward: false,
-        Limit: opts.limit ?? 20,
-      }),
-    );
-    return (result.Items ?? []) as PostRecord[];
+  async deleteExpired(now: Date = new Date()): Promise<number> {
+    const result = await this.db.delete(posts).where(lt(posts.expiresAt, now));
+    return result.rowCount ?? 0;
   }
+
+  private async replaceTopics(id: number, topicSlugList: Topic[]): Promise<void> {
+    await this.db.delete(postTopics).where(eq(postTopics.postId, id));
+    if (topicSlugList.length === 0) return;
+    await this.db.execute(sql`
+      insert into post_topics (post_id, topic_id)
+      select ${id}, t.id from topics t where t.slug in (${topicSlugs(topicSlugList)})
+    `);
+  }
+}
+
+function topicIdOf(topic: Topic) {
+  return sql<number>`(select id from ${topics} where ${topics.slug} = ${topic})`;
+}
+
+function topicSlugs(list: Topic[]) {
+  return sql.join(
+    list.map((topic) => sql`${topic}`),
+    sql`, `,
+  );
 }

@@ -3,6 +3,7 @@ import { isGenericImage } from './genericImageDenylist';
 
 export interface ImageBackfillCandidate {
   readonly postId: string;
+  readonly contentKey: string;
   readonly url: string;
   readonly s3RawKey: string;
 }
@@ -15,7 +16,7 @@ export interface ImageBackfillPage {
 export interface BackfillImagesDeps {
   readonly nextCandidates: (before: string | undefined) => Promise<ImageBackfillPage>;
   readonly getRawHtml: (s3RawKey: string) => Promise<string>;
-  readonly mirrorImage: (postId: string, imageUrl: string) => Promise<string | undefined>;
+  readonly mirrorImage: (contentKey: string, imageUrl: string) => Promise<string | undefined>;
   readonly updateMirroredImage: (postId: string, mirroredImageUrl: string) => Promise<void>;
   readonly onError?: (postId: string, error: unknown) => void;
 }
@@ -45,7 +46,7 @@ export async function backfillImages(deps: BackfillImagesDeps): Promise<Backfill
           continue;
         }
 
-        const mirroredImageUrl = await deps.mirrorImage(candidate.postId, image);
+        const mirroredImageUrl = await deps.mirrorImage(candidate.contentKey, image);
         if (!mirroredImageUrl) {
           skipped += 1;
           continue;

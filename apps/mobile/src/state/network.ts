@@ -2,11 +2,11 @@ import * as Network from 'expo-network';
 
 let isWifi = false;
 
+let started = false;
+
 export function getIsWifi(): boolean {
   return isWifi;
 }
-
-let started = false;
 
 export function startNetworkMonitoring(): void {
   if (started) return;

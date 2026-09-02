@@ -3,6 +3,7 @@ import type { EntitlementResponse, SourcesResponse } from '@techtok/shared';
 import type { ReactElement } from 'react';
 import SettingsScreen from '@/app/settings';
 import { useHapticsStore } from '@/state/hapticsStore';
+import { useMutedSourcesStore } from '@/state/mutedSourcesStore';
 import { withSeededQueries } from '../withSeededQuery';
 
 const SOURCES: SourcesResponse = {
@@ -37,6 +38,13 @@ function withHaptics(enabled: boolean) {
   };
 }
 
+function withMutedSources(mutedSources: string[]) {
+  return (Story: () => ReactElement) => {
+    useMutedSourcesStore.setState({ mutedSources });
+    return <Story />;
+  };
+}
+
 const meta: Meta<typeof SettingsScreen> = {
   title: 'pages/SettingsScreen',
   component: SettingsScreen,
@@ -52,4 +60,8 @@ export const Default: Story = {
 
 export const VibrationOff: Story = {
   decorators: [withSeededQueries(SEEDS), withHaptics(false)],
+};
+
+export const WithMutedSource: Story = {
+  decorators: [withSeededQueries(SEEDS), withHaptics(true), withMutedSources(['the-verge'])],
 };

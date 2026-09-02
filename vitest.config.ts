@@ -10,5 +10,6 @@ export default defineConfig({
       'apps/site/src/**/*.test.ts',
     ],
     exclude: [...configDefaults.exclude, 'packages/e2e/**'],
+    hookTimeout: 30_000,
   },
 });

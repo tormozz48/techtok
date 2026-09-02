@@ -42,10 +42,23 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # Starts a real IngestPipeline execution against dev and asserts the
-      # DynamoDB/SQS state transitions it should cause (Sources rows updated,
-      # Transform/Translate queues drained).
+      # Postgres/SQS state transitions it should cause (sources refetched,
+      # Transform/Translate queues drained). The source-freshness half needs a
+      # real connection, and without DATABASE_URL the suite's describe.skipIf
+      # turns this whole job into a silent no-op -- which is exactly what it
+      # had been since the phase 24 Postgres port. Fail loudly instead, the
+      # same guard D92 put on the deploy workflows' migration step. This is
+      # the dev stage's own connection string; production's is never exposed
+      # to this workflow.
       - name: Run backend pipeline E2E
-        run: pnpm --filter @techtok/e2e run backend-pipeline
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL_DEV_DIRECT }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::NEON_DATABASE_URL_DEV_DIRECT repository secret is not set -- the backend pipeline E2E would silently skip (D97)."
+            exit 1
+          fi
+          pnpm --filter @techtok/e2e run backend-pipeline
 
   api-contract:
     runs-on: ubuntu-latest

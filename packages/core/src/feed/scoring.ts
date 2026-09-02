@@ -1,7 +1,9 @@
 import type { Topic } from '@techtok/shared';
 import { differenceInMilliseconds, parseISO } from 'date-fns';
-import type { PostRecord } from '../posts.types';
+import type { PostCandidate } from '../posts.types';
 import { MS_PER_HOUR } from '../util/time';
+
+type RankableFields = Pick<PostCandidate, 'publishedAt' | 'sourceId' | 'primaryTopic'>;
 
 export const RECENCY_HALF_LIFE_HOURS = 6;
 
@@ -12,11 +14,6 @@ export const MIN_AFFINITY_READS = 10;
 export const AFFINITY_GAIN = 0.5;
 
 export const MAX_AFFINITY_BOOST = 1.5;
-
-function recencyDecay(publishedAt: string, now: Date = new Date()): number {
-  const ageHours = Math.max(0, differenceInMilliseconds(now, parseISO(publishedAt))) / MS_PER_HOUR;
-  return 2 ** (-ageHours / RECENCY_HALF_LIFE_HOURS);
-}
 
 export function topicAffinityBoosts(
   topicReads: Partial<Record<Topic, number>> | undefined,
@@ -33,8 +30,26 @@ export function topicAffinityBoosts(
   );
 }
 
+export function rankCandidates<T extends RankableFields>(
+  candidates: T[],
+  sourceWeights: Map<string, number>,
+  now: Date = new Date(),
+  affinityBoosts?: Map<Topic, number>,
+): T[] {
+  const scored = candidates
+    .map((post) => ({ post, score: scorePost(post, sourceWeights, now, affinityBoosts) }))
+    .sort((a, b) => b.score - a.score)
+    .map(({ post }) => post);
+  return interleaveBySource(interleaveByTopic(scored));
+}
+
+function recencyDecay(publishedAt: string, now: Date = new Date()): number {
+  const ageHours = Math.max(0, differenceInMilliseconds(now, parseISO(publishedAt))) / MS_PER_HOUR;
+  return 2 ** (-ageHours / RECENCY_HALF_LIFE_HOURS);
+}
+
 function scorePost(
-  post: Pick<PostRecord, 'publishedAt' | 'sourceId' | 'primaryTopic'>,
+  post: RankableFields,
   sourceWeights: Map<string, number>,
   now: Date = new Date(),
   affinityBoosts?: Map<Topic, number>,
@@ -44,8 +59,8 @@ function scorePost(
   return recencyDecay(post.publishedAt, now) * weight * boost;
 }
 
-function interleaveByKey(sorted: PostRecord[], keyOf: (post: PostRecord) => string): PostRecord[] {
-  const queues = new Map<string, PostRecord[]>();
+function interleaveByKey<T extends RankableFields>(sorted: T[], keyOf: (post: T) => string): T[] {
+  const queues = new Map<string, T[]>();
   const keyOrder: string[] = [];
   for (const post of sorted) {
     const key = keyOf(post);
@@ -58,7 +73,7 @@ function interleaveByKey(sorted: PostRecord[], keyOf: (post: PostRecord) => stri
     queue.push(post);
   }
 
-  const result: PostRecord[] = [];
+  const result: T[] = [];
   let remaining = sorted.length;
   while (remaining > 0) {
     for (const key of keyOrder) {
@@ -73,23 +88,10 @@ function interleaveByKey(sorted: PostRecord[], keyOf: (post: PostRecord) => stri
   return result;
 }
 
-function interleaveByTopic(sorted: PostRecord[]): PostRecord[] {
+function interleaveByTopic<T extends RankableFields>(sorted: T[]): T[] {
   return interleaveByKey(sorted, (post) => post.primaryTopic);
 }
 
-function interleaveBySource(sorted: PostRecord[]): PostRecord[] {
+function interleaveBySource<T extends RankableFields>(sorted: T[]): T[] {
   return interleaveByKey(sorted, (post) => post.sourceId);
-}
-
-export function rankCandidates(
-  candidates: PostRecord[],
-  sourceWeights: Map<string, number>,
-  now: Date = new Date(),
-  affinityBoosts?: Map<Topic, number>,
-): PostRecord[] {
-  const scored = candidates
-    .map((post) => ({ post, score: scorePost(post, sourceWeights, now, affinityBoosts) }))
-    .sort((a, b) => b.score - a.score)
-    .map(({ post }) => post);
-  return interleaveBySource(interleaveByTopic(scored));
 }

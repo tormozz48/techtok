@@ -1,7 +1,20 @@
 import type { CompactFigure, Language, Topic, TransformKind } from '@techtok/shared';
 
-export type { TransformKind };
 export type PostStatus = 'discovered' | 'ready' | 'failed';
+
+export interface PostKey {
+  readonly postId: string;
+  readonly publishedAt: string;
+}
+
+export interface PostCandidate extends PostKey {
+  readonly primaryTopic: Topic;
+  readonly sourceId: string;
+  readonly origTitle: string;
+  readonly status: PostStatus;
+  readonly compactLangs?: Language[];
+  readonly duplicateOf?: string;
+}
 
 export interface TranslatedFields {
   readonly cardTitle: string;
@@ -10,8 +23,12 @@ export interface TranslatedFields {
   readonly translatedAt: string;
 }
 
-export interface NewPost {
+export interface CreatedPost {
   readonly postId: string;
+  readonly url: string;
+}
+
+export interface NewPost {
   readonly url: string;
   readonly canonicalUrl: string;
   readonly sourceId: string;
@@ -33,6 +50,7 @@ export interface NewPost {
 }
 
 export interface PostRecord extends NewPost {
+  readonly postId: string;
   readonly ingestedAt: string;
   readonly ttl: number;
   readonly mirroredImageUrl?: string;
@@ -41,3 +59,5 @@ export interface PostRecord extends NewPost {
   readonly mirroredFigures?: CompactFigure[];
   readonly dupCount?: number;
 }
+
+export type { TransformKind };

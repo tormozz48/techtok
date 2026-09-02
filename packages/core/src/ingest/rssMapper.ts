@@ -1,6 +1,6 @@
 import type { NewPost } from '../posts.types';
 import type { SourceRecord } from '../sources.types';
-import { canonicalizeUrl, hashPostId } from '../url/canonicalize';
+import { canonicalizeUrl } from '../url/canonicalize';
 import { firstImageSrc, toExcerpt } from './htmlText';
 
 export interface MediaNode {
@@ -27,18 +27,6 @@ export interface FeedEntry {
 
 type MapperSource = Pick<SourceRecord, 'sourceId' | 'name' | 'defaultTopic'>;
 
-function firstMediaImageUrl(nodes: readonly MediaNode[] | undefined): string | undefined {
-  if (!nodes) return undefined;
-  for (const node of nodes) {
-    const attrs = node.$;
-    if (!attrs?.url) continue;
-    if (attrs.medium && attrs.medium !== 'image') continue;
-    if (attrs.type && !attrs.type.startsWith('image/')) continue;
-    return attrs.url;
-  }
-  return undefined;
-}
-
 export function mapEntryToPost(entry: FeedEntry, source: MapperSource): NewPost | undefined {
   const link = entry.link?.trim();
   const title = entry.title?.trim();
@@ -56,7 +44,6 @@ export function mapEntryToPost(entry: FeedEntry, source: MapperSource): NewPost 
     firstImageSrc(entry.summary);
 
   return {
-    postId: hashPostId(canonicalUrl),
     url: link,
     canonicalUrl,
     sourceId: source.sourceId,
@@ -72,6 +59,18 @@ export function mapEntryToPost(entry: FeedEntry, source: MapperSource): NewPost 
     transform: 'excerpt',
     publishedAt: parsePublishedAt(entry),
   };
+}
+
+function firstMediaImageUrl(nodes: readonly MediaNode[] | undefined): string | undefined {
+  if (!nodes) return undefined;
+  for (const node of nodes) {
+    const attrs = node.$;
+    if (!attrs?.url) continue;
+    if (attrs.medium && attrs.medium !== 'image') continue;
+    if (attrs.type && !attrs.type.startsWith('image/')) continue;
+    return attrs.url;
+  }
+  return undefined;
 }
 
 function parsePublishedAt(entry: FeedEntry): string {

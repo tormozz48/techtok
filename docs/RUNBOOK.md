@@ -29,10 +29,12 @@ a bug or an outage, not routine content noise.
 | `TranslateQueue` | `TranslateDLQ` | `TranslateDlqDepthAlarm` |
 | `ContentQueue` | `ContentDLQ` | `ContentDlqDepthAlarm` |
 
-Each live queue additionally has a `<Name>QueueBacklogAlarm` on
-`ApproximateAgeOfOldestMessage` (> 60 min held for 10 min) — an earlier
-signal than DLQ depth, since it fires while a wedged consumer is still
-burning through its 3 receives rather than after.
+There is no queue-backlog alarm. The three `<Name>QueueBacklogAlarm`s on
+`ApproximateAgeOfOldestMessage` were removed as pure cost (D89): a consumer
+wedged long enough to age a message past 60 minutes also fails that message
+3 times into the DLQ, which these alarms already catch at depth > 0. Read the
+age by hand when it matters: `aws sqs get-queue-attributes --queue-url <live
+queue URL> --attribute-names ApproximateAgeOfOldestMessage`.
 
 **Diagnosis**
 
@@ -62,9 +64,11 @@ burning through its 3 receives rather than after.
 - Redrive: `aws sqs start-message-move-task --source-arn <DLQ ARN>` (or the
   console's "Start DLQ redrive" action on the queue).
 
-**Verify:** the queue's depth alarm transitions `ALARM → OK`. The
-`techtok-<stage>` CloudWatch dashboard's alarm strip and "DLQ depth" widget
-show all three queues at once.
+**Verify:** the queue's depth alarm transitions `ALARM → OK`. There is no ops
+dashboard (D89) — `aws cloudwatch describe-alarms --state-value ALARM --region
+eu-central-1` lists everything still firing, and `aws sqs get-queue-attributes
+--queue-url <DLQ URL> --attribute-names ApproximateNumberOfMessagesVisible`
+reads one DLQ's depth directly.
 
 ## 2. Compact-article generation failures
 
@@ -80,7 +84,7 @@ unavailable until someone manually re-enqueues it (see Fix path below).
 A content-level failure is *not* an error response — the cache-miss branch
 always returns HTTP 200 with `available: false` (D23's degrade convention).
 `Api5xxAlarm` never fires for this, so a real spike in failed generations
-is invisible on the alarm dashboard and only shows up in logs.
+is invisible to every alarm and only shows up in logs.
 
 **Diagnosis:** CloudWatch Logs Insights on the `content` pipeline Lambda's
 log group ([packages/functions/src/pipeline/content.ts](../packages/functions/src/pipeline/content.ts),
@@ -142,10 +146,10 @@ not restored.
 
 **What's left as a signal:**
 
-- The **$10/mo AWS Budget alarm** (D11) — monitoring-only now, not an
-  enforced ceiling, and it fires an SNS email at 80%/actual and
-  100%/forecasted. Check current spend: AWS Cost Explorer, grouped by the
-  `app: techtok-dev`/`techtok-production` tag (D17).
+- The **$25/mo AWS Budget alarm** (D74, amending D11's $10 ceiling) — an
+  infrastructure-drift signal only, not an enforced ceiling, and it fires an
+  SNS email at 80%/actual and 100%/forecasted. Check current spend: AWS Cost
+  Explorer, grouped by the `app: techtok-dev`/`techtok-production` tag (D17).
 - **It does not see OpenRouter spend at all** (D32) — that's a separate
   bill with its own dashboard at openrouter.ai. If AWS spend looks fine but
   something feels expensive, check OpenRouter's usage page directly; the
@@ -174,8 +178,8 @@ entirely) or rolling back a bad deploy.
   default `service` dimension — `dev` and `production` publish to one
   series, so a production alarm would be silenced by dev activity. Needs a
   `stage` dimension in [summarize.ts](../packages/functions/src/pipeline/summarize.ts)
-  first; the dashboard's ingest-volume widget is labelled all-stages for the
-  same reason.
+  first — the same conflation that had the retired dashboard's ingest-volume
+  widget labelled all-stages (D89).
 - Degrade-rate visibility (§2's blind spot): the excerpt-fallback,
   translation-skip, and compact-degrade paths still emit no metrics, so a
   feed rotting to 100% excerpt cards keeps every alarm green.

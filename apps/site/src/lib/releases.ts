@@ -15,27 +15,6 @@ export interface ReleaseEntry {
   other: string[];
 }
 
-function runGit(args: string[]): string {
-  return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' });
-}
-
-function listVersionTags(): string[] {
-  try {
-    const output = runGit(['tag', '--list', 'mobile-v*', '--sort=-v:refname']).trim();
-    return output ? output.split('\n') : [];
-  } catch {
-    return [];
-  }
-}
-
-function tagField(tag: string, format: string): string {
-  try {
-    return runGit(['tag', '-l', `--format=${format}`, tag]).trim();
-  } catch {
-    return '';
-  }
-}
-
 const SECTION_RE = /^###\s+(Features|Fixes)\s*$/;
 const BULLET_RE = /^-\s+(.+)$/;
 const ITALIC_RE = /^_(.+)_$/;
@@ -81,5 +60,26 @@ export function getRecentReleases(): ReleaseEntry[] {
       .filter((entry): entry is ReleaseEntry => entry !== null);
   } catch {
     return [];
+  }
+}
+
+function runGit(args: string[]): string {
+  return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' });
+}
+
+function listVersionTags(): string[] {
+  try {
+    const output = runGit(['tag', '--list', 'mobile-v*', '--sort=-v:refname']).trim();
+    return output ? output.split('\n') : [];
+  } catch {
+    return [];
+  }
+}
+
+function tagField(tag: string, format: string): string {
+  try {
+    return runGit(['tag', '-l', `--format=${format}`, tag]).trim();
+  } catch {
+    return '';
   }
 }

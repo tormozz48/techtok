@@ -1,24 +1,24 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import {
   checkImageQuality,
+  contentKey,
   createConfiguredLlmProvider,
   createS3Client,
   errorMessage,
-  DEFAULT_TIMEOUT_MS as FETCH_TIMEOUT_MS,
-  fetchBytesWithCap,
-  fetchTextWithCap,
   generateCard as generateCardViaLlm,
   ImageStore,
   isCompactEnabled,
   type MirrorImageResult,
   RawArticleStore,
+  type SourceRecord,
   transformArticle,
 } from '@techtok/core';
 import { LANGUAGES } from '@techtok/shared';
 import type { SQSBatchResponse, SQSEvent, SQSHandler } from 'aws-lambda';
 import { requireEnv } from '../env';
+import { fetchBytes, fetchRobotsTxt, fetchText } from '../httpFetch';
 import { lazy } from '../lazy';
-import { MAX_ARTICLE_BYTES, MAX_IMAGE_BYTES } from '../limits';
+import { MAX_IMAGE_BYTES } from '../limits';
 import { getContentQueue, getPostsRepo, getSourcesRepo, getTranslateQueue } from '../repos';
 
 const logger = new Logger({ serviceName: 'transform' });
@@ -32,59 +32,9 @@ const getRawArticleStore = lazy(
 const getImageStore = lazy(() => new ImageStore(getS3Client(), requireEnv('IMAGES_BUCKET_NAME')));
 const getLlmProvider = lazy(() => createConfiguredLlmProvider(process.env));
 
-const robotsCache = new Map<string, string | undefined>();
-
-function fetchBytes(url: string, maxBytes: number) {
-  return fetchBytesWithCap(url, { maxBytes, timeoutMs: FETCH_TIMEOUT_MS });
-}
-
-function fetchText(url: string, maxBytes = MAX_ARTICLE_BYTES) {
-  return fetchTextWithCap(url, { maxBytes, timeoutMs: FETCH_TIMEOUT_MS });
-}
-
-async function fetchRobotsTxt(robotsUrl: string): Promise<string | undefined> {
-  if (robotsCache.has(robotsUrl)) return robotsCache.get(robotsUrl);
-  const text = await fetchText(robotsUrl).catch(() => undefined);
-  robotsCache.set(robotsUrl, text);
-  return text;
-}
-
-async function mirrorImage(postId: string, imageUrl: string): Promise<MirrorImageResult> {
-  try {
-    const { body, contentType } = await fetchBytes(imageUrl, MAX_IMAGE_BYTES);
-    const quality = checkImageQuality(body);
-    if (!quality.passes) {
-      logger.info('image mirror rejected image below the quality bar (D28)', {
-        postId,
-        imageUrl,
-        width: quality.width,
-        height: quality.height,
-      });
-      return { status: 'rejected' };
-    }
-    const key = await getImageStore().putImage(postId, body, contentType ?? 'image/jpeg');
-    return { status: 'ok', url: `${requireEnv('IMAGES_CDN_BASE_URL')}/${key}` };
-  } catch (err) {
-    logger.warn('image mirror failed, keeping original hotlinked url', {
-      postId,
-      imageUrl,
-      error: errorMessage(err),
-    });
-    return { status: 'failed' };
-  }
-}
-
 interface MessageBody {
   readonly postId: string;
   readonly url: string;
-}
-
-function parseMessageBody(body: string): MessageBody {
-  const parsed = JSON.parse(body) as Partial<MessageBody>;
-  if (!parsed.postId || !parsed.url) {
-    throw new Error('transform message missing postId/url');
-  }
-  return { postId: parsed.postId, url: parsed.url };
 }
 
 export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
@@ -92,6 +42,7 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
   const rawStore = getRawArticleStore();
   const provider = getLlmProvider();
   const batchItemFailures: SQSBatchResponse['batchItemFailures'] = [];
+  const sourceCache = new Map<string, SourceRecord | undefined>();
 
   for (const record of event.Records) {
     try {
@@ -103,6 +54,7 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
       const outcome = await transformArticle(
         {
           postId,
+          contentKey: contentKey(post.canonicalUrl),
           url,
           title: post.origTitle,
           sourceName: post.sourceName,
@@ -110,8 +62,8 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
         },
         {
           fetchRobotsTxt,
-          fetchPage: (pageUrl) => fetchText(pageUrl),
-          archiveRaw: (id, html) => rawStore.archiveRaw(id, html),
+          fetchPage: fetchText,
+          archiveRaw: (key, html) => rawStore.archiveRaw(key, html),
           generateCard: (cardInput) => generateCardViaLlm(cardInput, provider),
           updatePost: (id, fields) => repo.updateTransform(id, fields),
           mirrorImage,
@@ -120,7 +72,11 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
               NON_ENGLISH_LANGUAGES.map((lang) => ({ postId: id, lang })),
             ),
           enqueueContentJobs: async (id) => {
-            const source = await getSourcesRepo().getById(post.sourceId);
+            let source = sourceCache.get(post.sourceId);
+            if (!sourceCache.has(post.sourceId)) {
+              source = await getSourcesRepo().getById(post.sourceId);
+              sourceCache.set(post.sourceId, source);
+            }
             if (!isCompactEnabled(source)) return;
             await getContentQueue().enqueuePending(LANGUAGES.map((lang) => ({ postId: id, lang })));
           },
@@ -141,3 +97,36 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
 
   return { batchItemFailures };
 };
+
+async function mirrorImage(objectKey: string, imageUrl: string): Promise<MirrorImageResult> {
+  try {
+    const { body, contentType } = await fetchBytes(imageUrl, MAX_IMAGE_BYTES);
+    const quality = checkImageQuality(body);
+    if (!quality.passes) {
+      logger.info('image mirror rejected image below the quality bar (D28)', {
+        objectKey,
+        imageUrl,
+        width: quality.width,
+        height: quality.height,
+      });
+      return { status: 'rejected' };
+    }
+    const key = await getImageStore().putImage(objectKey, body, contentType ?? 'image/jpeg');
+    return { status: 'ok', url: `${requireEnv('IMAGES_CDN_BASE_URL')}/${key}` };
+  } catch (err) {
+    logger.warn('image mirror failed, keeping original hotlinked url', {
+      objectKey,
+      imageUrl,
+      error: errorMessage(err),
+    });
+    return { status: 'failed' };
+  }
+}
+
+function parseMessageBody(body: string): MessageBody {
+  const parsed = JSON.parse(body) as Partial<MessageBody>;
+  if (!parsed.postId || !parsed.url) {
+    throw new Error('transform message missing postId/url');
+  }
+  return { postId: parsed.postId, url: parsed.url };
+}

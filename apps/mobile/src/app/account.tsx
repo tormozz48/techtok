@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Text, View } from 'react-native';
 import { Button } from 'react-native-paper';
 import { deleteAccount } from '@/api/client';
-import { Spacing, type ThemeColors, Typography } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { useAuthStore } from '@/state/authStore';
+import { logError } from '@/state/eventsQueue';
+import { createStyles } from './account.styles';
 
 export default function AccountScreen() {
   const strings = useStrings();
@@ -15,6 +16,14 @@ export default function AccountScreen() {
   const signOut = useAuthStore((state) => state.signOut);
   const [isDeleting, setIsDeleting] = useState(false);
   const [hasDeleteError, setHasDeleteError] = useState(false);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      logError('handleSignOut failed', { message: String(error) });
+    }
+  };
 
   const confirmDelete = () => {
     Alert.alert(
@@ -48,7 +57,7 @@ export default function AccountScreen() {
 
       <Button
         mode="outlined"
-        onPress={() => signOut()}
+        onPress={handleSignOut}
         style={styles.button}
         testID="account-sign-out"
       >
@@ -72,27 +81,4 @@ export default function AccountScreen() {
       ) : null}
     </View>
   );
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-      padding: Spacing.four,
-    },
-    email: {
-      color: colors.textSecondary,
-      ...Typography.base,
-      marginBottom: Spacing.four,
-    },
-    button: {
-      marginBottom: Spacing.three,
-    },
-    error: {
-      color: colors.error,
-      ...Typography.base,
-      marginTop: Spacing.two,
-    },
-  });
 }

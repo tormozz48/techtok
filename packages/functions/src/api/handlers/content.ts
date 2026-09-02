@@ -1,5 +1,6 @@
 import {
   ContentStore,
+  contentKey,
   createS3Client,
   effectiveQuota,
   FREE_READER_OPENS_PER_DAY,
@@ -46,7 +47,7 @@ export const handler = withAuth(async (event, auth) => {
     await getUsersRepo().incrementQuota(auth.userId, 'readerOpens', timezone);
   }
 
-  const cached = await getContentStore().getContent(postId, lang);
+  const cached = await getContentStore().getContent(contentKey(post.canonicalUrl), lang);
   if (cached) {
     return jsonResponse(200, {
       available: true,

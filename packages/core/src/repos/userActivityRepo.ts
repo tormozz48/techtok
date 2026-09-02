@@ -1,10 +1,12 @@
+import type { Topic } from '@techtok/shared';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type { SqlClient } from '../clients/sqlClient';
 import { beforeCursor, decodeCursor, matchesQuery, type Page, paginate } from '../db/cursor';
-import { userBookmarks, userReads } from '../db/schema';
+import { decodeId, decodeIds, encodeId } from '../db/ids';
+import { topics, userBookmarks, userReads, users } from '../db/schema';
 import type { ActivityRecord, BookmarkRecord, ReadSnapshot } from '../history.types';
-import { Activity, type ActivityRow } from '../models/activity';
+import { Activity, type ActivitySelection } from '../models/activity';
 
 type ActivityTable = typeof userReads | typeof userBookmarks;
 
@@ -37,7 +39,9 @@ export class UserActivityRepo {
     snapshot: ReadSnapshot,
     readAt: string = new Date().toISOString(),
   ): Promise<{ wasNew: boolean }> {
-    const row = { userId, postId, readAt, ...toColumns(snapshot) };
+    const id = decodeId(postId);
+    if (id === undefined) return { wasNew: false };
+    const row = { userId: userIdOf(userId), postId: id, readAt, ...toColumns(snapshot) };
     const [inserted] = await this.db
       .insert(userReads)
       .values(row)
@@ -57,7 +61,7 @@ export class UserActivityRepo {
       userId,
       opts,
     );
-    return { items: rows.map((row) => new Activity(row).toReadRecord()), nextCursor };
+    return { items: rows.map((row) => new Activity(userId, row).toReadRecord()), nextCursor };
   }
 
   async addBookmark(
@@ -66,7 +70,9 @@ export class UserActivityRepo {
     snapshot: ReadSnapshot,
     bookmarkedAt: string = new Date().toISOString(),
   ): Promise<void> {
-    const row = { userId, postId, bookmarkedAt, ...toColumns(snapshot) };
+    const id = decodeId(postId);
+    if (id === undefined) return;
+    const row = { userId: userIdOf(userId), postId: id, bookmarkedAt, ...toColumns(snapshot) };
     await this.db
       .insert(userBookmarks)
       .values(row)
@@ -74,9 +80,11 @@ export class UserActivityRepo {
   }
 
   async removeBookmark(userId: string, postId: string): Promise<void> {
+    const id = decodeId(postId);
+    if (id === undefined) return;
     await this.db
       .delete(userBookmarks)
-      .where(and(eq(userBookmarks.userId, userId), eq(userBookmarks.postId, postId)));
+      .where(and(eq(userBookmarks.userId, userIdOf(userId)), eq(userBookmarks.postId, id)));
   }
 
   async getBookmarkSet(userId: string, postIds: string[]): Promise<Set<string>> {
@@ -90,12 +98,12 @@ export class UserActivityRepo {
       userId,
       opts,
     );
-    return { items: rows.map((row) => new Activity(row).toBookmarkRecord()), nextCursor };
+    return { items: rows.map((row) => new Activity(userId, row).toBookmarkRecord()), nextCursor };
   }
 
   async deleteAllForUser(userId: string): Promise<void> {
-    await this.db.delete(userReads).where(eq(userReads.userId, userId));
-    await this.db.delete(userBookmarks).where(eq(userBookmarks.userId, userId));
+    await this.db.delete(userReads).where(eq(userReads.userId, userIdOf(userId)));
+    await this.db.delete(userBookmarks).where(eq(userBookmarks.userId, userIdOf(userId)));
   }
 
   private async selectPostIds(
@@ -103,12 +111,13 @@ export class UserActivityRepo {
     userId: string,
     postIds: string[],
   ): Promise<Set<string>> {
-    if (postIds.length === 0) return new Set();
+    const ids = decodeIds(postIds);
+    if (ids.length === 0) return new Set();
     const rows = await this.db
       .select({ postId: table.postId })
       .from(table)
-      .where(and(eq(table.userId, userId), inArray(table.postId, postIds)));
-    return new Set(rows.map((row) => row.postId));
+      .where(and(eq(table.userId, userIdOf(userId)), inArray(table.postId, ids)));
+    return new Set(rows.map((row) => encodeId(row.postId)));
   }
 
   private async queryActivity(
@@ -116,22 +125,22 @@ export class UserActivityRepo {
     tsColumn: AnyPgColumn,
     userId: string,
     opts: ActivityQueryOpts,
-  ): Promise<Page<ActivityRow>> {
+  ): Promise<Page<ActivitySelection>> {
     const limit = opts.limit ?? DEFAULT_LIMIT;
     const rows = await this.db
       .select({
-        userId: table.userId,
         postId: table.postId,
         ts: tsColumn,
         cardTitle: table.cardTitle,
         sourceName: table.sourceName,
         url: table.url,
-        primaryTopic: table.primaryTopic,
+        primaryTopic: topics.slug,
       })
       .from(table)
+      .leftJoin(topics, eq(table.primaryTopicId, topics.id))
       .where(
         and(
-          eq(table.userId, userId),
+          eq(table.userId, userIdOf(userId)),
           beforeCursor(tsColumn, table.postId, decodeCursor(opts.cursor)),
           matchesQuery(opts.q, table.cardTitle, table.sourceName),
         ),
@@ -142,11 +151,20 @@ export class UserActivityRepo {
   }
 }
 
+function userIdOf(externalId: string) {
+  return sql<number>`(select id from ${users} where ${users.externalId} = ${externalId})`;
+}
+
 function toColumns(snapshot: ReadSnapshot) {
   return {
     cardTitle: snapshot.cardTitle,
     sourceName: snapshot.sourceName,
     url: snapshot.url,
-    primaryTopic: snapshot.primaryTopic ?? null,
+    primaryTopicId: topicIdOf(snapshot.primaryTopic),
   };
+}
+
+function topicIdOf(topic: Topic | undefined) {
+  if (!topic) return null;
+  return sql<number>`(select id from ${topics} where ${topics.slug} = ${topic})`;
 }

@@ -7,12 +7,12 @@ export class ImageStore {
   ) {}
 
   async putImage(
-    postId: string,
+    objectKey: string,
     body: Uint8Array,
     contentType: string,
     suffix = '',
   ): Promise<string> {
-    const key = `images/${postId}${suffix}.${extensionFor(contentType)}`;
+    const key = `images/${objectKey}${suffix}.${extensionFor(contentType)}`;
     await this.client.send(
       new PutObjectCommand({
         Bucket: this.bucketName,

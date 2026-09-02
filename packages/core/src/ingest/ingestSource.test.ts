@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
-import type { NewPost } from '../posts.types';
+import type { CreatedPost, NewPost } from '../posts.types';
 import type { SourceRecord } from '../sources.types';
 import type { FetchFeedResult } from './ingestSource';
 import { ingestSource, MAX_CANDIDATES_PER_FETCH } from './ingestSource';
@@ -12,13 +12,14 @@ const HN_FIXTURE = path.join(dirname, '__fixtures__/hn.xml');
 const NATURE_MALFORMED_FIXTURE = path.join(dirname, '__fixtures__/nature-malformed.xml');
 
 function fakeDeps(xml: string) {
-  const seen = new Set<string>();
-  const putIfNew = vi.fn(async (post: NewPost) => {
-    if (seen.has(post.postId)) return false;
-    seen.add(post.postId);
-    return true;
+  const idsByCanonicalUrl = new Map<string, string>();
+  const putIfNew = vi.fn(async (post: NewPost): Promise<string | undefined> => {
+    if (idsByCanonicalUrl.has(post.canonicalUrl)) return undefined;
+    const postId = String(idsByCanonicalUrl.size + 1);
+    idsByCanonicalUrl.set(post.canonicalUrl, postId);
+    return postId;
   });
-  const enqueueNew = vi.fn(async (_posts: NewPost[]) => {});
+  const enqueueNew = vi.fn(async (_posts: CreatedPost[]) => {});
   const recordFetchResult = vi.fn(async (_sourceId: string, _outcome: unknown) => {});
   const fetchFeed = vi.fn(
     async (): Promise<FetchFeedResult> => ({ status: 'ok', body: xml, etag: '"v1"' }),
@@ -115,10 +116,10 @@ describe('ingestSource', () => {
     const xml = await readFile(HN_FIXTURE, 'utf8');
     const deps = fakeDeps(xml);
     let calls = 0;
-    deps.putIfNew.mockImplementation(async (): Promise<boolean> => {
+    deps.putIfNew.mockImplementation(async (): Promise<string> => {
       calls += 1;
       if (calls === 1) throw new Error('conditional write blew up');
-      return true;
+      return String(calls);
     });
 
     const result = await ingestSource(source, deps);
@@ -149,9 +150,9 @@ describe('ingestSource', () => {
     for (const [post] of deps.putIfNew.mock.calls) {
       expect(post.duplicateOf).toBeUndefined();
     }
-    const flaggedPost = deps.enqueueNew.mock.calls[0]?.[0][0];
-    expect(flaggedPost).toMatchObject({ duplicateOf: 'existing-post-id' });
-    expect(deps.markDuplicate).toHaveBeenCalledWith(flaggedPost?.postId, 'existing-post-id');
+    const enqueued = deps.enqueueNew.mock.calls[0]?.[0];
+    expect(enqueued).toHaveLength(3);
+    expect(deps.markDuplicate).toHaveBeenCalledWith(enqueued?.[0]?.postId, 'existing-post-id');
     expect(deps.recordDuplicate).toHaveBeenCalledTimes(1);
     expect(deps.recordDuplicate).toHaveBeenCalledWith('existing-post-id');
   });
@@ -176,7 +177,7 @@ describe('ingestSource', () => {
   it('skips the dedup lookup entirely for a post putIfNew says is not new', async () => {
     const xml = await readFile(HN_FIXTURE, 'utf8');
     const deps = fakeDeps(xml);
-    deps.putIfNew.mockResolvedValueOnce(false);
+    deps.putIfNew.mockResolvedValueOnce(undefined);
 
     const result = await ingestSource(source, deps);
 
@@ -198,9 +199,7 @@ describe('ingestSource', () => {
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]).toContain('recordDuplicate failed for existing-post-id');
     expect(deps.markDuplicate).toHaveBeenCalledWith(expect.any(String), 'existing-post-id');
-    expect(deps.enqueueNew.mock.calls[0]?.[0][0]).toMatchObject({
-      duplicateOf: 'existing-post-id',
-    });
+    expect(deps.enqueueNew.mock.calls[0]?.[0]).toHaveLength(3);
   });
 
   it('records a soft error but keeps the run clean when markDuplicate fails', async () => {
@@ -215,9 +214,7 @@ describe('ingestSource', () => {
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]).toContain('markDuplicate failed for');
     expect(deps.recordDuplicate).toHaveBeenCalledWith('existing-post-id');
-    expect(deps.enqueueNew.mock.calls[0]?.[0][0]).toMatchObject({
-      duplicateOf: 'existing-post-id',
-    });
+    expect(deps.enqueueNew.mock.calls[0]?.[0]).toHaveLength(3);
   });
 
   it('recovers every entry from a feed with a valueless attribute instead of dropping the poll', async () => {

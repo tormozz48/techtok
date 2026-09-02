@@ -1,25 +1,42 @@
-import type { CompactFigure, Language } from '@techtok/shared';
+import type { CompactFigure, Language, Topic } from '@techtok/shared';
 import { getUnixTime } from 'date-fns';
-import type { postCompacts, postFigures, posts, postTopics, postTranslations } from '../db/schema';
-import type { PostCandidate, PostRecord, TranslatedFields } from '../posts.types';
+import { encodeId } from '../db/ids';
+import type {
+  postCompacts,
+  postFigures,
+  posts,
+  postTopics,
+  postTranslations,
+  topics,
+} from '../db/schema';
+import type { PostCandidate, PostRecord, PostStatus, TranslatedFields } from '../posts.types';
 import { emptyToUndefined } from '../util/emptyToUndefined';
 
 const BASE_LANGUAGE: Language = 'en';
 
 type PostRow = typeof posts.$inferSelect;
 
+type TopicRow = typeof topics.$inferSelect;
+
 export type PostAggregateRow = PostRow & {
-  source: { name: string } | null;
+  source: { slug: string; name: string } | null;
+  primaryTopic: TopicRow;
   translations: (typeof postTranslations.$inferSelect)[];
-  topics: (typeof postTopics.$inferSelect)[];
+  topics: (typeof postTopics.$inferSelect & { topic: TopicRow })[];
   compacts: (typeof postCompacts.$inferSelect)[];
   figures: (typeof postFigures.$inferSelect)[];
 };
 
-export type PostCandidateRow = Pick<
-  PostRow,
-  'postId' | 'publishedAt' | 'primaryTopic' | 'sourceId' | 'origTitle' | 'status' | 'duplicateOf'
-> & { compactLangs: Language[] };
+export interface PostCandidateRow {
+  readonly id: number;
+  readonly publishedAt: string;
+  readonly primaryTopic: Topic;
+  readonly sourceId: string;
+  readonly origTitle: string;
+  readonly status: PostStatus;
+  readonly duplicateOfPostId: number | null;
+  readonly compactLangs: Language[];
+}
 
 export class Post {
   constructor(
@@ -29,14 +46,14 @@ export class Post {
 
   static toCandidate(row: PostCandidateRow): PostCandidate {
     return {
-      postId: row.postId,
+      postId: encodeId(row.id),
       publishedAt: row.publishedAt,
       primaryTopic: row.primaryTopic,
       sourceId: row.sourceId,
       origTitle: row.origTitle,
       status: row.status,
       compactLangs: emptyToUndefined(row.compactLangs),
-      duplicateOf: row.duplicateOf ?? undefined,
+      duplicateOf: row.duplicateOfPostId === null ? undefined : encodeId(row.duplicateOfPostId),
     };
   }
 
@@ -44,10 +61,10 @@ export class Post {
     const { row } = this;
     const base = this.baseTranslation;
     return {
-      postId: row.postId,
+      postId: encodeId(row.id),
       url: row.url,
       canonicalUrl: row.canonicalUrl,
-      sourceId: row.sourceId,
+      sourceId: row.source?.slug ?? '',
       sourceName: row.source?.name ?? '',
       origTitle: row.origTitle,
       cardTitle: base?.cardTitle ?? '',
@@ -55,14 +72,14 @@ export class Post {
       whyItMatters: base?.whyItMatters ?? undefined,
       excerpt: row.excerpt,
       imageUrl: row.imageUrl ?? undefined,
-      primaryTopic: row.primaryTopic,
-      topics: row.topics.map((topic) => topic.topic),
+      primaryTopic: row.primaryTopic.slug,
+      topics: row.topics.map((link) => link.topic.slug),
       status: row.status,
       transform: row.transform,
       publishedAt: row.publishedAt,
       s3RawKey: row.s3RawKey ?? undefined,
       lang: row.lang ?? undefined,
-      duplicateOf: row.duplicateOf ?? undefined,
+      duplicateOf: row.duplicateOfPostId === null ? undefined : encodeId(row.duplicateOfPostId),
       ingestedAt: row.ingestedAt,
       ttl: getUnixTime(row.expiresAt),
       mirroredImageUrl: row.mirroredImageUrl ?? undefined,

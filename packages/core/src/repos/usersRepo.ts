@@ -2,14 +2,7 @@ import type { Language, Topic } from '@techtok/shared';
 import { format, subDays } from 'date-fns';
 import { desc, eq, lt, sql } from 'drizzle-orm';
 import type { SqlClient } from '../clients/sqlClient';
-import {
-  userEntitlements,
-  userMutedSources,
-  userQuotas,
-  users,
-  userTopicReads,
-  userTopics,
-} from '../db/schema';
+import { userEntitlements, userMutedSources, userQuotas, users, userTopics } from '../db/schema';
 import type { Entitlement, Quota } from '../entitlement/entitlement.types';
 import { localDayKey } from '../entitlement/quota';
 import { User } from '../models/user';
@@ -36,7 +29,7 @@ export class UsersRepo {
   async touch(userId: string, opts: TouchOptions = {}): Promise<UserRecord> {
     await this.upsertUser(
       {
-        userId,
+        externalId: userId,
         language: opts.deviceLanguage ?? DEFAULT_LANGUAGE,
         timezone: opts.timezone ?? DEFAULT_TIMEZONE,
         email: opts.email,
@@ -51,12 +44,11 @@ export class UsersRepo {
   }
 
   async deleteUser(userId: string): Promise<void> {
-    await this.db.delete(users).where(eq(users.userId, userId));
+    await this.db.delete(users).where(eq(users.externalId, userId));
   }
 
   async grantEntitlement(userId: string, entitlement: Entitlement): Promise<UserRecord> {
-    const row = {
-      userId,
+    const patch = {
       plan: entitlement.plan,
       source: entitlement.source,
       expiresAt: entitlement.expiresAt ?? null,
@@ -66,8 +58,8 @@ export class UsersRepo {
     };
     await this.db
       .insert(userEntitlements)
-      .values(row)
-      .onConflictDoUpdate({ target: userEntitlements.userId, set: row });
+      .values({ userId: userIdOf(userId), ...patch })
+      .onConflictDoUpdate({ target: userEntitlements.userId, set: patch });
     return this.hydrate(userId);
   }
 
@@ -80,7 +72,7 @@ export class UsersRepo {
     const [row] = await this.db
       .insert(userQuotas)
       .values({
-        userId,
+        userId: userIdOf(userId),
         day: localDayKey(timezone),
         cardReads: field === 'cardReads' ? by : 0,
         readerOpens: field === 'readerOpens' ? by : 0,
@@ -94,27 +86,30 @@ export class UsersRepo {
     return User.toQuota(row);
   }
 
-  async updateTopics(userId: string, topics: Topic[]): Promise<UserRecord> {
-    await this.upsertUser({ userId });
-    await this.db.delete(userTopics).where(eq(userTopics.userId, userId));
-    if (topics.length > 0) {
-      await this.db.insert(userTopics).values(topics.map((topic) => ({ userId, topic })));
+  async updateTopics(userId: string, topicSlugs: Topic[]): Promise<UserRecord> {
+    const id = await this.upsertUser({ externalId: userId });
+    await this.db.delete(userTopics).where(eq(userTopics.userId, id));
+    if (topicSlugs.length > 0) {
+      await this.db.execute(sql`
+        insert into user_topics (user_id, topic_id)
+        select ${id}, t.id from topics t where t.slug in (${slugList(topicSlugs)})
+      `);
     }
     return this.hydrate(userId);
   }
 
   async updateLanguage(userId: string, language: Language): Promise<UserRecord> {
-    await this.upsertUser({ userId, language }, { language });
+    await this.upsertUser({ externalId: userId, language }, { language });
     return this.hydrate(userId);
   }
 
   async updateMutedSources(userId: string, mutedSources: string[]): Promise<UserRecord> {
-    await this.upsertUser({ userId });
-    await this.db.delete(userMutedSources).where(eq(userMutedSources.userId, userId));
+    const id = await this.upsertUser({ externalId: userId });
+    await this.db.delete(userMutedSources).where(eq(userMutedSources.userId, id));
     if (mutedSources.length > 0) {
       await this.db
         .insert(userMutedSources)
-        .values(mutedSources.map((sourceId) => ({ userId, sourceId })));
+        .values(mutedSources.map((sourceSlug) => ({ userId: id, sourceSlug })));
     }
     return this.hydrate(userId);
   }
@@ -123,13 +118,18 @@ export class UsersRepo {
     const entries = Object.entries(counts) as [Topic, number][];
     if (entries.length === 0) return;
 
-    await this.db
-      .insert(userTopicReads)
-      .values(entries.map(([topic, readCount]) => ({ userId, topic, readCount })))
-      .onConflictDoUpdate({
-        target: [userTopicReads.userId, userTopicReads.topic],
-        set: { readCount: sql`${userTopicReads.readCount} + excluded.read_count` },
-      });
+    const values = sql.join(
+      entries.map(([topic, readCount]) => sql`(${topic}::text, ${readCount}::int)`),
+      sql`, `,
+    );
+    await this.db.execute(sql`
+      insert into user_topic_reads (user_id, topic_id, read_count)
+      select u.id, t.id, v.read_count
+      from users u, topics t, (values ${values}) as v(slug, read_count)
+      where u.external_id = ${userId} and t.slug = v.slug
+      on conflict (user_id, topic_id)
+      do update set read_count = user_topic_reads.read_count + excluded.read_count
+    `);
   }
 
   async pruneOldQuotas(now: Date = new Date()): Promise<number> {
@@ -139,23 +139,32 @@ export class UsersRepo {
   }
 
   private async upsertUser(
-    seed: { userId: string; language?: Language; timezone?: string; email?: string; name?: string },
+    seed: {
+      externalId: string;
+      language?: Language;
+      timezone?: string;
+      email?: string;
+      name?: string;
+    },
     patch: Partial<typeof users.$inferInsert> = {},
-  ): Promise<void> {
+  ): Promise<number> {
     const now = new Date().toISOString();
-    await this.db
+    const [row] = await this.db
       .insert(users)
       .values({ ...seed, createdAt: now, lastSeenAt: now })
-      .onConflictDoUpdate({ target: users.userId, set: { ...patch, lastSeenAt: now } });
+      .onConflictDoUpdate({ target: users.externalId, set: { ...patch, lastSeenAt: now } })
+      .returning({ id: users.id });
+    if (!row) throw new Error(`upsert for user ${seed.externalId} returned no row`);
+    return row.id;
   }
 
   private async hydrate(userId: string): Promise<UserRecord> {
     const row = await this.db.query.users.findFirst({
-      where: eq(users.userId, userId),
+      where: eq(users.externalId, userId),
       with: {
-        topics: true,
+        topics: { with: { topic: true } },
         mutedSources: true,
-        topicReads: true,
+        topicReads: { with: { topic: true } },
         quotas: { orderBy: [desc(userQuotas.day)], limit: 1 },
         entitlement: true,
       },
@@ -163,4 +172,15 @@ export class UsersRepo {
     if (!row) throw new Error(`user ${userId} not found after upsert`);
     return new User(row).toRecord();
   }
+}
+
+function userIdOf(externalId: string) {
+  return sql<number>`(select id from ${users} where ${users.externalId} = ${externalId})`;
+}
+
+function slugList(list: Topic[]) {
+  return sql.join(
+    list.map((topic) => sql`${topic}`),
+    sql`, `,
+  );
 }

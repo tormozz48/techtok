@@ -1,6 +1,6 @@
 import type { NewPost } from '../posts.types';
 import type { SourceRecord } from '../sources.types';
-import { canonicalizeUrl, hashPostId } from '../url/canonicalize';
+import { canonicalizeUrl } from '../url/canonicalize';
 import { firstImageSrc, toExcerpt } from './htmlText';
 
 export interface MediaNode {
@@ -44,7 +44,6 @@ export function mapEntryToPost(entry: FeedEntry, source: MapperSource): NewPost 
     firstImageSrc(entry.summary);
 
   return {
-    postId: hashPostId(canonicalUrl),
     url: link,
     canonicalUrl,
     sourceId: source.sourceId,

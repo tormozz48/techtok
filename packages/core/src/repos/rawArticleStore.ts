@@ -6,11 +6,11 @@ export class RawArticleStore {
     private readonly bucketName: string,
   ) {}
 
-  async archiveRaw(postId: string, html: string): Promise<void> {
+  async archiveRaw(objectKey: string, html: string): Promise<void> {
     await this.client.send(
       new PutObjectCommand({
         Bucket: this.bucketName,
-        Key: `raw/${postId}.html`,
+        Key: `raw/${objectKey}.html`,
         Body: html,
         ContentType: 'text/html',
       }),

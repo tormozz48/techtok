@@ -1,6 +1,7 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import {
   checkImageQuality,
+  contentKey,
   createConfiguredLlmProvider,
   createS3Client,
   errorMessage,
@@ -53,6 +54,7 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
       const outcome = await transformArticle(
         {
           postId,
+          contentKey: contentKey(post.canonicalUrl),
           url,
           title: post.origTitle,
           sourceName: post.sourceName,
@@ -61,7 +63,7 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
         {
           fetchRobotsTxt,
           fetchPage: fetchText,
-          archiveRaw: (id, html) => rawStore.archiveRaw(id, html),
+          archiveRaw: (key, html) => rawStore.archiveRaw(key, html),
           generateCard: (cardInput) => generateCardViaLlm(cardInput, provider),
           updatePost: (id, fields) => repo.updateTransform(id, fields),
           mirrorImage,
@@ -96,24 +98,24 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResp
   return { batchItemFailures };
 };
 
-async function mirrorImage(postId: string, imageUrl: string): Promise<MirrorImageResult> {
+async function mirrorImage(objectKey: string, imageUrl: string): Promise<MirrorImageResult> {
   try {
     const { body, contentType } = await fetchBytes(imageUrl, MAX_IMAGE_BYTES);
     const quality = checkImageQuality(body);
     if (!quality.passes) {
       logger.info('image mirror rejected image below the quality bar (D28)', {
-        postId,
+        objectKey,
         imageUrl,
         width: quality.width,
         height: quality.height,
       });
       return { status: 'rejected' };
     }
-    const key = await getImageStore().putImage(postId, body, contentType ?? 'image/jpeg');
+    const key = await getImageStore().putImage(objectKey, body, contentType ?? 'image/jpeg');
     return { status: 'ok', url: `${requireEnv('IMAGES_CDN_BASE_URL')}/${key}` };
   } catch (err) {
     logger.warn('image mirror failed, keeping original hotlinked url', {
-      postId,
+      objectKey,
       imageUrl,
       error: errorMessage(err),
     });

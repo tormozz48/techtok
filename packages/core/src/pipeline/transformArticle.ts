@@ -12,6 +12,7 @@ export const TECHTOK_BOT_USER_AGENT = 'TechTokBot/1.0 (+https://github.com/tormo
 
 export interface TransformInput {
   readonly postId: string;
+  readonly contentKey: string;
   readonly url: string;
   readonly title: string;
   readonly sourceName: string;
@@ -30,12 +31,12 @@ export type MirrorImageResult =
 export interface TransformDeps {
   readonly fetchRobotsTxt: (robotsUrl: string) => Promise<string | undefined>;
   readonly fetchPage: (url: string) => Promise<string>;
-  readonly archiveRaw: (postId: string, html: string) => Promise<void>;
+  readonly archiveRaw: (contentKey: string, html: string) => Promise<void>;
   readonly generateCard: (input: GenerateCardInput) => Promise<GenerateCardResult>;
   readonly updatePost: (postId: string, fields: TransformFields) => Promise<void>;
   readonly enqueueTranslations: (postId: string) => Promise<void>;
   readonly enqueueContentJobs: (postId: string) => Promise<void>;
-  readonly mirrorImage: (postId: string, imageUrl: string) => Promise<MirrorImageResult>;
+  readonly mirrorImage: (contentKey: string, imageUrl: string) => Promise<MirrorImageResult>;
 }
 
 export interface TransformOutcome {
@@ -80,8 +81,8 @@ export async function transformArticle(
 
   let s3RawKey: string | undefined;
   if (html) {
-    s3RawKey = `raw/${input.postId}.html`;
-    await deps.archiveRaw(input.postId, html);
+    s3RawKey = `raw/${input.contentKey}.html`;
+    await deps.archiveRaw(input.contentKey, html);
   }
 
   let transform: TransformKind = 'excerpt';
@@ -119,7 +120,7 @@ export async function transformArticle(
   let rejectedCandidateCount = 0;
 
   for (const candidate of imageCandidates) {
-    const result = await deps.mirrorImage(input.postId, candidate);
+    const result = await deps.mirrorImage(input.contentKey, candidate);
     if (result.status === 'ok') {
       mirroredImageUrl = result.url;
       break;

@@ -12,14 +12,14 @@ export class ContentStore {
     private readonly bucketName: string,
   ) {}
 
-  private key(postId: string, lang: Language): string {
-    return `content/${postId}/${lang}.json`;
+  private key(objectKey: string, lang: Language): string {
+    return `content/${objectKey}/${lang}.json`;
   }
 
-  async getContent(postId: string, lang: Language): Promise<StoredContent | undefined> {
+  async getContent(objectKey: string, lang: Language): Promise<StoredContent | undefined> {
     try {
       const result = await this.client.send(
-        new GetObjectCommand({ Bucket: this.bucketName, Key: this.key(postId, lang) }),
+        new GetObjectCommand({ Bucket: this.bucketName, Key: this.key(objectKey, lang) }),
       );
       const text = await result.Body?.transformToString();
       return text ? (JSON.parse(text) as StoredContent) : undefined;
@@ -31,11 +31,11 @@ export class ContentStore {
     }
   }
 
-  async putContent(postId: string, lang: Language, content: StoredContent): Promise<void> {
+  async putContent(objectKey: string, lang: Language, content: StoredContent): Promise<void> {
     await this.client.send(
       new PutObjectCommand({
         Bucket: this.bucketName,
-        Key: this.key(postId, lang),
+        Key: this.key(objectKey, lang),
         Body: JSON.stringify(content),
         ContentType: 'application/json',
       }),

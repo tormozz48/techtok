@@ -1,4 +1,4 @@
-import { LANGUAGES, TOPICS, type TransformKind, transformKindSchema } from '@techtok/shared';
+import { LANGUAGES, type Topic, type TransformKind, transformKindSchema } from '@techtok/shared';
 import { sql } from 'drizzle-orm';
 import {
   type AnyPgColumn,
@@ -7,15 +7,20 @@ import {
   integer,
   pgEnum,
   pgTable,
-  primaryKey,
   real,
   text,
   timestamp,
+  unique,
 } from 'drizzle-orm/pg-core';
 
-const READY_NOT_DUPLICATE = sql`status = 'ready' and duplicate_of is null`;
+const READY_NOT_DUPLICATE = sql`status = 'ready' and duplicate_of_post_id is null`;
 
-export const topicEnum = pgEnum('topic', TOPICS);
+const REFERENCE_DATA = { onDelete: 'restrict', onUpdate: 'cascade' } as const;
+
+const DETACH_ON_DELETE = { onDelete: 'set null', onUpdate: 'cascade' } as const;
+
+const OWNED = { onDelete: 'cascade', onUpdate: 'cascade' } as const;
+
 export const languageEnum = pgEnum('language', LANGUAGES);
 export const transformKindEnum = pgEnum(
   'transform_kind',
@@ -26,15 +31,35 @@ export const fetchStatusEnum = pgEnum('fetch_status', ['ok', 'not-modified', 'er
 export const entitlementPlanEnum = pgEnum('entitlement_plan', ['free', 'plus']);
 export const entitlementSourceEnum = pgEnum('entitlement_source', ['manual', 'play']);
 
-export const sources = pgTable('sources', {
-  sourceId: text('source_id').primaryKey(),
-  name: text('name').notNull(),
-  rssUrl: text('rss_url').notNull(),
-  siteUrl: text('site_url'),
-  defaultTopic: topicEnum('default_topic').notNull(),
-  weight: real('weight').notNull(),
-  enabled: boolean('enabled').notNull().default(true),
-  compactEnabled: boolean('compact_enabled'),
+export const topics = pgTable('topics', {
+  id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+  slug: text('slug').$type<Topic>().notNull().unique(),
+});
+
+export const sources = pgTable(
+  'sources',
+  {
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+    slug: text('slug').notNull().unique(),
+    name: text('name').notNull(),
+    rssUrl: text('rss_url').notNull(),
+    siteUrl: text('site_url'),
+    defaultTopicId: integer('default_topic_id')
+      .notNull()
+      .references(() => topics.id, REFERENCE_DATA),
+    weight: real('weight').notNull(),
+    enabled: boolean('enabled').notNull().default(true),
+    compactEnabled: boolean('compact_enabled'),
+  },
+  (t) => [index('sources_default_topic_idx').on(t.defaultTopicId)],
+);
+
+export const sourceStates = pgTable('source_states', {
+  id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+  sourceId: integer('source_id')
+    .notNull()
+    .unique()
+    .references(() => sources.id, OWNED),
   etag: text('etag'),
   lastModified: text('last_modified'),
   lastFetchAt: text('last_fetch_at'),
@@ -46,88 +71,105 @@ export const sources = pgTable('sources', {
 export const posts = pgTable(
   'posts',
   {
-    postId: text('post_id').primaryKey(),
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
     url: text('url').notNull(),
-    canonicalUrl: text('canonical_url').notNull(),
-    sourceId: text('source_id')
+    canonicalUrl: text('canonical_url').notNull().unique(),
+    sourceId: integer('source_id')
       .notNull()
-      .references(() => sources.sourceId),
+      .references(() => sources.id, OWNED),
     origTitle: text('orig_title').notNull(),
     excerpt: text('excerpt').notNull(),
     imageUrl: text('image_url'),
     mirroredImageUrl: text('mirrored_image_url'),
-    primaryTopic: topicEnum('primary_topic').notNull(),
+    primaryTopicId: integer('primary_topic_id')
+      .notNull()
+      .references(() => topics.id, REFERENCE_DATA),
     status: postStatusEnum('status').notNull(),
     transform: transformKindEnum('transform').notNull(),
     lang: text('lang'),
     s3RawKey: text('s3_raw_key'),
-    duplicateOf: text('duplicate_of').references((): AnyPgColumn => posts.postId),
+    duplicateOfPostId: integer('duplicate_of_post_id').references(
+      (): AnyPgColumn => posts.id,
+      DETACH_ON_DELETE,
+    ),
     publishedAt: text('published_at').notNull(),
     ingestedAt: text('ingested_at').notNull(),
     expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),
   },
   (t) => [
+    index('posts_source_idx').on(t.sourceId),
+    index('posts_primary_topic_idx').on(t.primaryTopicId),
     index('posts_feed_idx')
-      .on(t.primaryTopic, t.publishedAt.desc(), t.postId.desc())
+      .on(t.primaryTopicId, t.publishedAt.desc(), t.id.desc())
       .where(READY_NOT_DUPLICATE),
-    index('posts_dup_idx').on(t.duplicateOf),
+    index('posts_dup_idx').on(t.duplicateOfPostId),
     index('posts_expiry_idx').on(t.expiresAt),
-    index('posts_time_idx').on(t.publishedAt.desc(), t.postId.desc()),
+    index('posts_time_idx').on(t.publishedAt.desc(), t.id.desc()),
   ],
 );
 
 export const postTranslations = pgTable(
   'post_translations',
   {
-    postId: text('post_id')
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+    postId: integer('post_id')
       .notNull()
-      .references(() => posts.postId, { onDelete: 'cascade' }),
+      .references(() => posts.id, OWNED),
     lang: languageEnum('lang').notNull(),
     cardTitle: text('card_title').notNull(),
     summary: text('summary').notNull(),
     whyItMatters: text('why_it_matters'),
     translatedAt: text('translated_at').notNull(),
   },
-  (t) => [primaryKey({ columns: [t.postId, t.lang] })],
+  (t) => [unique('post_translations_post_lang_key').on(t.postId, t.lang)],
 );
 
 export const postTopics = pgTable(
   'post_topics',
   {
-    postId: text('post_id')
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+    postId: integer('post_id')
       .notNull()
-      .references(() => posts.postId, { onDelete: 'cascade' }),
-    topic: topicEnum('topic').notNull(),
+      .references(() => posts.id, OWNED),
+    topicId: integer('topic_id')
+      .notNull()
+      .references(() => topics.id, OWNED),
   },
-  (t) => [primaryKey({ columns: [t.postId, t.topic] })],
+  (t) => [
+    unique('post_topics_post_topic_key').on(t.postId, t.topicId),
+    index('post_topics_topic_idx').on(t.topicId),
+  ],
 );
 
 export const postCompacts = pgTable(
   'post_compacts',
   {
-    postId: text('post_id')
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+    postId: integer('post_id')
       .notNull()
-      .references(() => posts.postId, { onDelete: 'cascade' }),
+      .references(() => posts.id, OWNED),
     lang: languageEnum('lang').notNull(),
   },
-  (t) => [primaryKey({ columns: [t.postId, t.lang] })],
+  (t) => [unique('post_compacts_post_lang_key').on(t.postId, t.lang)],
 );
 
 export const postFigures = pgTable(
   'post_figures',
   {
-    postId: text('post_id')
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+    postId: integer('post_id')
       .notNull()
-      .references(() => posts.postId, { onDelete: 'cascade' }),
+      .references(() => posts.id, OWNED),
     position: integer('position').notNull(),
     url: text('url').notNull(),
     caption: text('caption'),
   },
-  (t) => [primaryKey({ columns: [t.postId, t.position] })],
+  (t) => [unique('post_figures_post_position_key').on(t.postId, t.position)],
 );
 
 export const users = pgTable('users', {
-  userId: text('user_id').primaryKey(),
+  id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+  externalId: text('external_id').notNull().unique(),
   createdAt: text('created_at').notNull(),
   lastSeenAt: text('last_seen_at').notNull(),
   language: languageEnum('language'),
@@ -139,54 +181,70 @@ export const users = pgTable('users', {
 export const userTopics = pgTable(
   'user_topics',
   {
-    userId: text('user_id')
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+    userId: integer('user_id')
       .notNull()
-      .references(() => users.userId, { onDelete: 'cascade' }),
-    topic: topicEnum('topic').notNull(),
+      .references(() => users.id, OWNED),
+    topicId: integer('topic_id')
+      .notNull()
+      .references(() => topics.id, OWNED),
   },
-  (t) => [primaryKey({ columns: [t.userId, t.topic] })],
+  (t) => [
+    unique('user_topics_user_topic_key').on(t.userId, t.topicId),
+    index('user_topics_topic_idx').on(t.topicId),
+  ],
 );
 
 export const userMutedSources = pgTable(
   'user_muted_sources',
   {
-    userId: text('user_id')
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+    userId: integer('user_id')
       .notNull()
-      .references(() => users.userId, { onDelete: 'cascade' }),
-    sourceId: text('source_id').notNull(),
+      .references(() => users.id, OWNED),
+    sourceSlug: text('source_slug').notNull(),
   },
-  (t) => [primaryKey({ columns: [t.userId, t.sourceId] })],
+  (t) => [unique('user_muted_sources_user_slug_key').on(t.userId, t.sourceSlug)],
 );
 
 export const userTopicReads = pgTable(
   'user_topic_reads',
   {
-    userId: text('user_id')
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+    userId: integer('user_id')
       .notNull()
-      .references(() => users.userId, { onDelete: 'cascade' }),
-    topic: topicEnum('topic').notNull(),
+      .references(() => users.id, OWNED),
+    topicId: integer('topic_id')
+      .notNull()
+      .references(() => topics.id, OWNED),
     readCount: integer('read_count').notNull().default(0),
   },
-  (t) => [primaryKey({ columns: [t.userId, t.topic] })],
+  (t) => [
+    unique('user_topic_reads_user_topic_key').on(t.userId, t.topicId),
+    index('user_topic_reads_topic_idx').on(t.topicId),
+  ],
 );
 
 export const userQuotas = pgTable(
   'user_quotas',
   {
-    userId: text('user_id')
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+    userId: integer('user_id')
       .notNull()
-      .references(() => users.userId, { onDelete: 'cascade' }),
+      .references(() => users.id, OWNED),
     day: text('day').notNull(),
     cardReads: integer('card_reads').notNull().default(0),
     readerOpens: integer('reader_opens').notNull().default(0),
   },
-  (t) => [primaryKey({ columns: [t.userId, t.day] })],
+  (t) => [unique('user_quotas_user_day_key').on(t.userId, t.day)],
 );
 
 export const userEntitlements = pgTable('user_entitlements', {
-  userId: text('user_id')
-    .primaryKey()
-    .references(() => users.userId, { onDelete: 'cascade' }),
+  id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+  userId: integer('user_id')
+    .notNull()
+    .unique()
+    .references(() => users.id, OWNED),
   plan: entitlementPlanEnum('plan').notNull(),
   source: entitlementSourceEnum('source').notNull(),
   expiresAt: text('expires_at'),
@@ -198,37 +256,41 @@ export const userEntitlements = pgTable('user_entitlements', {
 export const userReads = pgTable(
   'user_reads',
   {
-    userId: text('user_id')
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+    userId: integer('user_id')
       .notNull()
-      .references(() => users.userId, { onDelete: 'cascade' }),
-    postId: text('post_id').notNull(),
+      .references(() => users.id, OWNED),
+    postId: integer('post_id').notNull(),
     readAt: text('read_at').notNull(),
     cardTitle: text('card_title').notNull(),
     sourceName: text('source_name').notNull(),
     url: text('url').notNull(),
-    primaryTopic: topicEnum('primary_topic'),
+    primaryTopicId: integer('primary_topic_id').references(() => topics.id, DETACH_ON_DELETE),
   },
   (t) => [
-    primaryKey({ columns: [t.userId, t.postId] }),
+    unique('user_reads_user_post_key').on(t.userId, t.postId),
     index('user_reads_recent_idx').on(t.userId, t.readAt.desc(), t.postId.desc()),
+    index('user_reads_primary_topic_idx').on(t.primaryTopicId),
   ],
 );
 
 export const userBookmarks = pgTable(
   'user_bookmarks',
   {
-    userId: text('user_id')
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+    userId: integer('user_id')
       .notNull()
-      .references(() => users.userId, { onDelete: 'cascade' }),
-    postId: text('post_id').notNull(),
+      .references(() => users.id, OWNED),
+    postId: integer('post_id').notNull(),
     bookmarkedAt: text('bookmarked_at').notNull(),
     cardTitle: text('card_title').notNull(),
     sourceName: text('source_name').notNull(),
     url: text('url').notNull(),
-    primaryTopic: topicEnum('primary_topic'),
+    primaryTopicId: integer('primary_topic_id').references(() => topics.id, DETACH_ON_DELETE),
   },
   (t) => [
-    primaryKey({ columns: [t.userId, t.postId] }),
+    unique('user_bookmarks_user_post_key').on(t.userId, t.postId),
     index('user_bookmarks_recent_idx').on(t.userId, t.bookmarkedAt.desc(), t.postId.desc()),
+    index('user_bookmarks_primary_topic_idx').on(t.primaryTopicId),
   ],
 );

@@ -17,7 +17,6 @@
     "deploy:dev": "sst deploy --stage dev",
     "wipe-users": "tsx scripts/wipeUsers.ts",
     "grant-entitlement": "tsx scripts/grantEntitlement.ts",
-    "migrate-to-neon": "tsx scripts/migrateToNeon.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"
   },

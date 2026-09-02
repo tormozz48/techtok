@@ -23,8 +23,12 @@ export interface TranslatedFields {
   readonly translatedAt: string;
 }
 
-export interface NewPost {
+export interface CreatedPost {
   readonly postId: string;
+  readonly url: string;
+}
+
+export interface NewPost {
   readonly url: string;
   readonly canonicalUrl: string;
   readonly sourceId: string;
@@ -46,6 +50,7 @@ export interface NewPost {
 }
 
 export interface PostRecord extends NewPost {
+  readonly postId: string;
   readonly ingestedAt: string;
   readonly ttl: number;
   readonly mirroredImageUrl?: string;

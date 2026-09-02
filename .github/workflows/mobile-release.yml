@@ -83,15 +83,25 @@ jobs:
       # (credentialsSource defaults to "remote") via EXPO_TOKEN — no keystore
       # file or keystore secret in GitHub. Before this can succeed once, the
       # `production` profile needs credentials established on EAS: run
-      # `npx eas credentials --platform android` once (maintainer, needs an
+      # `npx eas-cli credentials --platform android` once (maintainer, needs an
       # EAS login), select the `production` profile, let EAS generate/store a
       # keystore for it. That keystore is what becomes the permanent Play
-      # upload key.
+      # upload key. SENTRY_ORG/SENTRY_PROJECT/SENTRY_AUTH_TOKEN mirror
+      # mobile-build.yml's already-working preview build exactly — without
+      # them the sentry-android-gradle-plugin's release-bundle task fails the
+      # whole build on "An organization ID or slug is required", not a soft
+      # skip (learned from this workflow's first real run). EAS_LOCAL_BUILD_WORKINGDIR
+      # pins the build to a fixed path so the Gradle cache above actually
+      # hits, same reasoning as mobile-build.yml.
       - name: Build Android App Bundle (eas build --local)
         working-directory: apps/mobile
         env:
+          EAS_LOCAL_BUILD_WORKINGDIR: /home/runner/eas-local-build
           EXPO_PUBLIC_API_URL: ${{ inputs.api_url }}
           EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_WEB_CLIENT_ID }}
+          SENTRY_ORG: tormozz48
+          SENTRY_PROJECT: react-native
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: eas build --platform android --profile production --local --non-interactive --output "${{ github.workspace }}/techtok.aab"
 
       # No auto-submit and no GitHub Release — this is a Play Console upload,

@@ -226,14 +226,20 @@ export class PostsRepo {
     if (id === undefined) return;
     await this.db.delete(postFigures).where(eq(postFigures.postId, id));
     if (figures.length === 0) return;
-    await this.db.insert(postFigures).values(
-      figures.map((figure, position) => ({
-        postId: id,
-        position,
-        url: figure.url,
-        caption: figure.caption,
-      })),
-    );
+    await this.db
+      .insert(postFigures)
+      .values(
+        figures.map((figure, position) => ({
+          postId: id,
+          position,
+          url: figure.url,
+          caption: figure.caption,
+        })),
+      )
+      .onConflictDoUpdate({
+        target: [postFigures.postId, postFigures.position],
+        set: { url: sql`excluded.url`, caption: sql`excluded.caption` },
+      });
   }
 
   async setDuplicateOf(postId: string, duplicateOf: string): Promise<void> {

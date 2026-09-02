@@ -335,6 +335,29 @@ describe('postsRepo.setMirroredFigures', () => {
       'https://cdn.example.com/2.jpg',
     ]);
   });
+
+  it('survives concurrent writes of the same figures for one post', async () => {
+    const postId = await createPost();
+    const figures = [
+      { url: 'https://cdn.example.com/1.jpg' },
+      { url: 'https://cdn.example.com/2.jpg', caption: 'second' },
+    ];
+
+    await expect(
+      Promise.all([
+        repo.setMirroredFigures(postId, figures),
+        repo.setMirroredFigures(postId, figures),
+        repo.setMirroredFigures(postId, figures),
+        repo.setMirroredFigures(postId, figures),
+      ]),
+    ).resolves.toBeDefined();
+
+    const [post] = await repo.getByIds([postId]);
+    expect(post?.mirroredFigures).toEqual([
+      { url: 'https://cdn.example.com/1.jpg', caption: undefined },
+      { url: 'https://cdn.example.com/2.jpg', caption: 'second' },
+    ]);
+  });
 });
 
 describe('postsRepo.setDuplicateOf', () => {

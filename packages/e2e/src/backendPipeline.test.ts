@@ -77,6 +77,7 @@ describe.skipIf(!databaseUrl)('backend pipeline E2E', () => {
       expect(status).toBe('SUCCEEDED');
 
       const afterSources = await sourcesRepo.listEnabled();
+      expect(afterSources.length).toBeGreaterThan(0);
       const staleSources = afterSources.filter((source) => {
         const before = beforeSources.find((b) => b.sourceId === source.sourceId);
         const lastFetchAt = source.lastFetchAt ? Date.parse(source.lastFetchAt) : undefined;

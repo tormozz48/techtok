@@ -5,7 +5,7 @@ import {
 } from '@react-native-google-signin/google-signin';
 import { create } from 'zustand';
 import { isE2eAuthEnabled } from './e2eAuth';
-import { logError, logEvent } from './eventsQueue';
+import { logError, logEvent, serializeError } from './eventsQueue';
 
 export interface AuthUser {
   readonly idToken: string;
@@ -45,7 +45,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return;
       }
     } catch (error) {
-      logError('auth restore failed', { message: String(error) });
+      logError('auth restore failed', serializeError(error), error);
       set({ status: 'signedOut', user: null });
       return;
     }
@@ -63,7 +63,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ status: 'signedIn', user: toAuthUser(response.data.idToken, response.data.user) });
       logEvent('auth_signed_in');
     } catch (error) {
-      logError('sign-in failed', { message: String(error) });
+      logError('sign-in failed', serializeError(error), error);
       throw error;
     }
   },
@@ -89,7 +89,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ status: 'signedOut', user: null });
       logEvent('auth_signed_out');
     } catch (error) {
-      logError('sign-out failed', { message: String(error) });
+      logError('sign-out failed', serializeError(error), error);
       throw error;
     }
   },
@@ -148,7 +148,7 @@ async function attemptSilentSignIn(): Promise<AuthUser | null> {
     if (isNoSavedCredentialFoundResponse(response)) return null;
     return toAuthUser(response.data.idToken, response.data.user);
   } catch (error) {
-    logError('silent sign-in failed', { message: String(error) });
+    logError('silent sign-in failed', serializeError(error), error);
     return null;
   }
 }

@@ -1,7 +1,7 @@
 import type { Topic } from '@techtok/shared';
 import { create } from 'zustand';
 import { fetchMe, putTopics } from '@/api/client';
-import { logError, logEvent } from './eventsQueue';
+import { logError, logEvent, serializeError } from './eventsQueue';
 import { storage } from './storage';
 
 const TOPICS_KEY = 'techtok.topics';
@@ -24,7 +24,7 @@ export const useTopicsStore = create<TopicsState>((set) => ({
       saveCachedTopics(me.topics);
       set({ topics: me.topics });
     } catch (error) {
-      logError('topics load failed', { message: String(error) });
+      logError('topics load failed', serializeError(error), error);
     } finally {
       set({ isLoading: false });
     }
@@ -39,7 +39,7 @@ export const useTopicsStore = create<TopicsState>((set) => ({
       saveCachedTopics(me.topics);
       set({ topics: me.topics });
     } catch (error) {
-      logError('topics update failed', { message: String(error) });
+      logError('topics update failed', serializeError(error), error);
       throw error;
     }
   },

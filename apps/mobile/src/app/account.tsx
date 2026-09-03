@@ -5,7 +5,7 @@ import { deleteAccount } from '@/api/client';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
 import { useAuthStore } from '@/state/authStore';
-import { logError } from '@/state/eventsQueue';
+import { logError, serializeError } from '@/state/eventsQueue';
 import { createStyles } from './account.styles';
 
 export default function AccountScreen() {
@@ -21,7 +21,7 @@ export default function AccountScreen() {
     try {
       await signOut();
     } catch (error) {
-      logError('handleSignOut failed', { message: String(error) });
+      logError('handleSignOut failed', serializeError(error), error);
     }
   };
 

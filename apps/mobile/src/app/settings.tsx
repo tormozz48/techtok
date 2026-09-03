@@ -12,7 +12,7 @@ import { SelectableList } from '@/components/SelectableList';
 import { TopicPicker } from '@/components/TopicPicker';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
-import { logError } from '@/state/eventsQueue';
+import { logError, serializeError } from '@/state/eventsQueue';
 import { useHapticsStore } from '@/state/hapticsStore';
 import { useLanguageStore } from '@/state/languageStore';
 import { useMutedSourcesStore } from '@/state/mutedSourcesStore';
@@ -57,7 +57,7 @@ export default function SettingsScreen() {
       await setTopics(next);
       queryClient.invalidateQueries({ queryKey: ['feed'] });
     } catch (error) {
-      logError('applyTopics failed', { message: String(error) });
+      logError('applyTopics failed', serializeError(error), error);
     }
   };
 
@@ -66,7 +66,7 @@ export default function SettingsScreen() {
       await setLanguage(next);
       queryClient.invalidateQueries({ queryKey: ['feed'] });
     } catch (error) {
-      logError('applyLanguage failed', { message: String(error) });
+      logError('applyLanguage failed', serializeError(error), error);
     }
   };
 
@@ -78,7 +78,7 @@ export default function SettingsScreen() {
       await setMutedSources(next);
       queryClient.invalidateQueries({ queryKey: ['feed'] });
     } catch (error) {
-      logError('toggleMutedSource failed', { message: String(error) });
+      logError('toggleMutedSource failed', serializeError(error), error);
     }
   };
 

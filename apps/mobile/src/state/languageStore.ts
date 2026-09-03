@@ -1,7 +1,7 @@
 import { isLanguage, type Language } from '@techtok/shared';
 import { create } from 'zustand';
 import { fetchMe, putLanguage } from '@/api/client';
-import { logError, logEvent } from './eventsQueue';
+import { logError, logEvent, serializeError } from './eventsQueue';
 import { storage } from './storage';
 
 const LANGUAGE_KEY = 'techtok.language';
@@ -31,7 +31,7 @@ export const useLanguageStore = create<LanguageState>((set, get) => ({
       saveCachedLanguage(me.language);
       set({ language: me.language });
     } catch (error) {
-      logError('language reconcile failed', { message: String(error) });
+      logError('language reconcile failed', serializeError(error), error);
     } finally {
       set({ isLoading: false });
     }
@@ -46,7 +46,7 @@ export const useLanguageStore = create<LanguageState>((set, get) => ({
       set({ language: me.language });
       logEvent('language_changed', { language: me.language });
     } catch (error) {
-      logError('language update failed', { message: String(error) });
+      logError('language update failed', serializeError(error), error);
       if (!(error instanceof Error) || error.name !== 'ZodError') {
         set({ language: previous });
       } else {

@@ -347,6 +347,24 @@ jobs:
       api_url: ${{ needs.deploy-production.outputs.api_url }}
     secrets: inherit
 
+  # D98: wires the Play Store AAB build+submit into the regular main-branch
+  # pipeline instead of leaving it a manual workflow_dispatch. Gated on the
+  # same should_build signal as mobile-build (D53) — no reason to cut a
+  # second native build for a commit that didn't touch anything native — and
+  # needs mobile-build itself so the AAB embeds the versionCode that job's
+  # bump step already pushed to main (see mobile-release.yml's checkout
+  # comment). The Play submission inside mobile-release.yml no-ops until
+  # PlayServiceAccountKey (D71) exists, so this job is safe to enable now.
+  mobile-play-release:
+    needs: [deploy-production, mobile-build, mobile-changes]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.mobile-changes.outputs.should_build == 'true' && needs.mobile-build.result == 'success'
+    uses: ./.github/workflows/mobile-release.yml
+    permissions:
+      contents: read
+    with:
+      api_url: ${{ needs.deploy-production.outputs.api_url }}
+    secrets: inherit
+
   # Mutually exclusive with mobile-build (mobile-changes.should_build/should_ota
   # are never both true — see that job's comment): publishes just the JS
   # bundle to the existing "preview" channel/runtimeVersion instead of paying

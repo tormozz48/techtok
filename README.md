@@ -210,7 +210,7 @@ pnpm --filter mobile prebuild:android    # regenerate android/ after app.json / 
 
 Release signing reads a gitignored `apps/mobile/android/keystore.properties` (falls back to the debug key when absent). Keystore creation, Google Play publishing, and the bare-workflow caveats are documented in [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md).
 
-Note that `eas.json`'s `production` profile still builds an **APK**; the Play launch needs an AAB path (phase 23).
+`eas.json`'s `production` profile builds an **AAB** (`distribution: store`), the artifact `Mobile release (Play Store)` submits to Play.
 
 ### Verifying an OTA update landed
 
@@ -283,13 +283,14 @@ The authenticated suites need a dedicated test Google account's `GOOGLE_TEST_REF
 
 ## Deployment (CI/CD)
 
-Seven GitHub Actions workflows. `CI` is the entry point; the six others are reusable workflows it calls in sequence, each also runnable standalone via `workflow_dispatch`.
+Eight GitHub Actions workflows. `CI` is the entry point; the seven others are reusable workflows it calls in sequence, each also runnable standalone via `workflow_dispatch`.
 
 - **`CI`** ([ci.yml](.github/workflows/ci.yml)) — on PR + push to `main`. Six independent check jobs run in parallel, each doing its own cached `pnpm install` (D51 retired the shared-install `setup` job — the cache made it a net loss): `lint`, `typecheck`, `test`, `schema-check`, `mobile-icon-check` (D59 — catches source icon/splash assets drifting from the committed `android/` project), and `mobile-security-scan` (mobsfscan over the app source and release manifest). A new push cancels an in-flight run **only on PRs** — main-branch runs queue instead, so a merge can never kill a release pipeline mid-deploy (D91).
 - **`Deploy dev`** ([deploy-dev.yml](.github/workflows/deploy-dev.yml)) — deliberately has **no** `needs`, so it races the check jobs instead of queueing behind them (D52); `dev` is throwaway. Uses its own least-privilege OIDC role. Runs `pnpm db:migrate` against Neon (direct connection) before `sst deploy` (D92), so a pending schema migration always reaches `dev` automatically, then invokes the `SeedSources` Lambda after it — idempotent, and the only thing that refills `sources` after a destructive migration (D94), since `LoadSources` merely lists what is already there.
 - **`E2E`** ([e2e.yml](.github/workflows/e2e.yml)) — daily schedule, manual dispatch, and step 3 of the main-branch pipeline. Exercises the real `dev` stage via a narrowly-scoped, read/invoke-only OIDC role (D34). Its `backend-pipeline` job also takes `NEON_DATABASE_URL_DEV_DIRECT` so it can assert every enabled source was refetched, and fails rather than skips when that secret is missing (D97). Its Maestro `mobile-emulator` job is **skipped** in the release pipeline (`skip_mobile_emulator: true`) — UI flake shouldn't block a production deploy.
 - **`Deploy production`** ([deploy-production.yml](.github/workflows/deploy-production.yml)) — gated on E2E *and* all six checks. Runs the same automatic `pnpm db:migrate` step as `Deploy dev` (D92), against production's own direct connection string, before `sst deploy`, and the same post-deploy `SeedSources` invoke after it. Emits the real API URL from its own `.sst/outputs.json` so the mobile build never needs a committed URL.
 - **`Mobile build`** ([mobile-build.yml](.github/workflows/mobile-build.yml)) — builds an Android APK with `eas build --local` (on the GitHub runner, so it consumes **no** EAS cloud-build credits), publishes the JS bundle to the `preview` EAS Update channel (D60), and attaches the APK to a GitHub Release with conventional-commit release notes (D58). It also owns mobile versioning (D42/D44): it computes a conventional-commit semver bump baselined against the last `mobile-v*` tag, pushes it straight to `main` with `[skip ci]` and a rebase-retry loop, then tags the release. A preceding `mobile-changes` job skips the whole build when nothing mobile-relevant landed since that tag (D53), routing a JS-only merge to the `mobile-ota-update` job instead — which publishes the bundle and then moves a `mobile-ota-latest` tag that `mobile-changes` reads as its baseline, so a cancelled run can't drop a publish (D84).
+- **`Mobile release (Play Store)`** ([mobile-release.yml](.github/workflows/mobile-release.yml)) — builds the `production` `eas.json` profile as a Play-uploadable AAB with `eas build --local`, runs after `Mobile build` and gated on the same `should_build` signal (D53), so it only fires when a merge actually needed a new native build (D98). Submits the AAB to the Play Console `internal` track via the Play Developer API when `PlayServiceAccountKey` (D71) is set; until then it uploads the AAB as a downloadable Actions artifact only, the same clean-skip convention as `SENTRY_AUTH_TOKEN`. Also runnable standalone via `workflow_dispatch` for an ad hoc rebuild against a specific API URL.
 - **`Deploy site`** ([deploy-site.yml](.github/workflows/deploy-site.yml)) — builds `apps/site` and publishes to GitHub Pages, checking out `main` at full depth so the version badge and release feed see the tag the mobile build just pushed.
 - **`Release cleanup`** ([release-cleanup.yml](.github/workflows/release-cleanup.yml)) — keeps only the 3 most recent `android-build-*` releases and `mobile-v*` tags (D57), since every merge would otherwise leave a full APK behind forever.
 
@@ -297,8 +298,9 @@ The main-branch release pipeline, in order:
 
 ```
 checks ──┐
-         ├─→ deploy-production ─→ mobile-build ─┬─→ deploy-site
-dev ─→ e2e ┘                                    └─→ release-cleanup
+         ├─→ deploy-production ─→ mobile-build ─┬─→ mobile-play-release
+dev ─→ e2e ┘                                    ├─→ deploy-site
+                                                 └─→ release-cleanup
 ```
 
 ### Required repository secrets
@@ -313,6 +315,7 @@ dev ─→ e2e ┘                                    └─→ release-cleanup
 | `GOOGLE_OAUTH_WEB_CLIENT_ID` | both deploys, Mobile build | Not sensitive; without it every ID token fails on audience mismatch |
 | `EXPO_TOKEN` | Mobile build | Free Expo account; also supplies the signing credentials |
 | `SENTRY_AUTH_TOKEN` | Mobile build, mobile-ota-update | Optional — its absence just skips the source-map/symbol upload |
+| `PlayServiceAccountKey` | Mobile release | Google Cloud service account JSON with Play Developer API access (D71); its absence just skips the Play upload and leaves the AAB as a downloadable artifact |
 | `GOOGLE_TEST_REFRESH_TOKEN`, `GOOGLE_OAUTH_WEB_CLIENT_SECRET` | E2E | The authenticated suites skip cleanly until these exist |
 
 No long-lived AWS keys anywhere — every AWS-touching job assumes a role via OIDC, and every PR-triggered job runs with no credentials at all.

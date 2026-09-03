@@ -9,7 +9,7 @@ import { TopicPicker } from '@/components/TopicPicker';
 import { Spacing } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useStrings } from '@/i18n/useStrings';
-import { logError } from '@/state/eventsQueue';
+import { logError, serializeError } from '@/state/eventsQueue';
 import { useLanguageStore } from '@/state/languageStore';
 import { markOnboardingSeen } from '@/state/onboardingStore';
 import { useTopicsStore } from '@/state/topicsStore';
@@ -37,7 +37,7 @@ export default function OnboardingScreen() {
     try {
       await setLanguage(next);
     } catch (error) {
-      logError('applyLanguage failed', { message: String(error) });
+      logError('applyLanguage failed', serializeError(error), error);
     }
   };
 
@@ -45,7 +45,7 @@ export default function OnboardingScreen() {
     try {
       await setTopics(next);
     } catch (error) {
-      logError('applyTopics failed', { message: String(error) });
+      logError('applyTopics failed', serializeError(error), error);
     }
   };
 

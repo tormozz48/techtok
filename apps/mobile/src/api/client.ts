@@ -23,7 +23,7 @@ import {
 import * as Crypto from 'expo-crypto';
 import { useAuthStore } from '@/state/authStore';
 import { detectDeviceLanguage, detectDeviceTimezone } from '@/state/deviceLanguage';
-import { logError } from '@/state/logStore';
+import { logError, serializeError } from '@/state/logStore';
 import { queryClient } from '@/state/queryClient';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
@@ -223,12 +223,11 @@ async function apiFetch(url: URL, init: RequestInit = {}): Promise<Response> {
   try {
     response = await fetch(url.toString(), { ...init, headers: buildHeaders(init, requestId) });
   } catch (err) {
-    logError('api network request failed', {
-      requestId,
-      method,
-      path: url.pathname,
-      error: err instanceof Error ? err.message : String(err),
-    });
+    logError(
+      'api network request failed',
+      { requestId, method, path: url.pathname, ...serializeError(err) },
+      err,
+    );
     throw err;
   }
 

@@ -7,7 +7,7 @@ const BATCH_SIZE = 50;
 
 let started = false;
 
-export { logError, logEvent } from './logStore';
+export { logError, logEvent, serializeError } from './logStore';
 
 export async function flushEventsQueue(): Promise<void> {
   const queue = loadQueue();

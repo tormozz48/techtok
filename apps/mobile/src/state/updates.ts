@@ -2,7 +2,7 @@ import * as Updates from 'expo-updates';
 import { AppState } from 'react-native';
 import { decideOnForeground } from '@/utils/otaUpdate';
 import { useAuthStore } from './authStore';
-import { logError, logEvent } from './eventsQueue';
+import { logError, logEvent, serializeError } from './eventsQueue';
 
 let started = false;
 let isUpdatePending = false;
@@ -32,7 +32,7 @@ export function startOtaUpdates(): void {
     if (action === 'reload') {
       logEvent('ota_update_reload_triggered');
       Updates.reloadAsync().catch((error) => {
-        logError('ota update reload failed', { message: String(error) });
+        logError('ota update reload failed', serializeError(error), error);
       });
       return;
     }
@@ -50,7 +50,7 @@ async function fetchUpdate(): Promise<void> {
     isUpdatePending = fetched.isNew || fetched.isRollBackToEmbedded;
     if (isUpdatePending) logEvent('ota_update_fetched');
   } catch (error) {
-    logError('ota update fetch failed', { message: String(error) });
+    logError('ota update fetch failed', serializeError(error), error);
   } finally {
     isFetching = false;
   }

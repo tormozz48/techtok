@@ -2,7 +2,7 @@ import type { Language } from '@techtok/shared';
 import * as Speech from 'expo-speech';
 import { create } from 'zustand';
 import { toSpeechLanguageCode } from '@/utils/speechLanguage';
-import { logError, logEvent } from './eventsQueue';
+import { logError, logEvent, serializeError } from './eventsQueue';
 
 interface SpeechState {
   speakingId: string | null;
@@ -25,7 +25,7 @@ export const useSpeechStore = create<SpeechState>((set, get) => ({
       const languages = new Set(voices.map((voice) => voice.language.slice(0, 2).toLowerCase()));
       set({ availableLanguages: languages });
     } catch (error) {
-      logError('speech voice availability check failed', { message: String(error) });
+      logError('speech voice availability check failed', serializeError(error), error);
     }
   },
 

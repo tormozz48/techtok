@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { fetchMe, putMutedSources } from '@/api/client';
-import { logError, logEvent } from './eventsQueue';
+import { logError, logEvent, serializeError } from './eventsQueue';
 import { storage } from './storage';
 
 const MUTED_SOURCES_KEY = 'techtok.mutedSources';
@@ -23,7 +23,7 @@ export const useMutedSourcesStore = create<MutedSourcesState>((set) => ({
       saveCachedMutedSources(me.mutedSources);
       set({ mutedSources: me.mutedSources });
     } catch (error) {
-      logError('muted sources load failed', { message: String(error) });
+      logError('muted sources load failed', serializeError(error), error);
     } finally {
       set({ isLoading: false });
     }
@@ -38,7 +38,7 @@ export const useMutedSourcesStore = create<MutedSourcesState>((set) => ({
       saveCachedMutedSources(me.mutedSources);
       set({ mutedSources: me.mutedSources });
     } catch (error) {
-      logError('muted sources update failed', { message: String(error) });
+      logError('muted sources update failed', serializeError(error), error);
       throw error;
     }
   },

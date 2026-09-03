@@ -42,7 +42,7 @@ A "card read" is the existing §1 settle event (1.5 s active page), *not* a feed
 
 Paid does **not** buy access to more of a publisher's text — it buys a longer version of *our own* condensation, on demand, plus the removal of our own limits (D72). That distinction is the whole rights posture of the paid tier.
 
-### Seed sources (all editable — live in a DynamoDB table + seed file)
+### Seed sources (all editable — live in a Postgres `sources` table + seed file)
 
 | Preset | Sources (verify exact feed URLs at implementation) | Default topic |
 |---|---|---|
@@ -182,7 +182,7 @@ flowchart LR
     APIGW[API Gateway HTTP API /v1<br/>JWT authorizer: accounts.google.com, D68]
     FN_API[API Lambdas<br/>feed · reads · prefs · history · topics · content cache-read<br/>quota · entitlement · billing verify · account delete]
     EXT[ExtendedCompact Lambda<br/>on demand, paid, D72]
-    DDB[(DynamoDB<br/>Sources · Posts · Users · UserActivity)]
+    PG[(Neon Postgres<br/>16 tables, Drizzle, D90/D94)]
     EB[EventBridge Schedule<br/>rate 60 min]
     SFN[Step Functions<br/>IngestPipeline]
     FETCH[FetchSource Lambda<br/>Map, concurrency 4]
@@ -198,7 +198,7 @@ flowchart LR
   end
 
   SOURCES[RSS feeds] --> FETCH
-  APP -- "Authorization: Bearer &lt;Google ID token&gt;" --> APIGW --> FN_API --> DDB
+  APP -- "Authorization: Bearer &lt;Google ID token&gt;" --> APIGW --> FN_API --> PG
   APP -- cached compact reads --> CDN
   APP -- purchase token on app open, D71 --> FN_API
   FN_API -- verify subscription --> PLAY[Google Play Developer API]
@@ -206,22 +206,22 @@ flowchart LR
   EXT -- extended compact JSON --> CDN
   EB --> SFN --> FETCH
   FETCH -- new postIds --> SQS --> TRANSFORM
-  FETCH -- skeleton posts --> DDB
+  FETCH -- skeleton posts --> PG
   TRANSFORM -- eager per-language jobs, D27 --> TRQ --> TRANSLATE
   TRANSFORM -- eager per-language compact jobs, D36 --> CQ --> CONTENT
   FN_API -- cache read / not-ready check --> CDN
   CONTENT --> LLM
   CONTENT -- mirrored figures + compact JSON --> CDN
-  CONTENT -- compactLangs --> DDB
-  TRANSLATE -- i18n map --> DDB
+  CONTENT -- post_compacts row --> PG
+  TRANSLATE -- post_translations row --> PG
   TRANSLATE --> LLM
   TRANSFORM --> S3
   TRANSFORM -- mirrored images --> CDN
   TRANSFORM --> LLM
-  TRANSFORM -- card fields --> DDB
+  TRANSFORM -- card fields --> PG
 ```
 
-**Data flow:** the scheduler kicks a Step Function that fans out over enabled sources; each fetch does a conditional GET on the RSS feed, deduplicates entries by canonical-URL hash (conditional put), and enqueues only *new* posts to SQS. The transform consumer fetches the article page, extracts text + og:image, archives raw HTML to S3, mirrors the image, calls the configured LLM provider (OpenRouter by default, Bedrock as a dormant fallback — D32) for the card copy + topic classification (no cap, D31), enqueues eager `TranslateQueue` jobs for the 3 non-English languages (D27), enqueues eager `ContentQueue` compact-generation jobs for all 4 languages (D36), and updates the post to `ready`. The content consumer extracts + mirrors the post's figures once (language-independent), then generates and caches compact-article JSON for each language on the CDN — eager, not tap-triggered (D36); the API's own content route is now a plain cache read, returning cached blocks or a typed "not ready yet" for the rare miss. The API side is otherwise plain request/response Lambdas over DynamoDB.
+**Data flow:** the scheduler kicks a Step Function that fans out over enabled sources; each fetch does a conditional GET on the RSS feed, deduplicates entries by canonical-URL hash (`unique(canonical_url)` on `posts`), and enqueues only *new* posts to SQS. The transform consumer fetches the article page, extracts text + og:image, archives raw HTML to S3, mirrors the image, calls the configured LLM provider (OpenRouter by default, Bedrock as a dormant fallback — D32) for the card copy + topic classification (no cap, D31), enqueues eager `TranslateQueue` jobs for the 3 non-English languages (D27), enqueues eager `ContentQueue` compact-generation jobs for all 4 languages (D36), and updates the post to `ready`. The content consumer extracts + mirrors the post's figures once (language-independent), then generates and caches compact-article JSON for each language on the CDN — eager, not tap-triggered (D36); the API's own content route is now a plain cache read, returning cached blocks or a typed "not ready yet" for the rare miss. The API side is otherwise plain request/response Lambdas over Neon Postgres (Drizzle, `neon-http`, D90/D94 — see §6).
 
 ---
 
@@ -239,7 +239,7 @@ techtok/
 ├── packages/
 │   ├── shared/              # zod contracts, topic taxonomy, API types (server+app)
 │   ├── core/                # domain logic: rss mapping, url canonicalization,
-│   │                        #   repos (DDB), feed merge, llm client, extractors
+│   │                        #   repos (Postgres/Drizzle), feed merge, llm client, extractors
 │   └── functions/           # thin Lambda handlers: api/*, ingest/*, transform/*
 ├── apps/
 │   ├── mobile/              # Expo app (expo-router)
@@ -386,17 +386,17 @@ All **four** contracts (three through D36; the fourth added by D72) share the sa
 
 ### 7.5 Extension pipeline stages (phases 7–9, made fully eager by D27/D36)
 
-**Image chain fix (D24), inside existing stages:** FetchSource's mapper implements the full fallback chain (`enclosure` → `media:content`/`media:thumbnail` → `<img>` in `content:encoded`/`content`/`summary`); the transform stage adds the final rung — when the post has no `imageUrl`, take og:image from the `@extractus` result (already in hand) before the mirror step, with a small denylist for known-generic images (arXiv logo). **Quality gate (D28):** before mirroring any candidate, check its real pixel dimensions (`image-size`, header-only) and reject below 600px in either dimension; a rejected ingest-time image now also triggers the og:image rung (not only a fully-missing one), and a rejected/absent/denylisted og:image falls through to the stub. `mirrorImage` reports a three-way `'ok' | 'rejected' | 'failed'` outcome rather than a plain `string | undefined` so the cascade only advances on a genuine quality rejection, never on an infra failure (which still degrades to the raw hotlink); when both candidates end up rejected, `PostsRepo.updateTransform`'s new `clearImageUrl` flag issues an explicit DynamoDB `REMOVE` so the stale ingest-time `imageUrl` can never be served raw.
+**Image chain fix (D24), inside existing stages:** FetchSource's mapper implements the full fallback chain (`enclosure` → `media:content`/`media:thumbnail` → `<img>` in `content:encoded`/`content`/`summary`); the transform stage adds the final rung — when the post has no `imageUrl`, take og:image from the `@extractus` result (already in hand) before the mirror step, with a small denylist for known-generic images (arXiv logo). **Quality gate (D28):** before mirroring any candidate, check its real pixel dimensions (`image-size`, header-only) and reject below 600px in either dimension; a rejected ingest-time image now also triggers the og:image rung (not only a fully-missing one), and a rejected/absent/denylisted og:image falls through to the stub. `mirrorImage` reports a three-way `'ok' | 'rejected' | 'failed'` outcome rather than a plain `string | undefined` so the cascade only advances on a genuine quality rejection, never on an infra failure (which still degrades to the raw hotlink); when both candidates end up rejected, `PostsRepo.updateTransform`'s `clearImageUrl` flag issues an explicit `image_url = null` update so the stale ingest-time image URL can never be served raw.
 
 **Translate stage (D22, eager as of D27):** `TranslateQueue` (SQS + DLQ, same redrive semantics as transform) consumed by a translate Lambda (ESM `maxConcurrency: 2` — respects the D16 account ceiling). Messages `{ postId, lang }` are enqueued eagerly at transform time, one per non-English language, for every post (D27 — supersedes the original feed-read-triggered enqueue). Consumer: LLM translation → write `i18n[lang]` (no daily cap check — removed by D31). Content-level failures (LLM refusal/invalid output) leave the post on English fallback, so nothing degrades. Infra failures throw → SQS retry → DLQ → existing alarm.
 
-**Content stage (D23; eager for all 4 languages as of D36):** `transformArticle` enqueues one `ContentQueue` message per language (en/ru/uk/pl), for every post, right after archiving raw HTML — independent of the card-generation LLM outcome and of `TranslateQueue`. The content consumer, on its **first** message for a given post, extracts + mirrors that post's in-body figures once (≤5, min dimensions, existing `ImageStore`) and writes them to `Posts.mirroredFigures`; every subsequent per-language message for that post reuses the stored figure list instead of re-extracting/re-mirroring. Per language: check `Sources.compactEnabled` (kill switch stays — rights guardrail, D23, unrelated to cost) → compact-article LLM call → write `content/<postId>/<lang>.json` to S3, append `lang` to `Posts.compactLangs`. Content-level failures (LLM refusal, disallowed by robots.txt, archive+live-fetch both unavailable) mean that language's compact simply never gets cached — no alarm, no retry; the reader degrades to the direct link-out for that language only. Infra failures throw → SQS retry → DLQ → alarm, same split as every other stage. The API's `GET /v1/posts/:id/content?lang=` is now a **plain cache read** (S3 cache hit → return blocks; miss → typed "not ready yet", since eager generation should already be in flight) — no job IDs, no polling, no synchronous LLM call on the request path at all.
+**Content stage (D23; eager for all 4 languages as of D36):** `transformArticle` enqueues one `ContentQueue` message per language (en/ru/uk/pl), for every post, right after archiving raw HTML — independent of the card-generation LLM outcome and of `TranslateQueue`. The content consumer, on its **first** message for a given post, extracts + mirrors that post's in-body figures once (≤5, min dimensions, existing `ImageStore`) and writes them to `post_figures`; every subsequent per-language message for that post reuses the stored figure list instead of re-extracting/re-mirroring. Per language: check `sources.compact_enabled` (kill switch stays — rights guardrail, D23, unrelated to cost) → compact-article LLM call → write `content/<contentKey>/<lang>.json` to S3, insert the `post_compacts` row for that `(post_id, lang)`. Content-level failures (LLM refusal, disallowed by robots.txt, archive+live-fetch both unavailable) mean that language's compact simply never gets cached — no alarm, no retry; the reader degrades to the direct link-out for that language only. Infra failures throw → SQS retry → DLQ → alarm, same split as every other stage. The API's `GET /v1/posts/:id/content?lang=` is now a **plain cache read** (S3 cache hit → return blocks; miss → typed "not ready yet", since eager generation should already be in flight) — no job IDs, no polling, no synchronous LLM call on the request path at all.
 
 ### 7.6 Extended-compact stage (phase 22, D72)
 
-The one deliberately-not-a-pipeline-stage LLM path. `POST /v1/posts/:id/extended` runs in its own Lambda (60 s timeout, separate from the thin cache-read content route so a slow generation can never affect the free reader's latency profile) and does, in order: check entitlement (402 `plus_required`) → check the monthly fair-use counter (429 `fair_use_exceeded`) → check the CDN for `content/<postId>/<lang>.extended.json` (hit → return, and **do not** increment fair use, so re-reading something you already generated is free) → check `Sources.compactEnabled` (the D23 rights kill switch applies unchanged to the paid artifact) → read the archived raw HTML from S3 → one LLM call → validate → write to the CDN, append to `Posts.extendedLangs`, increment fair use.
+The one deliberately-not-a-pipeline-stage LLM path. `POST /v1/posts/:id/extended` runs in its own Lambda (60 s timeout, separate from the thin cache-read content route so a slow generation can never affect the free reader's latency profile) and does, in order: check entitlement (402 `plus_required`) → check the monthly fair-use counter (429 `fair_use_exceeded`) → check the CDN for `content/<contentKey>/<lang>.extended.json` (hit → return, and **do not** increment fair use, so re-reading something you already generated is free) → check `sources.compact_enabled` (the D23 rights kill switch applies unchanged to the paid artifact) → read the archived raw HTML from S3 → one LLM call → validate → write to the CDN, upsert the extended-variant `post_compacts` row, increment fair use.
 
-It follows the standing failure split, with the degrade target being the *free* compact rather than the link-out: an LLM refusal, invalid output, or a missing archive all mean the reader shows the ~400–600-word compact it would have shown anyway, with a one-line note — a paid user is never left with an error screen, and never has a fair-use unit deducted for a generation that failed. Infra failures (S3/DynamoDB unavailable) still throw. Because generation is synchronous and user-visible, this is also the only path where the D16 concurrency ceiling could bite in a user-facing way; at the expected subscriber count it is far from binding, and the mitigation if it ever is, is to move generation behind a queue and poll — the design D27 already built and D36 retired, recoverable from git history.
+It follows the standing failure split, with the degrade target being the *free* compact rather than the link-out: an LLM refusal, invalid output, or a missing archive all mean the reader shows the ~400–600-word compact it would have shown anyway, with a one-line note — a paid user is never left with an error screen, and never has a fair-use unit deducted for a generation that failed. Infra failures (S3/Postgres unavailable) still throw. Because generation is synchronous and user-visible, this is also the only path where the D16 concurrency ceiling could bite in a user-facing way; at the expected subscriber count it is far from binding, and the mitigation if it ever is, is to move generation behind a queue and poll — the design D27 already built and D36 retired, recoverable from git history.
 
 ---
 
@@ -426,7 +426,7 @@ It follows the standing failure split, with the degrade target being the *free* 
 - **API/mobile compatibility:** *(D34, phase 14)* a committed snapshot of `packages/shared`'s zod contracts (`packages/shared/schema-snapshot.json`) is diffed on every PR; a removed field, narrowed/changed type, or removed enum value fails CI — this exists because sideloaded mobile APKs have no auto-update (D18) and can run for a long time against whatever API is currently live.
 - **Mobile versioning:** *(D35, retired D41, tag-only reinstated D42, bump automation reinstated D43 then moved back to `main` by D44, phase 14)* `apps/mobile/app.json`'s `version` is the canonical source. `mobile-build.yml`'s `android` job (post-merge to `main` only) does both remaining steps itself: (1) D44's bump step computes a conventional-commit-driven bump (baselined against the latest `mobile-v*` tag) and, if the three files changed, commits and pushes directly to `main` — with a `[skip ci]` marker so the push doesn't retrigger `ci.yml`, and a bounded rebase-and-retry loop against a concurrent push — skipping entirely if a manual bump already landed since that tag; (2) D42's tag step pushes a `mobile-v$VERSION` git tag once the build/release succeed, if that tag doesn't already exist. `package.json` and `android/app/build.gradle`'s `versionName`/`versionCode` stay in sync with `app.json` via the bump step. D40's original design (bump-commit-tag-push landing directly on `main` post-merge) was tried and retired in D41 after a real push race broke a `mobile-build` run, then D43 moved the bump to a PR's own branch specifically because `main`'s ruleset blocked direct pushes outright at the time — D44 moves it back now that the ruleset's `pull_request` requirement has been removed, adding the `[skip ci]` guard and rebase-retry loop D40/D41 lacked.
 - **Conventions:** conventional commits; solo work goes to `main` behind green CI, branches for risky work. **Definition of done:** Biome + typecheck + tests green, deployed to dev stage, feature exercised on a device/emulator.
-- **Stages:** personal dev stage (`sst dev` live development) + `production`. Same AWS account is fine at this scale — SST already namespaces every resource's physical name by `<app>-<stage>` (confirmed 2026-07-24: every `sst.aws.*` component in `infra/` uses SST's logical name, none set an explicit shared physical name), so dev and production get fully separate DynamoDB tables, Lambdas, SQS queues, S3 buckets, Step Functions, and API Gateway/CloudFront — zero resource sharing across stages today. The Bedrock model/inference profile ID and the OpenRouter model slug (D32) are both stage-agnostic plain strings, not SST-owned resources; the OpenRouter API key itself *is* stage-scoped (an `sst.Secret` set independently per stage, even though the value happens to be the same).
+- **Stages:** personal dev stage (`sst dev` live development) + `production`. Same AWS account is fine at this scale — SST already namespaces every resource's physical name by `<app>-<stage>` (confirmed 2026-07-24: every `sst.aws.*` component in `infra/` uses SST's logical name, none set an explicit shared physical name), so dev and production get fully separate Neon Postgres databases (a per-stage `NeonDatabaseUrl` secret, same pattern as `OpenRouterApiKey`), Lambdas, SQS queues, S3 buckets, Step Functions, and API Gateway/CloudFront — zero resource sharing across stages today. The Bedrock model/inference profile ID and the OpenRouter model slug (D32) are both stage-agnostic plain strings, not SST-owned resources; the OpenRouter API key itself *is* stage-scoped (an `sst.Secret` set independently per stage, even though the value happens to be the same).
 - **Observability:** Lambda Powertools (TypeScript) structured logs + EMF metrics from phase 0 (`IngestedCount`, `TransformFail`, `LLMDailyCount`); 14-day log retention. Alarms: DLQ depth > 0, SFN execution failed, API 5xx spike, AWS Budget at $25 (D74, infrastructure-drift signal only). Extended to mobile client observability by D76: a `POST /v1/events` route ingests batched client logs + product-analytics events into the same Powertools/CloudWatch pipeline.
 - **Secrets:** none needed v1 (Bedrock is IAM). First real secret as of D32 (phase 13, code complete): `OpenRouterApiKey` via `sst secret set --stage <stage>` — not yet set on either stage, so a live deploy is still pending. Second as of D71 (phase 21): `PlayServiceAccountKey`, a Google Cloud service-account JSON with Play Developer API access, same per-stage `sst secret set` mechanism. The Google OAuth **client ID** is not a secret (it's public by design) and lives in config, not `sst.Secret`. Phase 19 implementation surfaced one more, GitHub-side (not `sst.Secret` — the E2E workflow's own credential, not an app runtime one): `GOOGLE_TEST_REFRESH_TOKEN` + `GOOGLE_OAUTH_WEB_CLIENT_SECRET`, for `packages/e2e`'s dedicated test Google account (`.github/workflows/e2e.yml`, `packages/e2e/src/googleTestAuth.ts`) — the authenticated API-contract E2E suites `describe.skipIf` cleanly until these are set, rather than failing.
 
@@ -437,7 +437,7 @@ It follows the standing failure split, with the degrade target being the *free* 
 | Item | Assumption | Est. |
 |---|---|---|
 | API GW + Lambda + SQS + EventBridge | well inside free tiers | ~$0 |
-| DynamoDB on-demand | **Measured, not estimated** (Cost Explorer, Aug 2026, `dev` + `production`): 3.48M write units = $2.65, 514k read units = $0.08, storage $0 (0.18 GB, free tier). Essentially all cost is write amplification from ~10 pipeline updates per post against a 3.46 KB average item; D88's GSI projection narrowing models this down to ~$1.15, with an `i18n` relocation as the remaining lever to ~$0.40 | **$2.75 measured** → ~$1.15 post-D88 |
+| ~~DynamoDB on-demand~~ (superseded by D90) | Historical, pre-migration measurement (Cost Explorer, Aug 2026, `dev` + `production`): 3.48M write units = $2.65, 514k read units = $0.08, storage $0 (0.18 GB, free tier) — essentially all write amplification from ~10 pipeline updates per post against a 3.46 KB average item. **D90 removed this line from the AWS bill entirely**, replacing it with Neon Postgres (measured 2026-08-31: `production` ~56 MB total). D90 is not a cost migration (this DynamoDB cost was already near-zero after D88) — Neon's own free-tier limits (storage, compute, and the binding new constraint, 5 GB/month egress) are the cost signal now, tracked on Neon's dashboard rather than AWS Cost Explorer, the same way OpenRouter spend already sits outside this table | **$2.75/mo historical (DynamoDB)** → Neon, currently within free tier |
 | Step Functions (standard) | 48 runs/day × ~15 transitions | ~$0.50 |
 | S3 + lifecycle | <2 GB rolling (raw HTML + compact JSON) | ~$0.05 |
 | CloudFront + mirrored images/figures + compact content | low request volume, <2 GB rolling, 90-day lifecycle | ~$1 |
@@ -453,7 +453,7 @@ It follows the standing failure split, with the degrade target being the *free* 
 
 The AWS Budget alarm is raised from $10 to **$25** (D74, amending D11) and narrowed to an *infrastructure-drift* signal — it never saw LLM spend after D32 anyway. Its original role, described below, is retained verbatim for context:
 
-The AWS Budget alarm stays at **$10** (D11) but its role changed with D31: it's a **monitoring-only signal**, not a backstop on an enforced ceiling — nothing in the pipeline stops spend at any threshold anymore. As of D32, it also only covers AWS-side costs (DynamoDB, S3, CloudFront, etc.) — LLM spend on OpenRouter is invisible to it entirely; the maintainer checks OpenRouter's own dashboard for that. Firing is expected to happen for the AWS-side rows and is not itself an incident; it's the trigger to go read Cost Explorer and decide whether some form of throttle needs to come back (D31's own revisit condition).
+The AWS Budget alarm stays at **$10** (D11) but its role changed with D31: it's a **monitoring-only signal**, not a backstop on an enforced ceiling — nothing in the pipeline stops spend at any threshold anymore. As of D32, it also only covers AWS-side costs (S3, CloudFront, etc. — DynamoDB was the other line here until D90 moved storage to Neon, off the AWS bill) — LLM spend on OpenRouter and database spend on Neon are both invisible to it entirely; the maintainer checks each provider's own dashboard for that. Firing is expected to happen for the AWS-side rows and is not itself an incident; it's the trigger to go read Cost Explorer and decide whether some form of throttle needs to come back (D31's own revisit condition).
 Levers if real spend proves untenable: reintroduce some form of cap (redesigned, since the `Counters` table is deleted), shrink truncation, 60-min cadence, Bedrock batch API (−50%, Bedrock-fallback-only, D32), or fall back to D27's documented demand-targeted alternative for translation (only languages with ≥1 active user).
 Cost Explorer check one week after phases 8 and 9 ship is mandatory (see IMPLEMENTATION_PLAN.md phase 10); a check immediately after phase 12 (D27 + D31) ships was meant to be the load-bearing one for uncapped Bedrock spend — D32 (phase 13, code complete, not yet deployed) moves that spend off AWS Budget entirely, so the equivalent check post-phase-13 is against OpenRouter's own dashboard, not Cost Explorer.
 
@@ -502,13 +502,13 @@ Everything else I would otherwise have asked, with the default the plan assumes:
 | Question | Default (v1) |
 |---|---|
 | Ingestion cadence | 60 min (30 min through phase 17) |
-| Post retention | 90-day TTL (DDB + S3 lifecycle); history snapshots keep forever |
+| Post retention | 90-day `expires_at` + scheduled expiry sweep (replaces DynamoDB TTL, D90) + S3 lifecycle; history snapshots keep forever |
 | Feed with no topic prefs | All topics |
 | Language | English-only **ingest**; serving localized to en/ru/uk/pl on demand (D20–D22, supersedes the original English-only default) |
 | Separate translation verify pass | Self-critique in-call now (D22); a standalone verify stage only if bad-translation reports demand it |
 | Compact-article offline prefetch | **Resolved by D55**, then **removed by D82** — no article content is prefetched; the persisted `content` cache covers re-reading what was already opened |
 | API framework | None — per-route Lambdas + zod (Hono single-Lambda is the fallback if routes proliferate) |
-| DDB modeling | Multi-table (single-table only as a proven-need optimization) |
+| ~~DDB modeling~~ | Moot — superseded by D90/D94's normalized Postgres schema (§6) |
 | Validation library | zod v4 (shared contracts package) |
 | HTTP client (server) | Node 22 built-in fetch/undici |
 | RSS parsing | `rss-parser`; extraction `@extractus/article-extractor` |

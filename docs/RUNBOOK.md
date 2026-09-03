@@ -5,10 +5,14 @@ Started as a phase-10 deliverable (extension-era queues/caps only). Updated
 for phase 12/13/15's changes to the pipeline it documents: all daily LLM
 caps were deleted (D31), the LLM provider switched to OpenRouter with
 Bedrock kept as a dormant fallback (D32), and compact-article generation
-moved from on-demand to eager, dropping the job-polling API (D36). Phase
-6's broader scope — broken-source detection, a generic LLM-provider-outage
-case across all three pipeline paths, and a cost-spike triage flow — still
-hasn't been built and isn't covered below.
+moved from on-demand to eager, dropping the job-polling API (D36). Updated
+again for phase 24's data-layer change: DynamoDB is gone, replaced by Neon
+Postgres via Drizzle (D90/D94, see DESIGN §6) — commands below that used to
+hit a DynamoDB table now go through `psql`/`drizzle-kit` against a per-stage
+Neon connection string instead. Phase 6's broader scope — broken-source
+detection, a generic LLM-provider-outage case across all three pipeline
+paths, and a cost-spike triage flow — still hasn't been built and isn't
+covered below.
 
 All commands assume `AWS_PROFILE=techtok` and the `dev` stage unless noted;
 substitute `--profile` / table names for `production` (CI-deployed only —
@@ -51,10 +55,11 @@ queue URL> --attribute-names ApproximateAgeOfOldestMessage`.
    `MessageId` to see the actual thrown error.
 3. Common root causes seen so far: LLM-provider throttling under burst load
    (OpenRouter by default, or Bedrock if `LLM_PROVIDER=bedrock` is set for
-   that stage, D32), a DynamoDB call using an unaliased reserved word (real
-   precedent: `language` needed `#language` aliasing — see the Phase 8 note
-   in [CLAUDE.md](../CLAUDE.md)), or a `postId` that no longer exists
-   (deleted row racing an in-flight job).
+   that stage, D32), a Postgres constraint violation (D90 replaced the old
+   DynamoDB tables — the pre-migration precedent was an unaliased reserved
+   word in a DynamoDB `UpdateExpression`; see the Phase 8 note in
+   [CLAUDE.md](../CLAUDE.md) for that historical case), or a post that no
+   longer exists (expired/deleted row racing an in-flight job).
 
 **Fix**
 
@@ -112,8 +117,11 @@ URL> --message-body '{"postId":"<id>","lang":"<lang>"}'`.
 
 ## 3. Removing a source from compact generation (D23/D36 kill switch)
 
-Set `Sources.compactEnabled=false`:
-`aws dynamodb update-item --table-name <Sources table> --key '{"sourceId":{"S":"<id>"}}' --update-expression "SET compactEnabled = :f" --expression-attribute-values '{":f":{"BOOL":false}}'`.
+Set `sources.compact_enabled = false`:
+`psql "$NEON_DATABASE_URL_DEV_DIRECT" -c "update sources set compact_enabled = false where slug = '<slug>'"`
+(substitute the `production` direct connection string for that stage — see
+README's [Required repository secrets](../README.md#required-repository-secrets)
+for where these live).
 
 This is checked at two points (D36 added the first; D23 originally added
 the second and it stays as a belt-and-suspenders check):
@@ -157,8 +165,10 @@ not restored.
 
 **If a real cost spike needs triage:** check OpenRouter's per-model usage
 first (most likely cause given uncapped eager translation + eager 4-language
-compacts, D27/D36), then Cost Explorer for the AWS side (S3/CloudFront/DynamoDB
-read-write spikes, Lambda duration). There's no cap to flip off as an
+compacts, D27/D36), then Neon's own dashboard for database compute/egress
+(D90 moved storage off DynamoDB — it no longer shows up in AWS Cost
+Explorer at all), then Cost Explorer for the remaining AWS side
+(S3/CloudFront spikes, Lambda duration). There's no cap to flip off as an
 emergency lever anymore — the only immediate mitigation is disabling a
 noisy source (`compactEnabled=false`, or removing it from `Sources`
 entirely) or rolling back a bad deploy.

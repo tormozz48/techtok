@@ -100,7 +100,7 @@ Definition of done for any change: lint + typecheck + tests green, then exercise
 ## Layout (planned)
 
 - `packages/shared` — zod v4 contracts + topic taxonomy; imported by server **and** app; no runtime deps beyond zod
-- `packages/core` — all business logic (RSS mapping, URL canonicalization, feed merge, DynamoDB repos, LLM client)
+- `packages/core` — all business logic (RSS mapping, URL canonicalization, feed merge, Postgres repos via Drizzle, LLM client)
 - `packages/functions` — thin Lambda handlers only: parse input → call core → serialize
 - `apps/mobile` — Expo app (expo-router)
 - `apps/site` — public project site (Astro, static output), deployed to GitHub Pages
@@ -168,7 +168,7 @@ Watch a CI run with a single blocking call — `gh run watch --exit-status <run-
 
 ## Destructive Operations
 
-For bulk deletes or cleanups against live AWS data (DynamoDB rows, S3 objects, etc.): take a backup first (e.g. export the affected items to a scratchpad file), print the exact count of affected rows, and ask for a single explicit confirmation before executing. Prefer one idempotent script over interactive per-row prompts.
+For bulk deletes or cleanups against live data (Neon Postgres rows, S3 objects, etc.): take a backup first (e.g. export the affected rows to a scratchpad file), print the exact count of affected rows, and ask for a single explicit confirmation before executing. Prefer one idempotent script over interactive per-row prompts.
 
 ## Diagrams & Interactive Intake
 
@@ -189,7 +189,7 @@ Before every commit: `pnpm lint`, then `pnpm typecheck`, then `pnpm test` — al
 
 - Never narrow or otherwise change a `packages/shared` zod schema (or a table's row shape) without first counting existing rows in every live stage that would violate the new shape, and writing an explicit migration or cleanup plan for them. (D31's `TransformKind` narrowing shipped without this check and 500'd `GET /v1/feed` on 1,740 pre-existing `dev` rows.)
 - Adding or removing a value in `packages/shared`'s `TOPICS` needs a **hand-written data statement** in the migration — since D94 topics are rows in a `topics` table, not a pg enum, and `drizzle-kit generate` diffs DDL only, so it will produce an empty migration and the new topic will simply not exist. Removing one additionally has to clear the `restrict` references from `posts.primary_topic_id`/`sources.default_topic_id` first.
-- Watch for DynamoDB reserved keywords (e.g. `language`, `status`, `name`) in any `UpdateExpression`/`ProjectionExpression` — always alias them via `ExpressionAttributeNames`. `aws-sdk-client-mock` does not catch this; it only surfaces live.
+- The DynamoDB reserved-keyword aliasing gotcha (`language`, `status`, `transform` needing `ExpressionAttributeNames`) is retired along with DynamoDB itself (D90) — see the historical note under Status above. Postgres/Drizzle has its own reserved words (e.g. `user`); Drizzle's schema builder quotes identifiers automatically, so this class of bug hasn't recurred, but a raw `sql` template in a repo method is the one place to double-check quoting by hand.
 
 ## Claude config in this repo
 

@@ -251,7 +251,7 @@ jobs:
   # should_build only fires on changes that need a native rebuild (the
   # ~10min `eas build --local` cost): apps/mobile/android, app.json, the
   # mobile package.json/eas.json, pnpm-lock.yaml (a native dep version bump),
-  # or this workflow's own build definition. should_ota fires on the
+  # or mobile-build.yml/mobile-release.yml's own build definitions. should_ota fires on the
   # complementary case — apps/mobile/src, apps/mobile/app (expo-router
   # routes) or packages/shared changed but nothing native-relevant did since the
   # last commit actually published to the channel (D84) — and triggers a
@@ -294,7 +294,8 @@ jobs:
             apps/mobile/package.json \
             apps/mobile/eas.json \
             pnpm-lock.yaml \
-            .github/workflows/mobile-build.yml)
+            .github/workflows/mobile-build.yml \
+            .github/workflows/mobile-release.yml)
           if [ -n "$NATIVE_CHANGED" ]; then
             echo "Native-relevant mobile changes since $BASE:"
             echo "$NATIVE_CHANGED" | sed 's/^/  /'

@@ -148,5 +148,5 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.PlayServiceAccountKey }}
           packageName: com.tormozz48dev.techtok
           releaseFiles: ${{ github.workspace }}/techtok.aab
-          track: internal
+          tracks: internal
           status: completed

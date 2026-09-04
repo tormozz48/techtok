@@ -190,17 +190,19 @@ jobs:
             apps/mobile/eas.json \
             -c apps/mobile/.mobsf
 
-  # From here down (D38, extended by D39): this is the release pipeline for a
-  # merge to main — dev deploy -> e2e against dev -> production deploy ->
-  # mobile build -> {site deploy, release cleanup} (the last two run in
-  # parallel; neither depends on the other). Each stage gates the next so a
-  # broken dev deploy or a failing e2e suite blocks production, and
-  # production never redeploys again just to hand the mobile build a URL (it
-  # reads the same deploy's own output instead). Each stage's actual steps
-  # live in their own workflow file (deploy-dev.yml / e2e.yml /
-  # deploy-production.yml / mobile-build.yml / deploy-site.yml /
-  # release-cleanup.yml) and are pulled in here as reusable workflows, so each
-  # can also be run standalone via workflow_dispatch.
+  # From here down (D38, extended by D39, D98/D99): this is the release
+  # pipeline for a merge to main — dev deploy -> e2e against dev -> production
+  # deploy -> mobile version bump -> {mobile build, mobile Play release} (in
+  # parallel, D99) -> {site deploy, release cleanup} (also parallel, gated on
+  # mobile build only — see mobile-play-release's own comment for why it
+  # isn't in that gate). Each stage gates the next so a broken dev deploy or a
+  # failing e2e suite blocks production, and production never redeploys again
+  # just to hand the mobile jobs a URL (they read the same deploy's own
+  # output instead). Each stage's actual steps live in their own workflow
+  # file (deploy-dev.yml / e2e.yml / deploy-production.yml / mobile-build.yml
+  # / mobile-release.yml / deploy-site.yml / release-cleanup.yml) and are
+  # pulled in here as reusable workflows, so each can also be run standalone
+  # via workflow_dispatch.
   # A reusable workflow's own jobs can only ever be granted permissions the
   # calling job itself was granted (permissions narrow down the call chain,
   # never widen) — so each caller job below must re-declare whatever its
@@ -338,27 +340,98 @@ jobs:
             echo "should_ota=false" >> "$GITHUB_OUTPUT"
           fi
 
+  # D99 (amends D98): the version bump used to live inside mobile-build.yml's
+  # own job, which is why mobile-play-release originally had to `needs:
+  # mobile-build` — it had no other way to see the bumped versionCode before
+  # building its own AAB. Pulling the bump out into its own job lets
+  # mobile-build (APK) and mobile-play-release (AAB) both depend on just this
+  # job and run in parallel, cutting the pipeline's critical path roughly in
+  # half instead of paying for two ~10min native builds back to back.
+  mobile-version-bump:
+    needs: mobile-changes
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.mobile-changes.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # fetch-depth: 0 is needed for bumpMobileVersion.ts's `git tag --list`/
+      # `git log <tag>..HEAD` walk.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # D44 (amends D41/D42/D43): computes a conventional-commit-driven
+      # semver bump (baselined against the last `mobile-v*` tag) and pushes it
+      # directly to `main`. The commit message carries `[skip ci]` so the push
+      # doesn't retrigger `ci.yml`, plus a bounded rebase-and-retry loop
+      # against a genuinely concurrent push to `main` instead of failing
+      # outright on the first non-fast-forward rejection.
+      - name: Compute and push mobile version bump
+        env:
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
+        run: |
+          set -e
+          for attempt in 1 2 3 4 5; do
+            npx tsx scripts/bumpMobileVersion.ts
+            if git diff --quiet; then
+              echo "No version bump needed."
+              break
+            fi
+            VERSION=$(node -e "console.log(require('./apps/mobile/app.json').expo.version)")
+            git add apps/mobile/app.json apps/mobile/package.json apps/mobile/android/app/build.gradle apps/mobile/android/app/src/main/res/values/strings.xml
+            git commit -m "chore(mobile): bump version to $VERSION [skip ci]"
+            if git push origin HEAD:main; then
+              echo "Pushed version bump to $VERSION."
+              break
+            fi
+            if [ "$attempt" = "5" ]; then
+              echo "::error::Failed to push mobile version bump to main after 5 attempts"
+              exit 1
+            fi
+            echo "Push rejected (attempt $attempt) — main moved concurrently, rebasing and retrying..."
+            git reset --hard HEAD~1
+            git fetch origin main
+            git reset --hard origin/main
+          done
+
   mobile-build:
-    needs: [deploy-production, mobile-changes]
+    needs: [deploy-production, mobile-changes, mobile-version-bump]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.mobile-changes.outputs.should_build == 'true'
     uses: ./.github/workflows/mobile-build.yml
     permissions:
       contents: write
     with:
       api_url: ${{ needs.deploy-production.outputs.api_url }}
+      skip_version_bump: true
     secrets: inherit
 
   # D98: wires the Play Store AAB build+submit into the regular main-branch
   # pipeline instead of leaving it a manual workflow_dispatch. Gated on the
   # same should_build signal as mobile-build (D53) — no reason to cut a
-  # second native build for a commit that didn't touch anything native — and
-  # needs mobile-build itself so the AAB embeds the versionCode that job's
-  # bump step already pushed to main (see mobile-release.yml's checkout
-  # comment). The Play submission inside mobile-release.yml no-ops until
-  # PlayServiceAccountKey (D71) exists, so this job is safe to enable now.
+  # second native build for a commit that didn't touch anything native.
+  # D99: runs in parallel with mobile-build (both `needs: mobile-version-bump`
+  # rather than mobile-play-release needing mobile-build itself) — it still
+  # picks up the bumped versionCode by checking out `ref: main` (see
+  # mobile-release.yml's checkout comment), it just no longer has to wait for
+  # the APK build to finish first. The Play submission inside
+  # mobile-release.yml no-ops until PlayServiceAccountKey (D71) exists, so
+  # this job is safe to enable now.
   mobile-play-release:
-    needs: [deploy-production, mobile-build, mobile-changes]
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.mobile-changes.outputs.should_build == 'true' && needs.mobile-build.result == 'success'
+    needs: [deploy-production, mobile-changes, mobile-version-bump]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.mobile-changes.outputs.should_build == 'true'
     uses: ./.github/workflows/mobile-release.yml
     permissions:
       contents: read

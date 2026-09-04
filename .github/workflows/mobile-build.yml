@@ -17,6 +17,16 @@ on:
       api_url:
         required: true
         type: string
+      # D99: ci.yml's own mobile-version-bump job already bumped and pushed
+      # to main before calling this workflow, so its own bump step here would
+      # be a same-version no-op — skipping it outright avoids the wasted
+      # pnpm-install-and-check round trip on every automatic run. A
+      # standalone workflow_dispatch never sets this, so a manual rebuild
+      # still bumps exactly as before.
+      skip_version_bump:
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: mobile-build
@@ -28,11 +38,15 @@ jobs:
     permissions:
       contents: write # create the GitHub Release that hosts the APK
     steps:
-      # fetch-depth: 0 is needed for the version-bump step's `git tag --list`/
-      # `git log <tag>..HEAD` walk.
+      # fetch-depth: 0 is needed for the version-bump/release-notes steps'
+      # `git tag --list`/`git log <tag>..HEAD` walk. ref: main (D99, not the
+      # default github.sha) so that when ci.yml's mobile-version-bump job has
+      # already pushed a bump commit, this checkout sees it — standalone
+      # workflow_dispatch runs are also always meant to build off main.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: main
 
       - uses: pnpm/action-setup@v4
 
@@ -77,7 +91,10 @@ jobs:
       # `main`, instead of failing outright on the first non-fast-forward
       # rejection (D41's original failure mode). D43's PR-branch auto-bump
       # workflow is retired — this is the only automated bump path now.
+      # Skipped (D99) when ci.yml's own mobile-version-bump job already did
+      # this before calling us — see this workflow's `skip_version_bump` input.
       - name: Compute and push mobile version bump
+        if: inputs.skip_version_bump != true
         env:
           GIT_AUTHOR_NAME: github-actions[bot]
           GIT_AUTHOR_EMAIL: github-actions[bot]@users.noreply.github.com

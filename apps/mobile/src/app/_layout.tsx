@@ -59,7 +59,6 @@ function RootLayout() {
   useEffect(() => {
     ready().then(async () => {
       startNetworkMonitoring();
-      useTopicsStore.getState().load();
       useThemeStore.getState().load();
       useHapticsStore.getState().load();
       useLanguageStore.getState().hydrate();
@@ -74,6 +73,7 @@ function RootLayout() {
   useEffect(() => {
     if (authStatus === 'signedIn') {
       useLanguageStore.getState().load();
+      useTopicsStore.getState().load();
     }
   }, [authStatus]);
 

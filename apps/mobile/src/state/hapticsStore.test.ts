@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it } from 'vitest';
 import { useHapticsStore } from './hapticsStore';
 import { storage } from './storage';
 

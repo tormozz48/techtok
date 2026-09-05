@@ -1,28 +1,31 @@
 import type { ContentResponse, FeedResponse } from '@techtok/shared';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApiError, fetchFeedPage, fetchPostContent } from './client';
 
-const mockInvalidateQueries = jest.fn();
+vi.hoisted(() => {
+  process.env.EXPO_PUBLIC_API_URL = 'https://api.test';
+});
 
-jest.mock('@/state/queryClient', () => ({
+const mockInvalidateQueries = vi.fn();
+
+vi.mock('@/state/queryClient', () => ({
   queryClient: {
     invalidateQueries: (...args: unknown[]) => mockInvalidateQueries(...args),
   },
 }));
 
-jest.mock('expo-crypto', () => ({ randomUUID: () => 'test-request-id' }));
+vi.mock('expo-crypto', () => ({ randomUUID: () => 'test-request-id' }));
 
-jest.mock('@/state/authStore', () => ({
-  useAuthStore: { getState: () => ({ user: null, refreshToken: jest.fn() }) },
+vi.mock('@/state/authStore', () => ({
+  useAuthStore: { getState: () => ({ user: null, refreshToken: vi.fn() }) },
 }));
 
-jest.mock('@/state/deviceLanguage', () => ({
+vi.mock('@/state/deviceLanguage', () => ({
   detectDeviceLanguage: () => 'en',
   detectDeviceTimezone: () => 'Europe/Warsaw',
 }));
 
-jest.mock('@/state/logStore', () => ({ logError: jest.fn() }));
-
-process.env.EXPO_PUBLIC_API_URL = 'https://api.test';
-const { ApiError, fetchFeedPage, fetchPostContent } = require('./client');
+vi.mock('@/state/logStore', () => ({ logError: vi.fn() }));
 
 function okResponse(body: unknown): Response {
   return { ok: true, status: 200, json: async () => body } as unknown as Response;
@@ -36,7 +39,7 @@ function errorResponse(status: number, code: string): Response {
   } as unknown as Response;
 }
 
-const fetchMock = jest.fn();
+const fetchMock = vi.fn();
 global.fetch = fetchMock as unknown as typeof fetch;
 
 const ENTITLEMENT_INVALIDATION = { queryKey: ['entitlement'] };

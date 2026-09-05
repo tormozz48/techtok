@@ -1,4 +1,5 @@
 import type { Card as CardData } from '@techtok/shared';
+import { describe, expect, it } from 'vitest';
 import { selectImagesToPrefetch } from './prefetch';
 
 function card(id: string, imageUrl?: string): CardData {

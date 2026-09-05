@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import { hasQuotaResetPassed, msUntilQuotaReset } from './quotaReset';
 
 const NOW = new Date('2026-08-21T21:00:00.000Z').getTime();

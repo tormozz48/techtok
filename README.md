@@ -263,8 +263,10 @@ Operational playbooks — stuck DLQs, compact-generation failures, the per-sourc
 pnpm lint        # Biome + the no-comments check — no ESLint/Prettier in this repo (D7)
 pnpm lint:comments  # just the no-comments check; accepts file paths to narrow it
 pnpm typecheck   # tsc --noEmit, every package + scripts + sst.config.ts/infra (the latter only after a first `pnpm dev`)
-pnpm test        # vitest (shared/core/functions) + jest (mobile)
+pnpm test        # vitest (every *.test.ts) + jest-expo (apps/mobile's *.test.tsx render tests)
 ```
+
+Two test runners, split by file extension (D104): every `*.test.ts` in the repo runs under **Vitest** — including `apps/mobile`'s stores, utils and API client, which are a `mobile` project in the root [vitest.config.ts](vitest.config.ts) with their own [apps/mobile/vitest.config.ts](apps/mobile/vitest.config.ts) and [vitest.setup.ts](apps/mobile/vitest.setup.ts) native-module mocks. Only `*.test.tsx` runs under **jest-expo**, because rendering a React Native tree needs its babel pipeline; those tests keep using [apps/mobile/__mocks__/](apps/mobile/__mocks__). Write a new mobile test as `.test.ts` unless it renders a component.
 
 All three must be green before considering a change done. Two extras, each a cheap proxy for a real device/browser pass:
 

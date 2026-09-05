@@ -1,4 +1,5 @@
 import type { CompactBlock, CompactFigure } from '@techtok/shared';
+import { describe, expect, it } from 'vitest';
 import { blocksToPlainText } from './blocksToPlainText';
 
 describe('blocksToPlainText', () => {

@@ -1,9 +1,10 @@
 import * as Speech from 'expo-speech';
+import { beforeEach, describe, expect, it, type Mock } from 'vitest';
 import { useSpeechStore } from './speechStore';
 
-const speakMock = Speech.speak as jest.Mock;
-const stopMock = Speech.stop as jest.Mock;
-const getAvailableVoicesAsyncMock = Speech.getAvailableVoicesAsync as jest.Mock;
+const speakMock = Speech.speak as Mock;
+const stopMock = Speech.stop as Mock;
+const getAvailableVoicesAsyncMock = Speech.getAvailableVoicesAsync as Mock;
 
 beforeEach(() => {
   speakMock.mockClear();

@@ -1,12 +1,13 @@
+import { beforeEach, describe, expect, it, type MockedFunction, vi } from 'vitest';
 import { postReads } from '@/api/client';
 import { enqueueRead, flushReadQueue } from './readQueue';
 import { storage } from './storage';
 
-jest.mock('@/api/client', () => ({
-  postReads: jest.fn(),
+vi.mock('@/api/client', () => ({
+  postReads: vi.fn(),
 }));
 
-const mockPostReads = postReads as jest.MockedFunction<typeof postReads>;
+const mockPostReads = postReads as MockedFunction<typeof postReads>;
 
 beforeEach(() => {
   storage.clearAll();

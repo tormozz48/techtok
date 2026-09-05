@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import { describeBuild } from './buildInfo';
 
 const OTA_INPUT = {

@@ -27,13 +27,14 @@ import { queryClient } from '@/state/queryClient';
 import { startReadQueueFlushing } from '@/state/readQueue';
 import { navigationIntegration, Sentry } from '@/state/sentry';
 import { ready } from '@/state/storage';
+import { QUERY_CACHE_KEY } from '@/state/storageKeys';
 import { useThemeStore } from '@/state/themeStore';
 import { useTopicsStore } from '@/state/topicsStore';
 import { startOtaUpdates } from '@/state/updates';
 
 const persister = createAsyncStoragePersister({
   storage: AsyncStorage,
-  key: 'techtok.queryCache',
+  key: QUERY_CACHE_KEY,
 });
 
 export default Sentry.wrap(AppRoot);
@@ -59,7 +60,6 @@ function RootLayout() {
   useEffect(() => {
     ready().then(async () => {
       startNetworkMonitoring();
-      useTopicsStore.getState().load();
       useThemeStore.getState().load();
       useHapticsStore.getState().load();
       useLanguageStore.getState().hydrate();
@@ -73,7 +73,9 @@ function RootLayout() {
 
   useEffect(() => {
     if (authStatus === 'signedIn') {
+      setShowOnboarding(!hasSeenOnboarding());
       useLanguageStore.getState().load();
+      useTopicsStore.getState().load();
     }
   }, [authStatus]);
 

@@ -19,6 +19,13 @@ export const storage = {
     cache.clear();
     void AsyncStorage.clear();
   },
+  clearExcept(keysToKeep: readonly string[]): Promise<void> {
+    const kept = new Set(keysToKeep);
+    for (const key of cache.keys()) {
+      if (!kept.has(key)) cache.delete(key);
+    }
+    return removePersistedExcept(kept);
+  },
 };
 
 export function ready(): Promise<void> {
@@ -32,4 +39,10 @@ async function hydrate(): Promise<void> {
   for (const [key, value] of entries) {
     if (value !== null) cache.set(key, value);
   }
+}
+
+async function removePersistedExcept(kept: Set<string>): Promise<void> {
+  const keys = await AsyncStorage.getAllKeys();
+  const removable = keys.filter((key) => !kept.has(key));
+  if (removable.length > 0) await AsyncStorage.multiRemove(removable);
 }

@@ -1,14 +1,9 @@
 name: Release cleanup
 
-# Called by ci.yml as the last step of the main-branch release pipeline (D38),
-# after mobile-build.yml has published a fresh `android-build-<run_number>`
-# prerelease. Every merge to main adds one such release carrying a full APK, so
-# without this they accumulate forever. Keeps the 3 most recent and deletes the
-# rest (release + its git tag). Also prunes stale `mobile-v*` tags (D42) — plain
-# git tags, not GitHub releases, so they get pruned via the Git refs API instead
-# of `gh release` — down to the same 3 most recent (D57). workflow_dispatch is
-# kept for an ad hoc sweep — pass dry_run to see what would go without deleting
-# anything.
+# D57: every merge adds an APK-carrying `android-build-*` release, so without
+# this they accumulate forever. Keeps the 3 most recent (release + tag), and
+# separately prunes `mobile-v*` tags (D42) to 3 via the Git refs API, since
+# those are plain tags with no release attached. dry_run for an ad hoc sweep.
 on:
   workflow_dispatch:
     inputs:
@@ -38,11 +33,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Only ever considers tags this repo's own mobile-build.yml creates —
-          # any other release (a real versioned one later on) is never touched.
-          # --limit caps how far back we look; if it ever truncates, the oldest
-          # releases are simply skipped this run, so the failure direction is
-          # under-deleting, never over-deleting.
+          # Only `android-build-*` — any other release is never touched.
+          # A truncated --limit under-deletes, never over-deletes.
           stale=$(gh release list --limit 200 --json tagName,createdAt \
             --jq "map(select(.tagName | startswith(\"android-build-\")))
                   | sort_by(.createdAt) | reverse | .[${KEEP}:] | .[].tagName")
@@ -74,11 +66,9 @@ jobs:
             gh release delete "$tag" --yes --cleanup-tag
           done
 
-      # mobile-v* tags (D42) are plain git tags with no release attached, so
-      # they aren't touched by the step above and would otherwise accumulate
-      # forever alongside it. ci.yml's mobile-changes job (D53) always diffs
-      # against only the single newest mobile-v* tag, so pruning older ones
-      # is safe regardless of how far back they go.
+      # mobile-v* tags have no release attached, so the step above misses
+      # them. mobile-changes (D53) only ever diffs against the newest one,
+      # so pruning older ones is safe.
       - name: Delete stale mobile-v tags
         env:
           GH_TOKEN: ${{ github.token }}
@@ -88,10 +78,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          # --paginate covers repos with >100 tags. The API's own ordering
-          # isn't guaranteed to be chronological, so sort explicitly; -V
-          # (version sort) is safe here since every entry shares the same
-          # `mobile-v` prefix ahead of the semver part.
+          # --paginate for >100 tags; the API's ordering isn't chronological,
+          # so sort -V explicitly (safe — every entry shares the prefix).
           all_tags=$(gh api "repos/$GH_REPO/tags" --paginate --jq '.[].name')
           stale=$(echo "$all_tags" | { grep '^mobile-v' || true; } | sort -rV | tail -n "+$((KEEP + 1))")
 

@@ -1,19 +1,19 @@
 name: Mobile release (Play Store)
 
-# Builds the `production` eas.json profile as a Play-uploadable AAB. Deliberately
-# workflow_dispatch-only, unlike mobile-build.yml's on-every-push preview APK:
-# a Play submission is a reviewed, infrequent, deliberate action, not something
-# that should fire on every merge to main. Produces a downloadable Actions
-# artifact only — no auto-submission to Play (that needs D71's
-# PlayServiceAccountKey secret, phase 21, not yet set up) and no OTA publish
-# (the production update channel isn't bound yet either — see D65's amendment
-# and IMPLEMENTATION_PLAN.md phase 23 track C task 15; `eas update:configure`
-# is a separate one-time maintainer step, not part of this build).
+# Builds the `production` eas.json profile as a Play-uploadable AAB and, when
+# PlayServiceAccountKey exists, submits it to Play's `internal` track. Called
+# by ci.yml (D98) on the same should_build gate as mobile-build.yml, in
+# parallel with it (D99). workflow_dispatch stays for an ad hoc rebuild.
 on:
   workflow_dispatch:
     inputs:
       api_url:
         description: Production API URL to bake into the build (EXPO_PUBLIC_API_URL)
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      api_url:
         required: true
         type: string
 
@@ -26,8 +26,15 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      # secrets can't be referenced in a step-level `if:` — mirror into env.
+      HAS_PLAY_KEY: ${{ secrets.PlayServiceAccountKey != '' }}
     steps:
+      # ref: main, not github.sha — this must embed the versionCode
+      # mobile-version-bump just pushed (D44), not the pre-bump commit.
       - uses: actions/checkout@v4
+        with:
+          ref: main
 
       - uses: pnpm/action-setup@v4
 
@@ -42,8 +49,7 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # ubuntu-latest ships an Android SDK/NDK; this pins cmdline-tools and
-      # accepts licenses so Gradle can fetch any missing package for the build.
+      # Pins cmdline-tools and accepts licenses for Gradle's package fetches.
       - uses: android-actions/setup-android@v3
 
       # Installs eas-cli and authenticates via EXPO_TOKEN (a free Expo account).
@@ -55,19 +61,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # `eas build --local` doesn't run apps/mobile's own package.json scripts
-      # (it drives Gradle directly), so the guard normally wired into
-      # build:android/build:android:apk has to run as its own explicit step
-      # here — same script, same env var, checked before it's baked in rather
-      # than after.
+      # `eas build --local` drives Gradle directly and skips apps/mobile's
+      # package.json scripts, so this guard needs its own explicit step.
       - name: Check production API URL
         env:
           EXPO_PUBLIC_API_URL: ${{ inputs.api_url }}
         run: pnpm check-api-url
 
-      # Reuse the Gradle distribution + Maven deps + build-cache across runs.
-      # `eas build --local` runs Gradle from the home GRADLE_USER_HOME (~/.gradle),
-      # so caching that here skips the big first-time downloads and recompiles.
+      # Caches ~/.gradle (where `eas build --local` runs Gradle from).
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
@@ -78,21 +79,13 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}-
 
-      # `--local` runs the build on this runner (no EAS cloud-build credit
-      # consumed). Signing credentials come from EAS's remote credential store
-      # (credentialsSource defaults to "remote") via EXPO_TOKEN — no keystore
-      # file or keystore secret in GitHub. Before this can succeed once, the
-      # `production` profile needs credentials established on EAS: run
-      # `npx eas-cli credentials --platform android` once (maintainer, needs an
-      # EAS login), select the `production` profile, let EAS generate/store a
-      # keystore for it. That keystore is what becomes the permanent Play
-      # upload key. SENTRY_ORG/SENTRY_PROJECT/SENTRY_AUTH_TOKEN mirror
-      # mobile-build.yml's already-working preview build exactly — without
-      # them the sentry-android-gradle-plugin's release-bundle task fails the
-      # whole build on "An organization ID or slug is required", not a soft
-      # skip (learned from this workflow's first real run). EAS_LOCAL_BUILD_WORKINGDIR
-      # pins the build to a fixed path so the Gradle cache above actually
-      # hits, same reasoning as mobile-build.yml.
+      # `--local` builds on this runner (no EAS credit). Signing credentials
+      # come from EAS via EXPO_TOKEN — the `production` profile's keystore
+      # must exist first (`npx eas-cli credentials --platform android`,
+      # maintainer, one time); it becomes the permanent Play upload key.
+      # SENTRY_ORG/SENTRY_PROJECT are required, not optional: without them the
+      # release-bundle task fails the whole build on a missing org slug.
+      # EAS_LOCAL_BUILD_WORKINGDIR pins a stable path for the Gradle cache.
       - name: Build Android App Bundle (eas build --local)
         working-directory: apps/mobile
         env:
@@ -104,12 +97,26 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: eas build --platform android --profile production --local --non-interactive --output "${{ github.workspace }}/techtok.aab"
 
-      # No auto-submit and no GitHub Release — this is a Play Console upload,
-      # not a public download. The maintainer downloads this artifact and
-      # uploads it to Play Console by hand (Internal testing, promoted from
-      # there per IMPLEMENTATION_PLAN.md phase 23 track D).
+      # Always keep a downloadable copy — the only way to recover a build if
+      # the Play upload fails, and the only way to get the AAB at all before
+      # PlayServiceAccountKey exists (D98).
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
           name: techtok-${{ github.run_number }}.aab
           path: ${{ github.workspace }}/techtok.aab
+
+      # D98: auto-submits to Play's `internal` track once
+      # PlayServiceAccountKey (D71) exists; a clean skip until then. `internal`
+      # has no review and is where phase 23's first Play-signed upload must
+      # land (D68's SHA-1 ordering trap). The app must already exist in Play
+      # Console with App Signing on — the API uploads releases, not apps.
+      - name: Publish to Google Play (internal track)
+        if: env.HAS_PLAY_KEY == 'true'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PlayServiceAccountKey }}
+          packageName: com.tormozz48dev.techtok
+          releaseFiles: ${{ github.workspace }}/techtok.aab
+          tracks: internal
+          status: completed

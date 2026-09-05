@@ -1,11 +1,8 @@
 name: Deploy site
 
-# Called by ci.yml as the final step of the main-branch release pipeline
-# (D38), after mobile-build has published this run's APK to a (now
-# non-prerelease, D39) GitHub Release — so the site's stable
-# releases/latest/download link and QR code resolve correctly the moment it
-# goes live. workflow_dispatch is kept for an ad hoc manual redeploy (e.g.
-# after editing copy with no code change to otherwise trigger the pipeline).
+# Runs after mobile-build has published this run's APK to a non-prerelease
+# Release (D39), so the site's releases/latest download link and QR resolve
+# correctly the moment it goes live. workflow_dispatch for a copy-only redeploy.
 on:
   workflow_dispatch:
   workflow_call:
@@ -25,14 +22,9 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      # ref: main (not the default trigger SHA) — this job runs after
-      # mobile-build, which may have just pushed a version-bump commit
-      # straight to main (D44). Without this, the site's version badge
-      # (apps/site/src/lib/version.ts, reading apps/mobile/app.json) would
-      # permanently build one release behind the tag mobile-build just cut.
-      # fetch-depth: 0 (D60) — the release-history feed reads mobile-v* tags
-      # via local git commands (apps/site/src/lib/releases.ts); the default
-      # shallow checkout carries no tag history at all.
+      # ref: main — the version bump was pushed there mid-run (D44), so the
+      # default trigger SHA would build the badge one release behind.
+      # fetch-depth: 0 (D60) — the release feed reads mobile-v* tags locally.
       - uses: actions/checkout@v4
         with:
           ref: main
@@ -48,9 +40,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # enablement: true turns Pages on for the repo if it's ever off, so this
-      # workflow is self-sufficient on a repo where Pages hasn't been enabled
-      # via Settings yet.
+      # enablement: true turns Pages on if it was never enabled in Settings.
       - uses: actions/configure-pages@v5
         with:
           enablement: true

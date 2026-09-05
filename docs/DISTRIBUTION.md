@@ -269,6 +269,18 @@ advanced since the last upload (`git pull` — CI bumps it automatically on
 every mobile-relevant merge, D44), dispatch **Mobile release (Play Store)**,
 download the new `.aab` from the run's artifacts, upload it.
 
+### Store listing assets
+
+The **feature graphic** Play requires for the listing (1024×500, PNG/JPEG, max
+15 MB) is committed at [apps/mobile/store/play/](../apps/mobile/store/play/) —
+one per listing language (`en`/`ru`/`uk`/`pl`), each alongside the SVG it was
+rendered from. Upload the matching language's PNG under **Main store listing →
+Graphics** for each locale you publish.
+
+Screenshots are *not* committed: Play wants real device captures, and this
+repo's environment has no Android tooling. Capture at least two phone
+screenshots on a device before the listing can be submitted.
+
 ### Caveats specific to this app
 
 - **OTA updates** (`expo-updates`; `app.json` → `updates.url`) point at EAS

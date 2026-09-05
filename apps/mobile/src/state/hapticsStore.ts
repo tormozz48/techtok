@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { logEvent } from './eventsQueue';
 import { storage } from './storage';
+import { HAPTICS_ENABLED_KEY } from './storageKeys';
 
-const HAPTICS_ENABLED_KEY = 'techtok.hapticsEnabled';
 const EXPLICIT_OPT_OUT = 'false';
 
 interface HapticsState {

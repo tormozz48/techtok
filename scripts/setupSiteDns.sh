@@ -2,7 +2,7 @@
 #
 # Point the project's apex domain (and www) at GitHub Pages. Companion to
 # setupMail.sh: the same account-level hosted zone, deliberately outside the
-# per-stage SST app in infra/ (see docs/DESIGN.md D39/D98).
+# per-stage SST app in infra/ (see docs/DESIGN.md D39/D103).
 #
 # GitHub Pages on an apex domain needs A (and optionally AAAA) records to
 # GitHub's anycast addresses -- Route 53 cannot ALIAS to an external host --

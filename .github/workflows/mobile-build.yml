@@ -1,10 +1,9 @@
 name: Mobile build
 
-# Called by ci.yml as step 5 of the main-branch release pipeline (D38), after
-# a production deploy, receiving that deploy's real API URL as an input.
-# workflow_dispatch is kept for an ad hoc manual rebuild — pass the current
-# production API URL by hand (find it via the deploy-production workflow's
-# most recent run output, or `npx sst deploy --stage production` locally).
+# Builds the APK. Called by ci.yml in parallel with the deploy/e2e chain
+# (D100), which passes the PRODUCTION_API_URL repository variable as
+# `api_url`. workflow_dispatch takes that URL by hand — find it in the
+# Deploy production workflow's most recent run output.
 on:
   workflow_dispatch:
     inputs:
@@ -17,6 +16,12 @@ on:
       api_url:
         required: true
         type: string
+      # D99: ci.yml's mobile-version-bump job already pushed the bump, so the
+      # step below would be a no-op. A standalone dispatch never sets this.
+      skip_version_bump:
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: mobile-build
@@ -28,11 +33,12 @@ jobs:
     permissions:
       contents: write # create the GitHub Release that hosts the APK
     steps:
-      # fetch-depth: 0 is needed for the version-bump step's `git tag --list`/
-      # `git log <tag>..HEAD` walk.
+      # fetch-depth: 0 for the version-bump/release-notes tag walk. ref: main
+      # (D99) so this sees the bump commit mobile-version-bump just pushed.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: main
 
       - uses: pnpm/action-setup@v4
 
@@ -47,11 +53,9 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # ubuntu-latest ships an Android SDK/NDK; this pins cmdline-tools and
-      # accepts licenses so Gradle can fetch any missing package for the build.
-      # packages: 'platform-tools' overrides the action's default ('tools
-      # platform-tools') — the legacy 'tools' package drags in the Android
-      # emulator (~20s download/unzip we never use for a headless APK build).
+      # Pins cmdline-tools and accepts licenses. packages: 'platform-tools'
+      # overrides the default — the legacy 'tools' package drags in the
+      # emulator, useless for a headless APK build.
       - uses: android-actions/setup-android@v3
         with:
           packages: "platform-tools"
@@ -65,19 +69,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # D44 (amends D41/D42/D43): computes a conventional-commit-driven
-      # semver bump (baselined against the last `mobile-v*` tag) and pushes it
-      # directly to `main` — reinstating D40's original post-merge mechanism
-      # now that the `ProtectMainBrach` ruleset's `pull_request` requirement
-      # has been removed, so a direct push is no longer categorically blocked.
-      # Two mitigations D40 lacked: (1) the commit message carries
-      # `[skip ci]`, so the push doesn't retrigger `ci.yml` and cancel this
-      # very run via its own `cancel-in-progress` concurrency group; (2) a
-      # bounded rebase-and-retry loop against a genuinely concurrent push to
-      # `main`, instead of failing outright on the first non-fast-forward
-      # rejection (D41's original failure mode). D43's PR-branch auto-bump
-      # workflow is retired — this is the only automated bump path now.
+      # D44: conventional-commit semver bump baselined against the last
+      # `mobile-v*` tag, pushed straight to main. `[skip ci]` stops it
+      # retriggering ci.yml and cancelling this run; the rebase-retry loop
+      # handles a concurrent push. Skipped when ci.yml already bumped (D99).
       - name: Compute and push mobile version bump
+        if: inputs.skip_version_bump != true
         env:
           GIT_AUTHOR_NAME: github-actions[bot]
           GIT_AUTHOR_EMAIL: github-actions[bot]@users.noreply.github.com
@@ -108,14 +105,9 @@ jobs:
             git reset --hard origin/main
           done
 
-      # D58: generates feature/fix release notes from conventional commits
-      # since the last mobile-v* tag (the same commit range and feat:/fix:
-      # classification bumpMobileVersion.ts uses to pick the version bump),
-      # so the GitHub Release body and the release tag's annotation describe
-      # what actually shipped instead of static boilerplate. Runs after the
-      # version-bump step (whose commit, if any, is itself a chore: and so
-      # never appears in the changelog) and before the tag is created, so
-      # "last mobile-v* tag" here still means the previous release.
+      # D58: release notes from conventional commits since the last mobile-v*
+      # tag — same range and classification bumpMobileVersion.ts uses. Runs
+      # before the tag is created, so that range still means "previous release".
       - name: Generate release notes
         env:
           COMMIT_SHA: ${{ github.sha }}
@@ -160,15 +152,9 @@ jobs:
             echo "- Always-current link: https://github.com/tormozz48/techtok/releases/latest/download/techtok.apk (also on the [project site](https://tormozz48.github.io/techtok/))."
           } > release-body.md
 
-      # Reuse the Gradle distribution + Maven deps + build-cache across runs.
-      # `eas build --local` runs Gradle from the home GRADLE_USER_HOME (~/.gradle),
-      # so caching that here skips the big first-time downloads and recompiles.
-      # Deliberately excludes apps/mobile/android/app/build.gradle from the
-      # hash: the version-bump step above rewrites its versionCode/versionName
-      # on every release, which used to bust the primary cache key on every
-      # single run (falling back to a stale restore-key and re-saving the
-      # full ~2.3GB cache each time). Hashing only the files that actually
-      # gate build-cache-relevant config keeps the key stable across releases.
+      # Caches ~/.gradle (where `eas build --local` runs Gradle from).
+      # app/build.gradle is excluded from the hash on purpose: the version
+      # bump rewrites it every release, which busted the key on every run.
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
@@ -179,28 +165,15 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}-
 
-      # `--local` runs the build on this runner, so it does NOT consume an EAS
-      # cloud-build credit (free tier = 15/mo) — effectively unlimited. Signing
-      # credentials are pulled from EAS (credentialsSource defaults to "remote")
-      # using EXPO_TOKEN, so no keystore is stored in GitHub. EXPO_PUBLIC_API_URL
-      # comes from this workflow's own `api_url` input (the caller passes the
-      # production deploy's real URL) — it never lives in eas.json or anywhere
-      # else in source control. EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID (D68) is not
-      # sensitive (an OAuth client ID is public by design) but is wired the
-      # same way as the deploy workflows' GOOGLE_OAUTH_WEB_CLIENT_ID — without
-      # it, Google Sign-In fails to configure in every APK this workflow ships.
-      # SENTRY_AUTH_TOKEN authenticates the sentry-android-gradle-plugin's
-      # source-map/native-symbol upload (android/app/build.gradle's `sentry {}`
-      # block); SENTRY_ORG/SENTRY_PROJECT are its non-secret org/project slugs.
-      # Without the token the build still succeeds, it just skips the upload.
-      # EAS_LOCAL_BUILD_WORKINGDIR pins the build to a fixed path instead of
-      # `eas-cli`'s default random tmp dir per run. Gradle's build cache keys
-      # several task types (Kotlin compile classpaths, KSP, CMake
-      # configure/build) off absolute input paths, so a fresh UUID directory
-      # every run meant the restored ~/.gradle cache above mostly missed even
-      # for untouched third-party modules — a random-path run only hit ~28%
-      # of tasks from cache (405 executed / 178 from cache) despite restoring
-      # the full cache. A stable path lets those tasks actually cache-hit.
+      # `--local` builds on this runner, consuming no EAS cloud-build credit.
+      # Signing credentials come from EAS via EXPO_TOKEN — no keystore in
+      # GitHub. EXPO_PUBLIC_API_URL comes from this workflow's input, so it
+      # never lives in eas.json. EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID (D68) is
+      # public by design but required, or Sign-In fails in every shipped APK.
+      # SENTRY_AUTH_TOKEN is optional — without it the upload is just skipped.
+      # EAS_LOCAL_BUILD_WORKINGDIR pins a stable path: Gradle keys several
+      # task types off absolute input paths, so eas-cli's default random tmp
+      # dir made the restored cache miss for most tasks (~28% hit rate).
       - name: Build Android APK (eas build --local)
         working-directory: apps/mobile
         env:
@@ -212,24 +185,11 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: eas build --platform android --profile preview --local --non-interactive --output "${{ github.workspace }}/techtok.apk"
 
-      # D60: publishes this build's JS/asset bundle to the "preview" EAS
-      # Update channel — the same channel eas.json's `preview` profile (used
-      # just above) embeds into the APK — so an already-installed build picks
-      # it up automatically on next launch (AndroidManifest's
-      # EXPO_UPDATES_CHECK_ON_LAUNCH=ALWAYS) instead of a friend needing to
-      # reinstall. Gated on the build step above succeeding, since a failed
-      # native compile means we don't have confidence this commit's native
-      # side is sound. runtimeVersion is a hand-maintained string (D18's
-      # committed `android/` project has no per-build prebuild step, so a
-      # fingerprint policy would never actually be recomputed by CI — see
-      # D60) — publishing here is only safe for the current runtimeVersion.
-      # D87: the "bump it by hand first" rule above this comment is exactly
-      # what got skipped for the expo-clipboard native dependency, so every
-      # run of this job now unconditionally bumps runtimeVersion (in both
-      # app.json and this generated strings.xml/expo_runtime_version) via the
-      # version-bump step above — this job only runs on a native-affecting
-      # change (D53's `should_build`), so there's no case where it runs
-      # without one.
+      # D60: publishes this build's bundle to the `preview` channel the APK
+      # embeds, so installed builds update on next launch instead of needing a
+      # reinstall. runtimeVersion is hand-maintained (D18's committed android/
+      # has no per-build prebuild), so D87 made the version-bump step above
+      # bump it unconditionally — this job only runs on native changes anyway.
       - name: Publish OTA update (eas update)
         working-directory: apps/mobile
         env:
@@ -239,10 +199,8 @@ jobs:
           VERSION=$(node -e "console.log(require('./app.json').expo.version)")
           eas update --channel preview --platform android --non-interactive --message "v$VERSION"
 
-      # prerelease: false (D39, amends this decision) — GitHub's
-      # releases/latest alias only ever resolves to the newest *non*-prerelease
-      # release, and the project site's download button + QR code both point
-      # at that stable releases/latest/download/techtok.apk URL.
+      # prerelease: false (D39) — releases/latest only resolves to a
+      # non-prerelease, and the site's download button + QR point at it.
       - name: Publish APK to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -252,11 +210,8 @@ jobs:
           files: ${{ github.workspace }}/techtok.apk
           body_path: ${{ github.workspace }}/release-body.md
 
-      # Tag-only reinstatement of release marking (D42, amends D41). Reads the
-      # version off `app.json` as left on disk by the bump step above (D44),
-      # which already committed and pushed it to `main` if it changed. Now an
-      # annotated tag (D58) carrying the feat/fix changelog from the release
-      # notes step above as its message, instead of a bare lightweight tag.
+      # D42: tags the release, reading the version off app.json as the bump
+      # step left it. Annotated (D58), carrying the changelog as its message.
       - name: Tag release version
         env:
           GIT_AUTHOR_NAME: github-actions[bot]
@@ -270,13 +225,7 @@ jobs:
             echo "$TAG already exists on origin (version wasn't bumped since the last release) — skipping."
             exit 0
           fi
-          # --cleanup=verbatim: git's default tag-message cleanup ("strip")
-          # treats any line starting with `#` as a comment and drops it —
-          # including changelog.md's own "## What's changed"/"### Features"/
-          # "### Fixes" Markdown headers — and collapses blank lines, so
-          # without this flag every tag message silently degraded to a flat,
-          # unsectioned bullet list (D58 amendment). release-body.md above
-          # doesn't hit this: `body_path` ships those same bytes verbatim
-          # through the GitHub API, never through git's message cleanup.
+          # --cleanup=verbatim: git's default strips any `#` line as a
+          # comment, which would eat changelog.md's own Markdown headers.
           git tag -a "$TAG" --cleanup=verbatim -F changelog.md
           git push origin "refs/tags/$TAG"

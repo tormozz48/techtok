@@ -1,5 +1,7 @@
+import { PROJECT_DOMAIN, RECORD_TTL, zone } from './dns';
+
 const REGION = 'eu-central-1';
-const MAIL_DOMAIN = 'techtokapp.eu';
+const MAIL_DOMAIN = PROJECT_DOMAIN;
 const MAIL_RECIPIENTS = ['privacy', 'support', 'noreply'];
 const MAIL_OBJECT_PREFIX = 'inbound/';
 const MAIL_VIA_LABEL = 'via TechTok';
@@ -15,7 +17,6 @@ const APEX_TXT_EXTRA_VALUES: string[] = [];
 export const mailForwardTo = new sst.Secret('MailForwardTo');
 
 const callerIdentity = await aws.getCallerIdentity({});
-const zone = await aws.route53.getZone({ name: MAIL_DOMAIN, privateZone: false });
 
 const bucketName = `techtok-mail-inbound-${callerIdentity.accountId}`;
 const inboundObjectArn = `arn:aws:s3:::${bucketName}/${MAIL_OBJECT_PREFIX}*`;
@@ -85,7 +86,7 @@ const apexTxtRecord = new aws.route53.Record('MailApexTxtRecord', {
   zoneId: zone.zoneId,
   name: MAIL_DOMAIN,
   type: 'TXT',
-  ttl: 300,
+  ttl: RECORD_TTL,
   records: [SPF_VALUE, ...APEX_TXT_EXTRA_VALUES],
   allowOverwrite: true,
 });
@@ -94,7 +95,7 @@ new aws.route53.Record('MailDmarcRecord', {
   zoneId: zone.zoneId,
   name: `_dmarc.${MAIL_DOMAIN}`,
   type: 'TXT',
-  ttl: 300,
+  ttl: RECORD_TTL,
   records: [DMARC_VALUE],
   allowOverwrite: true,
 });
@@ -105,7 +106,7 @@ const dkimRecords = Array.from({ length: DKIM_TOKEN_COUNT }, (_unused, index) =>
     zoneId: zone.zoneId,
     name: $interpolate`${token}._domainkey.${MAIL_DOMAIN}`,
     type: 'CNAME',
-    ttl: 300,
+    ttl: RECORD_TTL,
     records: [$interpolate`${token}.dkim.amazonses.com`],
     allowOverwrite: true,
   });
@@ -193,7 +194,7 @@ new aws.route53.Record(
     zoneId: zone.zoneId,
     name: MAIL_DOMAIN,
     type: 'MX',
-    ttl: 300,
+    ttl: RECORD_TTL,
     records: [`10 inbound-smtp.${REGION}.amazonaws.com`],
     allowOverwrite: true,
   },

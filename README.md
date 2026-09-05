@@ -119,8 +119,7 @@ techtok/
 ├── apps/
 │   ├── mobile/                # Expo app (expo-router), committed bare `android/` project (D18)
 │   └── site/                  # Astro static site → GitHub Pages
-├── scripts/                   # ops/CI scripts: wipeUsers, grantEntitlement, bumpMobileVersion,
-│                              #   setupSiteDns.sh (GitHub Pages apex DNS, D103)
+├── scripts/                   # ops/CI scripts: wipeUsers, grantEntitlement, bumpMobileVersion
 └── docs/                      # DESIGN.md, IMPLEMENTATION_PLAN.md, DISTRIBUTION.md, RUNBOOK.md, DATA_SAFETY.md
 ```
 
@@ -261,7 +260,7 @@ Still manual, in the SES console: production access (the account is in the sandb
 
 The `production` deploy role (`AWS_DEPLOY_ROLE_ARN`) needs SES receipt-rule and identity write access, `route53:ChangeResourceRecordSets` on the `techtokapp.eu` zone, and `s3:CreateBucket` plus the bucket policy/lifecycle/public-access-block puts. Without them the deploy fails with `AccessDenied` — see [docs/DESIGN.md](docs/DESIGN.md) D104 for the full action list.
 
-The same domain fronts the public site: `scripts/setupSiteDns.sh --domain techtokapp.eu --pages-host tormozz48.github.io` publishes GitHub Pages' apex A/AAAA records and the `www` CNAME (admin credentials, idempotent) — still a script, since those records belong to GitHub Pages rather than to any AWS resource. The custom domain itself is set in the repo's Settings → Pages — an Actions-based deploy ignores any `CNAME` file — and must be set together with the `astro.config.ts` `site`/`base` values, since a build for the old `/techtok` subpath 404s at the domain root.
+The same domain fronts the public site, and its records are declared alongside the mail ones in [infra/dns.ts](infra/dns.ts) (D104): GitHub Pages' four apex `A` and four `AAAA` addresses plus the `www` CNAME to `tormozz48.github.io`. Route 53 cannot `ALIAS` to an external host, which is why the apex carries literal addresses; they coexist with the SES `MX` at the same name because record types don't collide. `infra/dns.ts` also owns the hosted-zone lookup that `infra/mail.ts` reuses, so there is one `getZone` for the whole domain. The custom domain itself is set in the repo's Settings → Pages — an Actions-based deploy ignores any `CNAME` file — and must be set together with the `astro.config.ts` `site`/`base` values, since a build for the old `/techtok` subpath 404s at the domain root. GitHub issues the Let's Encrypt certificate only if no apex `CAA` record excludes `letsencrypt.org`; the zone has no `CAA` record today, and adding one is the thing that would silently break HTTPS renewal.
 
 Operational playbooks — stuck DLQs, compact-generation failures, the per-source compact kill switch, LLM spend — live in [docs/RUNBOOK.md](docs/RUNBOOK.md).
 

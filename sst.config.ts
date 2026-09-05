@@ -31,6 +31,7 @@ export default $config({
     await import('./infra/monitoring');
 
     if ($app.stage === 'production') {
+      await import('./infra/dns');
       await import('./infra/mail');
     }
 

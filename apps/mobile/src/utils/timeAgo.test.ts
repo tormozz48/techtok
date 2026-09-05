@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import { STRINGS } from '@/i18n/strings';
 import { timeAgo } from './timeAgo';
 

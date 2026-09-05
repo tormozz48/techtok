@@ -1,19 +1,22 @@
-jest.mock('expo-network', () => ({
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
+
+vi.mock('expo-network', () => ({
   NetworkStateType: { WIFI: 'WIFI', CELLULAR: 'CELLULAR', NONE: 'NONE', UNKNOWN: 'UNKNOWN' },
-  getNetworkStateAsync: jest.fn(),
-  addNetworkStateListener: jest.fn(),
+  getNetworkStateAsync: vi.fn(),
+  addNetworkStateListener: vi.fn(),
 }));
 
 describe('network', () => {
   beforeEach(() => {
-    jest.resetModules();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it('reflects the initial network state once resolved', async () => {
-    const Network = require('expo-network');
-    (Network.getNetworkStateAsync as jest.Mock).mockResolvedValue({ type: 'WIFI' });
-    (Network.addNetworkStateListener as jest.Mock).mockImplementation(() => ({ remove() {} }));
-    const { getIsWifi, startNetworkMonitoring } = require('./network');
+    const Network = await import('expo-network');
+    (Network.getNetworkStateAsync as Mock).mockResolvedValue({ type: 'WIFI' });
+    (Network.addNetworkStateListener as Mock).mockImplementation(() => ({ remove() {} }));
+    const { getIsWifi, startNetworkMonitoring } = await import('./network');
 
     startNetworkMonitoring();
     await Promise.resolve();
@@ -22,15 +25,15 @@ describe('network', () => {
     expect(getIsWifi()).toBe(true);
   });
 
-  it('updates when the listener fires with a non-wifi state', () => {
-    const Network = require('expo-network');
+  it('updates when the listener fires with a non-wifi state', async () => {
+    const Network = await import('expo-network');
     let listener: ((event: { type: string }) => void) | undefined;
-    (Network.addNetworkStateListener as jest.Mock).mockImplementation((cb: typeof listener) => {
+    (Network.addNetworkStateListener as Mock).mockImplementation((cb: typeof listener) => {
       listener = cb;
       return { remove() {} };
     });
-    (Network.getNetworkStateAsync as jest.Mock).mockResolvedValue({ type: 'WIFI' });
-    const { getIsWifi, startNetworkMonitoring } = require('./network');
+    (Network.getNetworkStateAsync as Mock).mockResolvedValue({ type: 'WIFI' });
+    const { getIsWifi, startNetworkMonitoring } = await import('./network');
 
     startNetworkMonitoring();
     listener?.({ type: 'CELLULAR' });
@@ -38,11 +41,11 @@ describe('network', () => {
     expect(getIsWifi()).toBe(false);
   });
 
-  it('is idempotent — a second call does not re-register the listener', () => {
-    const Network = require('expo-network');
-    (Network.getNetworkStateAsync as jest.Mock).mockResolvedValue({ type: 'WIFI' });
-    (Network.addNetworkStateListener as jest.Mock).mockImplementation(() => ({ remove() {} }));
-    const { startNetworkMonitoring } = require('./network');
+  it('is idempotent — a second call does not re-register the listener', async () => {
+    const Network = await import('expo-network');
+    (Network.getNetworkStateAsync as Mock).mockResolvedValue({ type: 'WIFI' });
+    (Network.addNetworkStateListener as Mock).mockImplementation(() => ({ remove() {} }));
+    const { startNetworkMonitoring } = await import('./network');
 
     startNetworkMonitoring();
     startNetworkMonitoring();

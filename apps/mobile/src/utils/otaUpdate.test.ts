@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import { decideOnForeground, MIN_BACKGROUND_MS } from './otaUpdate';
 
 const NOW = 1_700_000_000_000;

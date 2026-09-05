@@ -1,4 +1,5 @@
 import type { HistoryItem, Topic } from '@techtok/shared';
+import { describe, expect, it } from 'vitest';
 import { computeReadingStats } from './readingStats';
 
 const NOW = new Date('2026-07-26T12:00:00.000Z');

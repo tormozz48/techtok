@@ -1,18 +1,19 @@
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 import { ApiError, fetchMe, putLanguage } from '@/api/client';
 import { useLanguageStore } from './languageStore';
 import { storage } from './storage';
 
-jest.mock('@/api/client', () => {
-  const actual = jest.requireActual('@/api/client');
+vi.mock('@/api/client', async () => {
+  const actual = await vi.importActual<typeof import('@/api/client')>('@/api/client');
   return {
     ...actual,
-    fetchMe: jest.fn(),
-    putLanguage: jest.fn(),
+    fetchMe: vi.fn(),
+    putLanguage: vi.fn(),
   };
 });
 
-const fetchMeMock = fetchMe as jest.Mock;
-const putLanguageMock = putLanguage as jest.Mock;
+const fetchMeMock = fetchMe as Mock;
+const putLanguageMock = putLanguage as Mock;
 
 beforeEach(() => {
   storage.clearAll();

@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { postEvents, postReads } from '@/api/client';
 import { flushEventsQueue, logEvent } from './eventsQueue';
 import { useHapticsStore } from './hapticsStore';
@@ -17,13 +18,13 @@ import {
 } from './storageKeys';
 import { useThemeStore } from './themeStore';
 
-jest.mock('@/api/client', () => ({
-  postEvents: jest.fn(),
-  postReads: jest.fn(),
+vi.mock('@/api/client', () => ({
+  postEvents: vi.fn(),
+  postReads: vi.fn(),
 }));
 
 beforeEach(async () => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   storage.clearAll();
   await AsyncStorage.clear();
   queryClient.clear();

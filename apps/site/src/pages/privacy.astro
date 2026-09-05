@@ -90,7 +90,11 @@ const description =
 
   <ul>
     <li>There is <strong>no advertising</strong>, and no advertising SDK in the app.</li>
-    <li>There is <strong>no analytics or tracking SDK</strong>, and no crash-reporting service.</li>
+    <li>
+      There is <strong>no advertising or tracking SDK</strong>, and nothing profiles you across
+      other apps or websites. The app does send crash reports and a small amount of anonymous
+      performance data to Sentry so that breakages can be found and fixed — see below.
+    </li>
     <li>Your data is <strong>never sold</strong>, and never shared for anyone else's marketing.</li>
     <li>There is no access to your location, contacts, photos, camera, or microphone.</li>
     <li>There is no advertising identifier, and no cross-app or cross-site tracking.</li>
@@ -116,7 +120,24 @@ const description =
         </tr>
         <tr>
           <td>Amazon Web Services</td>
-          <td>Hosting — the servers, database, and content delivery. Everything runs in {HOSTING_REGION}.</td>
+          <td>Hosting — the servers, file storage, and content delivery. Everything runs in {HOSTING_REGION}.</td>
+        </tr>
+        <tr>
+          <td>Neon</td>
+          <td>
+            The database. Every record described above — your account, your preferences, your
+            reading history and your bookmarks — is stored in a Neon Postgres database hosted in
+            the EU.
+          </td>
+        </tr>
+        <tr>
+          <td>Sentry</td>
+          <td>
+            Crash reporting. When the app crashes or a request fails, it sends the error, a stack
+            trace, and technical details about the device (model, operating system version, app
+            version) to Sentry's European servers. It does not receive your email address, your
+            name, your reading history, or anything you type into the app.
+          </td>
         </tr>
         <tr>
           <td>Expo</td>
@@ -142,9 +163,10 @@ const description =
   <h2>Where your data is kept</h2>
 
   <p>
-    All account data is stored in {HOSTING_REGION}, inside the EU. Google, Expo and OpenRouter are
-    US-based providers, so their processing may involve transfers outside the EU under the standard
-    safeguards those companies publish.
+    All account data is stored inside the EU — application data in {HOSTING_REGION}, the database
+    in Neon's EU region, and crash reports on Sentry's EU servers. Google, Expo, Neon, Sentry and
+    OpenRouter are US-headquartered companies, so their processing may involve transfers outside
+    the EU under the standard safeguards those companies publish.
   </p>
 
   <h2>How long it is kept</h2>

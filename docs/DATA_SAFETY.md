@@ -8,10 +8,14 @@ exists so those clicks trace back to specific fields in the code, rather than
 being re-derived from memory or from the [privacy policy](../apps/site/src/pages/privacy.astro)'s
 prose each time the form needs touching — the two must never drift apart.
 
-**Re-check this file whenever `UserRecord` (`packages/core/src/users.types.ts`)
+**Re-check this file whenever (a) `UserRecord` (`packages/core/src/users.types.ts`)
 or `ActivityRecord`/`BookmarkRecord` (`packages/core/src/repos/userActivityRepo.ts`)
-gains, loses, or changes the meaning of a field**, and before every Data Safety
-resubmission.
+gains, loses, or changes the meaning of a field, (b) any dependency that transmits
+anything off-device is added, removed or reconfigured — crash reporting, analytics,
+OTA updates, ads — or (c) a request gains a new query parameter or header**, and
+before every Data Safety resubmission. Trigger (b) is written this broadly because
+the narrower `UserRecord`-only version of this note failed to catch the Sentry
+addition, and this file shipped four wrong rows as a result.
 
 ## Data types collected and shared
 
@@ -24,10 +28,10 @@ Source of truth: `packages/core/src/users.types.ts` (`UserRecord`) and
 | Personal info | Name | Yes (`UserRecord.name`) | No | Account management | No — required to sign in |
 | Personal info | User IDs | Yes (Google `sub`, stored as `userId`) | No | Account management, app functionality | No |
 | App activity | App interactions | Yes (read events → `ActivityRecord`, bookmarks → `BookmarkRecord`, `topicReads`) | No | App functionality (feed ranking, History/Saved screens) | No |
-| App info and performance | Crash logs | **No** | — | — | — |
-| App info and performance | Diagnostics | **No** | — | — | — |
-| App info and performance | Other performance data | **No** | — | — | — |
-| Device or other IDs | Device or other IDs | **No** — the pre-D68 anonymous `X-Device-Id` was removed outright, not replaced | — | — | — |
+| App info and performance | Crash logs | **Yes** (Sentry, `apps/mobile/src/state/sentry.ts`) | No — service provider | App functionality (diagnosing breakages) | No |
+| App info and performance | Diagnostics | **Yes** (Sentry device context + 10%-sampled performance traces) | No — service provider | App functionality | No |
+| App info and performance | Other performance data | **Yes** (Sentry transaction/span timings) | No — service provider | App functionality | No |
+| Device or other IDs | Device or other IDs | **Yes** — `EAS-Client-ID`, a random per-install UUID sent to Expo on every update check (`expo-eas-client`). The pre-D68 anonymous `X-Device-Id` is still gone; this is a different, SDK-generated identifier | No — service provider | App functionality (OTA update delivery) | No |
 | Financial info | Any | **No** — no payment code exists yet (D75; lands in phase 21) | — | — | — |
 | Location | Any | **No** | — | — | — |
 | Web browsing | Any | **No** — `Read original` hands off to the OS/in-app browser; TechTok's own servers never see that request | — | — | — |
@@ -42,7 +46,7 @@ local-midnight quota reset — closest fit is "App activity" or omit) and
 
 ## "Data is shared with third parties" — answer: No
 
-Google, AWS, Expo and OpenRouter are **processors acting on TechTok's behalf**
+Google, AWS, Neon, Sentry, Expo and OpenRouter are **processors acting on TechTok's behalf**
 under their own contracts, not third parties TechTok *shares* data with for
 independent purposes — the Play Console distinction that matters here is
 "service provider" vs. "third party." Concretely:
@@ -50,7 +54,16 @@ independent purposes — the Play Console distinction that matters here is
 - **Google** — receives the sign-in request directly from the device (not
   routed through TechTok's servers); TechTok's backend only ever sees the
   resulting verified token.
-- **AWS** (`eu-central-1`) — hosting infrastructure. Processor.
+- **AWS** (`eu-central-1`) — compute, file storage and content delivery. Processor.
+- **Neon** — the Postgres database holding every user-scoped row (email, name,
+  Google `sub`, reading history, bookmarks). Processor. Named here because the
+  privacy policy previously credited AWS with the database and never mentioned
+  Neon, which was an undisclosed-processor problem under GDPR Art. 13.
+- **Sentry** (EU ingest) — crash reports, stack traces, device context and
+  10%-sampled performance traces. Processor. Screenshot, view-hierarchy and
+  session-replay capture are explicitly disabled, and `beforeSend`/`beforeBreadcrumb`
+  strip URL query strings (which carry the `?q=` search term) and the client IP,
+  so Sentry receives no account data and no user-entered text.
 - **Expo** — receives app/device version at OTA-update-check time, not
   account data. Processor.
 - **OpenRouter** — receives **article text from public RSS feeds only**.
@@ -59,8 +72,8 @@ independent purposes — the Play Console distinction that matters here is
   request there is ever constructed from a user-scoped value.
 
 So: check **"No"** on "Is data shared with third parties," and list Google,
-AWS, Expo, and OpenRouter under "service providers" if Play's form separates
-the two (it does, in the detailed flow).
+AWS, Neon, Sentry, Expo, and OpenRouter under "service providers" if Play's form
+separates the two (it does, in the detailed flow).
 
 ## Security practices section
 
@@ -92,5 +105,11 @@ specific to the deleted user in the first place.
   `entitlement.types.ts`'s `FairUse` shape once it exists.
 - Any new third-party SDK (crash reporting, analytics, ads) flips multiple
   "No" rows above to "Yes" and requires re-answering the third-party-sharing
-  question — there is deliberately none of this today (see the privacy
-  policy's "What the app does not do" section).
+  question. This already happened once: Sentry landed after this file was
+  written and none of the affected rows were updated until the pre-launch audit
+  caught it.
+- Re-widening Sentry's capture surface — `attachScreenshot`, `attachViewHierarchy`,
+  `replaysOnErrorSampleRate`, or removing the `beforeSend`/`beforeBreadcrumb`
+  scrubbers — puts **Email address** (the account screen renders it) and
+  **In-app search history** (the `?q=` parameter) back into Sentry's payload and
+  makes both declarable as collected. Keep them off, or update this table.

@@ -149,7 +149,7 @@ jobs:
             echo ""
             echo "- Commit: $COMMIT_SHA"
             echo '- Install: download `techtok.apk` on an Android phone, then allow "install from unknown sources" for this file.'
-            echo "- Always-current link: https://github.com/tormozz48/techtok/releases/latest/download/techtok.apk (also on the [project site](https://tormozz48.github.io/techtok/))."
+            echo "- Always-current link: https://github.com/tormozz48/techtok/releases/latest/download/techtok.apk (also on the [project site](https://techtokapp.eu/))."
           } > release-body.md
 
       # Caches ~/.gradle (where `eas build --local` runs Gradle from).

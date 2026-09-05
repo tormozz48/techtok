@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest';
-// @ts-expect-error the Lambda source ships as plain .mjs with no type declarations
-import { buildOversizeNotice, pickFromAddress, rewriteForForwarding } from './rewrite.mjs';
+import { buildOversizeNotice, pickFromAddress, rewriteForForwarding } from './rewrite';
 
 const FROM_ADDRESS = 'privacy@techtokapp.eu';
 const VIA_LABEL = 'via TechTok';
 
 function rewrite(raw: string): string {
-  return rewriteForForwarding({ raw, fromAddress: FROM_ADDRESS, viaLabel: VIA_LABEL }) as string;
+  return rewriteForForwarding({ raw, fromAddress: FROM_ADDRESS, viaLabel: VIA_LABEL });
 }
 
 function asLatin1(utf8Text: string): string {
@@ -156,7 +155,7 @@ describe('buildOversizeNotice', () => {
     subject: 'Скриншоты',
     sizeBytes: 12 * 1024 * 1024,
     s3Uri: 's3://bucket/inbound/abc',
-  }) as string;
+  });
 
   it('is pure ASCII so it survives a latin1 byte round-trip', () => {
     expect(notice).toMatch(/^[\x20-\x7e\r\n]*$/);

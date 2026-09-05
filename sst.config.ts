@@ -30,6 +30,10 @@ export default $config({
     const { api } = await import('./infra/api');
     await import('./infra/monitoring');
 
+    if ($app.stage === 'production') {
+      await import('./infra/mail');
+    }
+
     return {
       api: api.url,
       ingestPipeline: ingestPipeline.arn,

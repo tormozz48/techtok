@@ -113,14 +113,14 @@ techtok/
 │   ├── shared/                # zod v4 contracts, topic/language taxonomy — zero runtime deps beyond zod
 │   ├── core/                  # domain logic: RSS mapping, URL canonicalization, feed scoring/merge,
 │   │                          #   entitlement, db/ schema + repos/ queries over models/ table models,
-│   │                          #   LLM client/providers, pipeline stages
-│   ├── functions/             # thin Lambda handlers: api/*, pipeline/*, ops/* (parse → call core → serialize)
+│   │                          #   LLM client/providers, pipeline stages, inbound-mail MIME rewrite
+│   ├── functions/             # thin Lambda handlers: api/*, pipeline/*, ops/*, mail/ (parse → call core → serialize)
 │   └── e2e/                   # live-stage suites (D34): backend pipeline, API contract, Maestro emulator flows
 ├── apps/
 │   ├── mobile/                # Expo app (expo-router), committed bare `android/` project (D18)
 │   └── site/                  # Astro static site → GitHub Pages
 ├── scripts/                   # ops/CI scripts: wipeUsers, grantEntitlement, bumpMobileVersion,
-│                              #   setupMail.sh + mail/, setupSiteDns.sh (domain mail + Pages DNS, D103)
+│                              #   setupSiteDns.sh (GitHub Pages apex DNS, D103)
 └── docs/                      # DESIGN.md, IMPLEMENTATION_PLAN.md, DISTRIBUTION.md, RUNBOOK.md, DATA_SAFETY.md
 ```
 
@@ -245,15 +245,23 @@ pnpm grant-entitlement -- --stage dev --user-id <id> --plan plus
 
 ### Project domain & mail
 
-`techtokapp.eu` is registered in Route 53 Domains and receives mail through SES (D103): `privacy@`, `support@` and `noreply@techtokapp.eu` are forwarded to the maintainer's Gmail by the `techtok-mail-forwarder` Lambda, with the raw copy kept for 30 days in `s3://techtok-mail-inbound-<account>/inbound/`. These are account-level resources, not per-stage, so they live outside `infra/` and are provisioned by a standalone script:
+`techtokapp.eu` is registered in Route 53 Domains and receives mail through SES: `privacy@`, `support@` and `noreply@techtokapp.eu` are forwarded to the maintainer's Gmail by the `MailForwarder` Lambda, with the raw copy kept for 30 days in `s3://techtok-mail-inbound-<account>/inbound/`. The whole pipeline — S3 bucket and policy, receipt rule set and rule, domain identity and Easy DKIM, the forwarder Lambda, and every DNS record (MX, SPF, DMARC, the three DKIM CNAMEs) — is declared in [infra/mail.ts](infra/mail.ts) and deployed by CI with the rest of the `production` stage (D104, replacing D103's `scripts/setupMail.sh`). Nothing about it is provisioned by hand.
+
+It is **`production`-only**: `sst.config.ts` imports `infra/mail.ts` under a `$app.stage === 'production'` guard, so a `dev` deploy neither duplicates the pipeline nor touches the live mailbox. The bucket, receipt rule set and SES domain identity additionally carry `retainOnDelete: true`, on top of the stage-level `removal: 'retain'` and `protect: true`, so a teardown cannot take the project's mailbox with it.
+
+The one secret is the forwarding destination:
 
 ```bash
-bash scripts/setupMail.sh --domain techtokapp.eu --forward-to <gmail address>
+pnpm exec sst secret set MailForwardTo <gmail address> --stage production
 ```
 
-Idempotent; needs admin credentials plus `jq` and `zip` — run it from AWS CloudShell, since the local `techtok` profile is read-only. It publishes SPF/DKIM/DMARC first, builds the S3 → Lambda → receipt-rule pipeline, waits for the SES identity to verify, and only then publishes MX; if verification is still pending after 10 minutes it exits 2 without MX and a re-run finishes the job. The Lambda source is `scripts/mail/{forwarder,rewrite}.mjs` (no bundling — the `nodejs22.x` runtime supplies the SDK); re-running the script redeploys it. Still manual, in the SES console: production access (the account is in the sandbox — 200 sends/day, verified recipients only) and SMTP credentials for Gmail "Send mail as" (`email-smtp.eu-central-1.amazonaws.com`, port 587, STARTTLS).
+Ordering is enforced declaratively rather than by polling: MX is published last, `dependsOn` the SES domain verification and the active rule set, because SES silently drops mail that arrives before the identity is verified and the rule set is active. The apex `TXT` record is owned outright by `APEX_TXT_EXTRA_VALUES` in `infra/mail.ts` — add the Google Search Console `google-site-verification` token there, not in the console, or the next deploy will drop it.
 
-The same domain fronts the public site: `scripts/setupSiteDns.sh --domain techtokapp.eu --pages-host tormozz48.github.io` publishes GitHub Pages' apex A/AAAA records and the `www` CNAME (same admin-credential requirement, same idempotency). The custom domain itself is set in the repo's Settings → Pages — an Actions-based deploy ignores any `CNAME` file — and must be set together with the `astro.config.ts` `site`/`base` values, since a build for the old `/techtok` subpath 404s at the domain root.
+Still manual, in the SES console: production access (the account is in the sandbox — 200 sends/day, verified recipients only, which is why the forwarding Gmail must itself be a verified SES identity) and SMTP credentials for Gmail "Send mail as" (`email-smtp.eu-central-1.amazonaws.com`, port 587, STARTTLS).
+
+The `production` deploy role (`AWS_DEPLOY_ROLE_ARN`) needs SES receipt-rule and identity write access, `route53:ChangeResourceRecordSets` on the `techtokapp.eu` zone, and `s3:CreateBucket` plus the bucket policy/lifecycle/public-access-block puts. Without them the deploy fails with `AccessDenied` — see [docs/DESIGN.md](docs/DESIGN.md) D104 for the full action list.
+
+The same domain fronts the public site: `scripts/setupSiteDns.sh --domain techtokapp.eu --pages-host tormozz48.github.io` publishes GitHub Pages' apex A/AAAA records and the `www` CNAME (admin credentials, idempotent) — still a script, since those records belong to GitHub Pages rather than to any AWS resource. The custom domain itself is set in the repo's Settings → Pages — an Actions-based deploy ignores any `CNAME` file — and must be set together with the `astro.config.ts` `site`/`base` values, since a build for the old `/techtok` subpath 404s at the domain root.
 
 Operational playbooks — stuck DLQs, compact-generation failures, the per-source compact kill switch, LLM spend — live in [docs/RUNBOOK.md](docs/RUNBOOK.md).
 

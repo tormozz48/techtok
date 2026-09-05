@@ -1,12 +1,9 @@
-name: E2E (dev stage)
+name: E2E (production)
 
-# This is the one workflow allowed to hold real AWS credentials, scoped to
-# dev-stage read/invoke only via the techtok-gha-e2e OIDC role (no
-# write/deploy access). Never triggered directly by push/pull_request (DESIGN
-# §2 D34); ci.yml invokes it as a reusable workflow (workflow_call) as step 3
-# of the main-branch release pipeline, after dev is deployed and before
-# production (D38) — that call happens only on a push to main, never a PR, so
-# the no-AWS-credentials-in-CI guarantee for PR-triggered jobs still holds.
+# D34: the one non-deploy workflow allowed real AWS credentials (read/invoke
+# only, via techtok-gha-e2e). Never triggered by push/pull_request — ci.yml
+# calls it on main only, after the deploy it verifies (D100), so PR-triggered
+# jobs stay credential-free.
 on:
   workflow_dispatch:
   workflow_call:
@@ -14,7 +11,7 @@ on:
     - cron: "0 6 * * *"
 
 concurrency:
-  group: e2e-dev
+  group: e2e-production
   cancel-in-progress: false
 
 jobs:
@@ -41,21 +38,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Starts a real IngestPipeline execution against dev and asserts the
-      # Postgres/SQS state transitions it should cause (sources refetched,
-      # Transform/Translate queues drained). The source-freshness half needs a
-      # real connection, and without DATABASE_URL the suite's describe.skipIf
-      # turns this whole job into a silent no-op -- which is exactly what it
-      # had been since the phase 24 Postgres port. Fail loudly instead, the
-      # same guard D92 put on the deploy workflows' migration step. This is
-      # the dev stage's own connection string; production's is never exposed
-      # to this workflow.
+      # Starts a real IngestPipeline execution and asserts the Postgres/SQS
+      # transitions it should cause. D97: fail loudly without DATABASE_URL
+      # rather than let describe.skipIf make this a silent no-op. D100: this
+      # now runs against production -- real rows, real LLM spend per run.
       - name: Run backend pipeline E2E
         env:
-          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL_DEV_DIRECT }}
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL_PRODUCTION_DIRECT }}
         run: |
           if [ -z "$DATABASE_URL" ]; then
-            echo "::error::NEON_DATABASE_URL_DEV_DIRECT repository secret is not set -- the backend pipeline E2E would silently skip (D97)."
+            echo "::error::NEON_DATABASE_URL_PRODUCTION_DIRECT repository secret is not set -- the backend pipeline E2E would silently skip (D97)."
             exit 1
           fi
           pnpm --filter @techtok/e2e run backend-pipeline
@@ -83,14 +75,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Calls the real deployed dev API and parses every response through the
-      # same packages/shared zod schemas the mobile app itself uses. Since
-      # D68, every route but the two public catalogs requires a verified
-      # Google ID token — GOOGLE_TEST_REFRESH_TOKEN/GOOGLE_OAUTH_WEB_CLIENT_ID/
-      # GOOGLE_OAUTH_WEB_CLIENT_SECRET are minted for a dedicated test Google
-      # account (see packages/e2e/src/googleTestAuth.ts's setup instructions);
-      # until those secrets are set, the authenticated suites skip cleanly
-      # rather than failing (describe.skipIf).
+      # Calls the deployed API and parses every response through the same
+      # packages/shared zod schemas the app uses. D68: all but the two public
+      # catalogs need a verified Google ID token, minted for a dedicated test
+      # account (packages/e2e/src/googleTestAuth.ts). Those suites skip
+      # cleanly until the three secrets exist.
       - name: Run API contract E2E
         env:
           GOOGLE_TEST_REFRESH_TOKEN: ${{ secrets.GOOGLE_TEST_REFRESH_TOKEN }}
@@ -98,10 +87,5 @@ jobs:
           GOOGLE_OAUTH_WEB_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_WEB_CLIENT_SECRET }}
         run: pnpm --filter @techtok/e2e run api-contract
 
-  # The mobile-emulator (Maestro/Android emulator) job used to live here.
-  # It's been moved to its own workflow, mobile-emulator-e2e.yml, so it's
-  # fully out of this bundle: no longer on e2e.yml's daily schedule and not
-  # reachable via ci.yml's release pipeline at all — manual
-  # workflow_dispatch only, for now (UI-level Maestro flows are more
-  # flake-prone than the HTTP-contract jobs above, and shouldn't be able to
-  # block anything on this schedule).
+  # The Maestro emulator job lives in mobile-emulator-e2e.yml — manual
+  # dispatch only, so UI flake can't block this schedule or the pipeline.

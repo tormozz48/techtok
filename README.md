@@ -4,7 +4,7 @@ TechTok turns tech & science news into a TikTok-style swipeable feed. Articles a
 
 This README covers running, developing, and deploying the project day to day. For the full architecture and decision history, see [CLAUDE.md](CLAUDE.md), [docs/DESIGN.md](docs/DESIGN.md), and [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md). The public project site — topics, sources, release history, and the latest Android APK download — lives at [tormozz48.github.io/techtok](https://tormozz48.github.io/techtok/) (`apps/site`).
 
-**Status:** phases 0–20 are code complete and the backend runs on both the `dev` and `production` stages. The current front is the **free-first public Play launch** (phase 23, D75): store listing, legal surface, and the 14-day closed-test clock run against the app as it exists today, with Play Billing (phase 21) and the paid extended compact (phase 22) shipping as later store updates. See CLAUDE.md for the phase-by-phase table and what's still maintainer-gated.
+**Status:** phases 0–20 are code complete and the backend runs on `production` (the only stage CI deploys, D100) plus a personal `dev` stage for local work. The current front is the **free-first public Play launch** (phase 23, D75): store listing, legal surface, and the 14-day closed-test clock run against the app as it exists today, with Play Billing (phase 21) and the paid extended compact (phase 22) shipping as later store updates. See CLAUDE.md for the phase-by-phase table and what's still maintainer-gated.
 
 ---
 
@@ -283,13 +283,12 @@ The authenticated suites need a dedicated test Google account's `GOOGLE_TEST_REF
 
 ## Deployment (CI/CD)
 
-Eight GitHub Actions workflows. `CI` is the entry point; the seven others are reusable workflows it calls in sequence, each also runnable standalone via `workflow_dispatch`.
+Seven GitHub Actions workflows. `CI` is the entry point; five of the others are reusable workflows it calls, each also runnable standalone via `workflow_dispatch`, and `Mobile emulator E2E` is manual-dispatch only. There is **one deployed stage** — `production` — deployed only by CI (D100).
 
 - **`CI`** ([ci.yml](.github/workflows/ci.yml)) — on PR + push to `main`. Six independent check jobs run in parallel, each doing its own cached `pnpm install` (D51 retired the shared-install `setup` job — the cache made it a net loss): `lint`, `typecheck`, `test`, `schema-check`, `mobile-icon-check` (D59 — catches source icon/splash assets drifting from the committed `android/` project), and `mobile-security-scan` (mobsfscan over the app source and release manifest). A new push cancels an in-flight run **only on PRs** — main-branch runs queue instead, so a merge can never kill a release pipeline mid-deploy (D91).
-- **`Deploy dev`** ([deploy-dev.yml](.github/workflows/deploy-dev.yml)) — deliberately has **no** `needs`, so it races the check jobs instead of queueing behind them (D52); `dev` is throwaway. Uses its own least-privilege OIDC role. Runs `pnpm db:migrate` against Neon (direct connection) before `sst deploy` (D92), so a pending schema migration always reaches `dev` automatically, then invokes the `SeedSources` Lambda after it — idempotent, and the only thing that refills `sources` after a destructive migration (D94), since `LoadSources` merely lists what is already there.
-- **`E2E`** ([e2e.yml](.github/workflows/e2e.yml)) — daily schedule, manual dispatch, and step 3 of the main-branch pipeline. Exercises the real `dev` stage via a narrowly-scoped, read/invoke-only OIDC role (D34). Its `backend-pipeline` job also takes `NEON_DATABASE_URL_DEV_DIRECT` so it can assert every enabled source was refetched, and fails rather than skips when that secret is missing (D97). Its Maestro `mobile-emulator` job is **skipped** in the release pipeline (`skip_mobile_emulator: true`) — UI flake shouldn't block a production deploy.
-- **`Deploy production`** ([deploy-production.yml](.github/workflows/deploy-production.yml)) — gated on E2E *and* all six checks. Runs the same automatic `pnpm db:migrate` step as `Deploy dev` (D92), against production's own direct connection string, before `sst deploy`, and the same post-deploy `SeedSources` invoke after it. Emits the real API URL from its own `.sst/outputs.json` so the mobile build never needs a committed URL.
-- **`mobile-version-bump`** (a plain job inside [ci.yml](.github/workflows/ci.yml), not its own workflow file) — owns mobile versioning (D42/D44, extracted into its own job by D99): computes a conventional-commit semver bump baselined against the last `mobile-v*` tag and pushes it straight to `main` with `[skip ci]` and a rebase-retry loop. Gated on the same `should_build` signal a preceding `mobile-changes` job computes (D53), so it's skipped entirely — routing a JS-only merge to the `mobile-ota-update` job instead — when nothing mobile-relevant landed since that tag. `Mobile build` and `Mobile release (Play Store)` both depend only on this job and run in parallel (D99), since both just need the bumped versionCode it already pushed.
+- **`Deploy to AWS`** ([deploy.yml](.github/workflows/deploy.yml)) — the only deploy; gated on all six checks. Runs `pnpm db:migrate` against Neon over a direct (non-pooled) connection before `sst deploy` (D92), so a pending schema migration always reaches production automatically, then invokes the `SeedSources` Lambda after it — idempotent, and the only thing that refills `sources` after a destructive migration (D94), since `LoadSources` merely lists what is already there. Emits the real API URL from its own `.sst/outputs.json`, and warns (non-fatally) when the `PRODUCTION_API_URL` repository variable doesn't match it.
+- **`E2E`** ([e2e.yml](.github/workflows/e2e.yml)) — daily schedule, manual dispatch, and the stage that follows the deploy on `main`. Since D100 it exercises **production** — the stage that was just deployed — via a narrowly-scoped, read/invoke-only OIDC role (D34). Its `backend-pipeline` job also takes `NEON_DATABASE_URL_PRODUCTION_DIRECT` so it can assert every enabled source was refetched, and fails rather than skips when that secret is missing (D97). It runs *after* the deploy, so it reports on a release rather than gating one; the six checks are the gate. Its Maestro flows live in a separate manual-only workflow ([mobile-emulator-e2e.yml](.github/workflows/mobile-emulator-e2e.yml)) — UI flake shouldn't block anything.
+- **`mobile-version-bump`** (a plain job inside [ci.yml](.github/workflows/ci.yml), not its own workflow file) — owns mobile versioning (D42/D44, extracted into its own job by D99): computes a conventional-commit semver bump baselined against the last `mobile-v*` tag and pushes it straight to `main` with `[skip ci]` and a rebase-retry loop. Gated on the same `should_build` signal a preceding `mobile-changes` job computes (D53), so it's skipped entirely — routing a JS-only merge to the `mobile-ota-update` job instead — when nothing mobile-relevant landed since that tag. `Mobile build` and `Mobile release (Play Store)` both depend only on this job and run in parallel (D99), since both just need the bumped versionCode it already pushed. The whole mobile chain hangs off `mobile-changes`, which since D100 needs the six checks directly and so runs alongside the deploy rather than behind it — it takes the API URL from the `PRODUCTION_API_URL` repository variable and fails fast if that variable is unset.
 - **`Mobile build`** ([mobile-build.yml](.github/workflows/mobile-build.yml)) — builds an Android APK with `eas build --local` (on the GitHub runner, so it consumes **no** EAS cloud-build credits), publishes the JS bundle to the `preview` EAS Update channel (D60), attaches the APK to a GitHub Release with conventional-commit release notes (D58), and tags the release. Also runnable standalone via `workflow_dispatch`, in which case it bumps the version itself (`skip_version_bump` only defaults `true` when `ci.yml` calls it, since `mobile-version-bump` already did it).
 - **`Mobile release (Play Store)`** ([mobile-release.yml](.github/workflows/mobile-release.yml)) — builds the `production` `eas.json` profile as a Play-uploadable AAB with `eas build --local`, gated on the same `should_build` signal (D53) as `Mobile build`, so it only fires when a merge actually needed a new native build (D98), and runs in parallel with it (D99). Submits the AAB to the Play Console `internal` track via the Play Developer API when `PlayServiceAccountKey` (D71) is set; until then it uploads the AAB as a downloadable Actions artifact only, the same clean-skip convention as `SENTRY_AUTH_TOKEN`. Also runnable standalone via `workflow_dispatch` for an ad hoc rebuild against a specific API URL.
 - **`Deploy site`** ([deploy-site.yml](.github/workflows/deploy-site.yml)) — builds `apps/site` and publishes to GitHub Pages, checking out `main` at full depth so the version badge and release feed see the tag the mobile build just pushed.
@@ -298,27 +297,35 @@ Eight GitHub Actions workflows. `CI` is the entry point; the seven others are re
 The main-branch release pipeline, in order:
 
 ```
-                                                       ┌─→ mobile-build ─┬─→ deploy-site
-checks ──┐                                             │                 └─→ release-cleanup
-         ├─→ deploy-production ─→ mobile-version-bump ─┤
-dev ─→ e2e ┘                                           └─→ mobile-play-release
+         ┌─→ deploy ─→ e2e
+checks ──┤
+         └─→ mobile-changes ─┬─→ mobile-version-bump ─┬─→ mobile-build
+                             │                        └─→ mobile-play-release
+                             └─→ mobile-ota-update
+
+deploy-site       needs deploy (success) + mobile-build (success or skipped)
+release-cleanup   needs mobile-build
 ```
 
-`mobile-build` (APK) and `mobile-play-release` (AAB) both depend only on `mobile-version-bump` and run in parallel (D99) — neither waits on the other, since both just need the bumped versionCode already pushed to `main`. `deploy-site`/`release-cleanup` still gate on `mobile-build` only, not `mobile-play-release`.
+Two chains fan out from the same six checks and run in parallel (D100). `deploy` → `e2e` is the backend half: production is deployed, then E2E exercises what was just deployed. The mobile half no longer waits for either, because it reads the API URL from the `PRODUCTION_API_URL` repository variable instead of the deploy's output. `mobile-build` (APK) and `mobile-play-release` (AAB) both depend only on `mobile-version-bump` and run in parallel (D99). `mobile-ota-update` is mutually exclusive with those two (D53's `should_build`/`should_ota` split). `deploy-site` is the one join point — it needs `deploy` to have succeeded *and* `mobile-build` to have succeeded or been skipped; `release-cleanup` gates on `mobile-build` alone.
 
 ### Required repository secrets
 
 | Secret | Used by | Notes |
 |---|---|---|
-| `AWS_DEV_DEPLOY_ROLE_ARN` | Deploy dev | OIDC role scoped to `techtok-dev-*` only |
-| `AWS_DEPLOY_ROLE_ARN` | Deploy production | OIDC, production deploy |
-| `AWS_E2E_ROLE_ARN` | E2E | OIDC, read/invoke only — never grant it write/deploy |
-| `NEON_DATABASE_URL_DEV_DIRECT` | Deploy dev, E2E | Direct (non-pooled) Neon connection string for `dev`; runs `pnpm db:migrate` (D92) and, since D97, backs the E2E `backend-pipeline` job's source-freshness assertion — `dev` only, production's equivalent is never exposed to E2E — distinct from the pooled `NeonDatabaseUrl` `sst.Secret` the Lambdas link at runtime |
-| `NEON_DATABASE_URL_PRODUCTION_DIRECT` | Deploy production | Same as above, for `production` |
-| `GOOGLE_OAUTH_WEB_CLIENT_ID` | both deploys, Mobile build | Not sensitive; without it every ID token fails on audience mismatch |
+| `AWS_DEPLOY_ROLE_ARN` | Deploy to AWS | OIDC, production deploy |
+| `AWS_E2E_ROLE_ARN` | E2E | OIDC, read/invoke only — never grant it write/deploy. Since D100 it must reach `production`-tagged resources, not `techtok-dev-*` |
+| `NEON_DATABASE_URL_PRODUCTION_DIRECT` | Deploy to AWS, E2E | Direct (non-pooled) Neon connection string for `production`; runs `pnpm db:migrate` (D92) and backs the E2E `backend-pipeline` job's source-freshness assertion (D97, retargeted by D100) — distinct from the pooled `NeonDatabaseUrl` `sst.Secret` the Lambdas link at runtime |
+| `GOOGLE_OAUTH_WEB_CLIENT_ID` | Deploy to AWS, Mobile build | Not sensitive; without it every ID token fails on audience mismatch |
 | `EXPO_TOKEN` | Mobile build | Free Expo account; also supplies the signing credentials |
 | `SENTRY_AUTH_TOKEN` | Mobile build, mobile-ota-update | Optional — its absence just skips the source-map/symbol upload |
 | `PlayServiceAccountKey` | Mobile release | Google Cloud service account JSON with Play Developer API access (D71); its absence just skips the Play upload and leaves the AAB as a downloadable artifact |
 | `GOOGLE_TEST_REFRESH_TOKEN`, `GOOGLE_OAUTH_WEB_CLIENT_SECRET` | E2E | The authenticated suites skip cleanly until these exist |
 
 No long-lived AWS keys anywhere — every AWS-touching job assumes a role via OIDC, and every PR-triggered job runs with no credentials at all.
+
+### Required repository variables
+
+| Variable | Used by | Notes |
+|---|---|---|
+| `PRODUCTION_API_URL` | `mobile-changes`, Mobile build, Mobile release, `mobile-ota-update` | The production API Gateway base URL, baked into every APK/AAB/OTA bundle as `EXPO_PUBLIC_API_URL`. A repository **variable**, not a secret — it isn't sensitive, and it has to be readable in a job-level `if`. Replaces the `Deploy production` → `Mobile build` workflow output that used to carry it, which is what lets the mobile chain run in parallel with the deploy (D100). `mobile-changes` fails the whole mobile chain when it's unset, and `Deploy to AWS` warns when it no longer matches the URL it just deployed. Find the current value in the `Deploy to AWS` workflow's most recent run output. |

@@ -11,7 +11,7 @@ import {
   topicsResponseSchema,
 } from '@techtok/shared';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { discoverDevResources, getApiEndpoint } from './awsDiscovery';
+import { discoverStageResources, getApiEndpoint } from './awsDiscovery';
 import { fetchTestIdToken, readTestCredentials } from './googleTestAuth';
 
 const testCredentials = readTestCredentials();
@@ -42,7 +42,7 @@ describe.skipIf(!testCredentials)('API contract E2E', () => {
   let headers: Record<string, string>;
 
   beforeAll(async () => {
-    const resources = await discoverDevResources();
+    const resources = await discoverStageResources();
     apiEndpoint = await getApiEndpoint(resources.apiId);
     // biome-ignore lint/style/noNonNullAssertion: describe.skipIf above guarantees this block only runs when testCredentials is set.
     const idToken = await fetchTestIdToken(testCredentials!);
@@ -97,7 +97,7 @@ describe.skipIf(!testCredentials)('API mutation E2E', () => {
   let headers: Record<string, string>;
 
   beforeAll(async () => {
-    const resources = await discoverDevResources();
+    const resources = await discoverStageResources();
     apiEndpoint = await getApiEndpoint(resources.apiId);
     // biome-ignore lint/style/noNonNullAssertion: describe.skipIf above guarantees this block only runs when testCredentials is set.
     const idToken = await fetchTestIdToken(testCredentials!);
@@ -205,7 +205,7 @@ describe.skipIf(!testCredentials)('API auth failures E2E', () => {
   let apiEndpoint: string;
 
   beforeAll(async () => {
-    const resources = await discoverDevResources();
+    const resources = await discoverStageResources();
     apiEndpoint = await getApiEndpoint(resources.apiId);
   }, 60_000);
 
@@ -232,7 +232,7 @@ describe.skipIf(!testCredentials)('API validation & edge-case E2E', () => {
   let headers: Record<string, string>;
 
   beforeAll(async () => {
-    const resources = await discoverDevResources();
+    const resources = await discoverStageResources();
     apiEndpoint = await getApiEndpoint(resources.apiId);
     // biome-ignore lint/style/noNonNullAssertion: describe.skipIf above guarantees this block only runs when testCredentials is set.
     const idToken = await fetchTestIdToken(testCredentials!);
@@ -447,7 +447,7 @@ describe.skipIf(!testCredentials)('API account deletion E2E', () => {
   let headers: Record<string, string>;
 
   beforeAll(async () => {
-    const resources = await discoverDevResources();
+    const resources = await discoverStageResources();
     apiEndpoint = await getApiEndpoint(resources.apiId);
     // biome-ignore lint/style/noNonNullAssertion: describe.skipIf above guarantees this block only runs when testCredentials is set.
     const idToken = await fetchTestIdToken(testCredentials!);

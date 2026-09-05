@@ -6,7 +6,9 @@ import {
 
 export const REGION = 'eu-central-1';
 
-export interface DevResources {
+const DEFAULT_STAGE = process.env.E2E_STAGE ?? 'production';
+
+export interface StageResources {
   ingestPipelineArn: string;
   transformQueueUrl: string;
   translateQueueUrl: string;
@@ -15,7 +17,7 @@ export interface DevResources {
   apiId: string;
 }
 
-export async function discoverDevResources(stage = 'dev'): Promise<DevResources> {
+export async function discoverStageResources(stage = DEFAULT_STAGE): Promise<StageResources> {
   const arns = await listTaggedArns(stage);
 
   const ingestPipelineArn = findArn(
@@ -103,7 +105,6 @@ async function listTaggedArns(stage: string): Promise<string[]> {
 
 function findArn(arns: string[], predicate: (arn: string) => boolean, label: string): string {
   const match = arns.find(predicate);
-  if (!match)
-    throw new Error(`Could not discover the ${label} among the tagged dev-stage resources`);
+  if (!match) throw new Error(`Could not discover the ${label} among the tagged stage resources`);
   return match;
 }

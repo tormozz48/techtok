@@ -2,7 +2,7 @@ import { DescribeExecutionCommand, SFNClient, StartExecutionCommand } from '@aws
 import { GetQueueAttributesCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { createSqlClient, SourcesRepo } from '@techtok/core';
 import { describe, expect, it } from 'vitest';
-import { discoverDevResources, REGION } from './awsDiscovery';
+import { discoverStageResources, REGION } from './awsDiscovery';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -58,7 +58,7 @@ describe.skipIf(!databaseUrl)('backend pipeline E2E', () => {
   it(
     'runs a real IngestPipeline execution and drains the Transform/Translate queues',
     async () => {
-      const resources = await discoverDevResources();
+      const resources = await discoverStageResources();
       const sfn = new SFNClient({ region: REGION });
       const sqs = new SQSClient({ region: REGION });
       // biome-ignore lint/style/noNonNullAssertion: describe.skipIf above guarantees this block only runs when databaseUrl is set.

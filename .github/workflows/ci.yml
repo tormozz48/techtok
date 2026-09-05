@@ -10,20 +10,14 @@ on:
   pull_request:
   workflow_dispatch:
 
-# D91: cancel-in-progress is on for PRs, off for pushes to main. A caller
-# run's cancellation propagates into the reusable workflows it calls, so
-# deploy-production.yml's own `cancel-in-progress: false` cannot protect a
-# deploy that this workflow's cancellation kills from above — which is how the
-# 2026-08-31 production outage happened. Main-branch runs now queue instead.
+# D91: cancel PRs, queue main. Cancellation propagates into called workflows,
+# so a main-branch cancel would kill a deploy mid-run — the 2026-08-31 outage.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# D51 retired the `setup` job that used to install once and hand every check
-# job a tarred `node_modules` artifact. `actions/setup-node`'s pnpm store cache
-# makes `pnpm install --frozen-lockfile` a ~10s step in each job, which is
-# cheaper than the ~12s the artifact download+extract cost — so the shared
-# install bought nothing and its own job sat on the critical path for ~70s.
+# D51: no shared-install job — the pnpm store cache makes a per-job install
+# cheaper than passing node_modules around as an artifact.
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -50,9 +44,8 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      # No AWS credentials are configured in this job — sst.config.ts/infra
-      # typecheck against generated .sst/platform types, which only exist
-      # after a local `sst dev`/`deploy`, so that step skips cleanly here.
+      # No AWS credentials here: the sst.config.ts/infra step needs
+      # .sst/platform types from a local deploy, so it skips cleanly.
       - name: Typecheck
         run: pnpm typecheck
 
@@ -81,39 +74,21 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      # Fails the PR on a removed field/narrowed type/removed enum value in
-      # packages/shared's zod contracts (DESIGN §2 D34) — additive changes
-      # (new optional field, new enum value) pass silently.
+      # D34: fails on a removed field/narrowed type/removed enum value in
+      # packages/shared's zod contracts. Additive changes pass silently.
       - name: Check schema snapshot
         run: pnpm --filter @techtok/shared run schema:check
 
   mobile-icon-check:
     runs-on: ubuntu-latest
     steps:
-      # fetch-depth: 0 so the staleness check below can walk full path
-      # history, not just the single HEAD commit a shallow clone provides.
+      # fetch-depth: 0 — the staleness check walks full path history.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      # Catches the D30/phase-16 class of bug: a source icon/splash image
-      # under assets/images/ changes but the committed android/ native
-      # project (bare workflow, D18) is never regenerated to match, so the
-      # built APK keeps shipping the old asset — exactly what D59's original
-      # implementation found live on `main` (splash-icon.png's padding fix in
-      # 20aa98b was never propagated into android/'s committed drawables).
-      # This deliberately does NOT run `expo prebuild` and diff pixel output:
-      # a first attempt at that failed in real CI (D59 amendment) because
-      # libvips resizes this PNG with an architecture-specific SIMD kernel,
-      # so a splash image regenerated on GitHub's x86_64 runners is never
-      # byte-identical to the arm64-generated committed one even with zero
-      # actual drift — and because the meaningful content here (a small
-      # centered mark on an otherwise blank canvas) is diluted enough by the
-      # blank canvas that no pixel-diff tolerance threshold reliably told
-      # real drift apart from that noise either. Instead this compares git
-      # history: for each source pathspec, the output pathspec it feeds must
-      # have been committed at least as recently. No prebuild, no pnpm
-      # install, no pixel comparison — pure metadata, so it can't be fooled
-      # by toolchain/architecture-dependent regeneration noise.
+      # D59: catches a source icon/splash image drifting from the committed
+      # android/ project (D30/D18). Compares commit recency, not pixels — a
+      # regenerated PNG is never byte-identical across architectures.
       - name: Check Android icon/splash assets are in sync
         run: |
           set -euo pipefail
@@ -142,10 +117,8 @@ jobs:
             "apps/mobile/assets/images/android-icon-foreground.png apps/mobile/assets/images/android-icon-background.png apps/mobile/assets/images/android-icon-monochrome.png" \
             "apps/mobile/android/app/src/main/res/mipmap-*/ic_launcher*.webp apps/mobile/android/app/src/main/res/mipmap-anydpi-v26/*.xml"
 
-          # app_name is compared by value, not by commit recency: app.json
-          # changes far more often than app_name itself (e.g. every mobile
-          # release's automated version bump touches it), so a
-          # commit-recency check here would be permanently, falsely stale.
+          # By value, not commit recency: every version bump touches
+          # app.json, which would make a recency check permanently stale.
           APP_NAME=$(jq -r '.expo.name' apps/mobile/app.json)
           STRINGS_APP_NAME=$(grep -o 'name="app_name">[^<]*' apps/mobile/android/app/src/main/res/values/strings.xml | sed 's/.*>//')
           if [ "$APP_NAME" != "$STRINGS_APP_NAME" ]; then
@@ -154,11 +127,7 @@ jobs:
           fi
           echo "app_name: OK"
 
-          # runtimeVersion is compared by value, for the same reason as
-          # app_name above: app.json changes on every mobile release (the
-          # automated version bump), but runtimeVersion itself only changes
-          # for native-incompatible changes, so a commit-recency check here
-          # would be permanently, falsely stale too.
+          # By value, same reason as app_name above.
           RUNTIME_VERSION=$(jq -r '.expo.runtimeVersion' apps/mobile/app.json)
           STRINGS_RUNTIME_VERSION=$(grep -o 'name="expo_runtime_version">[^<]*' apps/mobile/android/app/src/main/res/values/strings.xml | sed 's/.*>//')
           if [ "$RUNTIME_VERSION" != "$STRINGS_RUNTIME_VERSION" ]; then
@@ -173,14 +142,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install mobsfscan
         run: pip install mobsfscan
-      # Scoped to the TS source, the *release* AndroidManifest (main source
-      # set only -- debug/debugOptimized deliberately excluded: their
-      # cleartext-traffic/missing-allowBackup flags are expected Metro/adb
-      # dev conveniences that never ship) and the Expo/EAS config. See
-      # apps/mobile/.mobsf for why android_task_hijacking1/2 are ignored.
-      # No -w/--exit-warning: WARNING-level findings (e.g. allowBackup=true,
-      # Expo's default) surface in the log without failing the build; only
-      # ERROR-severity findings do.
+      # Release manifest only (debug's cleartext/allowBackup flags never
+      # ship). No -w: only ERROR-severity findings fail the build.
+      # apps/mobile/.mobsf documents the suppressions.
       - name: Scan apps/mobile for security issues
         run: |
           mobsfscan \
@@ -190,9 +154,8 @@ jobs:
             apps/mobile/eas.json \
             -c apps/mobile/.mobsf
 
-  # From here down (D46, extended by D39, D98/D99, reshaped by D100): the
-  # release pipeline for a merge to main. Since D100 it is two chains that run
-  # in parallel rather than one straight line:
+  # From here down: the main-branch release pipeline (D46/D98/D99, reshaped by
+  # D100 into two chains that run in parallel):
   #
   #   deploy-dev ─→ e2e ─→ deploy-production
   #
@@ -203,29 +166,18 @@ jobs:
   #   deploy-site needs deploy-production + mobile-build; release-cleanup
   #   needs mobile-build.
   #
-  # The backend chain is unchanged: dev deploy -> e2e against dev -> production
-  # deploy, each stage gating the next. What changed is that the mobile chain
-  # no longer hangs off the end of it — it reads the production API URL from
-  # the PRODUCTION_API_URL repository variable instead of deploy-production's
-  # workflow output, so the ~10min native builds overlap the deploy and e2e
-  # instead of queueing behind them. Each stage's actual steps live in their
-  # own workflow file (deploy-dev.yml / e2e.yml / deploy-production.yml /
-  # mobile-build.yml / mobile-release.yml / deploy-site.yml /
-  # release-cleanup.yml) and are pulled in here as reusable workflows, so each
-  # can also be run standalone via workflow_dispatch.
-  # A reusable workflow's own jobs can only ever be granted permissions the
-  # calling job itself was granted (permissions narrow down the call chain,
-  # never widen) — so each caller job below must re-declare whatever its
-  # nested workflow's jobs request, or GitHub silently caps it to none.
+  # D100: the mobile chain reads the API URL from the PRODUCTION_API_URL repo
+  # variable instead of deploy-production's output, so the ~10min native
+  # builds overlap the deploy and e2e instead of queueing behind them. Each
+  # stage is a reusable workflow, also runnable standalone. Permissions narrow
+  # down a call chain, so every caller job below must re-declare what its
+  # nested workflow needs or GitHub caps it to none.
   #
-  # D52: deploy-dev deliberately has NO `needs` — it races the quality jobs
-  # instead of queueing behind them, taking itself and e2e off the far side of
-  # the check fan-out. `dev` is a throwaway stage, so deploying a commit that
-  # turns out to fail lint costs nothing that the next merge doesn't fix.
-  # deploy-production is what re-imposes the gate: it needs e2e AND all six
-  # checks (D59 added mobile-icon-check), so nothing reaches production that
-  # hasn't passed everything. The mobile chain, which since D100 no longer
-  # runs behind deploy-production, states that same gate itself.
+  # D52: deploy-dev has NO `needs` — it races the quality jobs, taking itself
+  # and e2e off the far side of the check fan-out. `dev` is throwaway, so a
+  # commit that turns out to fail lint costs nothing there. deploy-production
+  # re-imposes the gate (e2e AND all six checks); the mobile chain, which no
+  # longer runs behind it, states that same gate itself.
   deploy-dev:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     uses: ./.github/workflows/deploy-dev.yml
@@ -252,35 +204,17 @@ jobs:
       contents: read
     secrets: inherit
 
-  # D53: decides whether this merge needs a new APK at all. The Android build
-  # is ~60% of this pipeline's wall-clock and most merges to main are
-  # backend-only, so rebuilding an identical APK every time is the single
-  # biggest waste here. The baseline is the newest `mobile-v*` tag — the marker
-  # D42's tagging step pushes after every successful APK release — so the
-  # question asked is "has anything mobile-relevant landed since the APK that
-  # releases/latest currently serves", not "did this one merge touch mobile".
-  # That accumulates correctly across skipped runs: three backend merges then
-  # one mobile merge still produces exactly one build, containing all four.
-  # should_build only fires on changes that need a native rebuild (the
-  # ~10min `eas build --local` cost): apps/mobile/android, app.json, the
-  # mobile package.json/eas.json, pnpm-lock.yaml (a native dep version bump),
-  # or mobile-build.yml/mobile-release.yml's own build definitions. should_ota fires on the
-  # complementary case — apps/mobile/src, apps/mobile/app (expo-router
-  # routes) or packages/shared changed but nothing native-relevant did since the
-  # last commit actually published to the channel (D84) — and triggers a
-  # lightweight `eas update` OTA publish instead. This is a path
-  # heuristic, not a real fingerprint (D60 already notes runtimeVersion is
-  # hand-maintained, not auto-computed): it can't detect e.g. a pure-JS
-  # dependency bump inside pnpm-lock.yaml being misclassified as native-relevant,
-  # but that only costs an unnecessary full rebuild, never an unsafe OTA.
+  # D53: does this merge need a new APK at all? Baselined against the newest
+  # `mobile-v*` tag, so the question is "anything mobile-relevant since the
+  # APK releases/latest serves", which accumulates correctly across skipped
+  # runs. should_build fires on native-relevant paths (~10min rebuild);
+  # should_ota on the JS-only complement, baselined at the last published
+  # bundle (D84), triggering a cheap `eas update` instead. A path heuristic,
+  # not a fingerprint: worst case is a wasted rebuild, never an unsafe OTA.
   #
-  # D100: `needs` the six checks rather than nothing, so the whole mobile
-  # chain hanging off this job starts when `deploy-dev` does and runs
-  # alongside the deploy/e2e chain. It used to inherit that gate
-  # transitively, through mobile-build's `needs: deploy-production`; with the
-  # API URL now coming from a repository variable instead of that deploy's
-  # output, the link is gone and the gate has to be stated here — otherwise a
-  # merge that fails lint would still cut a release.
+  # D100: needs the six checks directly — it used to inherit that gate through
+  # mobile-build's `needs: deploy-production`, which the repo-variable API URL
+  # removed. Without it a merge failing lint would still cut a release.
   mobile-changes:
     needs: [lint, typecheck, test, schema-check, mobile-icon-check, mobile-security-scan]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
@@ -294,11 +228,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      # D100: every job downstream of this one bakes PRODUCTION_API_URL into a
-      # build (EXPO_PUBLIC_API_URL). An unset variable is not a build failure —
-      # it produces an APK/AAB/OTA bundle that points at nothing and ships — so
-      # fail the whole mobile chain here, once, rather than letting three
-      # separate jobs each discover it too late.
+      # D100: an unset variable isn't a build failure — it ships an APK/AAB
+      # pointing at nothing. Fail the whole mobile chain here, once.
       - name: Check PRODUCTION_API_URL is set
         run: |
           if [ -z "${{ vars.PRODUCTION_API_URL }}" ]; then
@@ -309,10 +240,8 @@ jobs:
       - id: check
         run: |
           set -euo pipefail
-          # Same ordering scripts/bumpMobileVersion.ts uses to pick its own
-          # baseline. for-each-ref --count=1 rather than `git tag | head -1`:
-          # under `pipefail` the latter can fail the step outright when head
-          # exits first and git takes SIGPIPE.
+          # Same ordering bumpMobileVersion.ts uses. for-each-ref --count=1
+          # not `git tag | head -1`: SIGPIPE would fail the step under pipefail.
           BASE=$(git for-each-ref --count=1 --sort=-v:refname --format='%(refname:short)' 'refs/tags/mobile-v*')
           if [ -z "$BASE" ]; then
             echo "No mobile-v* tag exists yet — building (fail open)."
@@ -341,19 +270,11 @@ jobs:
           echo "releases/latest keeps serving the APK built for $BASE."
           echo "should_build=false" >> "$GITHUB_OUTPUT"
 
-          # D84: the OTA baseline is the last commit whose bundle actually
-          # reached the channel, not this one push. The original
-          # `github.event.before..HEAD` window had a hole: a main-branch run
-          # still waiting in this workflow's concurrency queue is cancelled by
-          # the next push behind it (D91 stopped in-progress cancellation, not
-          # this one), so a mobile-JS push whose run never started never
-          # published, and the window of the run that did start no longer
-          # contained the change — it sat unpublished until
-          # some later push happened to touch apps/mobile/src again. Two
-          # markers can carry the baseline, and whichever is further along
-          # main wins: `mobile-ota-latest` (moved by the mobile-ota-update job
-          # below) and the `mobile-v*` tag found above, whose own run
-          # published a bundle as well as an APK.
+          # D84: baseline is the last commit whose bundle actually reached the
+          # channel, not this push — a queued run cancelled by the next push
+          # would otherwise leave its change unpublished indefinitely. Two
+          # markers can carry it (`mobile-ota-latest`, the `mobile-v*` tag);
+          # whichever is further along main wins.
           PUBLISH_BASE="$BASE"
           OTA_BASE=$(git rev-parse -q --verify 'refs/tags/mobile-ota-latest^{commit}' || true)
           if [ -n "$OTA_BASE" ] && git merge-base --is-ancestor "$BASE" "$OTA_BASE"; then
@@ -372,13 +293,9 @@ jobs:
             echo "should_ota=false" >> "$GITHUB_OUTPUT"
           fi
 
-  # D99 (amends D98): the version bump used to live inside mobile-build.yml's
-  # own job, which is why mobile-play-release originally had to `needs:
-  # mobile-build` — it had no other way to see the bumped versionCode before
-  # building its own AAB. Pulling the bump out into its own job lets
-  # mobile-build (APK) and mobile-play-release (AAB) both depend on just this
-  # job and run in parallel, cutting the pipeline's critical path roughly in
-  # half instead of paying for two ~10min native builds back to back.
+  # D99: the bump lives in its own job so mobile-build (APK) and
+  # mobile-play-release (AAB) can both depend on just this and run in
+  # parallel, instead of paying for two ~10min native builds back to back.
   mobile-version-bump:
     needs: mobile-changes
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.mobile-changes.outputs.should_build == 'true'
@@ -386,8 +303,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      # fetch-depth: 0 is needed for bumpMobileVersion.ts's `git tag --list`/
-      # `git log <tag>..HEAD` walk.
+      # fetch-depth: 0 for bumpMobileVersion.ts's tag/log walk.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -402,12 +318,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # D44 (amends D41/D42/D43): computes a conventional-commit-driven
-      # semver bump (baselined against the last `mobile-v*` tag) and pushes it
-      # directly to `main`. The commit message carries `[skip ci]` so the push
-      # doesn't retrigger `ci.yml`, plus a bounded rebase-and-retry loop
-      # against a genuinely concurrent push to `main` instead of failing
-      # outright on the first non-fast-forward rejection.
+      # D44: conventional-commit semver bump baselined against the last
+      # `mobile-v*` tag, pushed straight to main with `[skip ci]` and a
+      # bounded rebase-retry against a concurrent push.
       - name: Compute and push mobile version bump
         env:
           GIT_AUTHOR_NAME: github-actions[bot]
@@ -439,11 +352,9 @@ jobs:
             git reset --hard origin/main
           done
 
-  # D100: no longer `needs: deploy-production` — the API URL comes from the
-  # PRODUCTION_API_URL repository variable instead of that deploy's own
-  # output, which is the whole reason this build can overlap the deploy/e2e
-  # chain rather than queue behind it. mobile-changes, which this transitively
-  # needs, already asserted the variable is non-empty.
+  # D100: no `needs: deploy-production` — the API URL comes from
+  # PRODUCTION_API_URL, so this overlaps the deploy/e2e chain instead of
+  # queueing behind it. mobile-changes already asserted the variable is set.
   mobile-build:
     needs: [mobile-changes, mobile-version-bump]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.mobile-changes.outputs.should_build == 'true'
@@ -455,17 +366,10 @@ jobs:
       skip_version_bump: true
     secrets: inherit
 
-  # D98: wires the Play Store AAB build+submit into the regular main-branch
-  # pipeline instead of leaving it a manual workflow_dispatch. Gated on the
-  # same should_build signal as mobile-build (D53) — no reason to cut a
-  # second native build for a commit that didn't touch anything native.
-  # D99: runs in parallel with mobile-build (both `needs: mobile-version-bump`
-  # rather than mobile-play-release needing mobile-build itself) — it still
-  # picks up the bumped versionCode by checking out `ref: main` (see
-  # mobile-release.yml's checkout comment), it just no longer has to wait for
-  # the APK build to finish first. The Play submission inside
-  # mobile-release.yml no-ops until PlayServiceAccountKey (D71) exists, so
-  # this job is safe to enable now.
+  # D98: the Play AAB build+submit runs automatically, on the same
+  # should_build gate as mobile-build (D53). D99: in parallel with it — the
+  # bumped versionCode comes from `ref: main`, not from the APK build. The
+  # Play submission no-ops until PlayServiceAccountKey (D71) exists.
   mobile-play-release:
     needs: [mobile-changes, mobile-version-bump]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.mobile-changes.outputs.should_build == 'true'
@@ -476,11 +380,9 @@ jobs:
       api_url: ${{ vars.PRODUCTION_API_URL }}
     secrets: inherit
 
-  # Mutually exclusive with mobile-build (mobile-changes.should_build/should_ota
-  # are never both true — see that job's comment): publishes just the JS
-  # bundle to the existing "preview" channel/runtimeVersion instead of paying
-  # for a full native rebuild. No version bump, no GitHub Release, no tag —
-  # those are all tied to the APK's own identity, and this ships no new APK.
+  # Mutually exclusive with mobile-build: publishes just the JS bundle to the
+  # existing `preview` channel. No version bump, Release or tag — those all
+  # belong to an APK's identity, and this ships no APK.
   mobile-ota-update:
     needs: mobile-changes
     if: >-
@@ -491,12 +393,10 @@ jobs:
     permissions:
       contents: write # move the mobile-ota-latest baseline tag
     env:
-      # secrets can't be referenced directly in a step-level `if:` — mirror
-      # it into env so the Sentry steps below can check it there instead.
+      # secrets can't be referenced in a step-level `if:` — mirror into env.
       HAS_SENTRY_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN != '' }}
     steps:
-      # fetch-depth: 0 so the baseline tag below can be force-updated against
-      # a repo that actually has its tags.
+      # fetch-depth: 0 so the baseline tag below can be force-updated.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -525,14 +425,10 @@ jobs:
           VERSION=$(node -e "console.log(require('./app.json').expo.version)")
           eas update --channel preview --platform android --non-interactive --message "v$VERSION (JS-only: ${{ github.sha }})"
 
-      # This job has no native build, so the sentry-android-gradle-plugin
-      # never runs and never uploads a sourcemap for the bundle just published
-      # above — unlike mobile-build.yml, where it runs as part of the Gradle
-      # build. Re-export the same bundle here (same env vars, so its content
-      # and Sentry debug ID match what eas update just shipped) and upload its
-      # sourcemap explicitly. Both steps are skipped, not failed, when
-      # SENTRY_AUTH_TOKEN isn't set, matching the Gradle plugin's optional
-      # behaviour in mobile-build.yml.
+      # No native build here, so the sentry-android-gradle-plugin never
+      # uploads a sourcemap for the bundle just published. Re-export it with
+      # identical env (same content, same debug ID) and upload explicitly.
+      # Skipped, not failed, without SENTRY_AUTH_TOKEN.
       - name: Export bundle + sourcemaps for Sentry
         if: ${{ env.HAS_SENTRY_TOKEN == 'true' }}
         working-directory: apps/mobile
@@ -550,11 +446,9 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: npx sentry-expo-upload-sourcemaps dist
 
-      # D84: the marker mobile-changes reads as its OTA baseline. Moved only
-      # after the publish above succeeds, so a failed or cancelled run leaves
-      # the baseline where it was and the next run still sees the unpublished
-      # change. A moving tag rather than one per publish: only the newest
-      # matters, and per-publish tags would accumulate on every merge.
+      # D84: the OTA baseline marker, moved only after a successful publish
+      # so a failed run leaves the unpublished change visible to the next one.
+      # A moving tag — per-publish tags would accumulate on every merge.
       - name: Move the OTA baseline tag
         env:
           GIT_AUTHOR_NAME: github-actions[bot]
@@ -566,11 +460,9 @@ jobs:
           git tag -f mobile-ota-latest "${{ github.sha }}"
           git push --force origin refs/tags/mobile-ota-latest
 
-  # Must still publish when mobile-build was skipped, so it can't just `needs`
-  # it — a skipped dependency skips the dependent job unless a status-check
-  # function (here `!cancelled()`) overrides that default. deploy-production is
-  # added to `needs` so its success can be asserted explicitly, since
-  # `!cancelled()` would otherwise let this run after an upstream failure.
+  # Must publish even when mobile-build is skipped, hence `!cancelled()` — a
+  # skipped dependency otherwise skips this too. deploy-production's success
+  # is then asserted explicitly, since `!cancelled()` would let a failure through.
   deploy-site:
     needs: [deploy-production, mobile-build]
     if: >-
@@ -585,12 +477,9 @@ jobs:
       contents: read
     secrets: inherit
 
-  # Prunes the APK-carrying prereleases mobile-build just added to, keeping the
-  # 3 most recent. Runs last so a fresh build is always among those kept; if
-  # mobile-build failed there's no new release, so skipping cleanup is correct.
-  # Deliberately keeps a plain `needs:` (no `!cancelled()` escape like
-  # deploy-site's): when mobile-build is skipped by D53's gate there's likewise
-  # no new release, so cascading the skip to here is the behaviour we want.
+  # Prunes the APK-carrying prereleases, keeping the 3 most recent. Plain
+  # `needs:` on purpose (no `!cancelled()` escape): a skipped or failed
+  # mobile-build means no new release, so there's nothing to prune.
   release-cleanup:
     needs: mobile-build
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'

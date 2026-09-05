@@ -11,14 +11,17 @@ const AMBER_SEED = '#FF9F1C';
 
 const seeded = themeFromSourceColor(argbFromHex(NAVY_SEED));
 const amberHct = Hct.fromInt(argbFromHex(AMBER_SEED));
+const navyHct = Hct.fromInt(argbFromHex(NAVY_SEED));
+
+const brandNeutral = TonalPalette.fromHueAndChroma(navyHct.hue, navyHct.chroma);
 
 const palettes = {
   primary: TonalPalette.fromHueAndChroma(amberHct.hue, amberHct.chroma),
   secondary: seeded.palettes.secondary,
   tertiary: seeded.palettes.tertiary,
   error: seeded.palettes.error,
-  neutral: seeded.palettes.neutral,
-  neutralVariant: seeded.palettes.neutralVariant,
+  neutral: brandNeutral,
+  neutralVariant: brandNeutral,
 };
 
 export type ThemeTone = 'light' | 'dark';

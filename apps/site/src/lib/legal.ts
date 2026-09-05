@@ -1,4 +1,4 @@
-export const CONTACT_EMAIL = 'privacy@example.invalid';
+export const CONTACT_EMAIL = 'privacy@techtokapp.eu';
 
 export const LEGAL_LAST_UPDATED = '13 August 2026';
 

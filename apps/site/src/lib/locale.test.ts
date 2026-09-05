@@ -9,6 +9,11 @@ describe('withBase', () => {
   it('does not double the slash when base already ends in one', () => {
     expect(withBase('favicon.svg', '/techtok/')).toBe('/techtok/favicon.svg');
   });
+
+  it('collapses to the bare root when the site is served from the apex (base "/")', () => {
+    expect(withBase('favicon.svg', '/')).toBe('/favicon.svg');
+    expect(withBase('', '/')).toBe('/');
+  });
 });
 
 describe('localeHref', () => {
@@ -21,5 +26,10 @@ describe('localeHref', () => {
     expect(localeHref('ru', '/techtok')).toBe('/techtok/ru/');
     expect(localeHref('uk', '/techtok')).toBe('/techtok/uk/');
     expect(localeHref('pl', '/techtok')).toBe('/techtok/pl/');
+  });
+
+  it('works from the apex: default language at "/", others at "/<lang>/"', () => {
+    expect(localeHref('en', '/')).toBe('/');
+    expect(localeHref('ru', '/')).toBe('/ru/');
   });
 });

@@ -2,7 +2,7 @@
 
 TechTok turns tech & science news into a TikTok-style swipeable feed. Articles are pulled in automatically, condensed into short cards with an LLM, and translated into your language — swipe through headlines, tap into a full compact article when one grabs you, and bookmark the rest for later. Sign in with Google and your read history, bookmarks, and preferences follow you across devices.
 
-This README covers running, developing, and deploying the project day to day. For the full architecture and decision history, see [CLAUDE.md](CLAUDE.md), [docs/DESIGN.md](docs/DESIGN.md), and [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md). The public project site — topics, sources, release history, and the latest Android APK download — lives at [tormozz48.github.io/techtok](https://tormozz48.github.io/techtok/) (`apps/site`).
+This README covers running, developing, and deploying the project day to day. For the full architecture and decision history, see [CLAUDE.md](CLAUDE.md), [docs/DESIGN.md](docs/DESIGN.md), and [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md). The public project site — topics, sources, release history, and the latest Android APK download — lives at [techtokapp.eu](https://techtokapp.eu/) (`apps/site`).
 
 **Status:** phases 0–20 are code complete and the backend runs on both the `dev` and `production` stages. The current front is the **free-first public Play launch** (phase 23, D75): store listing, legal surface, and the 14-day closed-test clock run against the app as it exists today, with Play Billing (phase 21) and the paid extended compact (phase 22) shipping as later store updates. See CLAUDE.md for the phase-by-phase table and what's still maintainer-gated.
 
@@ -119,7 +119,8 @@ techtok/
 ├── apps/
 │   ├── mobile/                # Expo app (expo-router), committed bare `android/` project (D18)
 │   └── site/                  # Astro static site → GitHub Pages
-├── scripts/                   # ops/CI scripts: wipeUsers, grantEntitlement, bumpMobileVersion
+├── scripts/                   # ops/CI scripts: wipeUsers, grantEntitlement, bumpMobileVersion,
+│                              #   setupMail.sh + mail/, setupSiteDns.sh (domain mail + Pages DNS, D98)
 └── docs/                      # DESIGN.md, IMPLEMENTATION_PLAN.md, DISTRIBUTION.md, RUNBOOK.md, DATA_SAFETY.md
 ```
 
@@ -241,6 +242,18 @@ pnpm grant-entitlement -- --stage dev --user-id <id> --plan plus
 ```
 
 `wipe-users` is the D68 migration path (pre-Google-identity rows carry no `sub`); `grant-entitlement` is the manual/comped path into D70's provider-agnostic entitlement layer, and the only way to reach a Plus account until Play Billing ships.
+
+### Project domain & mail
+
+`techtokapp.eu` is registered in Route 53 Domains and receives mail through SES (D98): `privacy@`, `support@` and `noreply@techtokapp.eu` are forwarded to the maintainer's Gmail by the `techtok-mail-forwarder` Lambda, with the raw copy kept for 30 days in `s3://techtok-mail-inbound-<account>/inbound/`. These are account-level resources, not per-stage, so they live outside `infra/` and are provisioned by a standalone script:
+
+```bash
+bash scripts/setupMail.sh --domain techtokapp.eu --forward-to <gmail address>
+```
+
+Idempotent; needs admin credentials plus `jq` and `zip` — run it from AWS CloudShell, since the local `techtok` profile is read-only. It publishes SPF/DKIM/DMARC first, builds the S3 → Lambda → receipt-rule pipeline, waits for the SES identity to verify, and only then publishes MX; if verification is still pending after 10 minutes it exits 2 without MX and a re-run finishes the job. The Lambda source is `scripts/mail/{forwarder,rewrite}.mjs` (no bundling — the `nodejs22.x` runtime supplies the SDK); re-running the script redeploys it. Still manual, in the SES console: production access (the account is in the sandbox — 200 sends/day, verified recipients only) and SMTP credentials for Gmail "Send mail as" (`email-smtp.eu-central-1.amazonaws.com`, port 587, STARTTLS).
+
+The same domain fronts the public site: `scripts/setupSiteDns.sh --domain techtokapp.eu --pages-host tormozz48.github.io` publishes GitHub Pages' apex A/AAAA records and the `www` CNAME (same admin-credential requirement, same idempotency). The custom domain itself is set in the repo's Settings → Pages — an Actions-based deploy ignores any `CNAME` file — and must be set together with the `astro.config.ts` `site`/`base` values, since a build for the old `/techtok` subpath 404s at the domain root.
 
 Operational playbooks — stuck DLQs, compact-generation failures, the per-source compact kill switch, LLM spend — live in [docs/RUNBOOK.md](docs/RUNBOOK.md).
 

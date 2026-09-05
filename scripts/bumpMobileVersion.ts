@@ -10,7 +10,6 @@ const PACKAGE_JSON_PATH = resolve(ROOT, 'apps/mobile/package.json');
 const BUILD_GRADLE_PATH = resolve(ROOT, 'apps/mobile/android/app/build.gradle');
 const STRINGS_XML_PATH = resolve(ROOT, 'apps/mobile/android/app/src/main/res/values/strings.xml');
 const APP_JSON_GIT_PATH = 'apps/mobile/app.json';
-const BUILD_GRADLE_GIT_PATH = 'apps/mobile/android/app/build.gradle';
 
 export type BumpType = 'major' | 'minor' | 'patch' | 'none';
 
@@ -65,25 +64,13 @@ function currentAppJsonVersion(): string {
   return JSON.parse(readFileSync(APP_JSON_PATH, 'utf8')).expo.version as string;
 }
 
-function runtimeVersionAtRef(ref: string): string {
-  const content = execFileSync('git', ['show', `${ref}:${APP_JSON_GIT_PATH}`], {
-    cwd: ROOT,
-    encoding: 'utf8',
-  });
-  return JSON.parse(content).expo.runtimeVersion as string;
-}
-
 function currentRuntimeVersion(): string {
   return JSON.parse(readFileSync(APP_JSON_PATH, 'utf8')).expo.runtimeVersion as string;
 }
 
-function versionCodeAtRef(ref: string): number {
-  const content = execFileSync('git', ['show', `${ref}:${BUILD_GRADLE_GIT_PATH}`], {
-    cwd: ROOT,
-    encoding: 'utf8',
-  });
-  const match = /versionCode\s+(\d+)/.exec(content);
-  if (!match?.[1]) throw new Error(`Could not find versionCode at ${ref}`);
+function currentVersionCode(): number {
+  const match = /versionCode\s+(\d+)/.exec(readFileSync(BUILD_GRADLE_PATH, 'utf8'));
+  if (!match?.[1]) throw new Error(`Could not find versionCode in ${BUILD_GRADLE_PATH}`);
   return Number(match[1]);
 }
 
@@ -110,10 +97,19 @@ function writePackageVersion(version: string): void {
   writeFileSync(PACKAGE_JSON_PATH, `${JSON.stringify(pkg, null, 2)}\n`);
 }
 
-function writeBuildGradle(version: string, versionCode: number): void {
-  const gradle = readFileSync(BUILD_GRADLE_PATH, 'utf8')
-    .replace(/versionCode\s+\d+/, `versionCode ${versionCode}`)
-    .replace(/versionName\s+"[^"]*"/, `versionName "${version}"`);
+function writeVersionCode(versionCode: number): void {
+  const gradle = readFileSync(BUILD_GRADLE_PATH, 'utf8').replace(
+    /versionCode\s+\d+/,
+    `versionCode ${versionCode}`,
+  );
+  writeFileSync(BUILD_GRADLE_PATH, gradle);
+}
+
+function writeVersionName(version: string): void {
+  const gradle = readFileSync(BUILD_GRADLE_PATH, 'utf8').replace(
+    /versionName\s+"[^"]*"/,
+    `versionName "${version}"`,
+  );
   writeFileSync(BUILD_GRADLE_PATH, gradle);
 }
 
@@ -145,19 +141,18 @@ export function main(): void {
     return;
   }
 
-  const baseRuntimeVersion = runtimeVersionAtRef(tag);
   const currentRuntime = currentRuntimeVersion();
-  if (currentRuntime === baseRuntimeVersion) {
-    const nextRuntimeVersion = applyBump(baseRuntimeVersion, 'patch');
-    writeRuntimeVersion(nextRuntimeVersion);
-    console.log(
-      `Bumped runtimeVersion ${baseRuntimeVersion} -> ${nextRuntimeVersion} (this script only runs on a native rebuild, so any already-installed build must stop matching it)`,
-    );
-  } else {
-    console.log(
-      `runtimeVersion (${currentRuntime}) already differs from ${tag} (${baseRuntimeVersion}) — manual bump present, skipping.`,
-    );
-  }
+  const nextRuntimeVersion = applyBump(currentRuntime, 'patch');
+  writeRuntimeVersion(nextRuntimeVersion);
+  console.log(
+    `Bumped runtimeVersion ${currentRuntime} -> ${nextRuntimeVersion} (this script only runs on a native rebuild, so any already-installed build must stop matching it)`,
+  );
+
+  const currentCode = currentVersionCode();
+  writeVersionCode(currentCode + 1);
+  console.log(
+    `Bumped versionCode ${currentCode} -> ${currentCode + 1} (Play rejects a versionCode it has already accepted, and this script only runs on a native rebuild)`,
+  );
 
   const baseVersion = appJsonVersionAtRef(tag);
   const currentVersion = currentAppJsonVersion();
@@ -171,20 +166,17 @@ export function main(): void {
 
   const bump = highestBump(commitMessagesSince(tag));
   if (bump === 'none') {
-    console.log(`No feat/fix commits since ${tag} — no bump needed.`);
+    console.log(`No feat/fix commits since ${tag} — version stays ${baseVersion}.`);
     return;
   }
 
   const nextVersion = applyBump(baseVersion, bump);
-  const nextVersionCode = versionCodeAtRef(tag) + 1;
 
   writeAppVersion(nextVersion);
   writePackageVersion(nextVersion);
-  writeBuildGradle(nextVersion, nextVersionCode);
+  writeVersionName(nextVersion);
 
-  console.log(
-    `Bumped mobile version ${baseVersion} -> ${nextVersion} (versionCode ${nextVersionCode}, bump: ${bump})`,
-  );
+  console.log(`Bumped mobile version ${baseVersion} -> ${nextVersion} (bump: ${bump})`);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

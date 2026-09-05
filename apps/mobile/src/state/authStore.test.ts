@@ -1,7 +1,14 @@
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { postReads } from '@/api/client';
 import { useAuthStore } from './authStore';
+import { enqueueRead, flushReadQueue } from './readQueue';
+import { storage } from './storage';
 
 const ORIGINAL_ENV = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+
+jest.mock('@/api/client', () => ({
+  postReads: jest.fn(),
+}));
 
 beforeAll(() => {
   process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID = 'test-client-id.apps.googleusercontent.com';
@@ -13,6 +20,7 @@ afterAll(() => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  storage.clearAll();
   useAuthStore.setState({ status: 'loading', user: null });
 });
 
@@ -95,6 +103,16 @@ describe('authStore.signOut', () => {
 
     expect(GoogleSignin.signOut).toHaveBeenCalled();
     expect(useAuthStore.getState()).toMatchObject({ status: 'signedOut', user: null });
+  });
+
+  it('drops reads queued before sign-out, so they are never sent under the next account', async () => {
+    useAuthStore.setState({ status: 'signedIn', user: { idToken: 'x', email: null, name: null } });
+    enqueueRead('post-1');
+
+    await useAuthStore.getState().signOut();
+    await flushReadQueue();
+
+    expect(postReads).not.toHaveBeenCalled();
   });
 });
 

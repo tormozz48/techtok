@@ -1,8 +1,7 @@
 import { create } from 'zustand';
 import { logEvent } from './eventsQueue';
 import { storage } from './storage';
-
-const THEME_MODE_KEY = 'techtok.themeMode';
+import { THEME_MODE_KEY } from './storageKeys';
 
 export type ThemeMode = 'system' | 'light' | 'dark';
 

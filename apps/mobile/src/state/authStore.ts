@@ -6,6 +6,7 @@ import {
 import { create } from 'zustand';
 import { isE2eAuthEnabled } from './e2eAuth';
 import { logError, logEvent, serializeError } from './eventsQueue';
+import { clearUserScopedState } from './sessionReset';
 
 export interface AuthUser {
   readonly idToken: string;
@@ -79,6 +80,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signOut: async () => {
     if (isE2eAuthEnabled()) {
+      await clearUserScopedState();
       set({ status: 'signedOut', user: null });
       logEvent('auth_signed_out');
       return;
@@ -86,6 +88,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       ensureConfigured();
       await GoogleSignin.signOut();
+      await clearUserScopedState();
       set({ status: 'signedOut', user: null });
       logEvent('auth_signed_out');
     } catch (error) {

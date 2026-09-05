@@ -1,12 +1,12 @@
 import type { ClientRecord } from '@techtok/shared';
 import { Sentry } from './sentry';
 import { storage } from './storage';
+import { EVENTS_QUEUE_KEY } from './storageKeys';
 
-const QUEUE_KEY = 'techtok.eventsQueue';
 const MAX_QUEUED_RECORDS = 200;
 
 export function loadQueue(): ClientRecord[] {
-  const raw = storage.getString(QUEUE_KEY);
+  const raw = storage.getString(EVENTS_QUEUE_KEY);
   if (!raw) return [];
   try {
     return JSON.parse(raw) as ClientRecord[];
@@ -16,7 +16,7 @@ export function loadQueue(): ClientRecord[] {
 }
 
 export function saveQueue(queue: ClientRecord[]): void {
-  storage.set(QUEUE_KEY, JSON.stringify(queue));
+  storage.set(EVENTS_QUEUE_KEY, JSON.stringify(queue));
 }
 
 export function logEvent(name: string, props?: Record<string, unknown>): void {

@@ -190,19 +190,29 @@ jobs:
             apps/mobile/eas.json \
             -c apps/mobile/.mobsf
 
-  # From here down (D38, extended by D39, D98/D99): this is the release
-  # pipeline for a merge to main — dev deploy -> e2e against dev -> production
-  # deploy -> mobile version bump -> {mobile build, mobile Play release} (in
-  # parallel, D99) -> {site deploy, release cleanup} (also parallel, gated on
-  # mobile build only — see mobile-play-release's own comment for why it
-  # isn't in that gate). Each stage gates the next so a broken dev deploy or a
-  # failing e2e suite blocks production, and production never redeploys again
-  # just to hand the mobile jobs a URL (they read the same deploy's own
-  # output instead). Each stage's actual steps live in their own workflow
-  # file (deploy-dev.yml / e2e.yml / deploy-production.yml / mobile-build.yml
-  # / mobile-release.yml / deploy-site.yml / release-cleanup.yml) and are
-  # pulled in here as reusable workflows, so each can also be run standalone
-  # via workflow_dispatch.
+  # From here down (D46, extended by D39, D98/D99, reshaped by D100): the
+  # release pipeline for a merge to main. Since D100 it is two chains that run
+  # in parallel rather than one straight line:
+  #
+  #   deploy-dev ─→ e2e ─→ deploy-production
+  #
+  #   checks ─→ mobile-changes ─┬─→ mobile-version-bump ─┬─→ mobile-build
+  #                             │                        └─→ mobile-play-release
+  #                             └─→ mobile-ota-update
+  #
+  #   deploy-site needs deploy-production + mobile-build; release-cleanup
+  #   needs mobile-build.
+  #
+  # The backend chain is unchanged: dev deploy -> e2e against dev -> production
+  # deploy, each stage gating the next. What changed is that the mobile chain
+  # no longer hangs off the end of it — it reads the production API URL from
+  # the PRODUCTION_API_URL repository variable instead of deploy-production's
+  # workflow output, so the ~10min native builds overlap the deploy and e2e
+  # instead of queueing behind them. Each stage's actual steps live in their
+  # own workflow file (deploy-dev.yml / e2e.yml / deploy-production.yml /
+  # mobile-build.yml / mobile-release.yml / deploy-site.yml /
+  # release-cleanup.yml) and are pulled in here as reusable workflows, so each
+  # can also be run standalone via workflow_dispatch.
   # A reusable workflow's own jobs can only ever be granted permissions the
   # calling job itself was granted (permissions narrow down the call chain,
   # never widen) — so each caller job below must re-declare whatever its
@@ -212,9 +222,10 @@ jobs:
   # instead of queueing behind them, taking itself and e2e off the far side of
   # the check fan-out. `dev` is a throwaway stage, so deploying a commit that
   # turns out to fail lint costs nothing that the next merge doesn't fix.
-  # deploy-production is what re-imposes the gate: it needs e2e AND all five
+  # deploy-production is what re-imposes the gate: it needs e2e AND all six
   # checks (D59 added mobile-icon-check), so nothing reaches production that
-  # hasn't passed everything.
+  # hasn't passed everything. The mobile chain, which since D100 no longer
+  # runs behind deploy-production, states that same gate itself.
   deploy-dev:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     uses: ./.github/workflows/deploy-dev.yml
@@ -262,7 +273,16 @@ jobs:
   # hand-maintained, not auto-computed): it can't detect e.g. a pure-JS
   # dependency bump inside pnpm-lock.yaml being misclassified as native-relevant,
   # but that only costs an unnecessary full rebuild, never an unsafe OTA.
+  #
+  # D100: `needs` the six checks rather than nothing, so the whole mobile
+  # chain hanging off this job starts when `deploy-dev` does and runs
+  # alongside the deploy/e2e chain. It used to inherit that gate
+  # transitively, through mobile-build's `needs: deploy-production`; with the
+  # API URL now coming from a repository variable instead of that deploy's
+  # output, the link is gone and the gate has to be stated here — otherwise a
+  # merge that fails lint would still cut a release.
   mobile-changes:
+    needs: [lint, typecheck, test, schema-check, mobile-icon-check, mobile-security-scan]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     outputs:
@@ -273,6 +293,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      # D100: every job downstream of this one bakes PRODUCTION_API_URL into a
+      # build (EXPO_PUBLIC_API_URL). An unset variable is not a build failure —
+      # it produces an APK/AAB/OTA bundle that points at nothing and ships — so
+      # fail the whole mobile chain here, once, rather than letting three
+      # separate jobs each discover it too late.
+      - name: Check PRODUCTION_API_URL is set
+        run: |
+          if [ -z "${{ vars.PRODUCTION_API_URL }}" ]; then
+            echo "::error::The PRODUCTION_API_URL repository variable is not set — every mobile build would bake an empty EXPO_PUBLIC_API_URL. See README.md's Required repository variables table (D100)."
+            exit 1
+          fi
 
       - id: check
         run: |
@@ -407,14 +439,19 @@ jobs:
             git reset --hard origin/main
           done
 
+  # D100: no longer `needs: deploy-production` — the API URL comes from the
+  # PRODUCTION_API_URL repository variable instead of that deploy's own
+  # output, which is the whole reason this build can overlap the deploy/e2e
+  # chain rather than queue behind it. mobile-changes, which this transitively
+  # needs, already asserted the variable is non-empty.
   mobile-build:
-    needs: [deploy-production, mobile-changes, mobile-version-bump]
+    needs: [mobile-changes, mobile-version-bump]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.mobile-changes.outputs.should_build == 'true'
     uses: ./.github/workflows/mobile-build.yml
     permissions:
       contents: write
     with:
-      api_url: ${{ needs.deploy-production.outputs.api_url }}
+      api_url: ${{ vars.PRODUCTION_API_URL }}
       skip_version_bump: true
     secrets: inherit
 
@@ -430,13 +467,13 @@ jobs:
   # mobile-release.yml no-ops until PlayServiceAccountKey (D71) exists, so
   # this job is safe to enable now.
   mobile-play-release:
-    needs: [deploy-production, mobile-changes, mobile-version-bump]
+    needs: [mobile-changes, mobile-version-bump]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.mobile-changes.outputs.should_build == 'true'
     uses: ./.github/workflows/mobile-release.yml
     permissions:
       contents: read
     with:
-      api_url: ${{ needs.deploy-production.outputs.api_url }}
+      api_url: ${{ vars.PRODUCTION_API_URL }}
     secrets: inherit
 
   # Mutually exclusive with mobile-build (mobile-changes.should_build/should_ota
@@ -445,7 +482,7 @@ jobs:
   # for a full native rebuild. No version bump, no GitHub Release, no tag —
   # those are all tied to the APK's own identity, and this ships no new APK.
   mobile-ota-update:
-    needs: [deploy-production, mobile-changes]
+    needs: mobile-changes
     if: >-
       github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
       && needs.mobile-changes.outputs.should_build == 'false'
@@ -482,7 +519,7 @@ jobs:
       - name: Publish OTA update (eas update)
         working-directory: apps/mobile
         env:
-          EXPO_PUBLIC_API_URL: ${{ needs.deploy-production.outputs.api_url }}
+          EXPO_PUBLIC_API_URL: ${{ vars.PRODUCTION_API_URL }}
           EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_WEB_CLIENT_ID }}
         run: |
           VERSION=$(node -e "console.log(require('./app.json').expo.version)")
@@ -500,7 +537,7 @@ jobs:
         if: ${{ env.HAS_SENTRY_TOKEN == 'true' }}
         working-directory: apps/mobile
         env:
-          EXPO_PUBLIC_API_URL: ${{ needs.deploy-production.outputs.api_url }}
+          EXPO_PUBLIC_API_URL: ${{ vars.PRODUCTION_API_URL }}
           EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_WEB_CLIENT_ID }}
         run: npx expo export --platform android --source-maps
 

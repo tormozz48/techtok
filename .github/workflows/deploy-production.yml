@@ -64,9 +64,11 @@ jobs:
 
       # `sst deploy` writes the stack's stage outputs (defined in
       # sst.config.ts's `run()` return value, including the real API Gateway
-      # URL as `api`) to .sst/outputs.json. Reading it here is how the
-      # mobile-build workflow gets the real production URL without it ever
-      # being committed to apps/mobile/eas.json.
+      # URL as `api`) to .sst/outputs.json. Since D100 the mobile builds read
+      # that URL from the PRODUCTION_API_URL repository variable instead of
+      # from this output, so they no longer wait on this job — the output
+      # stays as this workflow's answer to "what is the URL", and as the
+      # input to the drift check below.
       # GOOGLE_OAUTH_WEB_CLIENT_ID (D68): see deploy-dev.yml's identical note.
       - name: Deploy production
         id: deploy
@@ -75,6 +77,24 @@ jobs:
         run: |
           npx sst deploy --stage production
           echo "api_url=$(node -e "console.log(require('./.sst/outputs.json').api)")" >> "$GITHUB_OUTPUT"
+
+      # D100 traded a pipeline dependency for a hand-maintained repository
+      # variable, so this is the one place that can tell it has gone stale:
+      # the mobile builds bake PRODUCTION_API_URL into every APK/AAB and have
+      # no way to know it no longer matches the deployed API. A warning rather
+      # than a failure — the deploy itself succeeded and nothing about it is
+      # wrong; what needs fixing is a variable someone has to go and update.
+      - name: Check PRODUCTION_API_URL matches the deployed API
+        run: |
+          DEPLOYED='${{ steps.deploy.outputs.api_url }}'
+          CONFIGURED='${{ vars.PRODUCTION_API_URL }}'
+          if [ -z "$CONFIGURED" ]; then
+            echo "::warning::The PRODUCTION_API_URL repository variable is not set. Set it to $DEPLOYED — every mobile build reads it (D100)."
+          elif [ "$CONFIGURED" != "$DEPLOYED" ]; then
+            echo "::warning::The PRODUCTION_API_URL repository variable ($CONFIGURED) does not match this deploy's API URL ($DEPLOYED). Mobile builds are baking in the stale one (D100)."
+          else
+            echo "PRODUCTION_API_URL matches the deployed API."
+          fi
 
       # A destructive migration (D94's 0003 dropped every table) leaves the
       # stage with zero sources, and nothing else re-seeds them: LoadSources

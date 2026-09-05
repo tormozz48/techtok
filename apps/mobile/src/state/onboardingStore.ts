@@ -1,7 +1,6 @@
 import { logEvent } from './eventsQueue';
 import { storage } from './storage';
-
-const ONBOARDING_KEY = 'techtok.hasSeenOnboarding';
+import { ONBOARDING_KEY } from './storageKeys';
 
 export function hasSeenOnboarding(): boolean {
   return storage.getString(ONBOARDING_KEY) === 'true';

@@ -2,21 +2,26 @@ import { create } from 'zustand';
 import { fetchMe, putMutedSources } from '@/api/client';
 import { logError, logEvent, serializeError } from './eventsQueue';
 import { storage } from './storage';
-
-const MUTED_SOURCES_KEY = 'techtok.mutedSources';
+import { MUTED_SOURCES_KEY } from './storageKeys';
 
 interface MutedSourcesState {
   mutedSources: string[];
   isLoading: boolean;
+  hydrate: () => void;
   load: () => Promise<void>;
   setMutedSources: (sourceIds: string[]) => Promise<void>;
 }
 
-export const useMutedSourcesStore = create<MutedSourcesState>((set) => ({
+export const useMutedSourcesStore = create<MutedSourcesState>((set, get) => ({
   mutedSources: loadCachedMutedSources(),
   isLoading: false,
 
+  hydrate: () => {
+    set({ mutedSources: loadCachedMutedSources() });
+  },
+
   load: async () => {
+    get().hydrate();
     set({ isLoading: true });
     try {
       const me = await fetchMe();

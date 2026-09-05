@@ -1,8 +1,8 @@
 import { AppState } from 'react-native';
 import { postReads } from '@/api/client';
 import { storage } from './storage';
+import { READ_QUEUE_KEY } from './storageKeys';
 
-const QUEUE_KEY = 'techtok.readQueue';
 const FLUSH_INTERVAL_MS = 5000;
 
 interface QueuedRead {
@@ -42,7 +42,7 @@ export function startReadQueueFlushing(): void {
 }
 
 function loadQueue(): QueuedRead[] {
-  const raw = storage.getString(QUEUE_KEY);
+  const raw = storage.getString(READ_QUEUE_KEY);
   if (!raw) return [];
   try {
     return JSON.parse(raw) as QueuedRead[];
@@ -52,5 +52,5 @@ function loadQueue(): QueuedRead[] {
 }
 
 function saveQueue(queue: QueuedRead[]): void {
-  storage.set(QUEUE_KEY, JSON.stringify(queue));
+  storage.set(READ_QUEUE_KEY, JSON.stringify(queue));
 }

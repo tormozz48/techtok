@@ -3,8 +3,7 @@ import { create } from 'zustand';
 import { fetchMe, putLanguage } from '@/api/client';
 import { logError, logEvent, serializeError } from './eventsQueue';
 import { storage } from './storage';
-
-const LANGUAGE_KEY = 'techtok.language';
+import { LANGUAGE_KEY } from './storageKeys';
 
 interface LanguageState {
   language: Language;

@@ -3,21 +3,26 @@ import { create } from 'zustand';
 import { fetchMe, putTopics } from '@/api/client';
 import { logError, logEvent, serializeError } from './eventsQueue';
 import { storage } from './storage';
-
-const TOPICS_KEY = 'techtok.topics';
+import { TOPICS_KEY } from './storageKeys';
 
 interface TopicsState {
   topics: Topic[];
   isLoading: boolean;
+  hydrate: () => void;
   load: () => Promise<void>;
   setTopics: (topics: Topic[]) => Promise<void>;
 }
 
-export const useTopicsStore = create<TopicsState>((set) => ({
+export const useTopicsStore = create<TopicsState>((set, get) => ({
   topics: loadCachedTopics(),
   isLoading: false,
 
+  hydrate: () => {
+    set({ topics: loadCachedTopics() });
+  },
+
   load: async () => {
+    get().hydrate();
     set({ isLoading: true });
     try {
       const me = await fetchMe();

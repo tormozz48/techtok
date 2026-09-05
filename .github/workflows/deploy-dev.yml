@@ -1,8 +1,7 @@
 name: Deploy dev
 
-# Called by ci.yml as step 2 of the main-branch release pipeline (D38), after
-# the quality jobs pass and before e2e runs against the freshly-deployed dev
-# stage. workflow_dispatch is kept for an ad hoc manual redeploy.
+# ci.yml runs this first on main, then e2e against the freshly-deployed dev
+# stage. workflow_dispatch for an ad hoc redeploy.
 on:
   workflow_dispatch:
   workflow_call:
@@ -27,10 +26,8 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      # techtok-gha-dev-deploy: a distinct, least-privilege OIDC role scoped
-      # to techtok-dev-* resources only (own IAM policy, not a copy of the
-      # production deploy role) — a compromised dev-deploy credential can't
-      # touch anything tagged/named production.
+      # techtok-gha-dev-deploy: least-privilege, scoped to techtok-dev-* only,
+      # so a compromised dev credential can't touch production.
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_DEV_DEPLOY_ROLE_ARN }}
@@ -39,17 +36,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Clears any stale SST state lock left by an interrupted prior run
-      # before every deploy, so a hung lock can't block this pipeline.
+      # Clear a stale state lock left by an interrupted run.
       - name: Unlock SST state
         run: npx sst unlock --stage dev
 
-      # D92: schema migrations run here instead of by hand, so a forgotten
-      # `pnpm db:migrate` after a schema.ts change can't leave dev on a stale
-      # constraint (as the D49 muted-sources FK did). Needs a *direct*
-      # connection — drizzle-kit issues a session's worth of DDL, which the
-      # pooled NeonDatabaseUrl runtime secret (PgBouncer transaction mode)
-      # can't guarantee — so this reads its own repo secret instead.
+      # D92: migrations run here, not by hand — a forgotten `pnpm db:migrate`
+      # left dev on a stale constraint once (D49). Needs a *direct*
+      # connection: drizzle-kit's DDL can't run over the pooled runtime secret.
       - name: Run database migrations
         env:
           DATABASE_URL: ${{ secrets.NEON_DATABASE_URL_DEV_DIRECT }}
@@ -60,23 +53,16 @@ jobs:
           fi
           pnpm db:migrate
 
-      # GOOGLE_OAUTH_WEB_CLIENT_ID (D68) is read by infra/auth.ts as the JWT
-      # authorizer's audience — not a secret (an OAuth client ID is public
-      # by design), but wiring it as a repo secret keeps it alongside the
-      # rest of this pipeline's config. Without it, the deploy falls back to
-      # infra/auth.ts's placeholder and every real Google ID token gets
-      # rejected on audience mismatch.
+      # GOOGLE_OAUTH_WEB_CLIENT_ID (D68) is the JWT authorizer's audience —
+      # public by design, but without it every real ID token is rejected.
       - name: Deploy dev
         env:
           GOOGLE_OAUTH_WEB_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_WEB_CLIENT_ID }}
         run: npx sst deploy --stage dev
 
-      # A destructive migration (D94's 0003 dropped every table) leaves the
-      # stage with zero sources, and nothing else re-seeds them: LoadSources
-      # only lists what is already there, so the ingest pipeline maps over an
-      # empty set and the feed never refills. SeedSources is idempotent
-      # (putIfNew over the stage's presets), so running it on every deploy is
-      # a no-op once seeded — the same argument D92 makes for db:migrate.
+      # D95: a destructive migration leaves zero sources and nothing else
+      # re-seeds them — LoadSources only lists what's already there, so the
+      # feed never refills. Idempotent, so unconditional is a no-op.
       - name: Seed source presets
         run: |
           FN=$(node -e "console.log(require('./.sst/outputs.json').seedSources)")

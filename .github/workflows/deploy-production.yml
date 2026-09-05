@@ -1,9 +1,7 @@
 name: Deploy production
 
-# Called by ci.yml as step 4 of the main-branch release pipeline (D38), after
-# e2e passes against dev. workflow_dispatch is kept for an ad hoc manual
-# redeploy — don't run this from a laptop otherwise (production deploys only
-# happen through CI, per CLAUDE.md).
+# Called by ci.yml after e2e passes against dev. workflow_dispatch is for an
+# ad hoc redeploy — never deploy production from a laptop (CLAUDE.md).
 on:
   workflow_dispatch:
   workflow_call:
@@ -42,16 +40,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Clears any stale SST state lock left by an interrupted prior run
-      # before every deploy, so a hung lock can't block this pipeline.
+      # Clear a stale state lock left by an interrupted run.
       - name: Unlock SST state
         run: npx sst unlock --stage production
 
-      # D92: same rationale as deploy-dev.yml's identical step — migrations
-      # apply automatically before production Lambda code that assumes the
-      # new schema goes live, over the direct (non-pooled) connection
-      # drizzle-kit needs rather than the pooled NeonDatabaseUrl runtime
-      # secret.
+      # D92: same as deploy-dev.yml's step — migrations apply before the
+      # Lambda code that assumes them, over a direct (non-pooled) connection.
       - name: Run database migrations
         env:
           DATABASE_URL: ${{ secrets.NEON_DATABASE_URL_PRODUCTION_DIRECT }}
@@ -62,12 +56,10 @@ jobs:
           fi
           pnpm db:migrate
 
-      # `sst deploy` writes the stack's stage outputs (defined in
-      # sst.config.ts's `run()` return value, including the real API Gateway
-      # URL as `api`) to .sst/outputs.json. Reading it here is how the
-      # mobile-build workflow gets the real production URL without it ever
-      # being committed to apps/mobile/eas.json.
-      # GOOGLE_OAUTH_WEB_CLIENT_ID (D68): see deploy-dev.yml's identical note.
+      # `sst deploy` writes the stage outputs (including the API URL as
+      # `api`) to .sst/outputs.json. Since D100 the mobile builds read
+      # PRODUCTION_API_URL instead; this output feeds the drift check below.
+      # GOOGLE_OAUTH_WEB_CLIENT_ID (D68): see deploy-dev.yml's note.
       - name: Deploy production
         id: deploy
         env:
@@ -76,12 +68,24 @@ jobs:
           npx sst deploy --stage production
           echo "api_url=$(node -e "console.log(require('./.sst/outputs.json').api)")" >> "$GITHUB_OUTPUT"
 
-      # A destructive migration (D94's 0003 dropped every table) leaves the
-      # stage with zero sources, and nothing else re-seeds them: LoadSources
-      # only lists what is already there, so the ingest pipeline maps over an
-      # empty set and the feed never refills. SeedSources is idempotent
-      # (putIfNew over the stage's presets), so running it on every deploy is
-      # a no-op once seeded — the same argument D92 makes for db:migrate.
+      # D100 traded a pipeline dependency for a hand-maintained variable, so
+      # this is the only place that can tell it has gone stale. A warning, not
+      # a failure — the deploy is fine, the variable is what needs updating.
+      - name: Check PRODUCTION_API_URL matches the deployed API
+        run: |
+          DEPLOYED='${{ steps.deploy.outputs.api_url }}'
+          CONFIGURED='${{ vars.PRODUCTION_API_URL }}'
+          if [ -z "$CONFIGURED" ]; then
+            echo "::warning::The PRODUCTION_API_URL repository variable is not set. Set it to $DEPLOYED — every mobile build reads it (D100)."
+          elif [ "$CONFIGURED" != "$DEPLOYED" ]; then
+            echo "::warning::The PRODUCTION_API_URL repository variable ($CONFIGURED) does not match this deploy's API URL ($DEPLOYED). Mobile builds are baking in the stale one (D100)."
+          else
+            echo "PRODUCTION_API_URL matches the deployed API."
+          fi
+
+      # D95: a destructive migration leaves zero sources and nothing else
+      # re-seeds them — LoadSources only lists what's already there, so the
+      # feed never refills. Idempotent, so unconditional is a no-op.
       - name: Seed source presets
         run: |
           FN=$(node -e "console.log(require('./.sst/outputs.json').seedSources)")

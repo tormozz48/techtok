@@ -1,21 +1,10 @@
 name: Mobile emulator E2E
 
-# Drives the actual mobile app (not just its API) on an Android emulator via
-# Maestro (packages/e2e/maestro), using the same sign-in bypass build flag
-# as a local run (apps/mobile/src/state/e2eAuth.ts).
-#
-# Split out of e2e.yml (previously the `mobile-emulator` job there) so this
-# suite is fully out of the automatic e2e bundle: it no longer runs on
-# e2e.yml's daily schedule and isn't reachable via ci.yml's release-pipeline
-# `e2e` call at all. UI-level Maestro flows are inherently more flake-prone
-# (cold boot, animation timing) than the HTTP-contract jobs in e2e.yml, and a
-# flaky assertion here shouldn't be able to block anything — manual
-# workflow_dispatch only, for now.
-#
-# Uses the same GOOGLE_TEST_REFRESH_TOKEN/GOOGLE_OAUTH_WEB_CLIENT_ID/
-# GOOGLE_OAUTH_WEB_CLIENT_SECRET secrets as e2e.yml's api-contract job (no new
-# secrets needed) — skips cleanly with a summary note, not a failure, until
-# those are provisioned (see packages/e2e/src/googleTestAuth.ts).
+# Drives the app itself on an Android emulator via Maestro
+# (packages/e2e/maestro), using the sign-in bypass flag a local run uses
+# (apps/mobile/src/state/e2eAuth.ts). Deliberately manual-dispatch only: UI
+# flows are flake-prone and shouldn't block e2e.yml's schedule or ci.yml.
+# Uses e2e.yml's api-contract Google test secrets — skips cleanly without them.
 on:
   workflow_dispatch:
 
@@ -81,20 +70,11 @@ jobs:
           echo "::add-mask::$ID_TOKEN"
           echo "ID_TOKEN=$ID_TOKEN" >> "$GITHUB_ENV"
 
-      # restore/save is deliberately split (not the combined actions/cache@v4)
-      # for all three caches in this job: the combined action's save only
-      # fires from a "post" cleanup hook that GitHub skips once ANY later
-      # step in the job fails — confirmed the hard way, a run whose Maestro
-      # step failed left "Post Cache E2E APK"/"Post Cache Gradle"/"Post Cache
-      # AVD" all skipped, so nothing was ever actually cached despite every
-      # run reporting a normal restore. The explicit `save` steps near the
-      # end of this job carry `if: always()` so they persist the cache
-      # regardless of what a later step (Maestro flows, most likely) does.
-      #
-      # Keyed on every input that changes what the APK contains: app source,
-      # the native android/ project, the shared package (bundled into the JS),
-      # the lockfile, and the API endpoint it's built pointing at. A cache hit
-      # skips the build step entirely below.
+      # restore/save split (not combined actions/cache@v4) for all three
+      # caches here: the combined action saves from a post hook GitHub skips
+      # once any later step fails, so a failing Maestro run cached nothing.
+      # The explicit `save` steps below carry `if: always()` instead.
+      # Keyed on everything that changes the APK, including the API endpoint.
       - name: Restore Gradle cache
         if: steps.creds.outputs.skip == 'false'
         id: gradle-cache
@@ -128,9 +108,8 @@ jobs:
           path: apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 14
 
-      # https://github.com/ReactiveCircus/android-emulator-runner#usage — GitHub
-      # Actions' ubuntu-latest runners support KVM, but /dev/kvm isn't
-      # world-writable by default; this grants the runner user access.
+      # ubuntu-latest supports KVM but /dev/kvm isn't world-writable —
+      # https://github.com/ReactiveCircus/android-emulator-runner#usage
       - name: Enable KVM
         if: steps.creds.outputs.skip == 'false'
         run: |
@@ -146,10 +125,8 @@ jobs:
           path: |
             ~/.android/avd/*
             ~/.android/adb*
-          # Cache key includes the profile (bumped along with adding one
-          # below) so a previously-cached small-default-profile AVD isn't
-          # silently reused — force-avd-creation stays false, so without a
-          # key bump the stale AVD would win over the new profile input.
+          # Key includes the profile: force-avd-creation is false, so without
+          # a key bump a stale small-profile AVD would win.
           key: avd-34-google_apis-x86_64-pixel_6
 
       - name: Create AVD snapshot (cache miss only)
@@ -159,23 +136,16 @@ jobs:
           api-level: 34
           target: google_apis
           arch: x86_64
-          # A real device profile, not the action's tiny default (320x640,
-          # confirmed via a real run's boot log) — the settings flow's
-          # tapOn(settings-topic-ai) failed because that content was
-          # genuinely off-screen and unreachable by Maestro's bounded
-          # auto-scroll on a screen that small.
+          # A real device profile, not the action's 320x640 default — content
+          # was genuinely off-screen and beyond Maestro's bounded auto-scroll.
           profile: pixel_6
           force-avd-creation: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: false
           script: echo "Generated AVD snapshot."
 
-      # Appending to $GITHUB_PATH (not a plain `export`) is what's needed here:
-      # reactivecircus/android-emulator-runner's `script:` input runs each
-      # line as its own separate shell invocation, so a PATH exported in one
-      # line is gone by the next — this instead updates the whole job's PATH
-      # for every later step (confirmed the hard way: an in-script `export`
-      # here previously failed with "maestro: not found").
+      # $GITHUB_PATH, not `export`: the emulator action's `script:` runs each
+      # line in its own shell, so an exported PATH is gone by the next line.
       - name: Install Maestro
         if: steps.creds.outputs.skip == 'false'
         run: |
@@ -197,9 +167,8 @@ jobs:
             adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
             maestro test packages/e2e/maestro/flows -e APP_ID=com.tormozz48dev.techtok -e ID_TOKEN="$ID_TOKEN"
 
-      # `if: always()` is the point of splitting these out — see the restore
-      # steps' comment above. `cache-hit != 'true'` skips a redundant upload
-      # when the restore already matched this exact key.
+      # `if: always()` is the point of the split — see the restore comment.
+      # `cache-hit != 'true'` skips a redundant upload on an exact match.
       - name: Save AVD cache
         if: always() && steps.creds.outputs.skip == 'false' && steps.avd-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4

@@ -14,9 +14,12 @@ detection, a generic LLM-provider-outage case across all three pipeline
 paths, and a cost-spike triage flow — still hasn't been built and isn't
 covered below.
 
-All commands assume `AWS_PROFILE=techtok` and the `dev` stage unless noted;
-substitute `--profile` / table names for `production` (CI-deployed only —
-never `sst deploy --stage production` from a laptop).
+All commands assume `AWS_PROFILE=techtok` and the `dev` stage unless noted.
+Every AWS resource is namespaced `<app>-<stage>` and each stage has its own
+Neon database, so for `production` substitute the stage's own queue URLs,
+log groups and `NEON_DATABASE_URL_PRODUCTION_DIRECT` connection string
+(`production` is CI-deployed only — never `sst deploy --stage production`
+from a laptop).
 
 ## 1. Stuck queue DLQ (Transform / Translate / Content)
 
@@ -50,7 +53,7 @@ queue URL> --attribute-names ApproximateAgeOfOldestMessage`.
    [translate.ts](../packages/functions/src/pipeline/translate.ts), or
    [content.ts](../packages/functions/src/pipeline/content.ts) — note this
    is a different file from the API's
-   [api/content.ts](../packages/functions/src/api/content.ts)), filter on
+   [api/handlers/content.ts](../packages/functions/src/api/handlers/content.ts)), filter on
    `"failed for message"`, and match `messageId` to the DLQ message's
    `MessageId` to see the actual thrown error.
 3. Common root causes seen so far: LLM-provider throttling under burst load
@@ -80,7 +83,7 @@ reads one DLQ's depth directly.
 **Generation is eager, not on-demand (D36).** Every post gets a
 `ContentQueue` message per language (`en`/`ru`/`uk`/`pl`) enqueued right
 after transform, independent of whether the card LLM call itself degraded.
-`GET /v1/posts/:id/content?lang=` ([packages/functions/src/api/content.ts](../packages/functions/src/api/content.ts))
+`GET /v1/posts/:id/content?lang=` ([packages/functions/src/api/handlers/content.ts](../packages/functions/src/api/handlers/content.ts))
 is a **plain S3 cache read** — it never calls the LLM and never re-triggers
 generation. This means a failed eager job has no user-facing retry path: if
 generation for a given post+lang fails, that combination stays
@@ -100,7 +103,7 @@ tells you which case you're in:
 
 | `reason` prefix | Meaning | Is it a spike? |
 |---|---|---|
-| `compact reader disabled for this source` | `Sources.compactEnabled=false` | No — kill switch working as intended (though as of D36 this case is now rare here: the eager enqueue is already skipped at transform time for a disabled source, so this only fires if the flag flipped *after* the job was queued) |
+| `compact reader disabled for this source` | `sources.compact_enabled = false` | No — kill switch working as intended (though as of D36 this case is now rare here: the eager enqueue is already skipped at transform time for a disabled source, so this only fires if the flag flipped *after* the job was queued) |
 | `article unavailable: ...` | Fetch failed (bot-blocked, dead link, timeout) | Yes if concentrated on one source — check for a new bot-detection page (the `nature.com` precedent: a ~3KB stub with no extractable text) |
 | `extraction failed: ...` / `extraction produced no usable text` | `@extractus` couldn't parse the fetched page | Yes if it appears across sources — likely an extractor regression, not a source problem |
 | `llm failed: ...` | The LLM call or repair-retry exhausted | Yes if it appears broadly — check the active provider's console (OpenRouter dashboard by default, or Bedrock if `LLM_PROVIDER=bedrock`) for throttling/outage before assuming a prompt/schema regression |
@@ -176,7 +179,7 @@ entirely) or rolling back a bad deploy.
 ## Not yet covered (phase 6)
 
 - Broken-source detection independent of the compact/translate paths
-  (`Sources.failCount`/`lastStatus` triage).
+  (`source_states.fail_count`/`last_status` triage).
 - A generic LLM-provider-outage case spanning transform + translate +
   compact at once (OpenRouter primary, Bedrock dormant fallback per D32).
 - A cost-spike triage flow beyond §4 above — more load-bearing now than

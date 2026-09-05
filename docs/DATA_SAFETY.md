@@ -9,7 +9,7 @@ being re-derived from memory or from the [privacy policy](../apps/site/src/pages
 prose each time the form needs touching — the two must never drift apart.
 
 **Re-check this file whenever (a) `UserRecord` (`packages/core/src/users.types.ts`)
-or `ActivityRecord`/`BookmarkRecord` (`packages/core/src/repos/userActivityRepo.ts`)
+or `ActivityRecord`/`BookmarkRecord` (`packages/core/src/history.types.ts`)
 gains, loses, or changes the meaning of a field, (b) any dependency that transmits
 anything off-device is added, removed or reconfigured — crash reporting, analytics,
 OTA updates, ads — or (c) a request gains a new query parameter or header**, and
@@ -20,15 +20,18 @@ addition, and this file shipped four wrong rows as a result.
 ## Data types collected and shared
 
 Source of truth: `packages/core/src/users.types.ts` (`UserRecord`) and
-`packages/core/src/repos/userActivityRepo.ts` (`ActivityRecord`, `BookmarkRecord`).
+`packages/core/src/history.types.ts` (`ActivityRecord`, `BookmarkRecord`) —
+the repos in `packages/core/src/repos/` consume those types, they don't declare
+them. The Postgres columns behind both are DESIGN §6's `users`/`user_reads`/
+`user_bookmarks` tables.
 
 | Play category | Specific type | Collected? | Shared? | Purpose (Play's own list) | Optional? |
 |---|---|---|---|---|---|
 | Personal info | Email address | Yes (`UserRecord.email`) | No | Account management | No — required to sign in |
 | Personal info | Name | Yes (`UserRecord.name`) | No | Account management | No — required to sign in |
 | Personal info | User IDs | Yes (Google `sub`, stored as `userId`) | No | Account management, app functionality | No |
-| App activity | App interactions | Yes (read events → `ActivityRecord`, bookmarks → `BookmarkRecord`, `topicReads`) | No | App functionality (feed ranking, History/Saved screens) | No |
-| App info and performance | Crash logs | **Yes** (Sentry, `apps/mobile/src/state/sentry.ts`) | No — service provider | App functionality (diagnosing breakages) | No |
+| App activity | App interactions | Yes (read events → `ActivityRecord`, bookmarks → `BookmarkRecord`, `topicReads`), plus first-party product-analytics events via `POST /v1/events` (D76 — `logEvent`, name + props, no third-party SDK) | No | App functionality (feed ranking, History/Saved screens) | No |
+| App info and performance | Crash logs | **Yes** — Sentry (`apps/mobile/src/state/sentry.ts`) **and first-party**: `logError` also queues a structured record to TechTok's own `POST /v1/events` route (D76, `apps/mobile/src/state/logStore.ts` → CloudWatch) | No — service provider | App functionality (diagnosing breakages) | No |
 | App info and performance | Diagnostics | **Yes** (Sentry device context + 10%-sampled performance traces) | No — service provider | App functionality | No |
 | App info and performance | Other performance data | **Yes** (Sentry transaction/span timings) | No — service provider | App functionality | No |
 | Device or other IDs | Device or other IDs | **Yes** — `EAS-Client-ID`, a random per-install UUID sent to Expo on every update check (`expo-eas-client`). The pre-D68 anonymous `X-Device-Id` is still gone; this is a different, SDK-generated identifier | No — service provider | App functionality (OTA update delivery) | No |
@@ -59,6 +62,12 @@ independent purposes — the Play Console distinction that matters here is
   Google `sub`, reading history, bookmarks). Processor. Named here because the
   privacy policy previously credited AWS with the database and never mentioned
   Neon, which was an undisclosed-processor problem under GDPR Art. 13.
+- **TechTok's own backend** is not a third party at all, but note it for
+  completeness: `POST /v1/events` (D76) receives batched client logs and
+  product-analytics events from the app into CloudWatch. First-party
+  collection is still *collection* for Data Safety purposes — it is why the
+  "App interactions", "Crash logs" and "Diagnostics" rows above would stay
+  **Yes** even if Sentry were removed tomorrow.
 - **Sentry** (EU ingest) — crash reports, stack traces, device context and
   10%-sampled performance traces. Processor. Screenshot, view-hierarchy and
   session-replay capture are explicitly disabled, and `beforeSend`/`beforeBreadcrumb`

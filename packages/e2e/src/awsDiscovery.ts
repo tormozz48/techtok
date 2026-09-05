@@ -11,7 +11,6 @@ export interface DevResources {
   transformQueueUrl: string;
   translateQueueUrl: string;
   contentQueueUrl: string;
-  postsTableName: string;
   apiId: string;
 }
 
@@ -41,11 +40,6 @@ export async function discoverDevResources(stage = 'dev'): Promise<DevResources>
     (arn) => arn.startsWith('arn:aws:sqs:') && arn.includes('ContentQueueQueue'),
     'ContentQueue',
   );
-  const postsTableArn = findArn(
-    arns,
-    (arn) => arn.startsWith('arn:aws:dynamodb:') && arn.includes('PostsTable'),
-    'Posts table',
-  );
   const apiArn = findArn(
     arns,
     (arn) => arn.startsWith('arn:aws:apigateway:') && /\/apis\/[^/]+$/.test(arn),
@@ -59,7 +53,6 @@ export async function discoverDevResources(stage = 'dev'): Promise<DevResources>
     transformQueueUrl: queueUrlFromArn(transformQueueArn),
     translateQueueUrl: queueUrlFromArn(translateQueueArn),
     contentQueueUrl: queueUrlFromArn(contentQueueArn),
-    postsTableName: dynamoTableNameFromArn(postsTableArn),
     apiId,
   };
 }
@@ -74,12 +67,6 @@ export async function getApiEndpoint(apiId: string): Promise<string> {
 function queueUrlFromArn(arn: string): string {
   const [, , , region, account, name] = arn.split(':');
   return `https://sqs.${region}.amazonaws.com/${account}/${name}`;
-}
-
-function dynamoTableNameFromArn(arn: string): string {
-  const name = arn.split('/').pop();
-  if (!name) throw new Error(`Could not parse a table name out of ARN: ${arn}`);
-  return name;
 }
 
 async function listTaggedArns(stage: string): Promise<string[]> {

@@ -25,19 +25,13 @@ export default $config({
       args.logging = { retention: $app.stage === 'production' ? '2 weeks' : '3 days' };
     });
 
-    const { imagesRouter, postsTable, sourcesTable, userActivityTable, usersTable } = await import(
-      './infra/storage'
-    );
+    const { imagesRouter } = await import('./infra/storage');
     const { ingestPipeline, seedSourcesFn } = await import('./infra/pipeline');
     const { api } = await import('./infra/api');
     await import('./infra/monitoring');
 
     return {
       api: api.url,
-      postsTable: postsTable.name,
-      sourcesTable: sourcesTable.name,
-      usersTable: usersTable.name,
-      userActivityTable: userActivityTable.name,
       ingestPipeline: ingestPipeline.arn,
       seedSources: seedSourcesFn.arn,
       imagesCdn: imagesRouter.url,

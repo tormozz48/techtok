@@ -22,9 +22,6 @@
     "db:migrate": "drizzle-kit migrate"
   },
   "devDependencies": {
-    "@aws-sdk/client-dynamodb": "3.1090.0",
-    "@aws-sdk/client-resource-groups-tagging-api": "3.1090.0",
-    "@aws-sdk/lib-dynamodb": "3.1090.0",
     "@biomejs/biome": "2.5.4",
     "@techtok/core": "workspace:*",
     "@techtok/shared": "workspace:*",

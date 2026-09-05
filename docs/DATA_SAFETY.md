@@ -74,10 +74,11 @@ the two (it does, in the detailed flow).
 ## What to say about account deletion specifically
 
 Play's Data Safety flow asks separately whether **all** collected data is
-deletable. Answer **yes** — `DELETE /v1/me` removes the entire `Users` item
-and every paginated `UserActivity` row for that user (both paths covered by
-`aws-sdk-client-mock` tests: pagination + chunked `BatchWriteItem`). Nothing
-about a deleted user persists server-side. Article/summary/translation content
+deletable. Answer **yes** — `DELETE /v1/me` deletes the user's `user_reads` and
+`user_bookmarks` rows, then the `users` row itself, whose `on delete cascade`
+foreign keys clear the remaining five per-user tables (topics, muted sources,
+topic reads, quotas, entitlements). Both repo paths are covered by PGlite tests
+against the real schema. Nothing about a deleted user persists server-side. Article/summary/translation content
 survives, but per the privacy policy it is not personal data and was never
 specific to the deleted user in the first place.
 

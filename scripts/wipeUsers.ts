@@ -1,14 +1,10 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { BatchWriteCommand, DynamoDBDocumentClient, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { createSqlClient } from '@techtok/core';
-import { discoverTableName, REGION } from './lib/discoverTableName';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const BACKUP_DIR = resolve(__dirname, '../ops-backups');
-const BATCH_WRITE_CHUNK_SIZE = 25;
 
 interface Args {
   stage: string;
@@ -24,44 +20,6 @@ function parseArgs(argv: string[]): Args {
   return { stage, confirm: argv.includes('--confirm') };
 }
 
-async function scanAll(
-  client: DynamoDBDocumentClient,
-  tableName: string,
-): Promise<Record<string, unknown>[]> {
-  const items: Record<string, unknown>[] = [];
-  let exclusiveStartKey: Record<string, unknown> | undefined;
-  do {
-    const page = await client.send(
-      new ScanCommand({ TableName: tableName, ExclusiveStartKey: exclusiveStartKey }),
-    );
-    items.push(...((page.Items ?? []) as Record<string, unknown>[]));
-    exclusiveStartKey = page.LastEvaluatedKey;
-  } while (exclusiveStartKey);
-  return items;
-}
-
-async function deleteAll(
-  client: DynamoDBDocumentClient,
-  tableName: string,
-  items: Record<string, unknown>[],
-  keyAttributes: string[],
-): Promise<void> {
-  for (let i = 0; i < items.length; i += BATCH_WRITE_CHUNK_SIZE) {
-    const batch = items.slice(i, i + BATCH_WRITE_CHUNK_SIZE);
-    await client.send(
-      new BatchWriteCommand({
-        RequestItems: {
-          [tableName]: batch.map((item) => ({
-            DeleteRequest: {
-              Key: Object.fromEntries(keyAttributes.map((attr) => [attr, item[attr]])),
-            },
-          })),
-        },
-      }),
-    );
-  }
-}
-
 async function main(): Promise<void> {
   const { stage, confirm } = parseArgs(process.argv.slice(2));
 
@@ -69,19 +27,12 @@ async function main(): Promise<void> {
   if (!databaseUrl) {
     throw new Error(
       `DATABASE_URL is not set. Export the "${stage}" stage's Neon connection string first ` +
-        '(the same value set via `sst secret set NeonDatabaseUrl`) -- Users now lives in ' +
-        'Postgres, not DynamoDB (phase 24).',
+        '(the same value set via `sst secret set NeonDatabaseUrl`).',
     );
   }
   const db = createSqlClient(databaseUrl);
 
-  console.log(`Discovering the UserActivity table name for stage "${stage}"...`);
-  const userActivityTableName = await discoverTableName(stage, 'UserActivity');
-  console.log(`  UserActivity: ${userActivityTableName}`);
-
-  const dynamo = DynamoDBDocumentClient.from(new DynamoDBClient({ region: REGION }));
-
-  console.log('Backing up all six Postgres user tables and scanning UserActivity...');
+  console.log('Backing up every per-user Postgres table...');
   const [
     usersRows,
     userTopicsRows,
@@ -89,7 +40,8 @@ async function main(): Promise<void> {
     topicReadsRows,
     quotasRows,
     entitlementsRows,
-    userActivity,
+    readsRows,
+    bookmarksRows,
   ] = await Promise.all([
     db.execute('select * from users'),
     db.execute('select * from user_topics'),
@@ -97,7 +49,8 @@ async function main(): Promise<void> {
     db.execute('select * from user_topic_reads'),
     db.execute('select * from user_quotas'),
     db.execute('select * from user_entitlements'),
-    scanAll(dynamo, userActivityTableName),
+    db.execute('select * from user_reads'),
+    db.execute('select * from user_bookmarks'),
   ]);
 
   mkdirSync(BACKUP_DIR, { recursive: true });
@@ -114,7 +67,8 @@ async function main(): Promise<void> {
         userTopicReads: topicReadsRows.rows,
         userQuotas: quotasRows.rows,
         userEntitlements: entitlementsRows.rows,
-        userActivity,
+        userReads: readsRows.rows,
+        userBookmarks: bookmarksRows.rows,
       },
       null,
       2,
@@ -122,8 +76,9 @@ async function main(): Promise<void> {
   );
 
   console.log(`\nBackup written to ${backupPath}`);
-  console.log(`  Users rows:         ${usersRows.rows.length}`);
-  console.log(`  UserActivity rows:  ${userActivity.length}`);
+  console.log(`  Users rows:          ${usersRows.rows.length}`);
+  console.log(`  user_reads rows:     ${readsRows.rows.length}`);
+  console.log(`  user_bookmarks rows: ${bookmarksRows.rows.length}`);
 
   if (!confirm) {
     console.log('\nDry run only (pass --confirm to actually delete). Nothing was changed.');
@@ -131,13 +86,11 @@ async function main(): Promise<void> {
   }
 
   console.log(
-    `\n--confirm given — deleting ${usersRows.rows.length} Postgres users ` +
-      `(cascades to their topics/muted-sources/topic-reads/quotas/entitlements) ` +
-      `and ${userActivity.length} UserActivity rows...`,
+    `\n--confirm given — deleting ${usersRows.rows.length} users ` +
+      '(cascades to their topics/muted-sources/topic-reads/quotas/entitlements/reads/bookmarks)...',
   );
   await db.execute('delete from users');
-  await deleteAll(dynamo, userActivityTableName, userActivity, ['userId', 'sk']);
-  console.log('Done. Users (Postgres) and UserActivity (DynamoDB) are both empty.');
+  console.log('Done. Every per-user table is empty.');
 }
 
 main().catch((err) => {

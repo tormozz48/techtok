@@ -1,5 +1,4 @@
 export * from './activity/countTopicReads';
-export * from './clients/dynamoClient';
 export * from './clients/s3Client';
 export * from './clients/sqlClient';
 export * from './clients/sqsClient';

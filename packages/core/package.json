@@ -14,10 +14,8 @@
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "3.1090.0",
-    "@aws-sdk/client-dynamodb": "3.1090.0",
     "@aws-sdk/client-s3": "3.1090.0",
     "@aws-sdk/client-sqs": "3.1090.0",
-    "@aws-sdk/lib-dynamodb": "3.1090.0",
     "@extractus/article-extractor": "8.1.0",
     "@neondatabase/serverless": "^1.1.0",
     "@techtok/shared": "workspace:*",

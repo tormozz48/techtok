@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="500" viewBox="0 0 1024 500" role="img" aria-label="TechTok">
+  <title>TechTok</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#141F3D" />
+      <stop offset="55%" stop-color="#111A33" />
+      <stop offset="100%" stop-color="#0B1122" />
+    </linearGradient>
+    <radialGradient id="glow" cx="0.78" cy="0.5" r="0.55">
+      <stop offset="0%" stop-color="#FF9F1C" stop-opacity="0.20" />
+      <stop offset="100%" stop-color="#FF9F1C" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="cardImage" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1B2A4F" />
+      <stop offset="100%" stop-color="#101A33" />
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="500" fill="url(#bg)" />
+  <circle cx="800" cy="250" r="150" fill="none" stroke="#FF9F1C" stroke-width="1.5" opacity="0.16" />
+<circle cx="800" cy="250" r="205" fill="none" stroke="#FF9F1C" stroke-width="1.5" opacity="0.14" />
+<circle cx="800" cy="250" r="262" fill="none" stroke="#FF9F1C" stroke-width="1.5" opacity="0.12" />
+<circle cx="800" cy="250" r="320" fill="none" stroke="#FF9F1C" stroke-width="1.5" opacity="0.1" />
+<circle cx="800" cy="250" r="385" fill="none" stroke="#FF9F1C" stroke-width="1.5" opacity="0.08" /><circle cx="554" cy="158" r="7" fill="#00C2D1" opacity="0.5" />
+<circle cx="538" cy="64" r="6" fill="#7C8CE0" opacity="0.5" />
+<circle cx="436" cy="176" r="5" fill="#FF9F1C" opacity="0.5" />
+<circle cx="622" cy="96" r="5" fill="#2ECC71" opacity="0.5" />
+  <rect width="1024" height="500" fill="url(#glow)" />
+
+  <g transform="translate(66,52) scale(0.08984375)">
+    <polygon points="512,85 864,288 864,693 512,896 160,693 160,288" fill="none" stroke="#FF9F1C" stroke-width="46" stroke-linejoin="round" />
+    <g transform="translate(266.7,227.2) scale(2.4533)">
+  <path d="M 82 118 C 78 148, 72 178, 64 196 C 82 205, 118 205, 136 196 C 128 178, 122 148, 118 118 Z" fill="#FF9F1C" />
+  <path d="M 82 55 C 68 40, 70 26, 60 14 L 66 10 C 78 22, 78 38, 92 52 Z" fill="#FF9F1C" />
+  <circle cx="60" cy="10" r="9" fill="#FF9F1C" />
+  <path d="M 118 55 C 132 40, 128 26, 138 14 L 132 10 C 122 22, 122 38, 108 52 Z" fill="#FF9F1C" />
+  <circle cx="138" cy="10" r="9" fill="#FF9F1C" />
+  <circle cx="100" cy="90" r="52" fill="#FF9F1C" />
+  <circle cx="112" cy="90" r="20" fill="#ffffff" />
+  <circle cx="116" cy="92" r="12" fill="#111A33" />
+  <circle cx="116" cy="92" r="6" fill="#05070a" />
+  <circle cx="120" cy="87" r="3" fill="#ffffff" /></g>
+  </g>
+  <text x="176" y="128" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="60" font-weight="700" fill="#FFFFFF">Tech<tspan fill="#FF9F1C">Tok</tspan></text>
+
+  <text x="72" y="224" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="34" font-weight="700" fill="#FF9F1C">Tech &amp; science news, swiped</text>
+  <text x="72" y="279" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="19" font-weight="400" fill="#98A6C4">AI condenses every article into a short card and translates</text>
+<text x="72" y="306" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="19" font-weight="400" fill="#98A6C4">it into your language.</text>
+  <g><rect x="72" y="386" width="163" height="34" rx="17" fill="#ffffff" fill-opacity="0.06" stroke="#FF9F1C" stroke-opacity="0.35" />
+      <text x="153.5" y="408" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="15" font-weight="500" fill="#C9D4EA">Swipe, don't scroll</text></g>
+<g><rect x="247" y="386" width="148" height="34" rx="17" fill="#ffffff" fill-opacity="0.06" stroke="#FF9F1C" stroke-opacity="0.35" />
+      <text x="321" y="408" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="15" font-weight="500" fill="#C9D4EA">Condensed by AI</text></g>
+<g><rect x="407" y="386" width="158" height="34" rx="17" fill="#ffffff" fill-opacity="0.06" stroke="#FF9F1C" stroke-opacity="0.35" />
+      <text x="486" y="408" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="15" font-weight="500" fill="#C9D4EA">Full story, one tap</text></g>
+
+  
+  <g>
+    <rect x="646" y="26" width="308" height="448" rx="44" fill="#FF9F1C" opacity="0.13" />
+    <rect x="650" y="30" width="300" height="440" rx="40" fill="#060B1A" stroke="#FF9F1C" stroke-opacity="0.45" stroke-width="2" />
+    <rect x="662" y="42" width="276" height="416" rx="30" fill="#0C1428" />
+    <rect x="774" y="54" width="52" height="5" rx="2.5" fill="#ffffff" opacity="0.25" />
+
+    <rect x="684" y="72" width="232" height="138" rx="18" fill="url(#cardImage)" />
+    <g transform="translate(753.1,92.2) scale(0.4735)">
+  <path d="M 82 118 C 78 148, 72 178, 64 196 C 82 205, 118 205, 136 196 C 128 178, 122 148, 118 118 Z" fill="#00C2D1" />
+  <path d="M 82 55 C 68 40, 70 26, 60 14 L 66 10 C 78 22, 78 38, 92 52 Z" fill="#00C2D1" />
+  <circle cx="60" cy="10" r="9" fill="#00C2D1" />
+  <path d="M 118 55 C 132 40, 128 26, 138 14 L 132 10 C 122 22, 122 38, 108 52 Z" fill="#00C2D1" />
+  <circle cx="138" cy="10" r="9" fill="#00C2D1" />
+  <circle cx="100" cy="90" r="52" fill="#00C2D1" />
+      <circle cx="112" cy="90" r="20" fill="#ffffff" />
+      <circle cx="116" cy="92" r="12" fill="#111A33" />
+      <circle cx="116" cy="92" r="6" fill="#05070a" />
+      <circle cx="120" cy="87" r="3" fill="#ffffff" />
+    </g>
+
+    <rect x="684" y="228" width="46" height="30" rx="15" fill="#00C2D1" fill-opacity="0.16" stroke="#00C2D1" stroke-opacity="0.6" />
+    <text x="707" y="248" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#5AD7E4">AI</text>
+    <rect x="740" y="230" width="92" height="26" rx="13" fill="#FF9F1C" fill-opacity="0.16" />
+    <text x="786" y="247" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#FF9F1C">Translated</text>
+
+    <text x="684" y="292" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="21" font-weight="700" fill="#F2F5FF">New model can</text>
+<text x="684" y="320" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="21" font-weight="700" fill="#F2F5FF">explain its own</text>
+<text x="684" y="348" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="21" font-weight="700" fill="#F2F5FF">reasoning</text>
+    <text x="684" y="380" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14.5" font-weight="400" fill="#9FADC9">Researchers say the technique cuts</text>
+<text x="684" y="400" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14.5" font-weight="400" fill="#9FADC9">hallucinations by half.</text>
+
+    <clipPath id="screenClip"><rect x="662" y="42" width="276" height="416" rx="30" /></clipPath>
+    <g clip-path="url(#screenClip)">
+      <rect x="678" y="438" width="244" height="60" rx="22" fill="#16233F" />
+    </g>
+    <circle cx="786" cy="418" r="4" fill="#ffffff" opacity="0.9" /><circle cx="800" cy="418" r="3" fill="#ffffff" opacity="0.28" /><circle cx="814" cy="418" r="3" fill="#ffffff" opacity="0.28" />
+  </g>
+</svg>

@@ -62,7 +62,7 @@ exports[`LoadingScreen renders the branded logo + spinner without crashing (snap
           "marginBottom": 24,
         },
         {
-          "color": "#1b1b1f",
+          "color": "#111a33",
         },
       ]
     }

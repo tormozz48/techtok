@@ -1,10 +1,15 @@
-# Distributing TechTok to friends (Phase 5)
+# Distributing TechTok
 
-TechTok is distributed as an installable Android APK via EAS internal
-distribution — no Play Store listing, no review process. This is a one-time
-per-maintainer setup, then a link you can send.
+Two distribution stories now coexist, and this document covers both:
 
-Three paths are supported, all on the Expo **free** tier:
+- **Phase 5, friends:** an installable Android APK via EAS internal
+  distribution — no Play Store listing, no review process. One-time
+  per-maintainer setup, then a link you can send.
+- **Phase 23, public:** a Play Store AAB, built and submitted by CI. D67/D75
+  retired D1's "me + friends" scope; the Play listing is now the target, and
+  the friends APK survives as the `preview` channel alongside it.
+
+Three build paths are supported, all on the Expo **free** tier:
 
 - **Automated CI builds → GitHub Releases** (recommended, unmetered) — every push
   to `main` (and manual runs) builds an APK in GitHub Actions with
@@ -151,9 +156,15 @@ trust level (DESIGN §5).
 profile — an **AAB**, Play App Signing-ready — the same `eas build --local`
 mechanism the friends-APK workflow above uses (unmetered, no EAS cloud-build
 credit spent), just for the `production` profile instead of `preview`.
-Deliberately **`workflow_dispatch`-only**, not on-push: a Play submission is a
-deliberate, infrequent, reviewed action, unlike the preview APK's
-every-merge build.
+
+It **runs automatically** as the `mobile-play-release` job in `ci.yml`'s
+main-branch pipeline (D98), on the same `should_build` gate as the preview APK
+and **in parallel with it** (D99, which extracted the version bump into its own
+`mobile-version-bump` job so neither build waits on the other).
+`workflow_dispatch` stays available for an ad hoc rebuild. This reverses the
+original design, which was dispatch-only on the reasoning that a Play
+submission is a deliberate, infrequent action — D98 traded that for a pipeline
+that keeps the internal track continuously current.
 
 **This is the maintainer's actual build path — builds and deploys happen only
 through CI, never `./gradlew`/`eas build` run by hand on a laptop.** The local
@@ -162,28 +173,34 @@ fallback, but isn't what's used day to day.
 
 ### Getting a build
 
-GitHub → Actions → **Mobile release (Play Store)** → **Run workflow**, passing
-the current production API URL as `api_url` (find it via the
-`deploy-production` workflow's most recent run output, or
-`npx sst deploy --stage production` locally). The run's **Artifacts** section
-carries `techtok-<run#>.aab` — download it and upload that file directly to
-Play Console (Internal testing, then promoted per the steps below). Nothing is
-auto-submitted to Play; that needs D71's `PlayServiceAccountKey` secret
-(phase 21), not yet set up.
+- **Automatic:** merge to `main` with a mobile-relevant change. The API URL is
+  read from the **`PRODUCTION_API_URL` repository variable** (D100) — it is no
+  longer passed by hand, which is what lets the mobile chain run in parallel
+  with the backend `deploy-dev → e2e → deploy-production` chain instead of
+  behind it.
+- **On demand:** GitHub → Actions → **Mobile release (Play Store)** →
+  **Run workflow**, passing the production API URL as `api_url`.
+
+The run's **Artifacts** section carries `techtok-<run#>.aab`. **Submission to
+Play's `internal` track is automatic once the `PlayServiceAccountKey` secret
+exists** (D98 pulled this forward from phase 21); until it is set, the submit
+step skips cleanly and the AAB stays a downloadable artifact you upload to Play
+Console by hand.
 
 ### One-time setup
 
-Before the first run, the `production` profile needs its own signing
-credentials on EAS (separate from the `preview` profile's, established
-earlier in this doc):
+✅ **Done.** The `production` profile has its own EAS-managed signing
+credentials, established separately from the `preview` profile's:
 
 ```
 npx eas-cli credentials --platform android
 ```
 
+Run it **from `apps/mobile/`, not the repo root** — from the root, `eas-cli`
+doesn't find the real project and offers to create an unrelated new one.
 Select the `production` profile and let EAS generate/store a keystore
 remotely — no keystore file, no `keystore.properties`, matching the
-CI-only build story. That keystore becomes the permanent Play upload key.
+CI-only build story. That keystore is the permanent Play upload key.
 
 ## Building & publishing without EAS (local Gradle → Google Play)
 
@@ -237,19 +254,24 @@ cd apps/mobile && pnpm build:android
   (an **AAB**, which is what Play requires for new apps).
 - `pnpm build:android:apk` instead produces a sideloadable APK for quick device
   testing (not for Play).
-- `versionCode`/`versionName` in `android/app/build.gradle` are now kept in
-  sync automatically by CI (`.github/workflows/mobile-version.yml`, D35):
-  every mobile-relevant merge to `main` bumps `app.json`'s canonical
-  `version` from conventional-commit messages and propagates it here,
-  incrementing `versionCode` by 1 every time. Play still rejects a re-used
-  `versionCode`, so before uploading, `git pull` and confirm `versionCode`
-  has actually advanced since your last Play release — the automation runs
-  on merge, not on your publish schedule, so don't bump it by hand unless
-  the auto-bump genuinely hasn't run yet.
+- `versionCode`/`versionName` in `android/app/build.gradle` are kept in sync
+  automatically by CI — by the **`mobile-version-bump` job inside
+  [ci.yml](../.github/workflows/ci.yml)**, which runs `scripts/bumpMobileVersion.ts`
+  (there is no `mobile-version.yml` workflow file; D35's original one was
+  retired and the logic moved, D41→D44, then extracted into its own job by
+  D99). Every mobile-relevant merge to `main` bumps `app.json`'s canonical
+  `version` from conventional-commit messages and propagates it here.
+  **`versionCode` and `runtimeVersion` bump unconditionally on every native
+  rebuild** (D101 — incrementing whatever is already in the tree, rather than
+  deriving from the last `mobile-v*` tag), precisely because Play rejects a
+  re-used `versionCode` even when the semver didn't move. Before uploading by
+  hand, `git pull` and confirm `versionCode` has advanced since your last Play
+  release; don't bump it manually unless the auto-bump genuinely hasn't run.
 
 ### Publishing to Google Play (first time)
 
-1. Register a Play Console developer account (**$25 one-time fee**).
+1. ✅ Register a Play Console developer account (**$25 one-time fee**) —
+   done, identity verification (KYC) passed.
 2. Create the app. Its `applicationId` is `com.tormozz48dev.techtok` and can
    **never change** after the first upload — this is the final package name
    (D75b: keeping the `.dev` suffix was a deliberate call, not an oversight —
@@ -258,16 +280,23 @@ cd apps/mobile && pnpm build:android
    regeneration of the committed `android/` project for purely cosmetic gain).
 3. Enable **Play App Signing** (Google-managed). Upload the `.aab` signed with
    your upload key; Google re-signs with the real key.
-4. Complete the required forms: store listing, content rating, **Data safety**,
-   target audience, and a **privacy policy URL** (mandatory).
+4. Complete the required forms: store listing, content rating, **Data safety**
+   (the answer key, traced field-by-field to the code, is
+   [docs/DATA_SAFETY.md](DATA_SAFETY.md)), target audience, and a **privacy
+   policy URL** (mandatory) — `https://techtokapp.eu/privacy/`, served from
+   `apps/site/src/pages/privacy.astro`. Play also wants a web
+   account-deletion URL reachable without installing the app:
+   `https://techtokapp.eu/delete-account/`.
 5. Create a release on a track — start with **Internal testing** (instant, up to
    100 tester emails), then promote to Closed/Open/Production. Upload the `.aab`
    and roll out.
 
-Subsequent releases (via the CI path above): confirm `versionCode` has
-advanced since the last upload (`git pull` — CI bumps it automatically on
-every mobile-relevant merge, D44), dispatch **Mobile release (Play Store)**,
-download the new `.aab` from the run's artifacts, upload it.
+Subsequent releases (via the CI path above): nothing to dispatch — a
+mobile-relevant merge to `main` builds the AAB and, once
+`PlayServiceAccountKey` is set, submits it to the `internal` track on its own
+(D98). Only if you are uploading by hand: `git pull`, confirm `versionCode`
+has advanced (D101 bumps it on every native rebuild), then download the `.aab`
+from the run's artifacts and upload it.
 
 ### Store listing assets
 

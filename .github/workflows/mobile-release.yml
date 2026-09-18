@@ -50,7 +50,14 @@ jobs:
           java-version: "17"
 
       # Pins cmdline-tools and accepts licenses for Gradle's package fetches.
+      # packages: 'platform-tools' overrides the action's default ('tools
+      # platform-tools'). The legacy 'tools' package is gone from Google's
+      # repository, so the default now fails the job outright with
+      # "Failed to find package 'tools'"; it also pulled in the emulator,
+      # which a headless AAB build never uses. Same override as mobile-build.yml.
       - uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools"
 
       # Installs eas-cli and authenticates via EXPO_TOKEN (a free Expo account).
       - uses: expo/expo-github-action@v8

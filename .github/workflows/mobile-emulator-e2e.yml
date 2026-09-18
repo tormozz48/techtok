@@ -34,7 +34,13 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      # packages: 'platform-tools' overrides the action's default ('tools
+      # platform-tools'); the legacy 'tools' package no longer exists in
+      # Google's repository and the default fails the job. The emulator and
+      # system image come from android-emulator-runner below, not from here.
       - uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools"
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:

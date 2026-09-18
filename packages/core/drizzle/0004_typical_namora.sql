@@ -1,0 +1,1 @@
+CREATE INDEX "user_entitlements_purchase_token_idx" ON "user_entitlements" USING btree ("purchase_token");

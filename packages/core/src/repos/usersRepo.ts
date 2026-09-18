@@ -63,6 +63,16 @@ export class UsersRepo {
     return this.hydrate(userId);
   }
 
+  async findUserIdByPurchaseToken(purchaseToken: string): Promise<string | undefined> {
+    const [row] = await this.db
+      .select({ externalId: users.externalId })
+      .from(userEntitlements)
+      .innerJoin(users, eq(users.id, userEntitlements.userId))
+      .where(eq(userEntitlements.purchaseToken, purchaseToken))
+      .limit(1);
+    return row?.externalId;
+  }
+
   async incrementQuota(
     userId: string,
     field: QuotaField,

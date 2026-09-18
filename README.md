@@ -78,7 +78,7 @@ flowchart LR
 
 ### API routes (`/v1`)
 
-`GET /feed` · `POST /reads` · `POST /events` · `GET|DELETE /me` · `PUT /me/topics` · `PUT /me/language` · `PUT /me/muted-sources` · `GET /me/entitlement` · `GET /history` · `GET|POST /bookmarks` · `DELETE /bookmarks/{postId}` · `GET /posts/{postId}/content`
+`GET /feed` · `POST /reads` · `POST /events` · `GET|DELETE /me` · `PUT /me/topics` · `PUT /me/language` · `PUT /me/muted-sources` · `GET /me/entitlement` · `POST /billing/play/verify` · `GET /history` · `GET|POST /bookmarks` · `DELETE /bookmarks/{postId}` · `GET /posts/{postId}/content`
 
 `GET /topics` and `GET /sources` are the only public (unauthenticated) routes. CORS is disabled — this is a native-client-only API.
 
@@ -153,6 +153,14 @@ npx sst secret set OpenRouterApiKey <your-key> --stage dev
 ```
 
 Set `LLM_PROVIDER=bedrock` (per stage, in `infra/pipeline.ts`'s env vars) to fall back to the dormant Bedrock path — no code change, IAM-based auth via the existing `bedrock:InvokeModel` grants.
+
+**Play Billing service account (D71/D106)** — optional. `POST /v1/billing/play/verify` needs a Google Cloud service-account JSON with Play Developer API access to call `purchases.subscriptionsv2.get`:
+
+```bash
+npx sst secret set PlayServiceAccountKey "$(cat play-service-account.json)" --stage dev
+```
+
+The secret is declared with an empty-string placeholder (`infra/billing.ts`), so deploys succeed without it — the route just answers 503 `billing_unavailable` until it is set. The Play package name (`PLAY_PACKAGE_NAME`, `com.tormozz48dev.techtok`) is a plain env var in the same file, permanent since D75(b).
 
 **Google OAuth client ID (D68)** — the JWT authorizer checks its `audience` against this, so a deploy without it rejects every real ID token. A plain env var, not a secret (an OAuth client ID is public by design):
 
@@ -328,7 +336,7 @@ Two chains run in parallel (D100). The backend chain gates each step on the last
 | `GOOGLE_OAUTH_WEB_CLIENT_ID` | both deploys, Mobile build | Not sensitive; without it every ID token fails on audience mismatch |
 | `EXPO_TOKEN` | Mobile build, Mobile release | Free Expo account; also supplies the signing credentials |
 | `SENTRY_AUTH_TOKEN` | Mobile build, mobile-ota-update | Optional — its absence just skips the source-map/symbol upload |
-| `PlayServiceAccountKey` | Mobile release | Google Cloud service account JSON with Play Developer API access (D71); absent, the Play upload is skipped and the AAB stays a downloadable artifact |
+| `PlayServiceAccountKey` | Mobile release | Google Cloud service account JSON with Play Developer API access (D71); absent, the Play upload is skipped and the AAB stays a downloadable artifact. The **same** JSON is also needed as an `sst secret` per stage for `POST /v1/billing/play/verify` (see [Backend](#backend-aws-via-sst)) — two separate places, one credential |
 | `GOOGLE_TEST_REFRESH_TOKEN`, `GOOGLE_OAUTH_WEB_CLIENT_SECRET` | E2E, Mobile emulator E2E | The authenticated suites skip cleanly until these exist |
 
 No long-lived AWS keys anywhere — every AWS-touching job assumes a role via OIDC, and every PR-triggered job runs with no credentials at all.

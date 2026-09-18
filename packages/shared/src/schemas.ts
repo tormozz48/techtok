@@ -113,6 +113,12 @@ export const entitlementResponseSchema = z.object({
 });
 export type EntitlementResponse = z.infer<typeof entitlementResponseSchema>;
 
+export const playVerifyRequestSchema = z.object({
+  purchaseToken: z.string().min(1).max(4096),
+  productId: z.string().min(1).max(128),
+});
+export type PlayVerifyRequest = z.infer<typeof playVerifyRequestSchema>;
+
 export const topicsPrefsRequestSchema = z.object({
   topics: z.array(topicSchema),
 });

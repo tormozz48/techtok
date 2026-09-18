@@ -203,6 +203,55 @@ describe('usersRepo.grantEntitlement', () => {
   });
 });
 
+describe('usersRepo.findUserIdByPurchaseToken', () => {
+  it('finds the user a purchase token is already bound to', async () => {
+    await repo.touch('device-1');
+    await repo.grantEntitlement('device-1', {
+      plan: 'plus',
+      source: 'play',
+      purchaseToken: 'token-abc',
+      verifiedAt: '2026-09-18T00:00:00.000Z',
+    });
+
+    await expect(repo.findUserIdByPurchaseToken('token-abc')).resolves.toBe('device-1');
+  });
+
+  it('returns undefined for a token nobody holds', async () => {
+    await repo.touch('device-1');
+
+    await expect(repo.findUserIdByPurchaseToken('token-abc')).resolves.toBeUndefined();
+  });
+
+  it('stops finding a token once the entitlement no longer carries it', async () => {
+    await repo.touch('device-1');
+    await repo.grantEntitlement('device-1', {
+      plan: 'plus',
+      source: 'play',
+      purchaseToken: 'token-abc',
+      verifiedAt: '2026-09-18T00:00:00.000Z',
+    });
+    await repo.grantEntitlement('device-1', {
+      plan: 'free',
+      source: 'manual',
+      verifiedAt: '2026-09-19T00:00:00.000Z',
+    });
+
+    await expect(repo.findUserIdByPurchaseToken('token-abc')).resolves.toBeUndefined();
+  });
+
+  it('does not match a user whose entitlement has a different token', async () => {
+    await repo.touch('device-1');
+    await repo.grantEntitlement('device-1', {
+      plan: 'plus',
+      source: 'play',
+      purchaseToken: 'token-abc',
+      verifiedAt: '2026-09-18T00:00:00.000Z',
+    });
+
+    await expect(repo.findUserIdByPurchaseToken('token-xyz')).resolves.toBeUndefined();
+  });
+});
+
 describe('usersRepo.incrementQuota', () => {
   it('starts a fresh quota at zero for the other field on first use', async () => {
     await repo.touch('device-1');

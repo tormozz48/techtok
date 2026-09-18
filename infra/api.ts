@@ -1,4 +1,5 @@
 import { GOOGLE_OAUTH_WEB_CLIENT_ID } from './auth';
+import { billingEnvironment, playServiceAccountKey } from './billing';
 import { contentBucket, neonDatabaseUrl } from './storage';
 
 export const api = new sst.aws.ApiGatewayV2('Api', {
@@ -187,6 +188,17 @@ api.route(
     handler: 'packages/functions/src/api/handlers/entitlement.handler',
     link: dbLink,
     environment: dbEnvironment,
+    runtime: 'nodejs22.x',
+  },
+  googleAuth,
+);
+
+api.route(
+  'POST /v1/billing/play/verify',
+  {
+    handler: 'packages/functions/src/api/handlers/billingPlayVerify.handler',
+    link: [neonDatabaseUrl, playServiceAccountKey],
+    environment: { ...dbEnvironment, ...billingEnvironment },
     runtime: 'nodejs22.x',
   },
   googleAuth,

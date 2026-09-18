@@ -239,19 +239,23 @@ export const userQuotas = pgTable(
   (t) => [unique('user_quotas_user_day_key').on(t.userId, t.day)],
 );
 
-export const userEntitlements = pgTable('user_entitlements', {
-  id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
-  userId: integer('user_id')
-    .notNull()
-    .unique()
-    .references(() => users.id, OWNED),
-  plan: entitlementPlanEnum('plan').notNull(),
-  source: entitlementSourceEnum('source').notNull(),
-  expiresAt: text('expires_at'),
-  productId: text('product_id'),
-  purchaseToken: text('purchase_token'),
-  verifiedAt: text('verified_at').notNull(),
-});
+export const userEntitlements = pgTable(
+  'user_entitlements',
+  {
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+    userId: integer('user_id')
+      .notNull()
+      .unique()
+      .references(() => users.id, OWNED),
+    plan: entitlementPlanEnum('plan').notNull(),
+    source: entitlementSourceEnum('source').notNull(),
+    expiresAt: text('expires_at'),
+    productId: text('product_id'),
+    purchaseToken: text('purchase_token'),
+    verifiedAt: text('verified_at').notNull(),
+  },
+  (t) => [index('user_entitlements_purchase_token_idx').on(t.purchaseToken)],
+);
 
 export const userReads = pgTable(
   'user_reads',

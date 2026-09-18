@@ -1408,6 +1408,27 @@
     ],
     "additionalProperties": false
   },
+  "playVerifyRequestSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "purchaseToken": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
+      },
+      "productId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      }
+    },
+    "required": [
+      "purchaseToken",
+      "productId"
+    ],
+    "additionalProperties": false
+  },
   "readsRequestSchema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",

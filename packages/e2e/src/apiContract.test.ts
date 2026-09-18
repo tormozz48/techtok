@@ -7,6 +7,7 @@ import {
   feedResponseSchema,
   historyResponseSchema,
   meResponseSchema,
+  PLUS_SUBSCRIPTION_PRODUCT_ID,
   sourcesResponseSchema,
   topicsResponseSchema,
 } from '@techtok/shared';
@@ -398,6 +399,43 @@ describe.skipIf(!testCredentials)('API validation & edge-case E2E', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(() => entitlementResponseSchema.parse(body)).not.toThrow();
+  });
+
+  it('POST /v1/billing/play/verify rejects a forged purchase token', async () => {
+    const res = await fetchWithRetry(`${apiEndpoint}/v1/billing/play/verify`, {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        purchaseToken: 'e2e-forged-token-that-google-has-never-issued',
+        productId: PLUS_SUBSCRIPTION_PRODUCT_ID,
+      }),
+    });
+
+    expect([400, 503]).toContain(res.status);
+    const body = errorResponseSchema.parse(await res.json());
+    expect(['invalid_purchase_token', 'billing_unavailable']).toContain(body.error.code);
+  });
+
+  it('POST /v1/billing/play/verify rejects a product we do not sell', async () => {
+    const res = await fetchWithRetry(`${apiEndpoint}/v1/billing/play/verify`, {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({ purchaseToken: 'whatever', productId: 'not_our_product' }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(errorResponseSchema.parse(await res.json()).error.code).toBe('unknown_product');
+  });
+
+  it('POST /v1/billing/play/verify rejects a malformed body', async () => {
+    const res = await fetchWithRetry(`${apiEndpoint}/v1/billing/play/verify`, {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({ purchaseToken: '' }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(errorResponseSchema.parse(await res.json()).error.code).toBe('invalid_body');
   });
 
   it('GET /v1/posts/{postId}/content for an existing post matches contentResponseSchema', async () => {

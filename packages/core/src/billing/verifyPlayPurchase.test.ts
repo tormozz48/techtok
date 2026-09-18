@@ -164,6 +164,12 @@ describe('verifyPlayPurchase', () => {
 });
 
 describe('obfuscatedAccountId', () => {
+  it('matches the digest the mobile client derives for the same user id', () => {
+    expect(obfuscatedAccountId('g:104512338877120044321')).toBe(
+      '2705bb44c36dd6aa05c9d9a490e7d08d0bd1486f63a6032d3a82b13cbba2d6e2',
+    );
+  });
+
   it('is deterministic and fits Play’s 64-character ceiling', () => {
     const id = obfuscatedAccountId('g:104512338877120044321');
 

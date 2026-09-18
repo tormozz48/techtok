@@ -7,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { AppState, Platform, useColorScheme } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
+import { syncEntitlementFromPlay } from '@/billing/entitlementSync';
 import { CrashFallback } from '@/components/CrashFallback';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import {
@@ -76,6 +77,7 @@ function RootLayout() {
       setShowOnboarding(!hasSeenOnboarding());
       useLanguageStore.getState().load();
       useTopicsStore.getState().load();
+      void syncEntitlementFromPlay().catch(() => undefined);
     }
   }, [authStatus]);
 

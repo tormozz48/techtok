@@ -15,6 +15,7 @@ import {
   type Language,
   type MeResponse,
   meResponseSchema,
+  type PlayVerifyRequest,
   REQUEST_ID_HEADER,
   type SourcesResponse,
   sourcesResponseSchema,
@@ -187,6 +188,14 @@ export async function deleteAccount(): Promise<void> {
 
 export async function fetchEntitlement(): Promise<EntitlementResponse> {
   const response = await apiFetch(apiUrl('/v1/me/entitlement'));
+  return entitlementResponseSchema.parse(await response.json());
+}
+
+export async function verifyPlayPurchase(request: PlayVerifyRequest): Promise<EntitlementResponse> {
+  const response = await apiFetch(apiUrl('/v1/billing/play/verify'), {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
   return entitlementResponseSchema.parse(await response.json());
 }
 

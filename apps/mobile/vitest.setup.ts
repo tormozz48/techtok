@@ -1,4 +1,4 @@
-import { randomUUID as nodeRandomUUID } from 'node:crypto';
+import { createHash as nodeCreateHash, randomUUID as nodeRandomUUID } from 'node:crypto';
 import { vi } from 'vitest';
 
 const MOCK_GOOGLE_USER = {
@@ -46,6 +46,11 @@ vi.mock('@sentry/react-native', () => ({
 
 vi.mock('expo-crypto', () => ({
   randomUUID: vi.fn(() => nodeRandomUUID()),
+  CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
+  CryptoEncoding: { HEX: 'hex' },
+  digestStringAsync: vi.fn(async (_algorithm: string, data: string) =>
+    nodeCreateHash('sha256').update(data).digest('hex'),
+  ),
 }));
 
 vi.mock('expo-localization', () => ({
@@ -73,4 +78,16 @@ vi.mock('@react-native-google-signin/google-signin', () => ({
   isNoSavedCredentialFoundResponse: (response: { type: string }) =>
     response.type === 'noSavedCredentialFound',
   isCancelledResponse: (response: { type: string }) => response.type === 'cancelled',
+}));
+
+vi.mock('expo-iap', () => ({
+  initConnection: vi.fn().mockResolvedValue(true),
+  endConnection: vi.fn().mockResolvedValue(true),
+  fetchProducts: vi.fn().mockResolvedValue([]),
+  getAvailablePurchases: vi.fn().mockResolvedValue([]),
+  requestPurchase: vi.fn().mockResolvedValue(null),
+  finishTransaction: vi.fn().mockResolvedValue(undefined),
+  deepLinkToSubscriptions: vi.fn().mockResolvedValue(undefined),
+  purchaseUpdatedListener: vi.fn(() => ({ remove: vi.fn() })),
+  purchaseErrorListener: vi.fn(() => ({ remove: vi.fn() })),
 }));

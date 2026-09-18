@@ -19,9 +19,9 @@ const ENTITLEMENT: EntitlementResponse = {
   plan: 'free',
   quota: {
     cardReads: 12,
-    cardReadsLimit: 100,
+    cardReadsLimit: 30,
     readerOpens: 3,
-    readerOpensLimit: 20,
+    readerOpensLimit: 10,
     resetsAt: new Date(Date.now() + 8 * 3_600_000).toISOString(),
   },
 };

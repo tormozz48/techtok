@@ -23,9 +23,9 @@ describe('toEntitlementResponse', () => {
       expiresAt: undefined,
       quota: {
         cardReads: 0,
-        cardReadsLimit: 100,
+        cardReadsLimit: 30,
         readerOpens: 0,
-        readerOpensLimit: 20,
+        readerOpensLimit: 10,
         resetsAt: '2026-08-13T00:00:00.000Z',
       },
     });

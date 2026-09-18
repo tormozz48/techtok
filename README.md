@@ -15,9 +15,10 @@ This README covers running, developing, and deploying the project day to day. Ar
 - **Localized** — `en` · `ru` · `uk` · `pl`, for card content (LLM-translated) and the app's own chrome.
 - **History, bookmarks & search** — `?q=` on both list endpoints.
 - **Listen mode** — `expo-speech` TTS in the feed action bar and the reader.
+- **Plus subscription** — €2.99/mo or €24.99/yr via Google Play Billing (`expo-iap`), verified server-side against the Play Developer API on every app open.
 - **Offline** — the query cache persists for a day, so a cold start reads without a network hit. Images (not article content) read ahead 3 cards, wifi only.
 - **Stats** — reading streak plus top topics/sources, computed client-side from history pages.
-- **Plans** — Free and Plus (€2.99/mo · €24.99/yr, D73). Free is capped server-side at **100 card reads** and **20 reader opens** per local day; Plus lifts both. Entitlement is provider-agnostic (D70), so it can be granted by hand today — Play Billing arrives in phase 21.
+- **Plans** — Free and Plus (€2.99/mo · €24.99/yr, D73). Free is capped server-side at **30 card reads** and **10 reader opens** per local day (D107); Plus lifts both. Entitlement is provider-agnostic (D70) — a plan can still be granted by hand with `pnpm grant-entitlement`, and Play Billing (`techtok_plus`, base plans `plus-monthly`/`plus-yearly`) is verified server-side via `POST /v1/billing/play/verify` (D106/D107).
 
 ## Architecture
 
@@ -191,9 +192,10 @@ pnpm --filter mobile start
 **Google Sign-In ends the plain Expo Go loop (D68).** `@react-native-google-signin/google-signin` is a native module Expo Go can't load, so the QR-into-Expo-Go loop no longer works. Use the committed bare `android/` project:
 
 ```bash
-pnpm --filter mobile prebuild:android   # only after app.json / plugin changes
 pnpm --filter mobile android            # expo run:android — builds and installs the debug APK
 ```
+
+> **Do not run `prebuild:android` to pick up a plugin or native-module change (D107).** It regenerates `android/` from scratch and reverts every customization committed there — Sentry's gradle plugin, the `keystore.properties` release signing config, the `android.debuggableVariants` hook the Maestro E2E APK needs, `lint { checkReleaseBuilds false }`, the tuned `org.gradle.jvmargs`/`caching`/`reactNativeArchitectures`, `android/.gitignore`'s signing rules — and it resets `versionCode` to 1, which makes every later Play upload fail. Add a new module's gradle/manifest edits by hand instead, and keep the `app.json` plugin entry as the record of what they were.
 
 Either way needs an emulator or a device on `adb`. Storybook runs the real components and screens in isolation on the web:
 
@@ -212,10 +214,9 @@ The committed bare `android/` project (Expo prebuild output, D18) means release 
 ```bash
 pnpm --filter mobile build:android       # release AAB -> android/app/build/outputs/bundle/release/
 pnpm --filter mobile build:android:apk   # release APK -> android/app/build/outputs/apk/release/
-pnpm --filter mobile prebuild:android    # regenerate android/ after app.json / plugin / SDK changes
 ```
 
-Both release builds run `pnpm check-api-url` first and refuse to build on an unset or placeholder `EXPO_PUBLIC_API_URL`. Release signing reads a gitignored `apps/mobile/android/keystore.properties` (falls back to the debug key when absent). Keystore creation, Play publishing, and bare-workflow caveats: [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md). `eas.json`'s `production` profile builds the **AAB** that `Mobile release (Play Store)` submits.
+`prebuild:android` still exists as a script but is **not** the way to apply plugin changes — see the warning above. Both release builds run `pnpm check-api-url` first and refuse to build on an unset or placeholder `EXPO_PUBLIC_API_URL`. Release signing reads a gitignored `apps/mobile/android/keystore.properties` (falls back to the debug key when absent). Keystore creation, Play publishing, and bare-workflow caveats: [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md). `eas.json`'s `production` profile builds the **AAB** that `Mobile release (Play Store)` submits.
 
 ### Verifying an OTA update landed
 

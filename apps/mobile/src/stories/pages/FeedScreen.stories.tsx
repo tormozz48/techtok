@@ -7,9 +7,9 @@ const FREE_ENTITLEMENT: EntitlementResponse = {
   plan: 'free',
   quota: {
     cardReads: 12,
-    cardReadsLimit: 100,
+    cardReadsLimit: 30,
     readerOpens: 3,
-    readerOpensLimit: 20,
+    readerOpensLimit: 10,
     resetsAt: new Date(Date.now() + 8 * 3_600_000).toISOString(),
   },
 };
@@ -74,7 +74,7 @@ export const QuotaExhausted: Story = {
         queryKey: ['entitlement'],
         data: {
           ...FREE_ENTITLEMENT,
-          quota: { ...FREE_ENTITLEMENT.quota, cardReads: 100 },
+          quota: { ...FREE_ENTITLEMENT.quota, cardReads: 30 },
         } satisfies EntitlementResponse,
       },
     ]),

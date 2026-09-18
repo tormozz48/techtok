@@ -80,7 +80,14 @@ export interface ChromeStrings {
     plusPlanPriceMonthly: string;
     plusPlanPriceYearly: string;
     plusPlanFeatureUnlimited: string;
-    comingSoonCta: string;
+    subscribeMonthlyCta: (price: string) => string;
+    subscribeYearlyCta: (price: string) => string;
+    restoreCta: string;
+    manageCta: string;
+    plusActiveTitle: string;
+    plusActiveMessage: (renewsOn: string) => string;
+    purchaseFailed: string;
+    billingUnavailable: string;
     quotaExhaustedTitle: string;
     quotaExhaustedMessage: (resetTime: string) => string;
   };
@@ -225,7 +232,14 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       plusPlanPriceMonthly: '€2.99/mo',
       plusPlanPriceYearly: '€24.99/yr',
       plusPlanFeatureUnlimited: 'Unlimited cards and articles',
-      comingSoonCta: 'Coming soon',
+      subscribeMonthlyCta: (price) => `Subscribe — ${price}/mo`,
+      subscribeYearlyCta: (price) => `Subscribe — ${price}/yr`,
+      restoreCta: 'Restore purchase',
+      manageCta: 'Manage subscription',
+      plusActiveTitle: 'Plus is active',
+      plusActiveMessage: (renewsOn) => `Your plan runs until ${renewsOn}.`,
+      purchaseFailed: 'That did not go through. Nothing was charged.',
+      billingUnavailable: 'Subscriptions are not available on this device.',
       quotaExhaustedTitle: "You've hit today's limit",
       quotaExhaustedMessage: (resetTime) => `Resets at ${resetTime}`,
     },
@@ -368,7 +382,14 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       plusPlanPriceMonthly: '€2.99/мес',
       plusPlanPriceYearly: '€24.99/год',
       plusPlanFeatureUnlimited: 'Неограниченно карточек и статей',
-      comingSoonCta: 'Скоро',
+      subscribeMonthlyCta: (price) => `Подписаться — ${price}/мес`,
+      subscribeYearlyCta: (price) => `Подписаться — ${price}/год`,
+      restoreCta: 'Восстановить покупку',
+      manageCta: 'Управлять подпиской',
+      plusActiveTitle: 'Plus активен',
+      plusActiveMessage: (renewsOn) => `Ваш план действует до ${renewsOn}.`,
+      purchaseFailed: 'Не удалось оформить. Списания не было.',
+      billingUnavailable: 'Подписки недоступны на этом устройстве.',
       quotaExhaustedTitle: 'Вы достигли дневного лимита',
       quotaExhaustedMessage: (resetTime) => `Сброс в ${resetTime}`,
     },
@@ -511,7 +532,14 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       plusPlanPriceMonthly: '€2.99/міс',
       plusPlanPriceYearly: '€24.99/рік',
       plusPlanFeatureUnlimited: 'Необмежено карток і статей',
-      comingSoonCta: 'Скоро',
+      subscribeMonthlyCta: (price) => `Підписатися — ${price}/міс`,
+      subscribeYearlyCta: (price) => `Підписатися — ${price}/рік`,
+      restoreCta: 'Відновити покупку',
+      manageCta: 'Керувати підпискою',
+      plusActiveTitle: 'Plus активний',
+      plusActiveMessage: (renewsOn) => `Ваш план діє до ${renewsOn}.`,
+      purchaseFailed: 'Не вдалося оформити. Кошти не списано.',
+      billingUnavailable: 'Підписки недоступні на цьому пристрої.',
       quotaExhaustedTitle: 'Ви досягли денного ліміту',
       quotaExhaustedMessage: (resetTime) => `Скидання о ${resetTime}`,
     },
@@ -654,7 +682,14 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       plusPlanPriceMonthly: '€2.99/mies.',
       plusPlanPriceYearly: '€24.99/rok',
       plusPlanFeatureUnlimited: 'Nieograniczona liczba kart i artykułów',
-      comingSoonCta: 'Wkrótce',
+      subscribeMonthlyCta: (price) => `Subskrybuj — ${price}/mies.`,
+      subscribeYearlyCta: (price) => `Subskrybuj — ${price}/rok`,
+      restoreCta: 'Przywróć zakup',
+      manageCta: 'Zarządzaj subskrypcją',
+      plusActiveTitle: 'Plus jest aktywny',
+      plusActiveMessage: (renewsOn) => `Twój plan działa do ${renewsOn}.`,
+      purchaseFailed: 'Nie udało się. Nie pobrano opłaty.',
+      billingUnavailable: 'Subskrypcje nie są dostępne na tym urządzeniu.',
       quotaExhaustedTitle: 'Osiągnięto dzisiejszy limit',
       quotaExhaustedMessage: (resetTime) => `Odnowienie o ${resetTime}`,
     },

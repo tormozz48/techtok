@@ -7,9 +7,9 @@ const AVAILABLE: EntitlementResponse = {
   plan: 'free',
   quota: {
     cardReads: 12,
-    cardReadsLimit: 100,
+    cardReadsLimit: 30,
     readerOpens: 3,
-    readerOpensLimit: 20,
+    readerOpensLimit: 10,
     resetsAt: new Date(Date.now() + 8 * 3_600_000).toISOString(),
   },
 };
@@ -17,11 +17,23 @@ const AVAILABLE: EntitlementResponse = {
 const EXHAUSTED: EntitlementResponse = {
   plan: 'free',
   quota: {
-    cardReads: 100,
-    cardReadsLimit: 100,
+    cardReads: 30,
+    cardReadsLimit: 30,
     readerOpens: 4,
-    readerOpensLimit: 20,
+    readerOpensLimit: 10,
     resetsAt: new Date(Date.now() + 3 * 3_600_000).toISOString(),
+  },
+};
+
+const PLUS_ACTIVE: EntitlementResponse = {
+  plan: 'plus',
+  expiresAt: new Date(Date.now() + 21 * 24 * 3_600_000).toISOString(),
+  quota: {
+    cardReads: 58,
+    cardReadsLimit: 30,
+    readerOpens: 19,
+    readerOpensLimit: 10,
+    resetsAt: new Date(Date.now() + 8 * 3_600_000).toISOString(),
   },
 };
 
@@ -40,4 +52,8 @@ export const Default: Story = {
 
 export const QuotaExhausted: Story = {
   decorators: [withSeededQuery(['entitlement'], EXHAUSTED)],
+};
+
+export const PlusActive: Story = {
+  decorators: [withSeededQuery(['entitlement'], PLUS_ACTIVE)],
 };

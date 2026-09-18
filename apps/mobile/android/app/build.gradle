@@ -118,6 +118,7 @@ android {
 
     namespace 'com.tormozz48dev.techtok'
     defaultConfig {
+        missingDimensionStrategy "platform", "play"
         applicationId 'com.tormozz48dev.techtok'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
@@ -197,6 +198,7 @@ android {
 }
 
 dependencies {
+    implementation "io.github.hyochan.openiap:openiap-google:3.5.2"
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 

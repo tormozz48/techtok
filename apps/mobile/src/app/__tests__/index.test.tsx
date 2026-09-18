@@ -31,9 +31,9 @@ function card(id: string): CardData {
 function freeQuota(overrides: Partial<EntitlementResponse['quota']> = {}) {
   return {
     cardReads: 4,
-    cardReadsLimit: 100,
+    cardReadsLimit: 30,
     readerOpens: 1,
-    readerOpensLimit: 20,
+    readerOpensLimit: 10,
     resetsAt: '2026-07-21T00:00:00.000Z',
     ...overrides,
   };
@@ -78,7 +78,7 @@ describe('FeedScreen quota gate (D69)', () => {
       { items: [card('a'), card('b')], nextBefore: null },
       {
         plan: 'free',
-        quota: freeQuota({ cardReads: 100 }),
+        quota: freeQuota({ cardReads: 30 }),
       },
     );
 

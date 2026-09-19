@@ -400,7 +400,7 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       readerOpensLabel: 'Статей сегодня',
       remaining: (used, limit) => `${used}/${limit}`,
       unlimited: 'Без ограничений',
-      upgradeCta: 'Улучшить',
+      upgradeCta: 'Перейти на Plus',
     },
     card: {
       translatedBadge: 'Перевод',
@@ -550,7 +550,7 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       readerOpensLabel: 'Статей сьогодні',
       remaining: (used, limit) => `${used}/${limit}`,
       unlimited: 'Без обмежень',
-      upgradeCta: 'Покращити',
+      upgradeCta: 'Перейти на Plus',
     },
     card: {
       translatedBadge: 'Переклад',
@@ -700,7 +700,7 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       readerOpensLabel: 'Artykułów dzisiaj',
       remaining: (used, limit) => `${used}/${limit}`,
       unlimited: 'Bez limitu',
-      upgradeCta: 'Ulepsz',
+      upgradeCta: 'Przejdź na Plus',
     },
     card: {
       translatedBadge: 'Tłumaczenie',

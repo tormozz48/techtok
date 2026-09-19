@@ -49,6 +49,16 @@ export const WithImage: Story = {
   },
 };
 
+export const WithLightImage: Story = {
+  args: {
+    card: {
+      ...BASE_CARD,
+      id: 'story-post-5',
+      imageUrl: 'https://dummyimage.com/800x1200/ffffff/eeeeee.png',
+    },
+  },
+};
+
 export const Translated: Story = {
   args: {
     card: {

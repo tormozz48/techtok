@@ -136,14 +136,14 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       noChanges: 'No user-facing changes in this release.',
     },
     download: {
-      title: 'Get the app',
-      subtitle: 'Scan the QR code or tap the button to download the latest Android build.',
+      title: 'Join the beta',
+      subtitle: 'Scan the QR code or tap the button to opt in as a tester on Google Play.',
       version: (version) => `Version ${version}`,
       qrHint: "Scan with your phone's camera",
-      ctaDownload: 'Download APK',
+      ctaDownload: 'Become a tester',
       ctaReleases: 'All builds',
       installNote:
-        "Android will ask you to allow installs from this source the first time — that's expected for an app outside the Play Store.",
+        "You'll accept the invitation and install TechTok through the Play Store — no sideloading needed.",
     },
     footer: {
       tagline: 'TechTok — tech & science news, swiped.',
@@ -227,15 +227,14 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       noChanges: 'В этом релизе нет изменений, заметных пользователю.',
     },
     download: {
-      title: 'Скачать приложение',
-      subtitle:
-        'Отсканируйте QR-код или нажмите кнопку, чтобы скачать последнюю версию для Android.',
+      title: 'Присоединиться к тестированию',
+      subtitle: 'Отсканируйте QR-код или нажмите кнопку, чтобы стать тестировщиком в Google Play.',
       version: (version) => `Версия ${version}`,
       qrHint: 'Отсканируйте камерой телефона',
-      ctaDownload: 'Скачать APK',
+      ctaDownload: 'Стать тестировщиком',
       ctaReleases: 'Все версии',
       installNote:
-        'Android попросит разрешить установку из этого источника при первом запуске — это ожидаемо для приложения не из Play Store.',
+        'Вы примете приглашение и установите TechTok через Play Store — без установки APK вручную.',
     },
     footer: {
       tagline: 'TechTok — новости технологий и науки одним движением.',
@@ -321,15 +320,14 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       noChanges: 'У цьому релізі немає змін, помітних користувачу.',
     },
     download: {
-      title: 'Завантажити застосунок',
-      subtitle:
-        'Відскануйте QR-код або натисніть кнопку, щоб завантажити останню версію для Android.',
+      title: 'Приєднатися до тестування',
+      subtitle: 'Відскануйте QR-код або натисніть кнопку, щоб стати тестувальником у Google Play.',
       version: (version) => `Версія ${version}`,
       qrHint: 'Відскануйте камерою телефона',
-      ctaDownload: 'Завантажити APK',
+      ctaDownload: 'Стати тестувальником',
       ctaReleases: 'Усі версії',
       installNote:
-        'Android попросить дозволити встановлення з цього джерела під час першого запуску — це очікувано для застосунку поза Play Store.',
+        'Ви приймете запрошення і встановите TechTok через Play Store — без ручного встановлення APK.',
     },
     footer: {
       tagline: 'TechTok — новини технологій і науки одним рухом.',
@@ -414,14 +412,14 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       noChanges: 'Brak zmian widocznych dla użytkownika w tym wydaniu.',
     },
     download: {
-      title: 'Pobierz aplikację',
-      subtitle: 'Zeskanuj kod QR albo kliknij przycisk, aby pobrać najnowszą wersję na Androida.',
+      title: 'Dołącz do testów',
+      subtitle: 'Zeskanuj kod QR albo kliknij przycisk, aby zostać testerem w Google Play.',
       version: (version) => `Wersja ${version}`,
       qrHint: 'Zeskanuj aparatem telefonu',
-      ctaDownload: 'Pobierz APK',
+      ctaDownload: 'Zostań testerem',
       ctaReleases: 'Wszystkie wersje',
       installNote:
-        'Android przy pierwszym razie poprosi o zgodę na instalację z tego źródła — to normalne dla aplikacji spoza Play Store.',
+        'Zaakceptujesz zaproszenie i zainstalujesz TechTok przez Play Store — bez ręcznej instalacji APK.',
     },
     footer: {
       tagline: 'TechTok — wiadomości technologiczne i naukowe w jednym geście.',

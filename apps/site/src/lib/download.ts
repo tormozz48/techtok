@@ -5,3 +5,4 @@ export const RELEASES_URL = `${REPO_URL}/releases`;
 export const AUTHOR_LINKEDIN_URL = 'https://www.linkedin.com/in/andrii-kuznietsov-877a824b/';
 
 export const APK_DOWNLOAD_URL = `${RELEASES_URL}/latest/download/techtok.apk`;
+export const PLAY_TESTING_URL = 'https://play.google.com/apps/testing/com.tormozz48dev.techtok';

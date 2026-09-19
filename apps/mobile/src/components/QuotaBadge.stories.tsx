@@ -19,13 +19,9 @@ export default meta;
 type Story = StoryObj<typeof QuotaBadge>;
 
 export const Default: Story = {
-  args: { used: 12, limit: 50 },
+  args: { cardReads: 12, cardReadsLimit: 30, readerOpens: 3, readerOpensLimit: 10 },
 };
 
 export const NearLimit: Story = {
-  args: { used: 47, limit: 50 },
-};
-
-export const Labeled: Story = {
-  args: { used: 18, limit: 20, label: 'Articles today' },
+  args: { cardReads: 29, cardReadsLimit: 30, readerOpens: 9, readerOpensLimit: 10 },
 };

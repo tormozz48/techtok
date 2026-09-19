@@ -14,7 +14,5 @@ export const styles = StyleSheet.create({
     position: 'absolute',
     top: Spacing.six,
     right: Spacing.three,
-    gap: Spacing.half,
-    alignItems: 'flex-end',
   },
 });

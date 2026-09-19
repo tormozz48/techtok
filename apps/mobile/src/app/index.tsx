@@ -150,13 +150,10 @@ export default function FeedScreen() {
       {entitlementQuery.data?.plan === 'free' ? (
         <View style={styles.quotaBadge} pointerEvents="none" testID="quota-badge">
           <QuotaBadge
-            used={entitlementQuery.data.quota.cardReads}
-            limit={entitlementQuery.data.quota.cardReadsLimit}
-          />
-          <QuotaBadge
-            used={entitlementQuery.data.quota.readerOpens}
-            limit={entitlementQuery.data.quota.readerOpensLimit}
-            label={strings.quota.readerOpensLabel}
+            cardReads={entitlementQuery.data.quota.cardReads}
+            cardReadsLimit={entitlementQuery.data.quota.cardReadsLimit}
+            readerOpens={entitlementQuery.data.quota.readerOpens}
+            readerOpensLimit={entitlementQuery.data.quota.readerOpensLimit}
           />
         </View>
       ) : null}

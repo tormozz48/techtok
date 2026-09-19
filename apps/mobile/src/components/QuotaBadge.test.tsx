@@ -2,13 +2,21 @@ import { render, screen } from '@testing-library/react-native';
 import { QuotaBadge } from './QuotaBadge';
 
 describe('QuotaBadge', () => {
-  it('renders the used/limit counts', async () => {
-    await render(<QuotaBadge used={12} limit={50} />);
-    expect(screen.getByText('12 / 50')).toBeTruthy();
+  it('renders both counters as compact used/limit pairs', async () => {
+    await render(
+      <QuotaBadge cardReads={12} cardReadsLimit={30} readerOpens={3} readerOpensLimit={10} />,
+    );
+    expect(screen.getByText('12/30')).toBeTruthy();
+    expect(screen.getByText('3/10')).toBeTruthy();
   });
 
-  it('prefixes a label when given, for distinguishing multiple badges', async () => {
-    await render(<QuotaBadge used={3} limit={20} label="Articles today" />);
-    expect(screen.getByText('Articles today 3 / 20')).toBeTruthy();
+  it('keeps the counter meanings in accessibility labels, not on screen', async () => {
+    await render(
+      <QuotaBadge cardReads={12} cardReadsLimit={30} readerOpens={3} readerOpensLimit={10} />,
+    );
+    expect(screen.getByLabelText('Cards today: 12/30')).toBeTruthy();
+    expect(screen.getByLabelText('Articles today: 3/10')).toBeTruthy();
+    expect(screen.queryByText(/Cards today/)).toBeNull();
+    expect(screen.queryByText(/Articles today/)).toBeNull();
   });
 });

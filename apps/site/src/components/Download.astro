@@ -1,5 +1,5 @@
 ---
-import { APK_DOWNLOAD_URL, RELEASES_URL } from '../lib/download';
+import { PLAY_TESTING_URL, RELEASES_URL } from '../lib/download';
 import { qrSvg } from '../lib/qr';
 import { APP_VERSION } from '../lib/version';
 import type { SiteStrings } from '../lib/copy';
@@ -9,7 +9,7 @@ interface Props {
 }
 
 const { copy } = Astro.props;
-const qr = await qrSvg(APK_DOWNLOAD_URL);
+const qr = await qrSvg(PLAY_TESTING_URL);
 ---
 
 <section id="download">
@@ -24,7 +24,7 @@ const qr = await qrSvg(APK_DOWNLOAD_URL);
         <span class="download-version">{copy.download.version(APP_VERSION)}</span>
         <p>{copy.download.qrHint}</p>
         <div class="download-actions">
-          <a class="button button-primary" href={APK_DOWNLOAD_URL}>
+          <a class="button button-primary" href={PLAY_TESTING_URL} rel="noopener">
             {copy.download.ctaDownload}
           </a>
           <a class="button button-secondary" href={RELEASES_URL} rel="noopener">

@@ -77,6 +77,7 @@ export function createStyles(colors: ThemeColors) {
     },
     cta: {
       borderRadius: Radius.md,
+      marginBottom: Spacing.three,
     },
     settingsLink: {
       marginTop: Spacing.four,

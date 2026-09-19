@@ -1,4 +1,5 @@
-import { resolvePlayVerification } from '@techtok/core';
+import { Logger } from '@aws-lambda-powertools/logger';
+import { errorMessage, type PlayPurchaseLookup, resolvePlayVerification } from '@techtok/core';
 import {
   entitlementResponseSchema,
   PLUS_SUBSCRIPTION_PRODUCT_ID,
@@ -8,6 +9,8 @@ import { getPlayApiClient, isPlayBillingConfigured } from '../../billing';
 import { getUsersRepo } from '../../repos';
 import { errorResponse, jsonResponse, parseJsonBody, withAuth } from '../lib/http';
 import { toEntitlementResponse } from '../transformers/toEntitlementResponse';
+
+const logger = new Logger({ serviceName: 'billing' });
 
 const REJECTION_STATUS: Record<string, number> = {
   invalid_purchase_token: 400,
@@ -42,7 +45,16 @@ export const handler = withAuth(async (event, auth) => {
     users.findUserIdByPurchaseToken(purchaseToken),
   ]);
 
-  const lookup = await getPlayApiClient().getSubscriptionPurchase(purchaseToken);
+  let lookup: PlayPurchaseLookup;
+  try {
+    lookup = await getPlayApiClient().getSubscriptionPurchase(purchaseToken);
+  } catch (err) {
+    logger.error('Play Developer API call failed', {
+      userId: auth.userId,
+      error: errorMessage(err),
+    });
+    return errorResponse(503, 'billing_unavailable', 'Play Billing is temporarily unavailable.');
+  }
 
   const outcome = resolvePlayVerification({
     userId: auth.userId,

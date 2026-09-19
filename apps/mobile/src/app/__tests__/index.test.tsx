@@ -128,3 +128,23 @@ describe('FeedScreen quota gate (D69)', () => {
     expect(screen.queryByTestId('feed-quota-exhausted')).toBeNull();
   });
 });
+
+describe('FeedScreen quota badge', () => {
+  it('shows the counters while the plan is free', async () => {
+    await renderFeed(
+      { items: [card('a')], nextBefore: null },
+      { plan: 'free', quota: freeQuota() },
+    );
+
+    expect(screen.getByTestId('quota-badge')).toBeTruthy();
+  });
+
+  it('hides the counters entirely on the paid plan', async () => {
+    await renderFeed(
+      { items: [card('a')], nextBefore: null },
+      { plan: 'plus', quota: freeQuota() },
+    );
+
+    expect(screen.queryByTestId('quota-badge')).toBeNull();
+  });
+});

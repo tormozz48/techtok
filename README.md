@@ -220,7 +220,7 @@ pnpm --filter mobile build:android:apk   # release APK -> android/app/build/outp
 
 ### Verifying an OTA update landed
 
-`Mobile build` (or, for a JS-only merge, CI's `mobile-ota-update` job) publishes the JS bundle to the `preview` EAS Update channel.
+`Mobile build` publishes the JS bundle to the `preview` EAS Update channel on every run — D109 retired the separate JS-only `mobile-ota-update` job, so every mobile-relevant merge goes through the full native build.
 
 `AndroidManifest.xml` sets `EXPO_UPDATES_CHECK_ON_LAUNCH=ALWAYS` with a 0 ms wait, so startup never blocks on a download — which alone would mean a bundle fetched on one launch runs only on the **next**. `state/updates.ts` closes that gap (D84): it fetches on launch, then calls `Updates.reloadAsync()` the first time the app foregrounds after **5+ minutes** in the background. Shorter excursions (a sign-in hand-off, an in-app browser article) never reload, and neither does a signed-out session.
 
@@ -304,7 +304,7 @@ Nine workflow files: `CI` is the entry point, seven are reusable workflows it ca
 - **`E2E (dev stage)`** ([e2e.yml](.github/workflows/e2e.yml)) — daily schedule, manual dispatch, and step 2 of the backend chain. `backend-pipeline` + `api-contract` against the real `dev` stage via a read/invoke-only OIDC role (D34). `backend-pipeline` also takes `NEON_DATABASE_URL_DEV_DIRECT` to assert every enabled source was refetched, and fails rather than skips without it (D97).
 - **`Mobile emulator E2E`** ([mobile-emulator-e2e.yml](.github/workflows/mobile-emulator-e2e.yml)) — the Maestro flows on an Android emulator. **Manual dispatch only**, called by nothing: UI flows are flake-prone and shouldn't block the schedule or a deploy. Reuses E2E's Google test secrets, skips cleanly without them.
 - **`Deploy production`** ([deploy-production.yml](.github/workflows/deploy-production.yml)) — gated on E2E *and* all six checks. Same `db:migrate` + `SeedSources` as `Deploy dev`, against production's own direct connection string. Emits the real API URL from `.sst/outputs.json` and warns (non-fatally) when `PRODUCTION_API_URL` no longer matches (D100).
-- **`mobile-version-bump`** (a job inside [ci.yml](.github/workflows/ci.yml), not its own file) — owns mobile versioning (D42/D44/D99): bumps `versionCode` and `runtimeVersion` unconditionally (D101), computes a conventional-commit semver bump for `version`/`versionName` against the last `mobile-v*` tag, and pushes to `main` with `[skip ci]` and a rebase-retry loop. Gated on `mobile-changes`'s `should_build` (D53), so a JS-only merge routes to `mobile-ota-update` instead.
+- **`mobile-version-bump`** (a job inside [ci.yml](.github/workflows/ci.yml), not its own file) — owns mobile versioning (D42/D44/D99): bumps `versionCode` and `runtimeVersion` unconditionally (D101), computes a conventional-commit semver bump for `version`/`versionName` against the last `mobile-v*` tag, and pushes to `main` with `[skip ci]` and a rebase-retry loop. Gated on `mobile-changes`'s `should_build` (D53/D109), which now fires on any `apps/mobile`/`packages/shared` change since the last release, not just native-relevant paths.
 - **`Mobile build`** ([mobile-build.yml](.github/workflows/mobile-build.yml)) — Android APK via `eas build --local` (on the runner, so **no** EAS cloud credits), publishes the JS bundle to the `preview` EAS Update channel (D60), attaches the APK to a GitHub Release with conventional-commit notes (D58), and tags it. Run standalone, it bumps the version itself.
 - **`Mobile release (Play Store)`** ([mobile-release.yml](.github/workflows/mobile-release.yml)) — the `production` `eas.json` profile as a Play-uploadable AAB, gated on the same `should_build` (D53/D98), parallel to `Mobile build` (D99). Submits to the Play `internal` track when `PlayServiceAccountKey` (D71) is set; until then the AAB is an Actions artifact only.
 - **`Deploy site`** ([deploy-site.yml](.github/workflows/deploy-site.yml)) — builds `apps/site` to GitHub Pages, checking out `main` at full depth so the version badge and release feed see the tag the mobile build just pushed.
@@ -313,17 +313,15 @@ Nine workflow files: `CI` is the entry point, seven are reusable workflows it ca
 The main-branch release pipeline, in order:
 
 ```
-deploy-dev ─→ e2e ─→ deploy-production
+deploy-dev ─→ e2e ─→ deploy-production ─→ deploy-site
 
-checks ─→ mobile-changes ─┬─→ mobile-version-bump ─┬─→ mobile-build
-                          │                        └─→ mobile-play-release
-                          └─→ mobile-ota-update
+checks ─→ mobile-changes ─→ mobile-version-bump ─┬─→ mobile-build
+                                                  └─→ mobile-play-release
 
-deploy-site       needs deploy-production + mobile-build
 release-cleanup   needs mobile-build
 ```
 
-Two chains run in parallel (D100). The backend chain gates each step on the last. The mobile chain no longer waits on it: it reads the API URL from the `PRODUCTION_API_URL` repository variable rather than `Deploy production`'s workflow output, so the ~10 min native builds overlap the deploy and E2E. `mobile-build` (APK) and `mobile-play-release` (AAB) run in parallel with each other (D99); `mobile-ota-update` is mutually exclusive with both (D53's `should_build`/`should_ota` split). `deploy-site` is the one join point — it needs `deploy-production` to have succeeded *and* `mobile-build` to have succeeded or been skipped.
+Two chains run in parallel (D100). The backend chain gates each step on the last. The mobile chain no longer waits on it: it reads the API URL from the `PRODUCTION_API_URL` repository variable rather than `Deploy production`'s workflow output, so the ~10 min native builds overlap the deploy and E2E. `mobile-build` (APK) and `mobile-play-release` (AAB) run in parallel with each other (D99). `deploy-site` needs only `deploy-production`, so it runs in parallel with the whole mobile chain rather than waiting on it (D109 — this retired the earlier `mobile-ota-update` JS-only path along with the `should_build`/`should_ota` split: every apps/mobile-relevant merge now goes through the full `mobile-build` + `mobile-play-release` pipeline).
 
 ### Required repository secrets
 
@@ -336,7 +334,7 @@ Two chains run in parallel (D100). The backend chain gates each step on the last
 | `NEON_DATABASE_URL_PRODUCTION_DIRECT` | Deploy production | Same, for `production`; never exposed to E2E |
 | `GOOGLE_OAUTH_WEB_CLIENT_ID` | both deploys, Mobile build | Not sensitive; without it every ID token fails on audience mismatch |
 | `EXPO_TOKEN` | Mobile build, Mobile release | Free Expo account; also supplies the signing credentials |
-| `SENTRY_AUTH_TOKEN` | Mobile build, mobile-ota-update | Optional — its absence just skips the source-map/symbol upload |
+| `SENTRY_AUTH_TOKEN` | Mobile build | Optional — its absence just skips the source-map/symbol upload |
 | `PlayServiceAccountKey` | Mobile release | Google Cloud service account JSON with Play Developer API access (D71); absent, the Play upload is skipped and the AAB stays a downloadable artifact. The **same** JSON is also needed as an `sst secret` per stage for `POST /v1/billing/play/verify` (see [Backend](#backend-aws-via-sst)) — two separate places, one credential |
 | `GOOGLE_TEST_REFRESH_TOKEN`, `GOOGLE_OAUTH_WEB_CLIENT_SECRET` | E2E, Mobile emulator E2E | The authenticated suites skip cleanly until these exist |
 
@@ -346,4 +344,4 @@ No long-lived AWS keys anywhere — every AWS-touching job assumes a role via OI
 
 | Variable | Used by | Notes |
 |---|---|---|
-| `PRODUCTION_API_URL` | `mobile-changes`, Mobile build, Mobile release, `mobile-ota-update` | The production API Gateway base URL, baked into every APK/AAB/OTA bundle as `EXPO_PUBLIC_API_URL`. A **variable**, not a secret: it is public by construction (extractable from any shipped APK), secrets can't be referenced in a job-level `if:`, and log masking would reduce the guard's error message to `***`. Replacing the old workflow output with it is what lets the mobile chain run in parallel with the deploy (D100). `mobile-changes` fails the mobile chain when it's unset; `Deploy production` warns when it no longer matches what it just deployed. |
+| `PRODUCTION_API_URL` | `mobile-changes`, Mobile build, Mobile release | The production API Gateway base URL, baked into every APK/AAB/OTA bundle as `EXPO_PUBLIC_API_URL`. A **variable**, not a secret: it is public by construction (extractable from any shipped APK), secrets can't be referenced in a job-level `if:`, and log masking would reduce the guard's error message to `***`. Replacing the old workflow output with it is what lets the mobile chain run in parallel with the deploy (D100). `mobile-changes` fails the mobile chain when it's unset; `Deploy production` warns when it no longer matches what it just deployed. |

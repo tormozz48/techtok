@@ -155,16 +155,16 @@ jobs:
             -c apps/mobile/.mobsf
 
   # From here down: the main-branch release pipeline (D46/D98/D99, reshaped by
-  # D100 into two chains that run in parallel):
+  # D100 into two chains that run in parallel, and by D109 to drop the
+  # OTA-only path and decouple the site deploy):
   #
-  #   deploy-dev ─→ e2e ─→ deploy-production
+  #   deploy-dev ─→ e2e ─→ deploy-production ─→ deploy-site
   #
-  #   checks ─→ mobile-changes ─┬─→ mobile-version-bump ─┬─→ mobile-build
-  #                             │                        └─→ mobile-play-release
-  #                             └─→ mobile-ota-update
+  #   checks ─→ mobile-changes ─→ mobile-version-bump ─┬─→ mobile-build
+  #                                                     └─→ mobile-play-release
   #
-  #   deploy-site needs deploy-production + mobile-build; release-cleanup
-  #   needs mobile-build.
+  #   deploy-site needs only deploy-production, so it runs in parallel with
+  #   the whole mobile chain; release-cleanup needs mobile-build.
   #
   # D100: the mobile chain reads the API URL from the PRODUCTION_API_URL repo
   # variable instead of deploy-production's output, so the ~10min native
@@ -204,13 +204,14 @@ jobs:
       contents: read
     secrets: inherit
 
-  # D53: does this merge need a new APK at all? Baselined against the newest
-  # `mobile-v*` tag, so the question is "anything mobile-relevant since the
-  # APK releases/latest serves", which accumulates correctly across skipped
-  # runs. should_build fires on native-relevant paths (~10min rebuild);
-  # should_ota on the JS-only complement, baselined at the last published
-  # bundle (D84), triggering a cheap `eas update` instead. A path heuristic,
-  # not a fingerprint: worst case is a wasted rebuild, never an unsafe OTA.
+  # D53: does this merge need a new APK/AAB at all? Baselined against the
+  # newest `mobile-v*` tag, so the question is "anything mobile-relevant
+  # since the APK releases/latest serves", which accumulates correctly across
+  # skipped runs. D109: should_build fires on ANY apps/mobile or
+  # packages/shared change, native or JS — there is no cheaper OTA-only path
+  # anymore, every mobile change goes through the full mobile-build +
+  # mobile-play-release pipeline. A path heuristic, not a fingerprint: worst
+  # case is a wasted rebuild.
   #
   # D100: needs the six checks directly — it used to inherit that gate through
   # mobile-build's `needs: deploy-production`, which the repo-variable API URL
@@ -221,7 +222,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       should_build: ${{ steps.check.outputs.should_build }}
-      should_ota: ${{ steps.check.outputs.should_ota }}
     steps:
       # fetch-depth: 0 for the tags and the commit ranges below.
       - uses: actions/checkout@v4
@@ -246,52 +246,27 @@ jobs:
           if [ -z "$BASE" ]; then
             echo "No mobile-v* tag exists yet — building (fail open)."
             echo "should_build=true" >> "$GITHUB_OUTPUT"
-            echo "should_ota=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # packages/shared ships inside the app; pnpm-lock.yaml covers a
-          # dependency bump that changes the bundle without touching app code.
-          NATIVE_CHANGED=$(git diff --name-only "$BASE"..HEAD -- \
-            apps/mobile/android \
-            apps/mobile/app.json \
-            apps/mobile/package.json \
-            apps/mobile/eas.json \
+          # D109: any apps/mobile change, native or JS-only, triggers a full
+          # rebuild — there's no separate OTA-only path anymore. packages/shared
+          # ships inside the app; pnpm-lock.yaml covers a dependency bump that
+          # changes the bundle without touching app code.
+          MOBILE_CHANGED=$(git diff --name-only "$BASE"..HEAD -- \
+            apps/mobile \
+            packages/shared \
             pnpm-lock.yaml \
             .github/workflows/mobile-build.yml \
             .github/workflows/mobile-release.yml)
-          if [ -n "$NATIVE_CHANGED" ]; then
-            echo "Native-relevant mobile changes since $BASE:"
-            echo "$NATIVE_CHANGED" | sed 's/^/  /'
+          if [ -n "$MOBILE_CHANGED" ]; then
+            echo "Mobile-relevant changes since $BASE:"
+            echo "$MOBILE_CHANGED" | sed 's/^/  /'
             echo "should_build=true" >> "$GITHUB_OUTPUT"
-            echo "should_ota=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          echo "Nothing native-relevant since $BASE — skipping the APK build."
+          echo "Nothing mobile-relevant since $BASE — skipping the build."
           echo "releases/latest keeps serving the APK built for $BASE."
           echo "should_build=false" >> "$GITHUB_OUTPUT"
-
-          # D84: baseline is the last commit whose bundle actually reached the
-          # channel, not this push — a queued run cancelled by the next push
-          # would otherwise leave its change unpublished indefinitely. Two
-          # markers can carry it (`mobile-ota-latest`, the `mobile-v*` tag);
-          # whichever is further along main wins.
-          PUBLISH_BASE="$BASE"
-          OTA_BASE=$(git rev-parse -q --verify 'refs/tags/mobile-ota-latest^{commit}' || true)
-          if [ -n "$OTA_BASE" ] && git merge-base --is-ancestor "$BASE" "$OTA_BASE"; then
-            PUBLISH_BASE="$OTA_BASE"
-          fi
-          JS_CHANGED=$(git diff --name-only "$PUBLISH_BASE"..HEAD -- \
-            apps/mobile/src \
-            apps/mobile/app \
-            packages/shared)
-          if [ -n "$JS_CHANGED" ]; then
-            echo "Mobile JS changes since the last published bundle ($PUBLISH_BASE):"
-            echo "$JS_CHANGED" | sed 's/^/  /'
-            echo "should_ota=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "Nothing mobile-JS since the last published bundle ($PUBLISH_BASE) — nothing to publish."
-            echo "should_ota=false" >> "$GITHUB_OUTPUT"
-          fi
 
   # D99: the bump lives in its own job so mobile-build (APK) and
   # mobile-play-release (AAB) can both depend on just this and run in
@@ -380,96 +355,11 @@ jobs:
       api_url: ${{ vars.PRODUCTION_API_URL }}
     secrets: inherit
 
-  # Mutually exclusive with mobile-build: publishes just the JS bundle to the
-  # existing `preview` channel. No version bump, Release or tag — those all
-  # belong to an APK's identity, and this ships no APK.
-  mobile-ota-update:
-    needs: mobile-changes
-    if: >-
-      github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-      && needs.mobile-changes.outputs.should_build == 'false'
-      && needs.mobile-changes.outputs.should_ota == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write # move the mobile-ota-latest baseline tag
-    env:
-      # secrets can't be referenced in a step-level `if:` — mirror into env.
-      HAS_SENTRY_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN != '' }}
-    steps:
-      # fetch-depth: 0 so the baseline tag below can be force-updated.
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Publish OTA update (eas update)
-        working-directory: apps/mobile
-        env:
-          EXPO_PUBLIC_API_URL: ${{ vars.PRODUCTION_API_URL }}
-          EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_WEB_CLIENT_ID }}
-        run: |
-          VERSION=$(node -e "console.log(require('./app.json').expo.version)")
-          eas update --channel preview --platform android --non-interactive --message "v$VERSION (JS-only: ${{ github.sha }})"
-
-      # No native build here, so the sentry-android-gradle-plugin never
-      # uploads a sourcemap for the bundle just published. Re-export it with
-      # identical env (same content, same debug ID) and upload explicitly.
-      # Skipped, not failed, without SENTRY_AUTH_TOKEN.
-      - name: Export bundle + sourcemaps for Sentry
-        if: ${{ env.HAS_SENTRY_TOKEN == 'true' }}
-        working-directory: apps/mobile
-        env:
-          EXPO_PUBLIC_API_URL: ${{ vars.PRODUCTION_API_URL }}
-          EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_WEB_CLIENT_ID }}
-        run: npx expo export --platform android --source-maps
-
-      - name: Upload Sentry sourcemaps
-        if: ${{ env.HAS_SENTRY_TOKEN == 'true' }}
-        working-directory: apps/mobile
-        env:
-          SENTRY_ORG: tormozz48
-          SENTRY_PROJECT: react-native
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-        run: npx sentry-expo-upload-sourcemaps dist
-
-      # D84: the OTA baseline marker, moved only after a successful publish
-      # so a failed run leaves the unpublished change visible to the next one.
-      # A moving tag — per-publish tags would accumulate on every merge.
-      - name: Move the OTA baseline tag
-        env:
-          GIT_AUTHOR_NAME: github-actions[bot]
-          GIT_AUTHOR_EMAIL: github-actions[bot]@users.noreply.github.com
-          GIT_COMMITTER_NAME: github-actions[bot]
-          GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
-        run: |
-          set -euo pipefail
-          git tag -f mobile-ota-latest "${{ github.sha }}"
-          git push --force origin refs/tags/mobile-ota-latest
-
-  # Must publish even when mobile-build is skipped, hence `!cancelled()` — a
-  # skipped dependency otherwise skips this too. deploy-production's success
-  # is then asserted explicitly, since `!cancelled()` would let a failure through.
+  # D109: needs only deploy-production, so it runs in parallel with the whole
+  # mobile chain instead of waiting on mobile-build's outcome.
   deploy-site:
-    needs: [deploy-production, mobile-build]
-    if: >-
-      !cancelled()
-      && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-      && needs.deploy-production.result == 'success'
-      && (needs.mobile-build.result == 'success' || needs.mobile-build.result == 'skipped')
+    needs: deploy-production
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     uses: ./.github/workflows/deploy-site.yml
     permissions:
       pages: write

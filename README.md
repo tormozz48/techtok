@@ -18,7 +18,7 @@ This README covers running, developing, and deploying the project day to day. Ar
 - **Plus subscription** — €2.99/mo or €24.99/yr via Google Play Billing (`expo-iap`), verified server-side against the Play Developer API on every app open.
 - **Offline** — the query cache persists for a day, so a cold start reads without a network hit. Images (not article content) read ahead 3 cards, wifi only.
 - **Stats** — reading streak plus top topics/sources, computed client-side from history pages.
-- **Plans** — Free and Plus (€2.99/mo · €24.99/yr, D73). Free is capped server-side at **30 card reads** and **10 reader opens** per local day (D107); Plus lifts both. Entitlement is provider-agnostic (D70) — a plan can still be granted by hand with `pnpm grant-entitlement`, and Play Billing (`techtok_plus`, base plans `plus-monthly`/`plus-yearly`) is verified server-side via `POST /v1/billing/play/verify` (D106/D107).
+- **Plans** — Free and Plus (from €2.99/mo · €24.99/yr, D73). Those are the **net** prices set in Play; Play adds each country's VAT on top, so EU buyers see more (€3.59/mo in Austria) and the app shows Play's own localized price (D109). Free is capped server-side at **30 card reads** and **10 reader opens** per local day (D107); Plus lifts both. Entitlement is provider-agnostic (D70) — a plan can still be granted by hand with `pnpm grant-entitlement`, and the live Play subscription `techtok_plus` (base plans `plus-monthly`/`plus-yearly`) is verified server-side via `POST /v1/billing/play/verify` (D106/D107).
 
 ## Architecture
 

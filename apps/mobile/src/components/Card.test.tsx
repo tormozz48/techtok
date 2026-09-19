@@ -1,7 +1,7 @@
 import type { Card as CardData } from '@techtok/shared';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { router } from 'expo-router';
-import { Linking } from 'react-native';
+import { Linking, StyleSheet } from 'react-native';
 import { STRINGS } from '@/i18n/strings';
 import { enqueueRead } from '@/state/readQueue';
 import { translationFeedbackMailto } from '@/utils/feedback';
@@ -64,6 +64,21 @@ describe('Card', () => {
   it('shows the source-count line when sourceCount is set', async () => {
     await render(<Card card={{ ...BASE_CARD, sourceCount: 3 }} />);
     expect(screen.getByText(STRINGS.en.card.sourceCount(3))).toBeTruthy();
+  });
+
+  it('grows the scrim so its opaque band always covers the measured text block', async () => {
+    await render(<Card card={BASE_CARD} />);
+
+    await fireEvent(screen.getByTestId('feed-card-text'), 'layout', {
+      nativeEvent: { layout: { height: 900, width: 360, x: 0, y: 0 } },
+    });
+
+    const scrim = screen.getByTestId('feed-card-scrim');
+    const height = StyleSheet.flatten(scrim.props.style).height;
+    const fadeEnd = scrim.props.locations[2];
+
+    expect(height).toBeGreaterThanOrEqual(900);
+    expect(height * (1 - fadeEnd)).toBeGreaterThanOrEqual(900);
   });
 
   it('enqueues the read and navigates to the reader on press', async () => {

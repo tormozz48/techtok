@@ -19,6 +19,15 @@ export interface CardProps {
   card: CardData;
 }
 
+const SCRIM_FADE_HEIGHT = 140;
+const SCRIM_ASSUMED_TEXT_HEIGHT = 320;
+
+const overlayTextShadow = {
+  textShadowColor: Colors.overlay.textShadow,
+  textShadowOffset: { width: 0, height: 1 },
+  textShadowRadius: 6,
+} as const;
+
 const styles = StyleSheet.create({
   container: {
     width: '100%',
@@ -30,6 +39,15 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     padding: Spacing.four,
     paddingBottom: Spacing.six,
+  },
+  scrim: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  textBlock: {
+    width: '100%',
   },
   topicChip: {
     alignSelf: 'flex-start',
@@ -57,17 +75,20 @@ const styles = StyleSheet.create({
   title: {
     color: Colors.overlay.text,
     ...Typography.xl,
+    ...overlayTextShadow,
     fontWeight: '700',
     marginBottom: Spacing.two,
   },
   summary: {
     color: Colors.overlay.textMuted,
     ...Typography.md,
+    ...overlayTextShadow,
     marginBottom: Spacing.three,
   },
   whyItMatters: {
     color: Colors.overlay.accent,
     ...Typography.base,
+    ...overlayTextShadow,
     fontStyle: 'italic',
     marginBottom: Spacing.three,
   },
@@ -100,8 +121,12 @@ const styles = StyleSheet.create({
 
 export function Card({ card }: CardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [textBlockHeight, setTextBlockHeight] = useState(SCRIM_ASSUMED_TEXT_HEIGHT);
   const strings = useStrings();
   const language = useLanguageStore((state) => state.language);
+
+  const scrimHeight = SCRIM_FADE_HEIGHT + textBlockHeight + Spacing.six;
+  const fadeEnd = SCRIM_FADE_HEIGHT / scrimHeight;
 
   return (
     <View style={styles.container}>
@@ -123,9 +148,10 @@ export function Card({ card }: CardProps) {
       )}
 
       <LinearGradient
-        colors={[Colors.overlay.scrimStart, Colors.overlay.scrimEnd]}
-        locations={[0.4, 1]}
-        style={StyleSheet.absoluteFill}
+        colors={Colors.overlay.scrim}
+        locations={[0, fadeEnd * 0.55, fadeEnd, 1]}
+        style={[styles.scrim, { height: scrimHeight }]}
+        testID="feed-card-scrim"
       />
 
       <TouchableRipple
@@ -154,8 +180,11 @@ export function Card({ card }: CardProps) {
             : undefined
         }
       >
-        {/* biome-ignore lint/complexity/noUselessFragments: TouchableRipple calls React.Children.only, so multiple children need a single wrapping element. */}
-        <>
+        <View
+          onLayout={(event) => setTextBlockHeight(event.nativeEvent.layout.height)}
+          style={styles.textBlock}
+          testID="feed-card-text"
+        >
           {__DEV__ && card.transform ? (
             <Chip compact style={styles.debugBadge} textStyle={styles.debugBadgeText}>
               {card.transform}
@@ -192,7 +221,7 @@ export function Card({ card }: CardProps) {
           {card.sourceCount ? (
             <Text style={styles.sourceCountText}>{strings.card.sourceCount(card.sourceCount)}</Text>
           ) : null}
-        </>
+        </View>
       </TouchableRipple>
     </View>
   );

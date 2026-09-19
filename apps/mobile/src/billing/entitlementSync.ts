@@ -34,6 +34,7 @@ export async function syncEntitlementFromPlay(): Promise<SyncPlayPurchasesResult
 
 export function applyEntitlement(entitlement: EntitlementResponse): void {
   queryClient.setQueryData(['entitlement'], entitlement);
+  queryClient.resetQueries({ queryKey: ['feed'] });
 }
 
 async function acknowledgeUnacknowledged(purchases: readonly Purchase[]): Promise<void> {

@@ -16,6 +16,9 @@ jobs:
     permissions:
       id-token: write
       contents: read
+    env:
+      # secrets can't be referenced in a step-level `if:` — mirror into env.
+      HAS_PLAY_KEY: ${{ secrets.PlayServiceAccountKey != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -52,6 +55,15 @@ jobs:
             exit 1
           fi
           pnpm db:migrate
+
+      # Same JSON as Mobile release's PlayServiceAccountKey, set as the SST
+      # runtime secret POST /v1/billing/play/verify reads (README's Backend
+      # section). A no-op skip, not a failure, until the repo secret exists.
+      - name: Set Play Billing service account secret
+        if: ${{ env.HAS_PLAY_KEY == 'true' }}
+        env:
+          PLAY_SERVICE_ACCOUNT_KEY: ${{ secrets.PlayServiceAccountKey }}
+        run: npx sst secret set PlayServiceAccountKey "$PLAY_SERVICE_ACCOUNT_KEY" --stage dev
 
       # GOOGLE_OAUTH_WEB_CLIENT_ID (D68) is the JWT authorizer's audience —
       # public by design, but without it every real ID token is rejected.

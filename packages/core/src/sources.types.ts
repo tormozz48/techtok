@@ -15,6 +15,7 @@ export interface SourceRecord {
   readonly newestSeenPublishedAt?: string;
   readonly failCount: number;
   readonly compactEnabled?: boolean;
+  readonly plusOnly: boolean;
 }
 
 export function isCompactEnabled(

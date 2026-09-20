@@ -6,6 +6,7 @@ const DEFAULT_TTL_MS = 5 * 60 * 1000;
 export interface SourceWeightsCache {
   getSourceWeights(): Promise<Map<string, number>>;
   getCompactDisabledSourceIds(): Promise<Set<string>>;
+  getPlusOnlySourceIds(): Promise<Set<string>>;
 }
 
 export function createSourceWeightsCache(
@@ -15,6 +16,7 @@ export function createSourceWeightsCache(
 ): SourceWeightsCache {
   let weights: Map<string, number> | undefined;
   let compactDisabled: Set<string> | undefined;
+  let plusOnly: Set<string> | undefined;
   let fetchedAt = 0;
 
   async function refresh(): Promise<void> {
@@ -25,6 +27,9 @@ export function createSourceWeightsCache(
     weights = new Map(sources.map((source) => [source.sourceId, source.weight]));
     compactDisabled = new Set(
       sources.filter((source) => !isCompactEnabled(source)).map((source) => source.sourceId),
+    );
+    plusOnly = new Set(
+      sources.filter((source) => source.plusOnly).map((source) => source.sourceId),
     );
     fetchedAt = now();
   }
@@ -37,6 +42,10 @@ export function createSourceWeightsCache(
     async getCompactDisabledSourceIds(): Promise<Set<string>> {
       await refresh();
       return compactDisabled as Set<string>;
+    },
+    async getPlusOnlySourceIds(): Promise<Set<string>> {
+      await refresh();
+      return plusOnly as Set<string>;
     },
   };
 }

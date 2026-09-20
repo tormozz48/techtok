@@ -35,9 +35,9 @@ export class SourcesRepo {
   async putIfNew(source: SourceRecord): Promise<boolean> {
     const result = await this.db.execute(sql`
       with ins_source as (
-        insert into sources (slug, name, rss_url, site_url, default_topic_id, weight, enabled, compact_enabled)
+        insert into sources (slug, name, rss_url, site_url, default_topic_id, weight, enabled, compact_enabled, plus_only)
         select ${source.sourceId}, ${source.name}, ${source.rssUrl}, ${source.siteUrl ?? null},
-          topics.id, ${source.weight}, ${source.enabled}, ${source.compactEnabled ?? null}
+          topics.id, ${source.weight}, ${source.enabled}, ${source.compactEnabled ?? null}, ${source.plusOnly}
         from topics where topics.slug = ${source.defaultTopic}
         on conflict (slug) do nothing
         returning id

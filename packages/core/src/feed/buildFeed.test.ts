@@ -305,6 +305,48 @@ describe('buildFeed', () => {
     expect(page.items.map((p) => p.postId)).toEqual(['a']);
   });
 
+  it('excludes posts from a Plus-only source when the user is not Plus', async () => {
+    const kept = post('a', 'ai', '2026-07-19T02:00:00.000Z', 'verge');
+    const gated = post('b', 'ai', '2026-07-19T01:00:00.000Z', 'hn');
+    const queryByTopic = vi.fn().mockResolvedValue([kept, gated]);
+    const getReadSet = vi.fn().mockResolvedValue(new Set());
+    const getPlusOnlySourceIds = vi.fn().mockResolvedValue(new Set(['hn']));
+
+    const page = await buildFeed(
+      {
+        queryByTopic,
+        getReadSet,
+        hydrate: hydrateFromRegistry(),
+        getSourceWeights: noWeights(),
+        getPlusOnlySourceIds,
+      },
+      { userTopics: ['ai'], limit: 20 },
+    );
+
+    expect(page.items.map((p) => p.postId)).toEqual(['a']);
+  });
+
+  it('keeps posts from a Plus-only source when the user is Plus', async () => {
+    const gated = post('a', 'ai', '2026-07-19T01:00:00.000Z', 'hn');
+    const queryByTopic = vi.fn().mockResolvedValue([gated]);
+    const getReadSet = vi.fn().mockResolvedValue(new Set());
+    const getPlusOnlySourceIds = vi.fn().mockResolvedValue(new Set(['hn']));
+
+    const page = await buildFeed(
+      {
+        queryByTopic,
+        getReadSet,
+        hydrate: hydrateFromRegistry(),
+        getSourceWeights: noWeights(),
+        getPlusOnlySourceIds,
+      },
+      { userTopics: ['ai'], limit: 20, isPlus: true },
+    );
+
+    expect(page.items.map((p) => p.postId)).toEqual(['a']);
+    expect(getPlusOnlySourceIds).not.toHaveBeenCalled();
+  });
+
   it("excludes posts missing the requested language's compact article when lang is given", async () => {
     const ready = { ...post('a', 'ai', '2026-07-19T02:00:00.000Z'), compactLangs: ['en', 'ru'] };
     const stuck = { ...post('b', 'ai', '2026-07-19T01:00:00.000Z'), compactLangs: [] };

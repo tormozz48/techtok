@@ -27,6 +27,7 @@ export class Source {
       newestSeenPublishedAt: state?.newestSeenPublishedAt ?? undefined,
       failCount: state?.failCount ?? 0,
       compactEnabled: row.compactEnabled ?? undefined,
+      plusOnly: row.plusOnly,
     };
   }
 }

@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Language, Topic } from '@techtok/shared';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { useEffect, useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { List, Switch } from 'react-native-paper';
@@ -41,6 +41,7 @@ export default function SettingsScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const entitlement = entitlementQuery.data;
+  const isPlusUser = entitlement?.plan === 'plus';
   const planDescription = entitlement
     ? entitlement.plan === 'plus'
       ? strings.quota.planPlus
@@ -176,6 +177,18 @@ export default function SettingsScreen() {
               sourceId
             }
             onSelect={toggleMutedSource}
+            isLocked={(sourceId) =>
+              !isPlusUser &&
+              (sourcesQuery.data.sources.find((source) => source.sourceId === sourceId)?.plusOnly ??
+                false)
+            }
+            onLockedPress={() => router.push('/paywall')}
+            lockedAccessibilityLabel={(sourceId) =>
+              strings.a11y.sourcePlusOnly(
+                sourcesQuery.data.sources.find((source) => source.sourceId === sourceId)?.name ??
+                  sourceId,
+              )
+            }
             disabled={isMutedSourcesLoading}
             rowStyle={styles.row}
             rowSelectedStyle={styles.rowSelected}

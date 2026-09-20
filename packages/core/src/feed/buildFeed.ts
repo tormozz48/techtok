@@ -14,6 +14,7 @@ export interface BuildFeedDeps {
   readonly getReadSet: (postIds: string[]) => Promise<Set<string>>;
   readonly getSourceWeights: () => Promise<Map<string, number>>;
   readonly getCompactDisabledSourceIds?: () => Promise<Set<string>>;
+  readonly getPlusOnlySourceIds?: () => Promise<Set<string>>;
 }
 
 export interface BuildFeedParams {
@@ -23,6 +24,7 @@ export interface BuildFeedParams {
   readonly mutedSourceIds?: ReadonlySet<string>;
   readonly topicReads?: Partial<Record<Topic, number>>;
   readonly lang?: Language;
+  readonly isPlus?: boolean;
 }
 
 export interface FeedPage {
@@ -44,6 +46,9 @@ export async function buildFeed(deps: BuildFeedDeps, params: BuildFeedParams): P
   }
   const compactDisabledSourceIds =
     (await deps.getCompactDisabledSourceIds?.()) ?? new Set<string>();
+  const plusOnlySourceIds = params.isPlus
+    ? new Set<string>()
+    : ((await deps.getPlusOnlySourceIds?.()) ?? new Set<string>());
   const candidatesByTime = [...merged.values()]
     .filter(
       (post) =>
@@ -51,6 +56,7 @@ export async function buildFeed(deps: BuildFeedDeps, params: BuildFeedParams): P
         post.status === 'ready' &&
         !params.mutedSourceIds?.has(post.sourceId) &&
         !compactDisabledSourceIds.has(post.sourceId) &&
+        !plusOnlySourceIds.has(post.sourceId) &&
         (!params.lang || (post.compactLangs ?? []).includes(params.lang)),
     )
     .sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : a.publishedAt > b.publishedAt ? -1 : 0))

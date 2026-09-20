@@ -6,7 +6,7 @@ import { SelectableList } from './SelectableList';
 
 const TOPICS = ['ai', 'dev', 'gadgets', 'startups', 'security', 'science', 'space', 'bio'] as const;
 
-function StatefulSelectableList() {
+function StatefulSelectableList({ lockedItems = [] }: { lockedItems?: readonly string[] }) {
   const colors = useThemeColors();
   const [selected, setSelected] = useState<(typeof TOPICS)[number][]>(['ai', 'science']);
   const styles = StyleSheet.create({
@@ -35,6 +35,9 @@ function StatefulSelectableList() {
           prev.includes(topic) ? prev.filter((item) => item !== topic) : [...prev, topic],
         )
       }
+      isLocked={(topic) => lockedItems.includes(topic)}
+      onLockedPress={() => {}}
+      lockedAccessibilityLabel={(topic) => `${topic} is Plus-only`}
       rowStyle={styles.row}
       rowSelectedStyle={styles.rowSelected}
       rowTextStyle={styles.rowText}
@@ -53,3 +56,7 @@ export default meta;
 type Story = StoryObj<typeof StatefulSelectableList>;
 
 export const Default: Story = {};
+
+export const WithLockedItems: Story = {
+  args: { lockedItems: ['science', 'space'] },
+};

@@ -5,7 +5,11 @@ import { jsonResponse, withPublic } from '../lib/http';
 export const handler = withPublic(async () => {
   const enabled = await getSourcesRepo().listEnabled();
   const sources = enabled
-    .map((source) => ({ sourceId: source.sourceId, name: source.name }))
+    .map((source) => ({
+      sourceId: source.sourceId,
+      name: source.name,
+      plusOnly: source.plusOnly,
+    }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   return jsonResponse(200, sourcesResponseSchema.parse({ sources }));

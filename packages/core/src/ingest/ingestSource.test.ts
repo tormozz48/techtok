@@ -54,6 +54,7 @@ const source: SourceRecord = {
   weight: 1,
   enabled: true,
   failCount: 0,
+  plusOnly: false,
 };
 
 describe('ingestSource', () => {

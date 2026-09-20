@@ -32,7 +32,8 @@ export const handler = withAuth(async (event, auth) => {
   const lang = user.language ?? 'en';
   const timezone = user.timezone ?? 'UTC';
 
-  if (!isPlus(user)) {
+  const plusUser = isPlus(user);
+  if (!plusUser) {
     const quota = effectiveQuota(user.quota, timezone);
     if (quota.cardReads >= FREE_CARD_READS_PER_DAY) {
       return jsonResponse(
@@ -55,6 +56,7 @@ export const handler = withAuth(async (event, auth) => {
       getReadSet: (postIds) => activity.getReadSet(auth.userId, postIds),
       getSourceWeights: () => getSourceWeightsCache().getSourceWeights(),
       getCompactDisabledSourceIds: () => getSourceWeightsCache().getCompactDisabledSourceIds(),
+      getPlusOnlySourceIds: () => getSourceWeightsCache().getPlusOnlySourceIds(),
     },
     {
       userTopics: user.topics,
@@ -63,6 +65,7 @@ export const handler = withAuth(async (event, auth) => {
       topicReads: user.topicReads,
       mutedSourceIds: new Set(user.mutedSources ?? []),
       lang,
+      isPlus: plusUser,
     },
   );
 

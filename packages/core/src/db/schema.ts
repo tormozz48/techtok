@@ -50,6 +50,7 @@ export const sources = pgTable(
     weight: real('weight').notNull(),
     enabled: boolean('enabled').notNull().default(true),
     compactEnabled: boolean('compact_enabled'),
+    plusOnly: boolean('plus_only').notNull().default(false),
   },
   (t) => [index('sources_default_topic_idx').on(t.defaultTopicId)],
 );

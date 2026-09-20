@@ -2,7 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import type { SourceRecord } from '../sources.types';
 import { createSourceWeightsCache } from './sourceWeightsCache';
 
-function source(sourceId: string, weight: number, compactEnabled?: boolean): SourceRecord {
+function source(
+  sourceId: string,
+  weight: number,
+  compactEnabled?: boolean,
+  plusOnly = false,
+): SourceRecord {
   return {
     sourceId,
     name: sourceId,
@@ -12,6 +17,7 @@ function source(sourceId: string, weight: number, compactEnabled?: boolean): Sou
     enabled: true,
     failCount: 0,
     compactEnabled,
+    plusOnly,
   };
 }
 
@@ -61,6 +67,17 @@ describe('createSourceWeightsCache', () => {
     const disabled = await cache.getCompactDisabledSourceIds();
 
     expect(disabled).toEqual(new Set(['b']));
+  });
+
+  it('exposes sourceIds gated to the Plus plan', async () => {
+    const listEnabled = vi
+      .fn()
+      .mockResolvedValue([source('a', 2), source('b', 5, undefined, true)]);
+    const cache = createSourceWeightsCache({ listEnabled });
+
+    const plusOnly = await cache.getPlusOnlySourceIds();
+
+    expect(plusOnly).toEqual(new Set(['b']));
   });
 
   it('shares one scan between getSourceWeights and getCompactDisabledSourceIds', async () => {

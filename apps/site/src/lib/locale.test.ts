@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { localeHref, withBase } from './locale';
+import { localeHref, localizedHref, localizedPath, withBase } from './locale';
 
 describe('withBase', () => {
   it('inserts a separating slash when base has none (the real Astro BASE_URL shape)', () => {
@@ -31,5 +31,29 @@ describe('localeHref', () => {
   it('works from the apex: default language at "/", others at "/<lang>/"', () => {
     expect(localeHref('en', '/')).toBe('/');
     expect(localeHref('ru', '/')).toBe('/ru/');
+  });
+});
+
+describe('localizedPath', () => {
+  it('leaves the default language without a locale segment', () => {
+    expect(localizedPath('en', 'test/')).toBe('test/');
+  });
+
+  it('prefixes the locale segment for the other languages', () => {
+    expect(localizedPath('ru', 'test/')).toBe('ru/test/');
+    expect(localizedPath('uk', 'test/')).toBe('uk/test/');
+    expect(localizedPath('pl', 'test/')).toBe('pl/test/');
+  });
+});
+
+describe('localizedHref', () => {
+  it('builds a per-locale href for a subpage', () => {
+    expect(localizedHref('en', 'test/', '/')).toBe('/test/');
+    expect(localizedHref('pl', 'test/', '/')).toBe('/pl/test/');
+  });
+
+  it('keeps working under a project base path', () => {
+    expect(localizedHref('en', 'test/', '/techtok')).toBe('/techtok/test/');
+    expect(localizedHref('ru', 'test/', '/techtok')).toBe('/techtok/ru/test/');
   });
 });

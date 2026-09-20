@@ -88,7 +88,7 @@ flowchart LR
 | Component | Role |
 |---|---|
 | `apps/mobile` | Expo/React Native app (`expo-router`): card pager, compact reader, onboarding, sign-in, settings, history, saved, stats. React Native Paper (MD3), Sentry, committed bare `android/` project (D18). |
-| `apps/site` | Public Astro site on GitHub Pages: landing page in 4 languages, topics/sources, release history, APK download + QR, plus the privacy-policy and account-deletion pages Play requires. |
+| `apps/site` | Public Astro site on GitHub Pages: landing page in 4 languages, topics/sources, release history, APK download + QR, a closed-testing recruitment page (`/test/`, 4 languages) with a mailto opt-in CTA and the Play testing link, plus the privacy-policy and account-deletion pages Play requires. |
 | API Gateway + JWT authorizer | Verifies a Google ID token before a request reaches a Lambda (D68). |
 | API Lambdas | One per route (`packages/functions/src/api/handlers/*`), thin over `packages/core` repos, validated by `packages/shared` zod schemas. |
 | `IngestPipeline` (Step Functions) | Fans out RSS fetching across sources on a schedule; isolates per-source failures. |

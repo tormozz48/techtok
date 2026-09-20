@@ -1,0 +1,13 @@
+---
+import { LANGUAGES } from '@techtok/shared';
+import type { Language } from '@techtok/shared';
+import Tester from '../../layouts/Tester.astro';
+
+export function getStaticPaths() {
+  return LANGUAGES.filter((lang) => lang !== 'en').map((lang) => ({ params: { lang } }));
+}
+
+const { lang } = Astro.params as { lang: Exclude<Language, 'en'> };
+---
+
+<Tester lang={lang} />

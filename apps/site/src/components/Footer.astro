@@ -1,13 +1,15 @@
 ---
+import type { Language } from '@techtok/shared';
 import { AUTHOR_LINKEDIN_URL, GITHUB_REPO_URL } from '../lib/download';
-import { withBase } from '../lib/locale';
+import { localizedHref, withBase } from '../lib/locale';
 import type { SiteStrings } from '../lib/copy';
 
 interface Props {
+  lang: Language;
   copy: SiteStrings;
 }
 
-const { copy } = Astro.props;
+const { lang, copy } = Astro.props;
 const year = new Date().getFullYear();
 ---
 
@@ -15,6 +17,7 @@ const year = new Date().getFullYear();
   <div class="container footer-row">
     <span>{copy.footer.tagline}</span>
     <nav class="footer-links">
+      <a href={localizedHref(lang, 'test/')}>{copy.footer.tester}</a>
       <a href={withBase('privacy/')}>{copy.footer.privacy}</a>
       <a href={withBase('delete-account/')}>{copy.footer.deleteAccount}</a>
       <a href={GITHUB_REPO_URL} rel="noopener">{copy.footer.sourceCode}</a>

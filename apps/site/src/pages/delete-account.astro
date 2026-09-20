@@ -1,6 +1,6 @@
 ---
 import Document from '../layouts/Document.astro';
-import { CONTACT_EMAIL } from '../lib/legal';
+import { CONTACT_EMAIL, LEGAL_LAST_UPDATED } from '../lib/legal';
 import { withBase } from '../lib/locale';
 
 const title = 'Delete your TechTok account';
@@ -8,7 +8,12 @@ const description =
   'How to delete your TechTok account and reading history, what gets removed, and what happens if you have already uninstalled the app.';
 ---
 
-<Document title={title} description={description} subpath="delete-account/">
+<Document
+  title={title}
+  description={description}
+  subpath="delete-account/"
+  updated={LEGAL_LAST_UPDATED}
+>
   <p>
     You can delete your TechTok account and everything stored with it at any time. You do not need
     to ask permission, and you do not need to give a reason.

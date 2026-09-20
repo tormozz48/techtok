@@ -1,6 +1,6 @@
 ---
 import Document from '../layouts/Document.astro';
-import { CONTACT_EMAIL, HOSTING_REGION } from '../lib/legal';
+import { CONTACT_EMAIL, HOSTING_REGION, LEGAL_LAST_UPDATED } from '../lib/legal';
 import { withBase } from '../lib/locale';
 import { GITHUB_REPO_URL } from '../lib/download';
 
@@ -9,7 +9,12 @@ const description =
   'What TechTok stores about you, who processes it, how long it is kept, and how to delete it.';
 ---
 
-<Document title={title} description={description} subpath="privacy/">
+<Document
+  title={title}
+  description={description}
+  subpath="privacy/"
+  updated={LEGAL_LAST_UPDATED}
+>
   <p>
     TechTok is a reading app for technology and science news. It shows short summaries of articles
     published by other people, and links out to the originals. This page explains exactly what the

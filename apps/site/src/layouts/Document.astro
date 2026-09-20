@@ -1,7 +1,8 @@
 ---
+import { LANGUAGES, LANGUAGE_LABELS } from '@techtok/shared';
+import type { Language } from '@techtok/shared';
 import { SITE_COPY } from '../lib/copy';
-import { LEGAL_LAST_UPDATED } from '../lib/legal';
-import { localeHref, withBase } from '../lib/locale';
+import { localeHref, localizedHref, withBase } from '../lib/locale';
 import Footer from '../components/Footer.astro';
 import OrbitMark from '../components/OrbitMark.astro';
 import '../styles/global.css';
@@ -10,16 +11,19 @@ interface Props {
   title: string;
   description: string;
   subpath: string;
+  lang?: Language;
+  updated?: string;
+  switchPath?: string;
 }
 
-const { title, description, subpath } = Astro.props;
+const { title, description, subpath, lang = 'en', updated, switchPath } = Astro.props;
 
-const copy = SITE_COPY.en;
+const copy = SITE_COPY[lang];
 const siteOrigin = Astro.site ?? new URL(withBase(''), Astro.url).origin;
 const canonicalUrl = new URL(withBase(subpath), siteOrigin).href;
 ---
 
-<html lang="en">
+<html lang={lang}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -32,23 +36,48 @@ const canonicalUrl = new URL(withBase(subpath), siteOrigin).href;
     <meta property="og:title" content={`${title} · TechTok`} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonicalUrl} />
+    {
+      switchPath &&
+        LANGUAGES.map((code) => (
+          <link
+            rel="alternate"
+            hreflang={code}
+            href={new URL(localizedHref(code, switchPath), siteOrigin).href}
+          />
+        ))
+    }
   </head>
   <body>
     <header class="site-header">
-      <a class="brand" href={localeHref('en')}>
+      <a class="brand" href={localeHref(lang)}>
         <OrbitMark size={28} />
         <span>TechTok</span>
       </a>
-      <a class="doc-back" href={localeHref('en')}>← Back to TechTok</a>
+      <a class="doc-back" href={localeHref(lang)}>{copy.doc.back}</a>
+      {
+        switchPath && (
+          <nav class="lang-switch" aria-label="Language">
+            {LANGUAGES.map((code) => (
+              <a
+                href={localizedHref(code, switchPath)}
+                class={`lang-link${code === lang ? ' active' : ''}`}
+                aria-current={code === lang ? 'page' : undefined}
+              >
+                {LANGUAGE_LABELS[code]}
+              </a>
+            ))}
+          </nav>
+        )
+      }
     </header>
 
     <main class="container doc">
       <h1>{title}</h1>
-      <p class="doc-updated">Last updated {LEGAL_LAST_UPDATED}</p>
+      {updated && <p class="doc-updated">{copy.doc.updated(updated)}</p>}
       <slot />
     </main>
 
-    <Footer copy={copy} />
+    <Footer lang={lang} copy={copy} />
   </body>
 </html>
 

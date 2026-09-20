@@ -8,15 +8,26 @@ import { withSeededQueries } from '../withSeededQuery';
 
 const SOURCES: SourcesResponse = {
   sources: [
-    { sourceId: 'techcrunch', name: 'TechCrunch' },
-    { sourceId: 'the-verge', name: 'The Verge' },
-    { sourceId: 'ars-technica', name: 'Ars Technica' },
-    { sourceId: 'hacker-news', name: 'Hacker News' },
+    { sourceId: 'techcrunch', name: 'TechCrunch', plusOnly: false },
+    { sourceId: 'the-verge', name: 'The Verge', plusOnly: false },
+    { sourceId: 'ars-technica', name: 'Ars Technica', plusOnly: true },
+    { sourceId: 'hacker-news', name: 'Hacker News', plusOnly: true },
   ],
 };
 
-const ENTITLEMENT: EntitlementResponse = {
+const FREE_ENTITLEMENT: EntitlementResponse = {
   plan: 'free',
+  quota: {
+    cardReads: 12,
+    cardReadsLimit: 30,
+    readerOpens: 3,
+    readerOpensLimit: 10,
+    resetsAt: new Date(Date.now() + 8 * 3_600_000).toISOString(),
+  },
+};
+
+const PLUS_ENTITLEMENT: EntitlementResponse = {
+  plan: 'plus',
   quota: {
     cardReads: 12,
     cardReadsLimit: 30,
@@ -28,7 +39,12 @@ const ENTITLEMENT: EntitlementResponse = {
 
 const SEEDS = [
   { queryKey: ['sources'], data: SOURCES },
-  { queryKey: ['entitlement'], data: ENTITLEMENT },
+  { queryKey: ['entitlement'], data: FREE_ENTITLEMENT },
+];
+
+const PLUS_SEEDS = [
+  { queryKey: ['sources'], data: SOURCES },
+  { queryKey: ['entitlement'], data: PLUS_ENTITLEMENT },
 ];
 
 function withHaptics(enabled: boolean) {
@@ -64,4 +80,12 @@ export const VibrationOff: Story = {
 
 export const WithMutedSource: Story = {
   decorators: [withSeededQueries(SEEDS), withHaptics(true), withMutedSources(['the-verge'])],
+};
+
+export const WithPlusOnlySources: Story = {
+  decorators: [withSeededQueries(SEEDS), withHaptics(true)],
+};
+
+export const PlusUserSeesAllSourcesUnlocked: Story = {
+  decorators: [withSeededQueries(PLUS_SEEDS), withHaptics(true)],
 };

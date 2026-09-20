@@ -80,6 +80,7 @@ export interface ChromeStrings {
     plusPlanPriceMonthly: string;
     plusPlanPriceYearly: string;
     plusPlanFeatureUnlimited: string;
+    plusPlanFeatureAllSources: string;
     subscribeMonthlyCta: (price: string) => string;
     subscribeYearlyCta: (price: string) => string;
     restoreCta: string;
@@ -142,6 +143,7 @@ export interface ChromeStrings {
     openHistory: string;
     openSettings: string;
     removeSaved: string;
+    sourcePlusOnly: (name: string) => string;
   };
   crash: {
     title: string;
@@ -232,6 +234,7 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       plusPlanPriceMonthly: '€2.99/mo',
       plusPlanPriceYearly: '€24.99/yr',
       plusPlanFeatureUnlimited: 'Unlimited cards and articles',
+      plusPlanFeatureAllSources: 'Access to every source, including Plus-only ones',
       subscribeMonthlyCta: (price) => `Subscribe — ${price}/mo`,
       subscribeYearlyCta: (price) => `Subscribe — ${price}/yr`,
       restoreCta: 'Restore purchase',
@@ -294,6 +297,7 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       openHistory: 'Open history',
       openSettings: 'Open settings',
       removeSaved: 'Remove from saved',
+      sourcePlusOnly: (name) => `${name} is Plus-only — tap to upgrade`,
     },
     crash: {
       title: 'Something went wrong',
@@ -382,6 +386,7 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       plusPlanPriceMonthly: '€2.99/мес',
       plusPlanPriceYearly: '€24.99/год',
       plusPlanFeatureUnlimited: 'Неограниченно карточек и статей',
+      plusPlanFeatureAllSources: 'Доступ ко всем источникам, включая эксклюзивные для Plus',
       subscribeMonthlyCta: (price) => `Подписаться — ${price}/мес`,
       subscribeYearlyCta: (price) => `Подписаться — ${price}/год`,
       restoreCta: 'Восстановить покупку',
@@ -444,6 +449,7 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       openHistory: 'Открыть историю',
       openSettings: 'Открыть настройки',
       removeSaved: 'Убрать из сохранённого',
+      sourcePlusOnly: (name) => `${name} доступен только в Plus — нажмите, чтобы оформить`,
     },
     crash: {
       title: 'Что-то пошло не так',
@@ -532,6 +538,7 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       plusPlanPriceMonthly: '€2.99/міс',
       plusPlanPriceYearly: '€24.99/рік',
       plusPlanFeatureUnlimited: 'Необмежено карток і статей',
+      plusPlanFeatureAllSources: 'Доступ до всіх джерел, включно з ексклюзивними для Plus',
       subscribeMonthlyCta: (price) => `Підписатися — ${price}/міс`,
       subscribeYearlyCta: (price) => `Підписатися — ${price}/рік`,
       restoreCta: 'Відновити покупку',
@@ -594,6 +601,7 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       openHistory: 'Відкрити історію',
       openSettings: 'Відкрити налаштування',
       removeSaved: 'Прибрати зі збереженого',
+      sourcePlusOnly: (name) => `${name} доступне лише в Plus — торкніться, щоб оформити`,
     },
     crash: {
       title: 'Щось пішло не так',
@@ -682,6 +690,7 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       plusPlanPriceMonthly: '€2.99/mies.',
       plusPlanPriceYearly: '€24.99/rok',
       plusPlanFeatureUnlimited: 'Nieograniczona liczba kart i artykułów',
+      plusPlanFeatureAllSources: 'Dostęp do wszystkich źródeł, w tym tych dostępnych tylko w Plus',
       subscribeMonthlyCta: (price) => `Subskrybuj — ${price}/mies.`,
       subscribeYearlyCta: (price) => `Subskrybuj — ${price}/rok`,
       restoreCta: 'Przywróć zakup',
@@ -744,6 +753,7 @@ export const STRINGS: Record<Language, ChromeStrings> = {
       openHistory: 'Otwórz historię',
       openSettings: 'Otwórz ustawienia',
       removeSaved: 'Usuń z zapisanych',
+      sourcePlusOnly: (name) => `${name} jest dostępne tylko w Plus — dotknij, aby uaktualnić`,
     },
     crash: {
       title: 'Coś poszło nie tak',

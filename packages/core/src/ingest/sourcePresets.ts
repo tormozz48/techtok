@@ -1,6 +1,6 @@
 import type { SourceRecord } from '../sources.types';
 
-type SourcePreset = Omit<SourceRecord, 'weight' | 'enabled' | 'failCount'>;
+type SourcePreset = Omit<SourceRecord, 'weight' | 'enabled' | 'failCount' | 'plusOnly'>;
 
 const PRESETS: SourcePreset[] = [
   {
@@ -82,11 +82,14 @@ const PRESETS: SourcePreset[] = [
   },
 ];
 
+export const PLUS_ONLY_SOURCE_IDS = ['hn', 'arstechnica', 'arxiv-ai', 'huggingface-blog'];
+
 export const FULL_SOURCE_PRESETS: SourceRecord[] = PRESETS.map((preset) => ({
   ...preset,
   weight: 1,
   enabled: true,
   failCount: 0,
+  plusOnly: PLUS_ONLY_SOURCE_IDS.includes(preset.sourceId),
 }));
 
 export const NON_PRODUCTION_SOURCE_IDS = ['verge', 'quanta'];

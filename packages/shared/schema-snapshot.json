@@ -1461,11 +1461,15 @@
             },
             "name": {
               "type": "string"
+            },
+            "plusOnly": {
+              "type": "boolean"
             }
           },
           "required": [
             "sourceId",
-            "name"
+            "name",
+            "plusOnly"
           ],
           "additionalProperties": false
         }

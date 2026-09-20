@@ -7,6 +7,9 @@ export interface SelectableListProps<T extends string> {
   readonly label: (item: T) => string;
   readonly onSelect: (item: T) => void;
   readonly disabled?: boolean;
+  readonly isLocked?: (item: T) => boolean;
+  readonly onLockedPress?: (item: T) => void;
+  readonly lockedAccessibilityLabel?: (item: T) => string;
   readonly rowStyle: StyleProp<ViewStyle>;
   readonly rowSelectedStyle: StyleProp<ViewStyle>;
   readonly rowTextStyle: StyleProp<TextStyle>;
@@ -20,6 +23,9 @@ export function SelectableList<T extends string>({
   label,
   onSelect,
   disabled,
+  isLocked,
+  onLockedPress,
+  lockedAccessibilityLabel,
   rowStyle,
   rowSelectedStyle,
   rowTextStyle,
@@ -29,20 +35,24 @@ export function SelectableList<T extends string>({
   return (
     <>
       {items.map((item) => {
-        const selected = isSelected(item);
+        const locked = isLocked?.(item) ?? false;
+        const selected = !locked && isSelected(item);
         return (
           <List.Item
             key={item}
             title={label(item)}
-            onPress={() => onSelect(item)}
+            onPress={() => (locked ? onLockedPress?.(item) : onSelect(item))}
             disabled={disabled}
             style={[rowStyle, selected && rowSelectedStyle]}
             titleStyle={rowTextStyle}
             testID={testIDPrefix ? `${testIDPrefix}-${item}` : undefined}
+            accessibilityLabel={locked ? lockedAccessibilityLabel?.(item) : undefined}
             right={
-              selected
-                ? (props) => <List.Icon {...props} icon="check" color={checkIconColor} />
-                : undefined
+              locked
+                ? (props) => <List.Icon {...props} icon="lock" color={checkIconColor} />
+                : selected
+                  ? (props) => <List.Icon {...props} icon="check" color={checkIconColor} />
+                  : undefined
             }
           />
         );

@@ -103,6 +103,7 @@ export default function PaywallScreen() {
             {billing.yearly?.displayPrice ?? strings.paywall.plusPlanPriceYearly}
           </Text>
           <Text style={styles.planFeature}>{strings.paywall.plusPlanFeatureUnlimited}</Text>
+          <Text style={styles.planFeature}>{strings.paywall.plusPlanFeatureAllSources}</Text>
         </View>
       </View>
 

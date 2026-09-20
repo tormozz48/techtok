@@ -66,6 +66,7 @@ export const sourcesResponseSchema = z.object({
     z.object({
       sourceId: z.string(),
       name: z.string(),
+      plusOnly: z.boolean(),
     }),
   ),
 });

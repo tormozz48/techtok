@@ -19,6 +19,7 @@ const sampleSource: SourceRecord = {
   weight: 1,
   enabled: true,
   failCount: 0,
+  plusOnly: false,
 };
 
 const disabledSource: SourceRecord = {
@@ -61,6 +62,12 @@ describe('sourcesRepo.putIfNew', () => {
 
     await expect(repo.putIfNew({ ...sampleSource, name: 'Renamed' })).resolves.toBe(false);
     expect(await repo.getById('hn')).toMatchObject({ name: 'Hacker News' });
+  });
+
+  it('persists plusOnly', async () => {
+    await repo.putIfNew({ ...sampleSource, sourceId: 'plus-source', plusOnly: true });
+
+    expect(await repo.getById('plus-source')).toMatchObject({ plusOnly: true });
   });
 });
 

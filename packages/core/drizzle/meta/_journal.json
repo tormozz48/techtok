@@ -36,6 +36,13 @@
       "when": 1789756086389,
       "tag": "0004_typical_namora",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789898058885,
+      "tag": "0005_new_paper_doll",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,149 @@
+---
+import type { Language } from '@techtok/shared';
+import { SITE_COPY } from '../lib/copy';
+import { SUPPORT_EMAIL } from '../lib/legal';
+import { PLAY_TESTING_URL } from '../lib/download';
+import { qrSvg } from '../lib/qr';
+import Document from './Document.astro';
+
+interface Props {
+  lang: Language;
+}
+
+const { lang } = Astro.props;
+const copy = SITE_COPY[lang].tester;
+const qr = await qrSvg(PLAY_TESTING_URL);
+const mailHref = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(copy.mailSubject)}&body=${encodeURIComponent(copy.mailBody)}`;
+---
+
+<Document
+  title={copy.title}
+  description={copy.metaDescription}
+  subpath={lang === 'en' ? 'test/' : `${lang}/test/`}
+  lang={lang}
+  switchPath="test/"
+>
+  <p>{copy.intro}</p>
+
+  <h2>{copy.whyTitle}</h2>
+  <p>{copy.whyBody}</p>
+
+  <h2>{copy.askTitle}</h2>
+  <ul>
+    {copy.ask.map((item) => <li>{item}</li>)}
+  </ul>
+
+  <h2>{copy.stepsTitle}</h2>
+  <ol class="steps">
+    {
+      copy.steps.map((step, index) => (
+        <li>
+          <span class="step-number">{index + 1}</span>
+          <div>
+            <strong>{step.title}</strong>
+            <p>{step.body}</p>
+          </div>
+        </li>
+      ))
+    }
+  </ol>
+
+  <div class="tester-panel">
+    <div class="qr-frame" set:html={qr} />
+    <div>
+      <p class="tester-qr-hint">{copy.qrHint}</p>
+      <div class="tester-actions">
+        <a class="button button-primary" href={mailHref}>{copy.ctaEmail}</a>
+        <a class="button button-secondary" href={PLAY_TESTING_URL} rel="noopener">
+          {copy.ctaOptIn}
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <h2>{copy.perksTitle}</h2>
+  <p>{copy.perksBody}</p>
+
+  <h2>{copy.feedbackTitle}</h2>
+  <p>{copy.feedbackBody}</p>
+
+  <div class="callout">
+    <p><strong>{copy.privacyTitle}</strong> {copy.privacyBody}</p>
+  </div>
+</Document>
+
+<style>
+  .steps {
+    list-style: none;
+    margin: 0 0 var(--space-4);
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .steps li {
+    display: flex;
+    gap: var(--space-3);
+    align-items: flex-start;
+    margin: 0;
+  }
+
+  .step-number {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 999px;
+    background: var(--chip-bg);
+    color: var(--amber-soft);
+    font-weight: 600;
+    font-size: 0.875rem;
+  }
+
+  .steps li strong {
+    display: block;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .steps li p {
+    margin: 0;
+  }
+
+  .tester-panel {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-5);
+    align-items: center;
+    background: var(--navy-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+    margin: 0 0 var(--space-5);
+  }
+
+  .tester-qr-hint {
+    margin: 0 0 var(--space-3);
+  }
+
+  .tester-actions {
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 640px) {
+    .tester-panel {
+      grid-template-columns: 1fr;
+      justify-items: center;
+      text-align: center;
+    }
+
+    .tester-actions {
+      justify-content: center;
+    }
+  }
+</style>

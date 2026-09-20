@@ -58,6 +58,35 @@ export interface SiteStrings {
     license: string;
     privacy: string;
     deleteAccount: string;
+    tester: string;
+  };
+  doc: {
+    back: string;
+    updated: (date: string) => string;
+  };
+  tester: {
+    metaTitle: string;
+    metaDescription: string;
+    title: string;
+    intro: string;
+    whyTitle: string;
+    whyBody: string;
+    askTitle: string;
+    ask: string[];
+    stepsTitle: string;
+    steps: { title: string; body: string }[];
+    qrHint: string;
+    ctaEmail: string;
+    ctaOptIn: string;
+    mailSubject: string;
+    mailBody: string;
+    perksTitle: string;
+    perksBody: string;
+    feedbackTitle: string;
+    feedbackBody: string;
+    privacyTitle: string;
+    privacyBody: string;
+    privacyLink: string;
   };
 }
 
@@ -151,6 +180,67 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       license: 'MIT licensed',
       privacy: 'Privacy',
       deleteAccount: 'Delete account',
+      tester: 'Become a tester',
+    },
+    doc: {
+      back: '← Back to TechTok',
+      updated: (date) => `Last updated ${date}`,
+    },
+    tester: {
+      metaTitle: 'Become a TechTok tester',
+      metaDescription:
+        'TechTok needs a dozen testers for two weeks before it can launch on Google Play. Here is what it involves and how to join.',
+      title: 'Become a TechTok tester',
+      intro:
+        'TechTok is finished and working. Before Google will let it onto the Play Store, it has to spend two weeks in a closed test with a dozen real people. That is what this page is asking you for — about a minute a day, for fourteen days.',
+      whyTitle: 'Why this is needed',
+      whyBody:
+        'Google requires every new app from a personal developer account to run a closed test with at least 12 testers who stay opted in for 14 days in a row. No test, no publication. The rule exists to keep junk off the Play Store, and there is no way around it.',
+      askTitle: 'What it takes',
+      ask: [
+        'An Android phone with the Play Store on it, and the Google account that phone is signed in with.',
+        'Installing TechTok and staying in the test for the full 14 days.',
+        'Opening the app now and then. A minute a day is plenty — it is a swipe feed, so that is a handful of cards.',
+        'Telling me what annoys you. That part is optional, but it is the reason the test is worth running.',
+      ],
+      stepsTitle: 'How to join',
+      steps: [
+        {
+          title: 'Send me your Google address',
+          body: 'Google only lets invited addresses into a closed test, so your address has to go on the list before anything else works. Use the one your Android phone is signed in with.',
+        },
+        {
+          title: 'Wait for a short reply',
+          body: 'You will hear back once you are on the list — usually the same day. Only then does the invitation link below do anything.',
+        },
+        {
+          title: 'Accept the invitation',
+          body: 'Open the testing link on your phone, or scan the QR code with its camera, and tap the button that makes you a tester.',
+        },
+        {
+          title: 'Install from Google Play',
+          body: 'An ordinary Play Store page appears right after you accept. Install it the usual way — nothing to sideload, and updates arrive on their own.',
+        },
+        {
+          title: 'Use it for two weeks',
+          body: 'Open the app every so often over the next 14 days, and stay in the test the whole time. Leaving early takes the count below 12 and restarts the clock for everybody, so if you need to drop out, say so first.',
+        },
+      ],
+      qrHint: "Scan with your phone's camera",
+      ctaEmail: 'Email me your address',
+      ctaOptIn: 'Open the invitation',
+      mailSubject: 'TechTok tester',
+      mailBody: 'Hi! I would like to join the TechTok closed test. My Google account address is: ',
+      perksTitle: 'What you get',
+      perksBody:
+        'Testers keep TechTok Plus for free, for as long as they want it — the paid tier, at no cost, whatever it ends up costing everyone else.',
+      feedbackTitle: 'Feedback',
+      feedbackBody:
+        'A bad translation, a card that makes no sense, a crash, a button in the wrong place, a source you wish were there — send any of it to the same address. At the end of the test Google asks what the testers said and what changed because of it, so your notes genuinely end up in that answer.',
+      privacyTitle: 'What happens to your address',
+      privacyBody:
+        'It goes onto the tester list in Google Play Console, and nowhere else. No mailing list, nothing passed to anyone. If you then sign in to the app, TechTok stores your Google account identifier, your email and your display name, and nothing further about you.',
+      privacyLink: 'Read the privacy policy',
     },
   },
   ru: {
@@ -242,6 +332,68 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       license: 'Лицензия MIT',
       privacy: 'Конфиденциальность',
       deleteAccount: 'Удаление аккаунта',
+      tester: 'Стать тестировщиком',
+    },
+    doc: {
+      back: '← Назад к TechTok',
+      updated: (date) => `Обновлено ${date}`,
+    },
+    tester: {
+      metaTitle: 'Стать тестировщиком TechTok',
+      metaDescription:
+        'Чтобы выйти в Google Play, TechTok нужны две недели закрытого тестирования и дюжина тестировщиков. Что для этого нужно и как присоединиться.',
+      title: 'Стать тестировщиком TechTok',
+      intro:
+        'TechTok готов и работает. Но прежде чем Google пустит его в Play Store, приложение должно две недели пройти закрытое тестирование с дюжиной живых людей. Об этом и просит эта страница — примерно минута в день в течение четырнадцати дней.',
+      whyTitle: 'Зачем это нужно',
+      whyBody:
+        'Google требует, чтобы каждое новое приложение от личного аккаунта разработчика прошло закрытое тестирование: минимум 12 тестировщиков, непрерывно участвующих 14 дней подряд. Нет теста — нет публикации. Правило придумано, чтобы в Play Store не попадал мусор, и обойти его нельзя.',
+      askTitle: 'Что потребуется от вас',
+      ask: [
+        'Телефон на Android с Play Store и аккаунт Google, под которым вы в него вошли.',
+        'Установить TechTok и остаться в тесте все 14 дней.',
+        'Время от времени открывать приложение. Минуты в день достаточно — это лента со свайпами, то есть несколько карточек.',
+        'Рассказать, что раздражает. Это необязательно, но ровно ради этого тест и имеет смысл.',
+      ],
+      stepsTitle: 'Как присоединиться',
+      steps: [
+        {
+          title: 'Пришлите адрес своего аккаунта Google',
+          body: 'В закрытый тест Google пускает только приглашённые адреса, поэтому сначала ваш адрес должен попасть в список. Нужен тот, под которым вы вошли на своём телефоне.',
+        },
+        {
+          title: 'Дождитесь короткого ответа',
+          body: 'Я напишу, когда добавлю вас в список, — обычно в тот же день. Только после этого ссылка ниже начнёт работать.',
+        },
+        {
+          title: 'Примите приглашение',
+          body: 'Откройте ссылку на телефоне или наведите на QR-код камеру и нажмите кнопку, которая делает вас тестировщиком.',
+        },
+        {
+          title: 'Установите из Google Play',
+          body: 'Сразу после этого откроется обычная страница в Play Store. Ставьте как всегда — никаких APK вручную, обновления придут сами.',
+        },
+        {
+          title: 'Пользуйтесь две недели',
+          body: 'Заглядывайте в приложение время от времени в течение 14 дней и не выходите из теста. Досрочный выход уводит счёт ниже 12 и обнуляет отсчёт для всех, так что если нужно выйти — просто скажите заранее.',
+        },
+      ],
+      qrHint: 'Наведите камеру телефона',
+      ctaEmail: 'Отправить свой адрес',
+      ctaOptIn: 'Открыть приглашение',
+      mailSubject: 'Тестирование TechTok',
+      mailBody:
+        'Привет! Хочу участвовать в закрытом тестировании TechTok. Адрес моего аккаунта Google: ',
+      perksTitle: 'Что вы получите',
+      perksBody:
+        'Тестировщики бесплатно оставляют себе TechTok Plus — платный тариф, без оплаты, столько, сколько захотят, сколько бы он потом ни стоил остальным.',
+      feedbackTitle: 'Обратная связь',
+      feedbackBody:
+        'Кривой перевод, бессмысленная карточка, вылет, кнопка не на месте, не хватает источника — пишите на тот же адрес. В конце теста Google спрашивает, что сказали тестировщики и что изменилось благодаря этому, так что ваши замечания реально попадут в этот ответ.',
+      privacyTitle: 'Что будет с вашим адресом',
+      privacyBody:
+        'Он попадёт в список тестировщиков в Google Play Console и больше никуда. Никаких рассылок, никому не передаётся. Если вы потом войдёте в приложение, TechTok сохранит идентификатор вашего аккаунта Google, адрес почты и отображаемое имя — и больше ничего о вас.',
+      privacyLink: 'Политика конфиденциальности',
     },
   },
   uk: {
@@ -335,6 +487,68 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       license: 'Ліцензія MIT',
       privacy: 'Конфіденційність',
       deleteAccount: 'Видалення облікового запису',
+      tester: 'Стати тестувальником',
+    },
+    doc: {
+      back: '← Назад до TechTok',
+      updated: (date) => `Оновлено ${date}`,
+    },
+    tester: {
+      metaTitle: 'Стати тестувальником TechTok',
+      metaDescription:
+        'Щоб вийти в Google Play, TechTok потребує двох тижнів закритого тестування і дюжини тестувальників. Що для цього потрібно і як долучитися.',
+      title: 'Стати тестувальником TechTok',
+      intro:
+        'TechTok готовий і працює. Але перш ніж Google пустить його в Play Store, застосунок має два тижні пройти закрите тестування з дюжиною живих людей. Саме про це просить ця сторінка — приблизно хвилина на день протягом чотирнадцяти днів.',
+      whyTitle: 'Навіщо це потрібно',
+      whyBody:
+        'Google вимагає, щоб кожен новий застосунок з особистого акаунта розробника пройшов закрите тестування: щонайменше 12 тестувальників, які безперервно беруть участь 14 днів поспіль. Немає тесту — немає публікації. Правило придумали, щоб у Play Store не потрапляло сміття, і обійти його неможливо.',
+      askTitle: 'Що знадобиться від вас',
+      ask: [
+        'Телефон на Android із Play Store і акаунт Google, під яким ви до нього увійшли.',
+        'Встановити TechTok і залишитися в тесті всі 14 днів.',
+        'Час від часу відкривати застосунок. Хвилини на день достатньо — це стрічка зі свайпами, тобто кілька карток.',
+        'Розповісти, що дратує. Це необовʼязково, але саме заради цього тест і має сенс.',
+      ],
+      stepsTitle: 'Як долучитися',
+      steps: [
+        {
+          title: 'Надішліть адресу свого акаунта Google',
+          body: 'У закрите тестування Google пускає лише запрошені адреси, тому спершу ваша адреса має потрапити до списку. Потрібна та, під якою ви увійшли на своєму телефоні.',
+        },
+        {
+          title: 'Дочекайтеся короткої відповіді',
+          body: 'Я напишу, коли додам вас до списку, — зазвичай того ж дня. Лише після цього посилання нижче почне працювати.',
+        },
+        {
+          title: 'Прийміть запрошення',
+          body: 'Відкрийте посилання на телефоні або наведіть на QR-код камеру і натисніть кнопку, яка робить вас тестувальником.',
+        },
+        {
+          title: 'Встановіть з Google Play',
+          body: 'Одразу після цього відкриється звичайна сторінка в Play Store. Ставте як завжди — жодних APK вручну, оновлення прийдуть самі.',
+        },
+        {
+          title: 'Користуйтеся два тижні',
+          body: 'Заглядайте до застосунку час від часу протягом 14 днів і не виходьте з тесту. Достроковий вихід збиває лічильник нижче 12 і обнуляє відлік для всіх, тож якщо потрібно вийти — просто скажіть заздалегідь.',
+        },
+      ],
+      qrHint: 'Наведіть камеру телефона',
+      ctaEmail: 'Надіслати свою адресу',
+      ctaOptIn: 'Відкрити запрошення',
+      mailSubject: 'Тестування TechTok',
+      mailBody:
+        'Привіт! Хочу долучитися до закритого тестування TechTok. Адреса мого акаунта Google: ',
+      perksTitle: 'Що ви отримаєте',
+      perksBody:
+        'Тестувальники безкоштовно залишають собі TechTok Plus — платний тариф, без оплати, стільки, скільки захочуть, скільки б він потім не коштував іншим.',
+      feedbackTitle: 'Зворотний звʼязок',
+      feedbackBody:
+        'Кривий переклад, беззмістовна картка, виліт, кнопка не на місці, бракує джерела — пишіть на ту саму адресу. Наприкінці тесту Google запитує, що сказали тестувальники і що завдяки цьому змінилося, тож ваші зауваження справді потраплять у цю відповідь.',
+      privacyTitle: 'Що буде з вашою адресою',
+      privacyBody:
+        'Вона потрапить до списку тестувальників у Google Play Console і більше нікуди. Жодних розсилок, нікому не передається. Якщо ви потім увійдете в застосунок, TechTok збереже ідентифікатор вашого акаунта Google, адресу пошти та відображуване імʼя — і більше нічого про вас.',
+      privacyLink: 'Політика конфіденційності',
     },
   },
   pl: {
@@ -427,6 +641,67 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       license: 'Licencja MIT',
       privacy: 'Prywatność',
       deleteAccount: 'Usuwanie konta',
+      tester: 'Zostań testerem',
+    },
+    doc: {
+      back: '← Powrót do TechTok',
+      updated: (date) => `Ostatnia aktualizacja: ${date}`,
+    },
+    tester: {
+      metaTitle: 'Zostań testerem TechTok',
+      metaDescription:
+        'Zanim TechTok trafi do Google Play, musi przejść dwutygodniowe testy zamknięte z kilkunastoma testerami. Oto, co to oznacza i jak dołączyć.',
+      title: 'Zostań testerem TechTok',
+      intro:
+        'TechTok jest gotowy i działa. Zanim jednak Google wpuści go do Play Store, aplikacja musi spędzić dwa tygodnie w testach zamkniętych z kilkunastoma prawdziwymi osobami. O to właśnie prosi ta strona — mniej więcej minuta dziennie przez czternaście dni.',
+      whyTitle: 'Dlaczego to konieczne',
+      whyBody:
+        'Google wymaga, aby każda nowa aplikacja z osobistego konta dewelopera przeszła testy zamknięte: co najmniej 12 testerów zapisanych nieprzerwanie przez 14 dni z rzędu. Bez testów nie ma publikacji. Zasada ma trzymać śmieci z dala od Play Store i nie da się jej obejść.',
+      askTitle: 'Czego to wymaga',
+      ask: [
+        'Telefonu z Androidem i Play Store oraz konta Google, na które jest zalogowany.',
+        'Zainstalowania TechTok i pozostania w teście przez pełne 14 dni.',
+        'Zaglądania do aplikacji od czasu do czasu. Minuta dziennie w zupełności wystarczy — to kanał przewijany gestem, czyli kilka kart.',
+        'Powiedzenia mi, co irytuje. To nieobowiązkowe, ale właśnie po to warto robić ten test.',
+      ],
+      stepsTitle: 'Jak dołączyć',
+      steps: [
+        {
+          title: 'Wyślij adres swojego konta Google',
+          body: 'Do testów zamkniętych Google wpuszcza wyłącznie zaproszone adresy, więc najpierw Twój adres musi trafić na listę. Podaj ten, na który zalogowany jest Twój telefon.',
+        },
+        {
+          title: 'Poczekaj na krótką odpowiedź',
+          body: 'Odezwę się, gdy dodam Cię do listy — zwykle tego samego dnia. Dopiero wtedy poniższy link zaproszenia zacznie działać.',
+        },
+        {
+          title: 'Przyjmij zaproszenie',
+          body: 'Otwórz link na telefonie albo zeskanuj kod QR aparatem i kliknij przycisk, który czyni Cię testerem.',
+        },
+        {
+          title: 'Zainstaluj z Google Play',
+          body: 'Zaraz potem otworzy się zwykła strona w Play Store. Instaluj jak zawsze — żadnych plików APK ręcznie, aktualizacje przyjdą same.',
+        },
+        {
+          title: 'Korzystaj przez dwa tygodnie',
+          body: 'Zaglądaj do aplikacji co jakiś czas przez najbliższe 14 dni i nie wypisuj się z testu. Wcześniejsze wyjście zbija licznik poniżej 12 i zeruje odliczanie dla wszystkich, więc jeśli musisz zrezygnować, daj znać wcześniej.',
+        },
+      ],
+      qrHint: 'Zeskanuj aparatem telefonu',
+      ctaEmail: 'Wyślij swój adres',
+      ctaOptIn: 'Otwórz zaproszenie',
+      mailSubject: 'Testy TechTok',
+      mailBody: 'Cześć! Chcę dołączyć do testów zamkniętych TechTok. Adres mojego konta Google: ',
+      perksTitle: 'Co z tego masz',
+      perksBody:
+        'Testerzy zatrzymują TechTok Plus za darmo, na tak długo, jak zechcą — płatny plan bez opłaty, niezależnie od tego, ile będzie kosztował resztę.',
+      feedbackTitle: 'Uwagi',
+      feedbackBody:
+        'Kiepskie tłumaczenie, karta bez sensu, awaria, przycisk nie tam, gdzie trzeba, brakujące źródło — wyślij to na ten sam adres. Na koniec testu Google pyta, co powiedzieli testerzy i co się dzięki temu zmieniło, więc Twoje uwagi naprawdę trafiają do tej odpowiedzi.',
+      privacyTitle: 'Co się dzieje z Twoim adresem',
+      privacyBody:
+        'Trafia na listę testerów w Google Play Console i nigdzie indziej. Żadnej listy mailingowej, nikomu nieprzekazywany. Jeśli potem zalogujesz się w aplikacji, TechTok zapisze identyfikator Twojego konta Google, adres e-mail i nazwę wyświetlaną — i nic więcej o Tobie.',
+      privacyLink: 'Polityka prywatności',
     },
   },
 };

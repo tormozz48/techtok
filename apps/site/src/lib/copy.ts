@@ -10,7 +10,6 @@ export interface SiteStrings {
     topics: string;
     sources: string;
     releases: string;
-    download: string;
   };
   hero: {
     eyebrow: string;
@@ -39,15 +38,7 @@ export interface SiteStrings {
     featuresLabel: string;
     fixesLabel: string;
     noChanges: string;
-  };
-  download: {
-    title: string;
-    subtitle: string;
     version: (version: string) => string;
-    qrHint: string;
-    ctaDownload: string;
-    ctaReleases: string;
-    installNote: string;
   };
   footer: {
     tagline: string;
@@ -97,7 +88,6 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       topics: 'Topics',
       sources: 'Sources',
       releases: 'Releases',
-      download: 'Download',
     },
     hero: {
       eyebrow: 'Tech & science news, swiped',
@@ -155,16 +145,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       featuresLabel: 'Features',
       fixesLabel: 'Fixes',
       noChanges: 'No user-facing changes in this release.',
-    },
-    download: {
-      title: 'Join the beta',
-      subtitle: 'Scan the QR code or tap the button to opt in as a tester on Google Play.',
       version: (version) => `Version ${version}`,
-      qrHint: "Scan with your phone's camera",
-      ctaDownload: 'Become a tester',
-      ctaReleases: 'All builds',
-      installNote:
-        "You'll accept the invitation and install TechTok through the Play Store — no sideloading needed.",
     },
     footer: {
       tagline: 'TechTok — tech & science news, swiped.',
@@ -240,7 +221,6 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       topics: 'Темы',
       sources: 'Источники',
       releases: 'Релизы',
-      download: 'Скачать',
     },
     hero: {
       eyebrow: 'Новости технологий и науки одним движением',
@@ -298,16 +278,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       featuresLabel: 'Новое',
       fixesLabel: 'Исправления',
       noChanges: 'В этом релизе нет изменений, заметных пользователю.',
-    },
-    download: {
-      title: 'Присоединиться к тестированию',
-      subtitle: 'Отсканируйте QR-код или нажмите кнопку, чтобы стать тестировщиком в Google Play.',
       version: (version) => `Версия ${version}`,
-      qrHint: 'Отсканируйте камерой телефона',
-      ctaDownload: 'Стать тестировщиком',
-      ctaReleases: 'Все версии',
-      installNote:
-        'Вы примете приглашение и установите TechTok через Play Store — без установки APK вручную.',
     },
     footer: {
       tagline: 'TechTok — новости технологий и науки одним движением.',
@@ -383,7 +354,6 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       topics: 'Теми',
       sources: 'Джерела',
       releases: 'Релізи',
-      download: 'Завантажити',
     },
     hero: {
       eyebrow: 'Новини технологій і науки одним рухом',
@@ -443,16 +413,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       featuresLabel: 'Нове',
       fixesLabel: 'Виправлення',
       noChanges: 'У цьому релізі немає змін, помітних користувачу.',
-    },
-    download: {
-      title: 'Приєднатися до тестування',
-      subtitle: 'Відскануйте QR-код або натисніть кнопку, щоб стати тестувальником у Google Play.',
       version: (version) => `Версія ${version}`,
-      qrHint: 'Відскануйте камерою телефона',
-      ctaDownload: 'Стати тестувальником',
-      ctaReleases: 'Усі версії',
-      installNote:
-        'Ви приймете запрошення і встановите TechTok через Play Store — без ручного встановлення APK.',
     },
     footer: {
       tagline: 'TechTok — новини технологій і науки одним рухом.',
@@ -528,7 +489,6 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       topics: 'Tematy',
       sources: 'Źródła',
       releases: 'Wydania',
-      download: 'Pobierz',
     },
     hero: {
       eyebrow: 'Wiadomości technologiczne i naukowe w jednym geście',
@@ -586,16 +546,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       featuresLabel: 'Nowości',
       fixesLabel: 'Poprawki',
       noChanges: 'Brak zmian widocznych dla użytkownika w tym wydaniu.',
-    },
-    download: {
-      title: 'Dołącz do testów',
-      subtitle: 'Zeskanuj kod QR albo kliknij przycisk, aby zostać testerem w Google Play.',
       version: (version) => `Wersja ${version}`,
-      qrHint: 'Zeskanuj aparatem telefonu',
-      ctaDownload: 'Zostań testerem',
-      ctaReleases: 'Wszystkie wersje',
-      installNote:
-        'Zaakceptujesz zaproszenie i zainstalujesz TechTok przez Play Store — bez ręcznej instalacji APK.',
     },
     footer: {
       tagline: 'TechTok — wiadomości technologiczne i naukowe w jednym geście.',

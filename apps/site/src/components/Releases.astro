@@ -25,7 +25,7 @@ const dateFormatter = new Intl.DateTimeFormat(lang, { dateStyle: 'long' });
           {releases.map((release) => (
             <div class="release-card">
               <div class="release-header">
-                <span class="release-version">{copy.download.version(release.version)}</span>
+                <span class="release-version">{copy.releases.version(release.version)}</span>
                 <span class="release-date">{dateFormatter.format(new Date(release.date))}</span>
               </div>
               {release.features.length === 0 && release.fixes.length === 0 && release.other.length === 0 ? (

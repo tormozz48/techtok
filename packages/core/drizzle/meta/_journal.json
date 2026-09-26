@@ -43,6 +43,13 @@
       "when": 1789898058885,
       "tag": "0005_new_paper_doll",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790420109373,
+      "tag": "0006_elite_firelord",
+      "breakpoints": true
     }
   ]
 }

@@ -9,3 +9,7 @@ export const getPlayApiClient = lazy<PlayApiClient>(() =>
 export function isPlayBillingConfigured(): boolean {
   return Boolean(process.env.PLAY_SERVICE_ACCOUNT_KEY && process.env.PLAY_PACKAGE_NAME);
 }
+
+export function getPlayTestingTrack(): string {
+  return requireEnv('PLAY_TESTING_TRACK');
+}

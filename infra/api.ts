@@ -3,7 +3,11 @@ import { billingEnvironment, playServiceAccountKey } from './billing';
 import { contentBucket, neonDatabaseUrl } from './storage';
 
 export const api = new sst.aws.ApiGatewayV2('Api', {
-  cors: false,
+  cors: {
+    allowOrigins: ['https://techtokapp.eu'],
+    allowMethods: ['POST'],
+    allowHeaders: ['content-type'],
+  },
   transform: {
     stage: {
       defaultRouteSettings: {
@@ -203,3 +207,10 @@ api.route(
   },
   googleAuth,
 );
+
+api.route('POST /v1/testers', {
+  handler: 'packages/functions/src/api/handlers/testerSignup.handler',
+  link: [neonDatabaseUrl, playServiceAccountKey],
+  environment: { ...dbEnvironment, ...billingEnvironment },
+  runtime: 'nodejs22.x',
+});

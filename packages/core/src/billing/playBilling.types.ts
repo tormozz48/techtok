@@ -69,6 +69,16 @@ export interface VerifyPlayPurchaseOptions {
   readonly now?: Date;
 }
 
+export const playEditInsertSchema = z.object({ id: z.string().min(1) });
+export type PlayEditInsert = z.infer<typeof playEditInsertSchema>;
+
+export const playEditTestersSchema = z.object({
+  googleGroups: z.array(z.string()).optional(),
+  googleEmails: z.array(z.string()).optional(),
+});
+export type PlayEditTesters = z.infer<typeof playEditTestersSchema>;
+
 export interface PlayApiClient {
   getSubscriptionPurchase(purchaseToken: string): Promise<PlayPurchaseLookup>;
+  addTester(track: string, email: string): Promise<{ added: boolean }>;
 }

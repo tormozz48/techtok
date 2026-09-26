@@ -80,6 +80,12 @@ export interface SiteStrings {
     ctaOptIn: string;
     mailSubject: string;
     mailBody: string;
+    emailFormLabel: string;
+    emailFormPlaceholder: string;
+    emailFormInvalid: string;
+    emailFormSuccess: string;
+    emailFormAlready: string;
+    emailFormError: string;
     perksTitle: string;
     perksBody: string;
     feedbackTitle: string;
@@ -108,7 +114,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       eyebrow: 'Tech & science news, swiped',
       tagline:
         'Articles condensed into short cards with AI, translated into your language — swipe through headlines, tap into a full article when one grabs you.',
-      ctaDownload: 'Get the app',
+      ctaDownload: 'Become a tester',
       ctaGithub: 'View on GitHub',
     },
     mockup: {
@@ -206,12 +212,8 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       stepsTitle: 'How to join',
       steps: [
         {
-          title: 'Send me your Google address',
-          body: 'Google only lets invited addresses into a closed test, so your address has to go on the list before anything else works. Use the one your Android phone is signed in with.',
-        },
-        {
-          title: 'Wait for a short reply',
-          body: 'You will hear back once you are on the list — usually the same day. Only then does the invitation link below do anything.',
+          title: 'Submit your Google address',
+          body: "Enter the address your Android phone is signed in with below — you're added to the closed test right away, no reply to wait for.",
         },
         {
           title: 'Accept the invitation',
@@ -227,10 +229,16 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
         },
       ],
       qrHint: "Scan with your phone's camera",
-      ctaEmail: 'Email me your address',
+      ctaEmail: 'Add me as a tester',
       ctaOptIn: 'Open the invitation',
       mailSubject: 'TechTok tester',
       mailBody: 'Hi! I would like to join the TechTok closed test. My Google account address is: ',
+      emailFormLabel: 'Your Google account email',
+      emailFormPlaceholder: 'you@gmail.com',
+      emailFormInvalid: 'Enter a valid email address.',
+      emailFormSuccess: "Done — you're on the list. The invitation link below is active now.",
+      emailFormAlready: "You're already on the list — the invitation link below should work.",
+      emailFormError: 'Something went wrong. Try again in a moment, or use the email link below.',
       perksTitle: 'What you get',
       perksBody:
         'Testers keep TechTok Plus for free, for as long as they want it — the paid tier, at no cost, whatever it ends up costing everyone else.',
@@ -260,7 +268,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       eyebrow: 'Новости технологий и науки одним движением',
       tagline:
         'ИИ сокращает статьи до коротких карточек и переводит их на ваш язык — листайте заголовки и открывайте полную статью, если она зацепила.',
-      ctaDownload: 'Скачать приложение',
+      ctaDownload: 'Стать тестировщиком',
       ctaGithub: 'Открыть на GitHub',
     },
     mockup: {
@@ -359,11 +367,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       steps: [
         {
           title: 'Пришлите адрес своего аккаунта Google',
-          body: 'В закрытый тест Google пускает только приглашённые адреса, поэтому сначала ваш адрес должен попасть в список. Нужен тот, под которым вы вошли на своём телефоне.',
-        },
-        {
-          title: 'Дождитесь короткого ответа',
-          body: 'Я напишу, когда добавлю вас в список, — обычно в тот же день. Только после этого ссылка ниже начнёт работать.',
+          body: 'Введите ниже адрес, под которым вошли на телефоне, — вас добавят в закрытый тест сразу, никакого ответа ждать не нужно.',
         },
         {
           title: 'Примите приглашение',
@@ -379,11 +383,17 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
         },
       ],
       qrHint: 'Наведите камеру телефона',
-      ctaEmail: 'Отправить свой адрес',
+      ctaEmail: 'Добавить меня тестировщиком',
       ctaOptIn: 'Открыть приглашение',
       mailSubject: 'Тестирование TechTok',
       mailBody:
         'Привет! Хочу участвовать в закрытом тестировании TechTok. Адрес моего аккаунта Google: ',
+      emailFormLabel: 'Адрес вашего аккаунта Google',
+      emailFormPlaceholder: 'you@gmail.com',
+      emailFormInvalid: 'Введите корректный адрес электронной почты.',
+      emailFormSuccess: 'Готово — вы в списке. Ссылка-приглашение ниже уже работает.',
+      emailFormAlready: 'Вы уже в списке — ссылка-приглашение ниже должна работать.',
+      emailFormError: 'Что-то пошло не так. Попробуйте ещё раз или напишите по ссылке ниже.',
       perksTitle: 'Что вы получите',
       perksBody:
         'Тестировщики бесплатно оставляют себе TechTok Plus — платный тариф, без оплаты, столько, сколько захотят, сколько бы он потом ни стоил остальным.',
@@ -413,7 +423,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       eyebrow: 'Новини технологій і науки одним рухом',
       tagline:
         'ШІ скорочує статті до коротких карток і перекладає їх на вашу мову — гортайте заголовки й відкривайте повну статтю, якщо вона зацікавила.',
-      ctaDownload: 'Завантажити застосунок',
+      ctaDownload: 'Стати тестувальником',
       ctaGithub: 'Відкрити на GitHub',
     },
     mockup: {
@@ -514,11 +524,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       steps: [
         {
           title: 'Надішліть адресу свого акаунта Google',
-          body: 'У закрите тестування Google пускає лише запрошені адреси, тому спершу ваша адреса має потрапити до списку. Потрібна та, під якою ви увійшли на своєму телефоні.',
-        },
-        {
-          title: 'Дочекайтеся короткої відповіді',
-          body: 'Я напишу, коли додам вас до списку, — зазвичай того ж дня. Лише після цього посилання нижче почне працювати.',
+          body: 'Введіть нижче адресу, під якою увійшли на телефоні, — вас додадуть до закритого тесту одразу, чекати на відповідь не потрібно.',
         },
         {
           title: 'Прийміть запрошення',
@@ -534,11 +540,17 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
         },
       ],
       qrHint: 'Наведіть камеру телефона',
-      ctaEmail: 'Надіслати свою адресу',
+      ctaEmail: 'Додати мене тестувальником',
       ctaOptIn: 'Відкрити запрошення',
       mailSubject: 'Тестування TechTok',
       mailBody:
         'Привіт! Хочу долучитися до закритого тестування TechTok. Адреса мого акаунта Google: ',
+      emailFormLabel: 'Адреса вашого акаунта Google',
+      emailFormPlaceholder: 'you@gmail.com',
+      emailFormInvalid: 'Введіть коректну адресу електронної пошти.',
+      emailFormSuccess: 'Готово — ви у списку. Посилання-запрошення нижче вже працює.',
+      emailFormAlready: 'Ви вже у списку — посилання-запрошення нижче має працювати.',
+      emailFormError: 'Щось пішло не так. Спробуйте ще раз або напишіть за посиланням нижче.',
       perksTitle: 'Що ви отримаєте',
       perksBody:
         'Тестувальники безкоштовно залишають собі TechTok Plus — платний тариф, без оплати, стільки, скільки захочуть, скільки б він потім не коштував іншим.',
@@ -568,7 +580,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       eyebrow: 'Wiadomości technologiczne i naukowe w jednym geście',
       tagline:
         'AI skraca artykuły do krótkich kart i tłumaczy je na Twój język — przewijaj nagłówki i otwieraj cały artykuł, gdy któryś przyciągnie uwagę.',
-      ctaDownload: 'Pobierz aplikację',
+      ctaDownload: 'Zostań testerem',
       ctaGithub: 'Zobacz na GitHub',
     },
     mockup: {
@@ -668,11 +680,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       steps: [
         {
           title: 'Wyślij adres swojego konta Google',
-          body: 'Do testów zamkniętych Google wpuszcza wyłącznie zaproszone adresy, więc najpierw Twój adres musi trafić na listę. Podaj ten, na który zalogowany jest Twój telefon.',
-        },
-        {
-          title: 'Poczekaj na krótką odpowiedź',
-          body: 'Odezwę się, gdy dodam Cię do listy — zwykle tego samego dnia. Dopiero wtedy poniższy link zaproszenia zacznie działać.',
+          body: 'Wpisz poniżej adres, na który zalogowany jest Twój telefon — zostaniesz dodany do testu zamkniętego od razu, bez czekania na odpowiedź.',
         },
         {
           title: 'Przyjmij zaproszenie',
@@ -688,10 +696,16 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
         },
       ],
       qrHint: 'Zeskanuj aparatem telefonu',
-      ctaEmail: 'Wyślij swój adres',
+      ctaEmail: 'Dodaj mnie jako testera',
       ctaOptIn: 'Otwórz zaproszenie',
       mailSubject: 'Testy TechTok',
       mailBody: 'Cześć! Chcę dołączyć do testów zamkniętych TechTok. Adres mojego konta Google: ',
+      emailFormLabel: 'Adres Twojego konta Google',
+      emailFormPlaceholder: 'you@gmail.com',
+      emailFormInvalid: 'Podaj prawidłowy adres e-mail.',
+      emailFormSuccess: 'Gotowe — jesteś na liście. Poniższy link zaproszenia już działa.',
+      emailFormAlready: 'Jesteś już na liście — poniższy link zaproszenia powinien działać.',
+      emailFormError: 'Coś poszło nie tak. Spróbuj ponownie lub napisz na adres poniżej.',
       perksTitle: 'Co z tego masz',
       perksBody:
         'Testerzy zatrzymują TechTok Plus za darmo, na tak długo, jak zechcą — płatny plan bez opłaty, niezależnie od tego, ile będzie kosztował resztę.',

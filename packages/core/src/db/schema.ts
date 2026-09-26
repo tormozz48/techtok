@@ -279,6 +279,13 @@ export const userReads = pgTable(
   ],
 );
 
+export const testers = pgTable('testers', {
+  id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+  email: text('email').notNull().unique(),
+  createdAt: text('created_at').notNull(),
+  playAddedAt: text('play_added_at'),
+});
+
 export const userBookmarks = pgTable(
   'user_bookmarks',
   {

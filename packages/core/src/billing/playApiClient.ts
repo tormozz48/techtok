@@ -93,7 +93,9 @@ async function insertEdit(accessToken: string, packageName: string): Promise<str
     },
   );
   if (!response.ok) {
-    throw new Error(`Play Developer API edit insert failed with status ${response.status}`);
+    throw new Error(
+      `Play Developer API edit insert failed with status ${response.status}: ${await response.text()}`,
+    );
   }
   const parsed = playEditInsertSchema.safeParse(await response.json());
   if (!parsed.success) throw new Error('Play Developer API returned an unrecognized edit payload');
@@ -114,7 +116,9 @@ async function getEditTesters(
     },
   );
   if (!response.ok) {
-    throw new Error(`Play Developer API get testers failed with status ${response.status}`);
+    throw new Error(
+      `Play Developer API get testers failed with status ${response.status}: ${await response.text()}`,
+    );
   }
   const parsed = playEditTestersSchema.safeParse(await response.json());
   if (!parsed.success) {
@@ -143,7 +147,9 @@ async function putEditTesters(
     },
   );
   if (!response.ok) {
-    throw new Error(`Play Developer API put testers failed with status ${response.status}`);
+    throw new Error(
+      `Play Developer API put testers failed with status ${response.status}: ${await response.text()}`,
+    );
   }
 }
 
@@ -157,6 +163,8 @@ async function commitEdit(accessToken: string, packageName: string, editId: stri
     },
   );
   if (!response.ok) {
-    throw new Error(`Play Developer API commit failed with status ${response.status}`);
+    throw new Error(
+      `Play Developer API commit failed with status ${response.status}: ${await response.text()}`,
+    );
   }
 }

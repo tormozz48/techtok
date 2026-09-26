@@ -1,10 +1,8 @@
 ---
 import type { Language } from '@techtok/shared';
 import { SITE_COPY } from '../lib/copy';
-import { PLAY_INVITE_PATH, TESTER_GROUP_URL } from '../lib/download';
 import { SUPPORT_EMAIL } from '../lib/legal';
-import { withBase } from '../lib/locale';
-import { qrSvg } from '../lib/qr';
+import TesterQrCodes from '../components/TesterQrCodes.astro';
 import Document from './Document.astro';
 
 interface Props {
@@ -13,12 +11,6 @@ interface Props {
 
 const { lang } = Astro.props;
 const copy = SITE_COPY[lang].tester;
-const siteOrigin = Astro.site ?? new URL(withBase(''), Astro.url).origin;
-const inviteUrl = new URL(withBase(PLAY_INVITE_PATH), siteOrigin).href;
-const qrCodes = [
-  { href: TESTER_GROUP_URL, label: copy.ctaJoinGroup, svg: await qrSvg(TESTER_GROUP_URL), primary: true },
-  { href: inviteUrl, label: copy.ctaOptIn, svg: await qrSvg(inviteUrl), primary: false },
-];
 ---
 
 <Document
@@ -53,21 +45,7 @@ const qrCodes = [
     }
   </ol>
 
-  <div class="tester-panel">
-    <p class="tester-qr-hint">{copy.qrHint}</p>
-    <div class="tester-qrs">
-      {
-        qrCodes.map((qr) => (
-          <div class="tester-qr">
-            <div class="qr-frame" set:html={qr.svg} />
-            <a class:list={['button', qr.primary ? 'button-primary' : 'button-secondary']} href={qr.href} rel="noopener">
-              {qr.label}
-            </a>
-          </div>
-        ))
-      }
-    </div>
-  </div>
+  <TesterQrCodes lang={lang} />
 
   <h2>{copy.perksTitle}</h2>
   <p>{copy.perksBody}</p>
@@ -120,32 +98,5 @@ const qrCodes = [
 
   .steps li p {
     margin: 0;
-  }
-
-  .tester-panel {
-    background: var(--navy-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: var(--space-5);
-    margin: 0 0 var(--space-5);
-    text-align: center;
-  }
-
-  .tester-qr-hint {
-    margin: 0 0 var(--space-4);
-  }
-
-  .tester-qrs {
-    display: flex;
-    justify-content: center;
-    gap: var(--space-5);
-    flex-wrap: wrap;
-  }
-
-  .tester-qr {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--space-3);
   }
 </style>

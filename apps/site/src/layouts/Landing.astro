@@ -5,6 +5,7 @@ import { SITE_COPY } from '../lib/copy';
 import { localeHref, withBase } from '../lib/locale';
 import Header from '../components/Header.astro';
 import Hero from '../components/Hero.astro';
+import TesterInvite from '../components/TesterInvite.astro';
 import Features from '../components/Features.astro';
 import Topics from '../components/Topics.astro';
 import Sources from '../components/Sources.astro';
@@ -49,6 +50,7 @@ const ogImageUrl = new URL(withBase('og-image.png'), siteOrigin).href;
     <Header lang={lang} copy={copy} />
     <main>
       <Hero lang={lang} copy={copy} />
+      <TesterInvite lang={lang} copy={copy} />
       <Features copy={copy} />
       <Topics lang={lang} copy={copy} />
       <Sources lang={lang} copy={copy} />

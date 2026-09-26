@@ -5,17 +5,12 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { Stack, ThemeProvider, useNavigationContainerRef } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { AppState, Platform, useColorScheme } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 import { syncEntitlementFromPlay } from '@/billing/entitlementSync';
 import { CrashFallback } from '@/components/CrashFallback';
 import { LoadingScreen } from '@/components/LoadingScreen';
-import {
-  techtokDarkTheme,
-  techtokLightTheme,
-  techtokNavigationDarkTheme,
-  techtokNavigationLightTheme,
-} from '@/constants/paperTheme';
+import { techtokDarkTheme, techtokNavigationDarkTheme } from '@/constants/paperTheme';
 import { ONE_DAY_MS } from '@/constants/time';
 import { useStrings } from '@/i18n/useStrings';
 import { useAuthStore } from '@/state/authStore';
@@ -29,7 +24,6 @@ import { startReadQueueFlushing } from '@/state/readQueue';
 import { navigationIntegration, Sentry } from '@/state/sentry';
 import { ready } from '@/state/storage';
 import { QUERY_CACHE_KEY } from '@/state/storageKeys';
-import { useThemeStore } from '@/state/themeStore';
 import { useTopicsStore } from '@/state/topicsStore';
 import { startOtaUpdates } from '@/state/updates';
 
@@ -41,9 +35,6 @@ const persister = createAsyncStoragePersister({
 export default Sentry.wrap(AppRoot);
 
 function RootLayout() {
-  const systemScheme = useColorScheme();
-  const themeMode = useThemeStore((state) => state.mode);
-  const colorScheme = themeMode === 'system' ? systemScheme : themeMode;
   const strings = useStrings();
   const authStatus = useAuthStore((state) => state.status);
   const [isHydrated, setIsHydrated] = useState(false);
@@ -61,7 +52,6 @@ function RootLayout() {
   useEffect(() => {
     ready().then(async () => {
       startNetworkMonitoring();
-      useThemeStore.getState().load();
       useHapticsStore.getState().load();
       useLanguageStore.getState().hydrate();
       setShowOnboarding(!hasSeenOnboarding());
@@ -107,10 +97,8 @@ function RootLayout() {
         },
       }}
     >
-      <PaperProvider theme={colorScheme === 'dark' ? techtokDarkTheme : techtokLightTheme}>
-        <ThemeProvider
-          value={colorScheme === 'dark' ? techtokNavigationDarkTheme : techtokNavigationLightTheme}
-        >
+      <PaperProvider theme={techtokDarkTheme}>
+        <ThemeProvider value={techtokNavigationDarkTheme}>
           <StatusBar style="auto" />
           <Stack
             screenOptions={{ headerShown: false }}

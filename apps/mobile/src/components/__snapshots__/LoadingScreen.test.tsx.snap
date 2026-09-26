@@ -10,7 +10,7 @@ exports[`LoadingScreen renders the branded logo + spinner without crashing (snap
         "justifyContent": "center",
       },
       {
-        "backgroundColor": "#fefbff",
+        "backgroundColor": "#111a33",
       },
     ]
   }
@@ -62,7 +62,7 @@ exports[`LoadingScreen renders the branded logo + spinner without crashing (snap
           "marginBottom": 24,
         },
         {
-          "color": "#111a33",
+          "color": "#dbe1ff",
         },
       ]
     }
@@ -70,7 +70,7 @@ exports[`LoadingScreen renders the branded logo + spinner without crashing (snap
     TechTok
   </Text>
   <ActivityIndicator
-    color="#895100"
+    color="#ffb86b"
     size="large"
     style={
       {

@@ -1,0 +1,32 @@
+---
+import type { Language } from '@techtok/shared';
+import type { SiteStrings } from '../lib/copy';
+import { localizedHref } from '../lib/locale';
+import TesterQrCodes from './TesterQrCodes.astro';
+
+interface Props {
+  lang: Language;
+  copy: SiteStrings;
+}
+
+const { lang, copy } = Astro.props;
+---
+
+<section id="join">
+  <div class="container join-container">
+    <div class="section-heading">
+      <h2><a href={localizedHref(lang, 'test/')}>{copy.tester.title}</a></h2>
+    </div>
+    <TesterQrCodes lang={lang} />
+  </div>
+</section>
+
+<style>
+  .join-container {
+    max-width: 720px;
+  }
+
+  .section-heading a {
+    text-decoration: none;
+  }
+</style>

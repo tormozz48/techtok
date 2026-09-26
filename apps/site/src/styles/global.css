@@ -372,18 +372,6 @@ section {
   font-style: italic;
 }
 
-/* Download */
-.download-panel {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--space-5);
-  align-items: center;
-  background: var(--navy-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-5);
-}
-
 .qr-frame {
   background: #fff;
   padding: var(--space-2);
@@ -395,30 +383,6 @@ section {
 .qr-frame svg {
   width: 100%;
   height: 100%;
-}
-
-.download-version {
-  display: inline-block;
-  margin: 0 0 var(--space-3);
-  padding: 4px 12px;
-  border-radius: 999px;
-  background: var(--chip-bg);
-  font-size: 0.8125rem;
-  color: var(--amber-soft);
-}
-
-.download-actions {
-  display: flex;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-  margin: var(--space-3) 0;
-}
-
-.download-note {
-  color: var(--text-muted);
-  font-size: 0.875rem;
-  max-width: 60ch;
-  margin: 0;
 }
 
 /* Footer */
@@ -468,16 +432,6 @@ section {
   .features-grid,
   .sources-grid {
     grid-template-columns: repeat(2, 1fr);
-  }
-
-  .download-panel {
-    grid-template-columns: 1fr;
-    justify-items: center;
-    text-align: center;
-  }
-
-  .download-actions {
-    justify-content: center;
   }
 }
 

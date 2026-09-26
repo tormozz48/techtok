@@ -1,0 +1,111 @@
+---
+import type { SiteStrings } from '../lib/copy';
+import { withBase } from '../lib/locale';
+
+interface Props {
+  copy: SiteStrings;
+}
+
+const { copy } = Astro.props;
+
+const SCREENSHOT_FILES = [
+  '01-feed-science.png',
+  '02-feed-ai.png',
+  '03-reader.png',
+  '04-settings.png',
+] as const;
+
+const SLIDE_SECONDS = 4;
+const slides = SCREENSHOT_FILES.map((file, index) => ({
+  src: withBase(`screenshots/${file}`),
+  alt: copy.mockup.screenshots[index],
+}));
+const totalSeconds = slides.length * SLIDE_SECONDS;
+---
+
+<div class="phone" role="img" aria-label={copy.mockup.screenshots[0]}>
+  <div class="phone-screen phone-carousel" style={`--slide-count: ${slides.length}; --slide-seconds: ${SLIDE_SECONDS}s; --total-seconds: ${totalSeconds}s;`}>
+    {
+      slides.map((slide, index) => (
+        <img
+          class="phone-slide"
+          src={slide.src}
+          alt={slide.alt}
+          loading={index === 0 ? 'eager' : 'lazy'}
+          style={`animation-delay: ${index * SLIDE_SECONDS}s;`}
+        />
+      ))
+    }
+  </div>
+  <div class="phone-dots">
+    {
+      slides.map((_, index) => (
+        <span class="phone-dot" style={`animation-delay: ${index * SLIDE_SECONDS}s;`} />
+      ))
+    }
+  </div>
+</div>
+
+<style>
+  .phone-carousel {
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 1080 / 1920;
+    padding: 0;
+  }
+
+  .phone-slide {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    animation-name: phone-slide-fade;
+    animation-duration: var(--total-seconds);
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+  }
+
+  .phone-dot {
+    animation-name: phone-dot-active;
+    animation-duration: var(--total-seconds);
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+  }
+
+  @keyframes phone-slide-fade {
+    0% {
+      opacity: 0;
+    }
+    3%,
+    20% {
+      opacity: 1;
+    }
+    27%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes phone-dot-active {
+    0% {
+      background: var(--border);
+    }
+    3%,
+    20% {
+      background: var(--amber);
+    }
+    25%,
+    100% {
+      background: var(--border);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .phone-slide,
+    .phone-dot {
+      animation-play-state: paused;
+    }
+  }
+</style>

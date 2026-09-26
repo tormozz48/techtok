@@ -220,45 +220,6 @@ section {
 .phone-screen {
   background: var(--navy);
   border-radius: 24px;
-  padding: var(--space-4) var(--space-3);
-  min-height: 460px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: var(--space-3);
-}
-
-.phone-chip {
-  display: inline-flex;
-  align-self: flex-start;
-  padding: 4px 12px;
-  border-radius: 999px;
-  background: var(--chip-bg);
-  color: var(--amber-soft);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.phone-headline {
-  font-size: 1.25rem;
-  font-weight: 700;
-  margin: 0;
-  line-height: 1.3;
-}
-
-.phone-snippet {
-  color: var(--text-secondary);
-  font-size: 0.9375rem;
-  margin: 0;
-}
-
-.phone-badge {
-  align-self: flex-start;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 3px 10px;
 }
 
 .phone-dots {
@@ -268,15 +229,11 @@ section {
   margin-top: var(--space-3);
 }
 
-.phone-dots span {
+.phone-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: var(--border);
-}
-
-.phone-dots span.active {
-  background: var(--amber);
 }
 
 /* Features */

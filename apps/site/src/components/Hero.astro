@@ -2,7 +2,7 @@
 import type { SiteStrings } from '../lib/copy';
 import { GITHUB_REPO_URL } from '../lib/download';
 import HeroBackground from './HeroBackground.astro';
-import PhoneMockup from './PhoneMockup.astro';
+import ScreenshotCarousel from './ScreenshotCarousel.astro';
 
 interface Props {
   copy: SiteStrings;
@@ -24,7 +24,7 @@ const { copy } = Astro.props;
       </div>
     </div>
     <div class="hero-visual">
-      <PhoneMockup copy={copy} />
+      <ScreenshotCarousel copy={copy} />
     </div>
   </div>
 </section>

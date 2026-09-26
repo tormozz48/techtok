@@ -83,7 +83,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
       apiUrl: apiUrl,
       invalidMessage: copy.emailFormInvalid,
       successMessage: copy.emailFormSuccess,
-      alreadyMessage: copy.emailFormAlready,
+      queuedMessage: copy.emailFormQueued,
       errorMessage: copy.emailFormError,
     }}
   >
@@ -112,7 +112,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
           if (!response.ok) throw new Error(`status ${response.status}`);
           const body = await response.json();
           status.textContent =
-            body.status === 'already_received' ? alreadyMessage : successMessage;
+            body.status === 'added' ? successMessage : queuedMessage;
           form.reset();
         } catch {
           status.textContent = errorMessage;

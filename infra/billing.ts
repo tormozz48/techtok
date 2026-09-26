@@ -1,5 +1,7 @@
 export const PLAY_PACKAGE_NAME = 'com.tormozz48dev.techtok';
 
+export const TESTERS_GROUP_EMAIL = 'testers@techtokapp.eu';
+
 export const playServiceAccountKey = new sst.Secret('PlayServiceAccountKey', '');
 
 export const billingEnvironment = {

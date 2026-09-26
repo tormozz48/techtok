@@ -49,6 +49,7 @@ export * from './repos/translateQueue';
 export * from './repos/userActivityRepo';
 export * from './repos/usersRepo';
 export * from './sources.types';
+export * from './testers/cloudIdentityGroupsClient';
 export * from './url/canonicalize';
 export * from './users.types';
 export * from './util/errors';

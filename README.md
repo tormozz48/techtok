@@ -88,7 +88,7 @@ flowchart LR
 | Component | Role |
 |---|---|
 | `apps/mobile` | Expo/React Native app (`expo-router`): card pager, compact reader, onboarding, sign-in, settings, history, saved, stats. React Native Paper (MD3), Sentry, committed bare `android/` project (D18). |
-| `apps/site` | Public Astro site on GitHub Pages: landing page in 4 languages, topics/sources, release history, APK download + QR, a closed-testing recruitment page (`/test/`, 4 languages) with a self-service signup form (submits to `POST /v1/testers`, which just queues the email in Postgres — the Android Publisher API's testers resource only accepts Google Groups, not individual emails, D114, so a maintainer periodically copies queued rows into Play Console's tester lists by hand; a `<noscript>` mailto fallback remains) and the Play testing link, plus the privacy-policy and account-deletion pages Play requires. |
+| `apps/site` | Public Astro site on GitHub Pages: landing page in 4 languages, topics/sources, release history, APK download + QR, a closed-testing recruitment page (`/test/`, 4 languages) with a self-service signup form (submits to `POST /v1/testers`, which stores the email and adds it to the `testers@techtokapp.eu` Cloud Identity group the Alpha track uses, D115 — or answers `queued` for manual addition when that isn't set up or fails; a `<noscript>` mailto fallback remains) and the Play testing link, plus the privacy-policy and account-deletion pages Play requires. |
 | API Gateway + JWT authorizer | Verifies a Google ID token before a request reaches a Lambda (D68). |
 | API Lambdas | One per route (`packages/functions/src/api/handlers/*`), thin over `packages/core` repos, validated by `packages/shared` zod schemas. |
 | `IngestPipeline` (Step Functions) | Fans out RSS fetching across sources on a schedule; isolates per-source failures. |
@@ -161,7 +161,17 @@ Set `LLM_PROVIDER=bedrock` (per stage, in `infra/pipeline.ts`'s env vars) to fal
 npx sst secret set PlayServiceAccountKey "$(cat play-service-account.json)" --stage dev
 ```
 
-The secret is declared with an empty-string placeholder (`infra/billing.ts`), so deploys succeed without it — the route just answers 503 `billing_unavailable` until it is set. The Play package name (`PLAY_PACKAGE_NAME`, `com.tormozz48dev.techtok`) is a plain env var in the same file. `POST /v1/testers` (D113/D114) does **not** use this secret — it only writes to Postgres, since the Android Publisher API has no way to add an individual tester email (D114).
+The secret is declared with an empty-string placeholder (`infra/billing.ts`), so deploys succeed without it — the route just answers 503 `billing_unavailable` until it is set. The Play package name (`PLAY_PACKAGE_NAME`, `com.tormozz48dev.techtok`) is a plain env var in the same file. `POST /v1/testers` (D115) reuses this same service account for a different API — see below.
+
+**Tester group (D115)** — `POST /v1/testers` adds each signup to the Google Group `testers@techtokapp.eu` (`TESTERS_GROUP_EMAIL`, a plain constant in `infra/billing.ts`) through the Cloud Identity Groups API, authenticating as the `PlayServiceAccountKey` service account with the `cloud-identity.groups` scope. The Android Publisher API can't add individual testers (D114), so the Alpha closed-testing track points at this group instead. One-time maintainer setup, all outside this repo:
+
+1. Sign up for **Cloud Identity Free** with the `techtokapp.eu` domain (verification is a DNS TXT record in the existing Route53 zone; no MX change, so D103's mail forwarding is untouched).
+2. In the Admin console, create `testers@techtokapp.eu`, allow members outside the organization, and **add one `@gmail.com` address by hand first** — this confirms external members work on the Free edition before anything else depends on it.
+3. Enable the **Cloud Identity API** in the GCP project that owns the Play service account.
+4. Admin console → Account → Admin roles → **Groups Admin** → assign it to that service account (no domain-wide delegation needed).
+5. Play Console → Alpha → Testers: add the existing email-list testers to the group, then switch the track to **Google Groups** = `testers@techtokapp.eu`.
+
+Until 1–4 are done the route still stores the email and answers `queued` (logged in CloudWatch with the reason), so nothing breaks — queued rows in the `testers` table are the manual fallback.
 
 **Google OAuth client ID (D68)** — the JWT authorizer checks its `audience` against this, so a deploy without it rejects every real ID token. A plain env var, not a secret (an OAuth client ID is public by design):
 

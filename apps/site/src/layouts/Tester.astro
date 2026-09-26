@@ -111,7 +111,8 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
           });
           if (!response.ok) throw new Error(`status ${response.status}`);
           const body = await response.json();
-          status.textContent = body.status === 'already_added' ? alreadyMessage : successMessage;
+          status.textContent =
+            body.status === 'already_received' ? alreadyMessage : successMessage;
           form.reset();
         } catch {
           status.textContent = errorMessage;

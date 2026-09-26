@@ -1,0 +1,1 @@
+ALTER TABLE "testers" DROP COLUMN "play_added_at";

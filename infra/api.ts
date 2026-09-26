@@ -210,7 +210,7 @@ api.route(
 
 api.route('POST /v1/testers', {
   handler: 'packages/functions/src/api/handlers/testerSignup.handler',
-  link: [neonDatabaseUrl, playServiceAccountKey],
-  environment: { ...dbEnvironment, ...billingEnvironment },
+  link: dbLink,
+  environment: dbEnvironment,
   runtime: 'nodejs22.x',
 });

@@ -50,6 +50,13 @@
       "when": 1790420109373,
       "tag": "0006_elite_firelord",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790427242550,
+      "tag": "0007_pale_human_torch",
+      "breakpoints": true
     }
   ]
 }

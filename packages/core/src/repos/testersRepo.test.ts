@@ -10,29 +10,25 @@ beforeEach(async () => {
   repo = new TestersRepo(db);
 });
 
-describe('testersRepo.findByEmail', () => {
-  it('returns undefined for an email never submitted', async () => {
-    expect(await repo.findByEmail('nobody@example.com')).toBeUndefined();
+describe('testersRepo.exists', () => {
+  it('returns false for an email never submitted', async () => {
+    expect(await repo.exists('nobody@example.com')).toBe(false);
   });
 
-  it('returns the record after it was recorded as added', async () => {
-    await repo.recordAdded('tester@example.com', '2026-09-26T00:00:00.000Z');
+  it('returns true after the email was created', async () => {
+    await repo.create('tester@example.com', '2026-09-26T00:00:00.000Z');
 
-    expect(await repo.findByEmail('tester@example.com')).toEqual({
-      email: 'tester@example.com',
-      playAddedAt: '2026-09-26T00:00:00.000Z',
-    });
+    expect(await repo.exists('tester@example.com')).toBe(true);
   });
 });
 
-describe('testersRepo.recordAdded', () => {
+describe('testersRepo.create', () => {
   it('is idempotent for a repeat submission of the same email', async () => {
-    await repo.recordAdded('tester@example.com', '2026-09-26T00:00:00.000Z');
-    await repo.recordAdded('tester@example.com', '2026-09-27T00:00:00.000Z');
+    await repo.create('tester@example.com', '2026-09-26T00:00:00.000Z');
 
-    expect(await repo.findByEmail('tester@example.com')).toEqual({
-      email: 'tester@example.com',
-      playAddedAt: '2026-09-27T00:00:00.000Z',
-    });
+    await expect(
+      repo.create('tester@example.com', '2026-09-27T00:00:00.000Z'),
+    ).resolves.toBeUndefined();
+    expect(await repo.exists('tester@example.com')).toBe(true);
   });
 });

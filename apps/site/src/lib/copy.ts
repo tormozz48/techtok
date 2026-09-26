@@ -213,7 +213,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       steps: [
         {
           title: 'Submit your Google address',
-          body: "Enter the address your Android phone is signed in with below — you're added to the closed test right away, no reply to wait for.",
+          body: "Enter the address your Android phone is signed in with below. I add new testers in batches every few days — once you're on the list, the invitation link further down starts working, no reply needed from you.",
         },
         {
           title: 'Accept the invitation',
@@ -236,8 +236,10 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       emailFormLabel: 'Your Google account email',
       emailFormPlaceholder: 'you@gmail.com',
       emailFormInvalid: 'Enter a valid email address.',
-      emailFormSuccess: "Done — you're on the list. The invitation link below is active now.",
-      emailFormAlready: "You're already on the list — the invitation link below should work.",
+      emailFormSuccess:
+        "Got it — you're queued. I add new testers every few days; the invitation link below will start working once you're on the list.",
+      emailFormAlready:
+        "You're already queued — the invitation link below will work once you've been added.",
       emailFormError: 'Something went wrong. Try again in a moment, or use the email link below.',
       perksTitle: 'What you get',
       perksBody:
@@ -367,7 +369,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       steps: [
         {
           title: 'Пришлите адрес своего аккаунта Google',
-          body: 'Введите ниже адрес, под которым вошли на телефоне, — вас добавят в закрытый тест сразу, никакого ответа ждать не нужно.',
+          body: 'Введите ниже адрес, под которым вошли на телефоне. Я добавляю новых тестировщиков партиями каждые несколько дней — как только вы попадёте в список, ссылка-приглашение ниже заработает, отвечать вам не нужно.',
         },
         {
           title: 'Примите приглашение',
@@ -391,8 +393,10 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       emailFormLabel: 'Адрес вашего аккаунта Google',
       emailFormPlaceholder: 'you@gmail.com',
       emailFormInvalid: 'Введите корректный адрес электронной почты.',
-      emailFormSuccess: 'Готово — вы в списке. Ссылка-приглашение ниже уже работает.',
-      emailFormAlready: 'Вы уже в списке — ссылка-приглашение ниже должна работать.',
+      emailFormSuccess:
+        'Готово — вы в очереди. Я добавляю новых тестировщиков каждые несколько дней; ссылка-приглашение ниже заработает, как только вас добавят.',
+      emailFormAlready:
+        'Вы уже в очереди — ссылка-приглашение ниже заработает, как только вас добавят.',
       emailFormError: 'Что-то пошло не так. Попробуйте ещё раз или напишите по ссылке ниже.',
       perksTitle: 'Что вы получите',
       perksBody:
@@ -524,7 +528,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       steps: [
         {
           title: 'Надішліть адресу свого акаунта Google',
-          body: 'Введіть нижче адресу, під якою увійшли на телефоні, — вас додадуть до закритого тесту одразу, чекати на відповідь не потрібно.',
+          body: 'Введіть нижче адресу, під якою увійшли на телефоні. Я додаю нових тестувальників партіями раз на кілька днів — щойно ви потрапите до списку, посилання-запрошення нижче запрацює, відповідати вам не потрібно.',
         },
         {
           title: 'Прийміть запрошення',
@@ -548,8 +552,9 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       emailFormLabel: 'Адреса вашого акаунта Google',
       emailFormPlaceholder: 'you@gmail.com',
       emailFormInvalid: 'Введіть коректну адресу електронної пошти.',
-      emailFormSuccess: 'Готово — ви у списку. Посилання-запрошення нижче вже працює.',
-      emailFormAlready: 'Ви вже у списку — посилання-запрошення нижче має працювати.',
+      emailFormSuccess:
+        'Готово — ви в черзі. Я додаю нових тестувальників раз на кілька днів; посилання-запрошення нижче запрацює, щойно вас додадуть.',
+      emailFormAlready: 'Ви вже в черзі — посилання-запрошення нижче запрацює, щойно вас додадуть.',
       emailFormError: 'Щось пішло не так. Спробуйте ще раз або напишіть за посиланням нижче.',
       perksTitle: 'Що ви отримаєте',
       perksBody:
@@ -680,7 +685,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       steps: [
         {
           title: 'Wyślij adres swojego konta Google',
-          body: 'Wpisz poniżej adres, na który zalogowany jest Twój telefon — zostaniesz dodany do testu zamkniętego od razu, bez czekania na odpowiedź.',
+          body: 'Wpisz poniżej adres, na który zalogowany jest Twój telefon. Dodaję nowych testerów partiami co kilka dni — gdy tylko znajdziesz się na liście, poniższy link zaproszenia zacznie działać, bez odpowiadania z Twojej strony.',
         },
         {
           title: 'Przyjmij zaproszenie',
@@ -703,8 +708,10 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       emailFormLabel: 'Adres Twojego konta Google',
       emailFormPlaceholder: 'you@gmail.com',
       emailFormInvalid: 'Podaj prawidłowy adres e-mail.',
-      emailFormSuccess: 'Gotowe — jesteś na liście. Poniższy link zaproszenia już działa.',
-      emailFormAlready: 'Jesteś już na liście — poniższy link zaproszenia powinien działać.',
+      emailFormSuccess:
+        'Gotowe — jesteś w kolejce. Dodaję nowych testerów co kilka dni; poniższy link zaproszenia zacznie działać, gdy tylko zostaniesz dodany.',
+      emailFormAlready:
+        'Jesteś już w kolejce — poniższy link zaproszenia zacznie działać, gdy tylko zostaniesz dodany.',
       emailFormError: 'Coś poszło nie tak. Spróbuj ponownie lub napisz na adres poniżej.',
       perksTitle: 'Co z tego masz',
       perksBody:

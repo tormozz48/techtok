@@ -1,7 +1,8 @@
 name: Mobile release (Play Store)
 
 # Builds the `production` eas.json profile as a Play-uploadable AAB and, when
-# PlayServiceAccountKey exists, submits it to Play's `internal` track. Called
+# PlayServiceAccountKey exists, submits it to Play's `internal` and `alpha`
+# (closed testing) tracks. Called
 # by ci.yml (D98) on the same should_build gate as mobile-build.yml, in
 # parallel with it (D99). workflow_dispatch stays for an ad hoc rebuild.
 on:
@@ -113,17 +114,18 @@ jobs:
           name: techtok-${{ github.run_number }}.aab
           path: ${{ github.workspace }}/techtok.aab
 
-      # D98: auto-submits to Play's `internal` track once
-      # PlayServiceAccountKey (D71) exists; a clean skip until then. `internal`
-      # has no review and is where phase 23's first Play-signed upload must
-      # land (D68's SHA-1 ordering trap). The app must already exist in Play
+      # D98/D116: one upload, released to both `internal` (no review, instant)
+      # and `alpha` (closed testing, the tester group of D115; each release goes
+      # through Play review). A versionCode can only be uploaded once, so both
+      # tracks must be in this single edit. Skips cleanly until
+      # PlayServiceAccountKey (D71) exists. The app must already exist in Play
       # Console with App Signing on — the API uploads releases, not apps.
-      - name: Publish to Google Play (internal track)
+      - name: Publish to Google Play (internal + alpha tracks)
         if: env.HAS_PLAY_KEY == 'true'
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PlayServiceAccountKey }}
           packageName: com.tormozz48dev.techtok
           releaseFiles: ${{ github.workspace }}/techtok.aab
-          tracks: internal
+          tracks: internal,alpha
           status: completed

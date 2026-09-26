@@ -141,7 +141,7 @@ export const testerSignupRequestSchema = z.object({
 export type TesterSignupRequest = z.infer<typeof testerSignupRequestSchema>;
 
 export const testerSignupResponseSchema = z.object({
-  status: z.enum(['added', 'already_added']),
+  status: z.enum(['received', 'already_received']),
 });
 export type TesterSignupResponse = z.infer<typeof testerSignupResponseSchema>;
 

@@ -1503,8 +1503,8 @@
       "status": {
         "type": "string",
         "enum": [
-          "added",
-          "already_added"
+          "received",
+          "already_received"
         ]
       }
     },

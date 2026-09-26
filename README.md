@@ -88,7 +88,7 @@ flowchart LR
 | Component | Role |
 |---|---|
 | `apps/mobile` | Expo/React Native app (`expo-router`): card pager, compact reader, onboarding, sign-in, settings, history, saved, stats. React Native Paper (MD3), Sentry, committed bare `android/` project (D18). |
-| `apps/site` | Public Astro site on GitHub Pages: landing page in 4 languages, topics/sources, release history, APK download + QR, a closed-testing recruitment page (`/test/`, 4 languages) with a self-service signup form (submits to `POST /v1/testers`, which just queues the email in Postgres — the Android Publisher API dropped individual-email tester management in January 2026, D114, so a maintainer periodically copies queued rows into Play Console's tester lists by hand; a `<noscript>` mailto fallback remains) and the Play testing link, plus the privacy-policy and account-deletion pages Play requires. |
+| `apps/site` | Public Astro site on GitHub Pages: landing page in 4 languages, topics/sources, release history, APK download + QR, a closed-testing recruitment page (`/test/`, 4 languages) that sends testers to join the public Google Group `techtok-testers@googlegroups.com` (the Alpha track's tester list, D115) and then to the Play testing link, plus the privacy-policy and account-deletion pages Play requires. |
 | API Gateway + JWT authorizer | Verifies a Google ID token before a request reaches a Lambda (D68). |
 | API Lambdas | One per route (`packages/functions/src/api/handlers/*`), thin over `packages/core` repos, validated by `packages/shared` zod schemas. |
 | `IngestPipeline` (Step Functions) | Fans out RSS fetching across sources on a schedule; isolates per-source failures. |
@@ -161,7 +161,7 @@ Set `LLM_PROVIDER=bedrock` (per stage, in `infra/pipeline.ts`'s env vars) to fal
 npx sst secret set PlayServiceAccountKey "$(cat play-service-account.json)" --stage dev
 ```
 
-The secret is declared with an empty-string placeholder (`infra/billing.ts`), so deploys succeed without it — the route just answers 503 `billing_unavailable` until it is set. The Play package name (`PLAY_PACKAGE_NAME`, `com.tormozz48dev.techtok`) is a plain env var in the same file. `POST /v1/testers` (D113/D114) does **not** use this secret — it only writes to Postgres, since the Android Publisher API no longer supports adding an individual tester email at all (D114).
+The secret is declared with an empty-string placeholder (`infra/billing.ts`), so deploys succeed without it — the route just answers 503 `billing_unavailable` until it is set. The Play package name (`PLAY_PACKAGE_NAME`, `com.tormozz48dev.techtok`) is a plain env var in the same file.
 
 **Google OAuth client ID (D68)** — the JWT authorizer checks its `audience` against this, so a deploy without it rejects every real ID token. A plain env var, not a secret (an OAuth client ID is public by design):
 
@@ -344,4 +344,4 @@ No long-lived AWS keys anywhere — every AWS-touching job assumes a role via OI
 
 | Variable | Used by | Notes |
 |---|---|---|
-| `PRODUCTION_API_URL` | `mobile-changes`, Mobile build, Mobile release, Deploy site | The production API Gateway base URL, baked into every APK/AAB/OTA bundle as `EXPO_PUBLIC_API_URL`, and into the site build as `PUBLIC_API_URL` (D113 — the tester signup form's `fetch` target). A **variable**, not a secret: it is public by construction (extractable from any shipped APK), secrets can't be referenced in a job-level `if:`, and log masking would reduce the guard's error message to `***`. Replacing the old workflow output with it is what lets the mobile chain run in parallel with the deploy (D100). `mobile-changes` fails the mobile chain when it's unset; `Deploy production` warns when it no longer matches what it just deployed. |
+| `PRODUCTION_API_URL` | `mobile-changes`, Mobile build, Mobile release | The production API Gateway base URL, baked into every APK/AAB/OTA bundle as `EXPO_PUBLIC_API_URL`. A **variable**, not a secret: it is public by construction (extractable from any shipped APK), secrets can't be referenced in a job-level `if:`, and log masking would reduce the guard's error message to `***`. Replacing the old workflow output with it is what lets the mobile chain run in parallel with the deploy (D100). `mobile-changes` fails the mobile chain when it's unset; `Deploy production` warns when it no longer matches what it just deployed. |

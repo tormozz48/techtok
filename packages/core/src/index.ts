@@ -43,7 +43,6 @@ export * from './repos/imageStore';
 export * from './repos/postsRepo';
 export * from './repos/rawArticleStore';
 export * from './repos/sourcesRepo';
-export * from './repos/testersRepo';
 export * from './repos/transformQueue';
 export * from './repos/translateQueue';
 export * from './repos/userActivityRepo';

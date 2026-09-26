@@ -73,16 +73,8 @@ export interface SiteStrings {
     stepsTitle: string;
     steps: { title: string; body: string }[];
     qrHint: string;
-    ctaEmail: string;
+    ctaJoinGroup: string;
     ctaOptIn: string;
-    mailSubject: string;
-    mailBody: string;
-    emailFormLabel: string;
-    emailFormPlaceholder: string;
-    emailFormInvalid: string;
-    emailFormSuccess: string;
-    emailFormAlready: string;
-    emailFormError: string;
     perksTitle: string;
     perksBody: string;
     feedbackTitle: string;
@@ -206,12 +198,12 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       stepsTitle: 'How to join',
       steps: [
         {
-          title: 'Submit your Google address',
-          body: "Enter the address your Android phone is signed in with below. I add new testers in batches every few days — once you're on the list, the invitation link further down starts working, no reply needed from you.",
+          title: 'Join the tester group',
+          body: 'Open the TechTok testers group with the button below and tap Join group, signed in with the Google account on your Android phone. Google only lets group members into the closed test.',
         },
         {
           title: 'Accept the invitation',
-          body: 'Open the testing link on your phone, or scan the QR code with its camera, and tap the button that makes you a tester.',
+          body: "Once you're in the group, open the invitation link on your phone and tap the button that makes you a tester.",
         },
         {
           title: 'Install from Google Play',
@@ -223,27 +215,17 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
         },
       ],
       qrHint: "Scan with your phone's camera",
-      ctaEmail: 'Add me as a tester',
+      ctaJoinGroup: 'Join the tester group',
       ctaOptIn: 'Open the invitation',
-      mailSubject: 'TechTok tester',
-      mailBody: 'Hi! I would like to join the TechTok closed test. My Google account address is: ',
-      emailFormLabel: 'Your Google account email',
-      emailFormPlaceholder: 'you@gmail.com',
-      emailFormInvalid: 'Enter a valid email address.',
-      emailFormSuccess:
-        "Got it — you're queued. I add new testers every few days; the invitation link below will start working once you're on the list.",
-      emailFormAlready:
-        "You're already queued — the invitation link below will work once you've been added.",
-      emailFormError: 'Something went wrong. Try again in a moment, or use the email link below.',
       perksTitle: 'What you get',
       perksBody:
         'Testers keep TechTok Plus for free, for as long as they want it — the paid tier, at no cost, whatever it ends up costing everyone else.',
       feedbackTitle: 'Feedback',
       feedbackBody:
-        'A bad translation, a card that makes no sense, a crash, a button in the wrong place, a source you wish were there — send any of it to the same address. At the end of the test Google asks what the testers said and what changed because of it, so your notes genuinely end up in that answer.',
+        'A bad translation, a card that makes no sense, a crash, a button in the wrong place, a source you wish were there — email any of it to the address below. At the end of the test Google asks what the testers said and what changed because of it, so your notes genuinely end up in that answer.',
       privacyTitle: 'What happens to your address',
       privacyBody:
-        'It goes onto the tester list in Google Play Console, and nowhere else. No mailing list, nothing passed to anyone. If you then sign in to the app, TechTok stores your Google account identifier, your email and your display name, and nothing further about you.',
+        'Joining puts your Google account in the TechTok testers group and nowhere else: only I can see its member list, nobody can post to it, and it sends no mail. If you then sign in to the app, TechTok stores your Google account identifier, your email and your display name, and nothing further about you.',
       privacyLink: 'Read the privacy policy',
     },
   },
@@ -359,12 +341,12 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       stepsTitle: 'Как присоединиться',
       steps: [
         {
-          title: 'Пришлите адрес своего аккаунта Google',
-          body: 'Введите ниже адрес, под которым вошли на телефоне. Я добавляю новых тестировщиков партиями каждые несколько дней — как только вы попадёте в список, ссылка-приглашение ниже заработает, отвечать вам не нужно.',
+          title: 'Вступите в группу тестировщиков',
+          body: 'Откройте группу TechTok testers по кнопке ниже и нажмите «Вступить в группу», войдя в тот аккаунт Google, что на вашем телефоне. В закрытый тест Google пускает только участников группы.',
         },
         {
           title: 'Примите приглашение',
-          body: 'Откройте ссылку на телефоне или наведите на QR-код камеру и нажмите кнопку, которая делает вас тестировщиком.',
+          body: 'Вступив в группу, откройте ссылку-приглашение на телефоне и нажмите кнопку, которая делает вас тестировщиком.',
         },
         {
           title: 'Установите из Google Play',
@@ -376,28 +358,17 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
         },
       ],
       qrHint: 'Наведите камеру телефона',
-      ctaEmail: 'Добавить меня тестировщиком',
+      ctaJoinGroup: 'Вступить в группу',
       ctaOptIn: 'Открыть приглашение',
-      mailSubject: 'Тестирование TechTok',
-      mailBody:
-        'Привет! Хочу участвовать в закрытом тестировании TechTok. Адрес моего аккаунта Google: ',
-      emailFormLabel: 'Адрес вашего аккаунта Google',
-      emailFormPlaceholder: 'you@gmail.com',
-      emailFormInvalid: 'Введите корректный адрес электронной почты.',
-      emailFormSuccess:
-        'Готово — вы в очереди. Я добавляю новых тестировщиков каждые несколько дней; ссылка-приглашение ниже заработает, как только вас добавят.',
-      emailFormAlready:
-        'Вы уже в очереди — ссылка-приглашение ниже заработает, как только вас добавят.',
-      emailFormError: 'Что-то пошло не так. Попробуйте ещё раз или напишите по ссылке ниже.',
       perksTitle: 'Что вы получите',
       perksBody:
         'Тестировщики бесплатно оставляют себе TechTok Plus — платный тариф, без оплаты, столько, сколько захотят, сколько бы он потом ни стоил остальным.',
       feedbackTitle: 'Обратная связь',
       feedbackBody:
-        'Кривой перевод, бессмысленная карточка, вылет, кнопка не на месте, не хватает источника — пишите на тот же адрес. В конце теста Google спрашивает, что сказали тестировщики и что изменилось благодаря этому, так что ваши замечания реально попадут в этот ответ.',
+        'Кривой перевод, бессмысленная карточка, вылет, кнопка не на месте, не хватает источника — пишите на адрес ниже. В конце теста Google спрашивает, что сказали тестировщики и что изменилось благодаря этому, так что ваши замечания реально попадут в этот ответ.',
       privacyTitle: 'Что будет с вашим адресом',
       privacyBody:
-        'Он попадёт в список тестировщиков в Google Play Console и больше никуда. Никаких рассылок, никому не передаётся. Если вы потом войдёте в приложение, TechTok сохранит идентификатор вашего аккаунта Google, адрес почты и отображаемое имя — и больше ничего о вас.',
+        'Вы попадёте в группу TechTok testers и больше никуда: список участников вижу только я, писать в группу никто не может, и писем она не присылает. Если вы потом войдёте в приложение, TechTok сохранит идентификатор вашего аккаунта Google, адрес почты и отображаемое имя — и больше ничего о вас.',
       privacyLink: 'Политика конфиденциальности',
     },
   },
@@ -515,12 +486,12 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       stepsTitle: 'Як долучитися',
       steps: [
         {
-          title: 'Надішліть адресу свого акаунта Google',
-          body: 'Введіть нижче адресу, під якою увійшли на телефоні. Я додаю нових тестувальників партіями раз на кілька днів — щойно ви потрапите до списку, посилання-запрошення нижче запрацює, відповідати вам не потрібно.',
+          title: 'Приєднайтеся до групи тестувальників',
+          body: 'Відкрийте групу TechTok testers за кнопкою нижче й натисніть «Приєднатися до групи», увійшовши в той акаунт Google, що на вашому телефоні. У закрите тестування Google пускає лише учасників групи.',
         },
         {
           title: 'Прийміть запрошення',
-          body: 'Відкрийте посилання на телефоні або наведіть на QR-код камеру і натисніть кнопку, яка робить вас тестувальником.',
+          body: 'Вступивши до групи, відкрийте посилання-запрошення на телефоні й натисніть кнопку, яка робить вас тестувальником.',
         },
         {
           title: 'Встановіть з Google Play',
@@ -532,27 +503,17 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
         },
       ],
       qrHint: 'Наведіть камеру телефона',
-      ctaEmail: 'Додати мене тестувальником',
+      ctaJoinGroup: 'Приєднатися до групи',
       ctaOptIn: 'Відкрити запрошення',
-      mailSubject: 'Тестування TechTok',
-      mailBody:
-        'Привіт! Хочу долучитися до закритого тестування TechTok. Адреса мого акаунта Google: ',
-      emailFormLabel: 'Адреса вашого акаунта Google',
-      emailFormPlaceholder: 'you@gmail.com',
-      emailFormInvalid: 'Введіть коректну адресу електронної пошти.',
-      emailFormSuccess:
-        'Готово — ви в черзі. Я додаю нових тестувальників раз на кілька днів; посилання-запрошення нижче запрацює, щойно вас додадуть.',
-      emailFormAlready: 'Ви вже в черзі — посилання-запрошення нижче запрацює, щойно вас додадуть.',
-      emailFormError: 'Щось пішло не так. Спробуйте ще раз або напишіть за посиланням нижче.',
       perksTitle: 'Що ви отримаєте',
       perksBody:
         'Тестувальники безкоштовно залишають собі TechTok Plus — платний тариф, без оплати, стільки, скільки захочуть, скільки б він потім не коштував іншим.',
       feedbackTitle: 'Зворотний звʼязок',
       feedbackBody:
-        'Кривий переклад, беззмістовна картка, виліт, кнопка не на місці, бракує джерела — пишіть на ту саму адресу. Наприкінці тесту Google запитує, що сказали тестувальники і що завдяки цьому змінилося, тож ваші зауваження справді потраплять у цю відповідь.',
+        'Кривий переклад, беззмістовна картка, виліт, кнопка не на місці, бракує джерела — пишіть на адресу нижче. Наприкінці тесту Google запитує, що сказали тестувальники і що завдяки цьому змінилося, тож ваші зауваження справді потраплять у цю відповідь.',
       privacyTitle: 'Що буде з вашою адресою',
       privacyBody:
-        'Вона потрапить до списку тестувальників у Google Play Console і більше нікуди. Жодних розсилок, нікому не передається. Якщо ви потім увійдете в застосунок, TechTok збереже ідентифікатор вашого акаунта Google, адресу пошти та відображуване імʼя — і більше нічого про вас.',
+        'Ви потрапите до групи TechTok testers і більше нікуди: список учасників бачу лише я, писати в групу ніхто не може, і листів вона не надсилає. Якщо ви потім увійдете в застосунок, TechTok збереже ідентифікатор вашого акаунта Google, адресу пошти та відображуване імʼя — і більше нічого про вас.',
       privacyLink: 'Політика конфіденційності',
     },
   },
@@ -668,12 +629,12 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       stepsTitle: 'Jak dołączyć',
       steps: [
         {
-          title: 'Wyślij adres swojego konta Google',
-          body: 'Wpisz poniżej adres, na który zalogowany jest Twój telefon. Dodaję nowych testerów partiami co kilka dni — gdy tylko znajdziesz się na liście, poniższy link zaproszenia zacznie działać, bez odpowiadania z Twojej strony.',
+          title: 'Dołącz do grupy testerów',
+          body: 'Otwórz grupę TechTok testers przyciskiem poniżej i kliknij „Dołącz do grupy”, zalogowany na konto Google z Twojego telefonu. Do testów zamkniętych Google wpuszcza tylko członków grupy.',
         },
         {
           title: 'Przyjmij zaproszenie',
-          body: 'Otwórz link na telefonie albo zeskanuj kod QR aparatem i kliknij przycisk, który czyni Cię testerem.',
+          body: 'Gdy już jesteś w grupie, otwórz link zaproszenia na telefonie i kliknij przycisk, który czyni Cię testerem.',
         },
         {
           title: 'Zainstaluj z Google Play',
@@ -685,27 +646,17 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
         },
       ],
       qrHint: 'Zeskanuj aparatem telefonu',
-      ctaEmail: 'Dodaj mnie jako testera',
+      ctaJoinGroup: 'Dołącz do grupy',
       ctaOptIn: 'Otwórz zaproszenie',
-      mailSubject: 'Testy TechTok',
-      mailBody: 'Cześć! Chcę dołączyć do testów zamkniętych TechTok. Adres mojego konta Google: ',
-      emailFormLabel: 'Adres Twojego konta Google',
-      emailFormPlaceholder: 'you@gmail.com',
-      emailFormInvalid: 'Podaj prawidłowy adres e-mail.',
-      emailFormSuccess:
-        'Gotowe — jesteś w kolejce. Dodaję nowych testerów co kilka dni; poniższy link zaproszenia zacznie działać, gdy tylko zostaniesz dodany.',
-      emailFormAlready:
-        'Jesteś już w kolejce — poniższy link zaproszenia zacznie działać, gdy tylko zostaniesz dodany.',
-      emailFormError: 'Coś poszło nie tak. Spróbuj ponownie lub napisz na adres poniżej.',
       perksTitle: 'Co z tego masz',
       perksBody:
         'Testerzy zatrzymują TechTok Plus za darmo, na tak długo, jak zechcą — płatny plan bez opłaty, niezależnie od tego, ile będzie kosztował resztę.',
       feedbackTitle: 'Uwagi',
       feedbackBody:
-        'Kiepskie tłumaczenie, karta bez sensu, awaria, przycisk nie tam, gdzie trzeba, brakujące źródło — wyślij to na ten sam adres. Na koniec testu Google pyta, co powiedzieli testerzy i co się dzięki temu zmieniło, więc Twoje uwagi naprawdę trafiają do tej odpowiedzi.',
+        'Kiepskie tłumaczenie, karta bez sensu, awaria, przycisk nie tam, gdzie trzeba, brakujące źródło — wyślij to na adres poniżej. Na koniec testu Google pyta, co powiedzieli testerzy i co się dzięki temu zmieniło, więc Twoje uwagi naprawdę trafiają do tej odpowiedzi.',
       privacyTitle: 'Co się dzieje z Twoim adresem',
       privacyBody:
-        'Trafia na listę testerów w Google Play Console i nigdzie indziej. Żadnej listy mailingowej, nikomu nieprzekazywany. Jeśli potem zalogujesz się w aplikacji, TechTok zapisze identyfikator Twojego konta Google, adres e-mail i nazwę wyświetlaną — i nic więcej o Tobie.',
+        'Trafiasz do grupy TechTok testers i nigdzie indziej: listę członków widzę tylko ja, nikt nie może w niej pisać i nie wysyła ona żadnych wiadomości. Jeśli potem zalogujesz się w aplikacji, TechTok zapisze identyfikator Twojego konta Google, adres e-mail i nazwę wyświetlaną — i nic więcej o Tobie.',
       privacyLink: 'Polityka prywatności',
     },
   },

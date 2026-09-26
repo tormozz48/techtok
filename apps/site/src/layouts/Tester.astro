@@ -1,8 +1,9 @@
 ---
 import type { Language } from '@techtok/shared';
 import { SITE_COPY } from '../lib/copy';
-import { PLAY_TESTING_URL, TESTER_GROUP_URL } from '../lib/download';
+import { PLAY_INVITE_PATH, TESTER_GROUP_URL } from '../lib/download';
 import { SUPPORT_EMAIL } from '../lib/legal';
+import { withBase } from '../lib/locale';
 import { qrSvg } from '../lib/qr';
 import Document from './Document.astro';
 
@@ -12,7 +13,12 @@ interface Props {
 
 const { lang } = Astro.props;
 const copy = SITE_COPY[lang].tester;
-const qr = await qrSvg(TESTER_GROUP_URL);
+const siteOrigin = Astro.site ?? new URL(withBase(''), Astro.url).origin;
+const inviteUrl = new URL(withBase(PLAY_INVITE_PATH), siteOrigin).href;
+const qrCodes = [
+  { href: TESTER_GROUP_URL, label: copy.ctaJoinGroup, svg: await qrSvg(TESTER_GROUP_URL), primary: true },
+  { href: inviteUrl, label: copy.ctaOptIn, svg: await qrSvg(inviteUrl), primary: false },
+];
 ---
 
 <Document
@@ -48,17 +54,18 @@ const qr = await qrSvg(TESTER_GROUP_URL);
   </ol>
 
   <div class="tester-panel">
-    <div class="qr-frame" set:html={qr} />
-    <div>
-      <p class="tester-qr-hint">{copy.qrHint}</p>
-      <div class="tester-actions">
-        <a class="button button-primary" href={TESTER_GROUP_URL} rel="noopener">
-          {copy.ctaJoinGroup}
-        </a>
-        <a class="button button-secondary" href={PLAY_TESTING_URL} rel="noopener">
-          {copy.ctaOptIn}
-        </a>
-      </div>
+    <p class="tester-qr-hint">{copy.qrHint}</p>
+    <div class="tester-qrs">
+      {
+        qrCodes.map((qr) => (
+          <div class="tester-qr">
+            <div class="qr-frame" set:html={qr.svg} />
+            <a class:list={['button', qr.primary ? 'button-primary' : 'button-secondary']} href={qr.href} rel="noopener">
+              {qr.label}
+            </a>
+          </div>
+        ))
+      }
     </div>
   </div>
 
@@ -116,36 +123,29 @@ const qr = await qrSvg(TESTER_GROUP_URL);
   }
 
   .tester-panel {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: var(--space-5);
-    align-items: center;
     background: var(--navy-card);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: var(--space-5);
     margin: 0 0 var(--space-5);
+    text-align: center;
   }
 
   .tester-qr-hint {
-    margin: 0 0 var(--space-3);
+    margin: 0 0 var(--space-4);
   }
 
-  .tester-actions {
+  .tester-qrs {
     display: flex;
-    gap: var(--space-3);
+    justify-content: center;
+    gap: var(--space-5);
     flex-wrap: wrap;
   }
 
-  @media (max-width: 640px) {
-    .tester-panel {
-      grid-template-columns: 1fr;
-      justify-items: center;
-      text-align: center;
-    }
-
-    .tester-actions {
-      justify-content: center;
-    }
+  .tester-qr {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
   }
 </style>

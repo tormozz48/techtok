@@ -147,6 +147,7 @@ section {
 
 .lang-switch {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-1);
 }
 
@@ -403,7 +404,8 @@ section {
 
 .footer-links {
   display: flex;
-  gap: var(--space-4);
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
 }
 
 .footer-links a {
@@ -436,6 +438,14 @@ section {
 }
 
 @media (max-width: 640px) {
+  .site-header {
+    padding-inline: var(--space-3);
+  }
+
+  .lang-link {
+    padding-inline: 8px;
+  }
+
   .site-nav {
     display: none;
   }

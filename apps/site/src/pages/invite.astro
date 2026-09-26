@@ -1,0 +1,21 @@
+---
+import { PLAY_STORE_URL, PLAY_TESTING_URL } from '../lib/download';
+---
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>TechTok invitation</title>
+    <noscript><meta http-equiv="refresh" content={`0; url=${PLAY_TESTING_URL}`} /></noscript>
+  </head>
+  <body>
+    <p><a href={PLAY_STORE_URL}>Google Play</a> · <a href={PLAY_TESTING_URL}>Play testing</a></p>
+    <script>
+      import { playInviteUrl } from '../lib/download';
+
+      window.location.replace(playInviteUrl(navigator.userAgent));
+    </script>
+  </body>
+</html>

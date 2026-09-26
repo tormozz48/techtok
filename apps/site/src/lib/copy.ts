@@ -19,10 +19,7 @@ export interface SiteStrings {
     ctaGithub: string;
   };
   mockup: {
-    topic: string;
-    headline: string;
-    snippet: string;
-    translatedBadge: string;
+    screenshots: [string, string, string, string];
   };
   features: {
     title: string;
@@ -112,10 +109,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       ctaGithub: 'View on GitHub',
     },
     mockup: {
-      topic: 'AI',
-      headline: 'New model can explain its own reasoning',
-      snippet: 'Researchers say the technique cuts hallucinations by half in early tests.',
-      translatedBadge: 'Translated',
+      screenshots: ['Science feed', 'AI feed', 'Compact reader', 'Settings'],
     },
     features: {
       title: 'Why TechTok',
@@ -264,10 +258,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       ctaGithub: 'Открыть на GitHub',
     },
     mockup: {
-      topic: 'ИИ',
-      headline: 'Новая модель объясняет собственные рассуждения',
-      snippet: 'Исследователи говорят, что методика вдвое снижает число ошибок в ранних тестах.',
-      translatedBadge: 'Перевод',
+      screenshots: ['Лента науки', 'Лента ИИ', 'Компактный ридер', 'Настройки'],
     },
     features: {
       title: 'Почему TechTok',
@@ -417,10 +408,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       ctaGithub: 'Відкрити на GitHub',
     },
     mockup: {
-      topic: 'ШІ',
-      headline: 'Нова модель пояснює власні міркування',
-      snippet: 'Дослідники кажуть, що методика вдвічі знижує кількість помилок у ранніх тестах.',
-      translatedBadge: 'Переклад',
+      screenshots: ['Стрічка науки', 'Стрічка ШІ', 'Компактний рідер', 'Налаштування'],
     },
     features: {
       title: 'Чому TechTok',
@@ -572,11 +560,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
       ctaGithub: 'Zobacz na GitHub',
     },
     mockup: {
-      topic: 'AI',
-      headline: 'Nowy model wyjaśnia własne rozumowanie',
-      snippet:
-        'Badacze twierdzą, że technika ogranicza liczbę błędów o połowę w pierwszych testach.',
-      translatedBadge: 'Tłumaczenie',
+      screenshots: ['Kanał naukowy', 'Kanał AI', 'Czytnik kompaktowy', 'Ustawienia'],
     },
     features: {
       title: 'Dlaczego TechTok',

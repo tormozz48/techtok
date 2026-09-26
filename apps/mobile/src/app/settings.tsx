@@ -16,17 +16,13 @@ import { logError, serializeError } from '@/state/eventsQueue';
 import { useHapticsStore } from '@/state/hapticsStore';
 import { useLanguageStore } from '@/state/languageStore';
 import { useMutedSourcesStore } from '@/state/mutedSourcesStore';
-import { type ThemeMode, useThemeStore } from '@/state/themeStore';
 import { useTopicsStore } from '@/state/topicsStore';
 import { createStyles } from './settings.styles';
-
-const THEME_MODES: readonly ThemeMode[] = ['system', 'light', 'dark'];
 
 export default function SettingsScreen() {
   const queryClient = useQueryClient();
   const { topics, isLoading, load, setTopics } = useTopicsStore();
   const { language, setLanguage } = useLanguageStore();
-  const { mode, setMode } = useThemeStore();
   const { enabled: hapticsEnabled, setEnabled: setHapticsEnabled } = useHapticsStore();
   const {
     mutedSources,
@@ -83,30 +79,9 @@ export default function SettingsScreen() {
     }
   };
 
-  const themeLabel = (themeMode: ThemeMode) =>
-    ({
-      system: strings.settings.themeSystem,
-      light: strings.settings.themeLight,
-      dark: strings.settings.themeDark,
-    })[themeMode];
-
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.sectionTitle}>{strings.settings.themeSectionTitle}</Text>
-      <SelectableList
-        items={THEME_MODES}
-        isSelected={(themeMode) => mode === themeMode}
-        label={themeLabel}
-        onSelect={setMode}
-        rowStyle={styles.row}
-        rowSelectedStyle={styles.rowSelected}
-        rowTextStyle={styles.rowText}
-        checkIconColor={colors.text}
-        testIDPrefix="settings-theme"
-      />
-      <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>
-        {strings.settings.languageSectionTitle}
-      </Text>
+      <Text style={styles.sectionTitle}>{strings.settings.languageSectionTitle}</Text>
       <LanguagePicker language={language} onChange={applyLanguage} />
       <List.Item
         title={strings.settings.hapticsLabel}

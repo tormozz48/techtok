@@ -1,6 +1,6 @@
-# Sign in -> skip onboarding -> open Settings -> toggle the theme, toggle a
-# topic, mute a source. Exercises PUT /v1/me/topics (again, via the settings
-# path this time), PUT /v1/me/muted-sources, and the local-only theme store.
+# Sign in -> skip onboarding -> open Settings -> toggle a topic, mute a
+# source. Exercises PUT /v1/me/topics (again, via the settings path this
+# time) and PUT /v1/me/muted-sources.
 appId: ${APP_ID}
 ---
 - runFlow: ../subflows/_signIn.yaml
@@ -15,16 +15,8 @@ appId: ${APP_ID}
 - tapOn:
     id: "action-bar-settings"
 - assertVisible:
-    id: "settings-theme-dark"
+    id: "settings-topic-ai"
 
-- tapOn:
-    id: "settings-theme-dark"
-# Theming re-renders the whole screen tree; a plain tapOn can fire mid
-# re-render and miss the element (observed as "Element not found" in CI).
-- extendedWaitUntil:
-    visible:
-      id: "settings-topic-ai"
-    timeout: 10000
 - tapOn:
     id: "settings-topic-ai"
 

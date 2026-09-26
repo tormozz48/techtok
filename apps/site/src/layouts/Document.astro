@@ -147,7 +147,7 @@ const canonicalUrl = new URL(withBase(subpath), siteOrigin).href;
     margin-bottom: var(--space-2);
   }
 
-  .doc a {
+  .doc a:not(.button) {
     color: var(--amber);
     text-underline-offset: 3px;
   }

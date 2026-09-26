@@ -14,6 +14,7 @@ const { lang } = Astro.props;
 const copy = SITE_COPY[lang].tester;
 const qr = await qrSvg(PLAY_TESTING_URL);
 const mailHref = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(copy.mailSubject)}&body=${encodeURIComponent(copy.mailBody)}`;
+const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
 ---
 
 <Document
@@ -52,14 +53,74 @@ const mailHref = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(copy.mail
     <div class="qr-frame" set:html={qr} />
     <div>
       <p class="tester-qr-hint">{copy.qrHint}</p>
-      <div class="tester-actions">
+      <form class="tester-signup-form" data-tester-signup-form>
+        <label class="tester-signup-label" for="tester-email">{copy.emailFormLabel}</label>
+        <input
+          id="tester-email"
+          name="email"
+          type="email"
+          required
+          placeholder={copy.emailFormPlaceholder}
+          class="tester-signup-input"
+        />
+        <button type="submit" class="button button-primary">{copy.ctaEmail}</button>
+        <p class="tester-signup-status" data-tester-signup-status role="status"></p>
+      </form>
+      <noscript>
         <a class="button button-primary" href={mailHref}>{copy.ctaEmail}</a>
+      </noscript>
+      <div class="tester-actions">
         <a class="button button-secondary" href={PLAY_TESTING_URL} rel="noopener">
           {copy.ctaOptIn}
         </a>
       </div>
     </div>
   </div>
+
+  <script
+    is:inline
+    define:vars={{
+      apiUrl: apiUrl,
+      invalidMessage: copy.emailFormInvalid,
+      successMessage: copy.emailFormSuccess,
+      alreadyMessage: copy.emailFormAlready,
+      errorMessage: copy.emailFormError,
+    }}
+  >
+    const form = document.querySelector('[data-tester-signup-form]');
+    const status = document.querySelector('[data-tester-signup-status]');
+
+    if (form && status) {
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const email = new FormData(form).get('email');
+        if (typeof email !== 'string' || !email.includes('@')) {
+          status.textContent = invalidMessage;
+          return;
+        }
+
+        const submitButton = form.querySelector('button[type="submit"]');
+        if (submitButton) submitButton.disabled = true;
+        status.textContent = '';
+
+        try {
+          const response = await fetch(`${apiUrl}/v1/testers`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ email }),
+          });
+          if (!response.ok) throw new Error(`status ${response.status}`);
+          const body = await response.json();
+          status.textContent = body.status === 'already_added' ? alreadyMessage : successMessage;
+          form.reset();
+        } catch {
+          status.textContent = errorMessage;
+        } finally {
+          if (submitButton) submitButton.disabled = false;
+        }
+      });
+    }
+  </script>
 
   <h2>{copy.perksTitle}</h2>
   <p>{copy.perksBody}</p>
@@ -127,6 +188,37 @@ const mailHref = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(copy.mail
 
   .tester-qr-hint {
     margin: 0 0 var(--space-3);
+  }
+
+  .tester-signup-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    margin: 0 0 var(--space-3);
+  }
+
+  .tester-signup-label {
+    flex-basis: 100%;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+  }
+
+  .tester-signup-input {
+    flex: 1 1 14rem;
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--navy-elevated);
+    color: var(--text);
+    font-size: 0.9375rem;
+  }
+
+  .tester-signup-status {
+    flex-basis: 100%;
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
   }
 
   .tester-actions {

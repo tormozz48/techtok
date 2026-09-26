@@ -107,3 +107,104 @@ describe('createPlayApiClientWithTokenProvider', () => {
     });
   });
 });
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status });
+}
+
+function createFetchMock(responses: Response[]) {
+  return vi.fn(
+    async (_url: string, _init?: RequestInit) => responses.shift() ?? jsonResponse({}, 500),
+  );
+}
+
+describe('createPlayApiClientWithTokenProvider.addTester', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('adds a new email and verifies it after commit', async () => {
+    const responses = [
+      jsonResponse({ id: 'edit-1' }),
+      jsonResponse({ googleEmails: ['existing@example.com'] }),
+      jsonResponse({}),
+      jsonResponse({}),
+      jsonResponse({ id: 'edit-2' }),
+      jsonResponse({ googleEmails: ['existing@example.com', 'new@example.com'] }),
+    ];
+    const fetchMock = createFetchMock(responses);
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = createPlayApiClientWithTokenProvider(tokenProvider, PACKAGE_NAME);
+    await expect(client.addTester('alpha', 'new@example.com')).resolves.toEqual({ added: true });
+
+    expect(fetchMock).toHaveBeenCalledTimes(6);
+    const putInit = fetchMock.mock.calls[2]?.[1] as RequestInit;
+    expect(putInit).toMatchObject({ method: 'PUT' });
+    expect(JSON.parse(putInit.body as string)).toEqual({
+      googleEmails: ['existing@example.com', 'new@example.com'],
+    });
+  });
+
+  it('returns added: false without writing when the email is already on the track', async () => {
+    const responses = [
+      jsonResponse({ id: 'edit-1' }),
+      jsonResponse({ googleEmails: ['already@example.com'] }),
+    ];
+    const fetchMock = createFetchMock(responses);
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = createPlayApiClientWithTokenProvider(tokenProvider, PACKAGE_NAME);
+    await expect(client.addTester('alpha', 'already@example.com')).resolves.toEqual({
+      added: false,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries a full edit cycle once if verification shows the email missing', async () => {
+    const responses = [
+      jsonResponse({ id: 'edit-1' }),
+      jsonResponse({ googleEmails: [] }),
+      jsonResponse({}),
+      jsonResponse({}),
+      jsonResponse({ id: 'edit-2' }),
+      jsonResponse({ googleEmails: [] }),
+      jsonResponse({ id: 'edit-3' }),
+      jsonResponse({ googleEmails: [] }),
+      jsonResponse({}),
+      jsonResponse({}),
+      jsonResponse({ id: 'edit-4' }),
+      jsonResponse({ googleEmails: ['new@example.com'] }),
+    ];
+    const fetchMock = createFetchMock(responses);
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = createPlayApiClientWithTokenProvider(tokenProvider, PACKAGE_NAME);
+    await expect(client.addTester('alpha', 'new@example.com')).resolves.toEqual({ added: true });
+    expect(fetchMock).toHaveBeenCalledTimes(12);
+  });
+
+  it('throws once verification keeps failing after the last retry', async () => {
+    const responses = [
+      jsonResponse({ id: 'edit-1' }),
+      jsonResponse({ googleEmails: [] }),
+      jsonResponse({}),
+      jsonResponse({}),
+      jsonResponse({ id: 'edit-2' }),
+      jsonResponse({ googleEmails: [] }),
+      jsonResponse({ id: 'edit-3' }),
+      jsonResponse({ googleEmails: [] }),
+      jsonResponse({}),
+      jsonResponse({}),
+      jsonResponse({ id: 'edit-4' }),
+      jsonResponse({ googleEmails: [] }),
+    ];
+    const fetchMock = createFetchMock(responses);
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = createPlayApiClientWithTokenProvider(tokenProvider, PACKAGE_NAME);
+    await expect(client.addTester('alpha', 'new@example.com')).rejects.toThrow(
+      'Play Developer API did not retain the added tester after commit',
+    );
+  });
+});

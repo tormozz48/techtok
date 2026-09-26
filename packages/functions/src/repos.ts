@@ -5,7 +5,6 @@ import {
   createSqsClient,
   PostsRepo,
   SourcesRepo,
-  TestersRepo,
   TranslateQueue,
   UserActivityRepo,
   UsersRepo,
@@ -22,8 +21,6 @@ export const getUsersRepo = lazy(() => new UsersRepo(getSqlClient()));
 export const getUserActivityRepo = lazy(() => new UserActivityRepo(getSqlClient()));
 
 export const getSourcesRepo = lazy(() => new SourcesRepo(getSqlClient()));
-
-export const getTestersRepo = lazy(() => new TestersRepo(getSqlClient()));
 
 export const getSourceWeightsCache = lazy(() => createSourceWeightsCache(getSourcesRepo()));
 

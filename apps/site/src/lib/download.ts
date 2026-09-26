@@ -6,3 +6,4 @@ export const AUTHOR_LINKEDIN_URL = 'https://www.linkedin.com/in/andrii-kuznietso
 
 export const APK_DOWNLOAD_URL = `${RELEASES_URL}/latest/download/techtok.apk`;
 export const PLAY_TESTING_URL = 'https://play.google.com/apps/testing/com.tormozz48dev.techtok';
+export const TESTER_GROUP_URL = 'https://groups.google.com/g/techtok-testers';

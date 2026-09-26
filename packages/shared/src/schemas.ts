@@ -135,16 +135,6 @@ export const mutedSourcesRequestSchema = z.object({
 });
 export type MutedSourcesRequest = z.infer<typeof mutedSourcesRequestSchema>;
 
-export const testerSignupRequestSchema = z.object({
-  email: z.string().email().max(254),
-});
-export type TesterSignupRequest = z.infer<typeof testerSignupRequestSchema>;
-
-export const testerSignupResponseSchema = z.object({
-  status: z.enum(['added', 'queued']),
-});
-export type TesterSignupResponse = z.infer<typeof testerSignupResponseSchema>;
-
 export const readsRequestSchema = z.object({
   postIds: z.array(z.string()).min(1).max(100),
 });

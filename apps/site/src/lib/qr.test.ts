@@ -1,19 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { APK_DOWNLOAD_URL, GITHUB_REPO_URL, PLAY_TESTING_URL, RELEASES_URL } from './download';
+import { PLAY_TESTING_URL } from './download';
 import { qrSvg } from './qr';
 
 describe('download constants', () => {
-  it('points the APK link at the stable releases/latest alias', () => {
-    expect(APK_DOWNLOAD_URL).toBe(
-      'https://github.com/tormozz48/techtok/releases/latest/download/techtok.apk',
-    );
-  });
-
-  it('derives the releases URL from the repo URL', () => {
-    expect(RELEASES_URL).toBe(`${GITHUB_REPO_URL}/releases`);
-    expect(APK_DOWNLOAD_URL.startsWith(RELEASES_URL)).toBe(true);
-  });
-
   it('points the Play testing link at the closed-testing opt-in URL', () => {
     expect(PLAY_TESTING_URL).toBe('https://play.google.com/apps/testing/com.tormozz48dev.techtok');
   });

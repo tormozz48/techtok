@@ -345,3 +345,7 @@ No long-lived AWS keys anywhere — every AWS-touching job assumes a role via OI
 | Variable | Used by | Notes |
 |---|---|---|
 | `PRODUCTION_API_URL` | `mobile-changes`, Mobile build, Mobile release | The production API Gateway base URL, baked into every APK/AAB/OTA bundle as `EXPO_PUBLIC_API_URL`. A **variable**, not a secret: it is public by construction (extractable from any shipped APK), secrets can't be referenced in a job-level `if:`, and log masking would reduce the guard's error message to `***`. Replacing the old workflow output with it is what lets the mobile chain run in parallel with the deploy (D100). `mobile-changes` fails the mobile chain when it's unset; `Deploy production` warns when it no longer matches what it just deployed. |
+
+## License
+
+Source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE): anyone may read, run, modify and share the code for any noncommercial purpose; commercial use needs separate permission from the author. `apps/mobile/LICENSE` is the Expo project template's MIT notice and covers only the parts of `apps/mobile` that come from that template.

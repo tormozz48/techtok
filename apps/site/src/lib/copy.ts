@@ -150,7 +150,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
     footer: {
       tagline: 'TechTok — tech & science news, swiped.',
       sourceCode: 'Source code',
-      license: 'MIT licensed',
+      license: 'PolyForm Noncommercial License',
       privacy: 'Privacy',
       deleteAccount: 'Delete account',
       tester: 'Become a tester',
@@ -283,7 +283,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
     footer: {
       tagline: 'TechTok — новости технологий и науки одним движением.',
       sourceCode: 'Исходный код',
-      license: 'Лицензия MIT',
+      license: 'Лицензия PolyForm Noncommercial',
       privacy: 'Конфиденциальность',
       deleteAccount: 'Удаление аккаунта',
       tester: 'Стать тестировщиком',
@@ -418,7 +418,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
     footer: {
       tagline: 'TechTok — новини технологій і науки одним рухом.',
       sourceCode: 'Початковий код',
-      license: 'Ліцензія MIT',
+      license: 'Ліцензія PolyForm Noncommercial',
       privacy: 'Конфіденційність',
       deleteAccount: 'Видалення облікового запису',
       tester: 'Стати тестувальником',
@@ -551,7 +551,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
     footer: {
       tagline: 'TechTok — wiadomości technologiczne i naukowe w jednym geście.',
       sourceCode: 'Kod źródłowy',
-      license: 'Licencja MIT',
+      license: 'Licencja PolyForm Noncommercial',
       privacy: 'Prywatność',
       deleteAccount: 'Usuwanie konta',
       tester: 'Zostań testerem',

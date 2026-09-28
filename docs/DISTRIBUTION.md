@@ -1,302 +1,193 @@
 # Distributing TechTok
 
-Two distribution stories now coexist, and this document covers both:
+TechTok ships to Android through **Google Play**. Every mobile-relevant merge
+to `main` builds two artifacts in CI, both pointed at the production API:
 
-- **Phase 5, friends:** an installable Android APK via EAS internal
-  distribution — no Play Store listing, no review process. One-time
-  per-maintainer setup, then a link you can send.
-- **Phase 23, public:** a Play Store AAB, built and submitted by CI. D67/D75
-  retired D1's "me + friends" scope; the Play listing is now the target, and
-  the friends APK survives as the `preview` channel alongside it.
+- an **AAB** (`eas.json` `production` profile), published to Play's
+  **`internal`** track and its **`alpha`** closed-testing track (D98, D116) —
+  what testers install;
+- an **APK** (`preview` profile), attached to a GitHub Release for
+  sideloading.
 
-Three build paths are supported, all on the Expo **free** tier:
+Either way, the app needs a Google account: sign-in is mandatory (D68).
+Builds happen only in [CI](#ci-builds), never on a laptop; the local Gradle
+path at the end of this document is an offline fallback, not the one in use.
 
-- **Automated CI builds → GitHub Releases** (recommended, unmetered) — every push
-  to `main` (and manual runs) builds an APK in GitHub Actions with
-  `eas build --local` and attaches it to a GitHub Release. See
-  [Automated CI builds](#automated-ci-builds-recommended) just below.
-- **Manual EAS internal distribution** — `eas build` on Expo's cloud, quickest
-  for a one-off link (spends your 15/mo free cloud-build credits). See
-  [One-time setup](#one-time-setup-maintainer) below.
-- **No-EAS local Gradle build for the Google Play Store** — see
-  [Building & publishing without EAS](#building--publishing-without-eas-local-gradle--google-play)
-  at the end.
+## Installing as a tester (Google Play closed test)
 
-## Automated CI builds (recommended)
+Testers enroll through the public Google Group
+**`techtok-testers@googlegroups.com`**, which is the `alpha` track's tester
+list (D115). [techtokapp.eu/test/](https://techtokapp.eu/test/) walks them
+through these steps in all four languages, with a button and a QR code for
+each link; the landing page shows the same QR codes.
 
-`.github/workflows/mobile-build.yml` builds an installable Android APK on every
-push to `main` that touches the app (and on manual **Run workflow**), then
-attaches it to a **GitHub Release**. Friends install by downloading `techtok.apk`
-from the release page — no Play Store, no per-build link to generate by hand.
+1. On the Android phone, open <https://groups.google.com/g/techtok-testers>
+   signed in with the phone's Google account and tap **Join group**. Only
+   group members can join the test.
+2. Open the Play testing invitation,
+   <https://play.google.com/apps/testing/com.tormozz48dev.techtok>, and accept
+   it.
+3. Install TechTok from its Play Store page. Play delivers updates from then
+   on.
+4. Open the app and **sign in with Google** — there is no anonymous mode.
+   Every API route except `GET /v1/topics` and `GET /v1/sources` requires a
+   Google ID token, and read state, bookmarks, topic preferences, muted
+   sources, language and plan are all keyed to the Google account
+   (`users.external_id = "g:" + sub`, DESIGN §5), so they carry over to
+   another phone or a reinstall. Signing out clears the app's cached data and
+   locally stored preferences, except the theme and haptics settings.
 
-### Why this dodges the free-tier build cap
+Maintainer notes:
 
-The EAS free tier includes **15 Android + 15 iOS cloud builds/month**. The
-workflow runs `eas build --local`, which compiles on the GitHub Actions runner
-instead of Expo's cloud, so it **does not consume a cloud-build credit** —
-effectively unlimited builds while staying on the free plan. (A plain `./gradlew`
-build is unmetered the same way; we use the EAS recipe here so `eas.json`
-profiles, env vars, and EAS-managed signing all apply.)
+- The track takes the group *instead of* Play Console's tester email lists —
+  the two are mutually exclusive — so anyone still on an email list has to
+  join the group to stay in the test.
+- Tester-list changes made in Play Console take effect only once they're sent
+  for review from **Publishing overview**.
+- Anyone can find and join the group, but only owners can post or see the
+  member list, so testers never see each other's addresses.
+- Play won't open production to a personal developer account until at least
+  12 testers have stayed opted in for 14 consecutive days (D75); this closed
+  test is how that requirement gets met.
 
-### One-time setup
+## Installing the sideloaded APK
 
-1. **Expo account + access token.** Create a free account, then generate a
-   personal access token at <https://expo.dev/settings/access-tokens>.
-2. **GitHub secret.** Add it as the `EXPO_TOKEN` repository secret
-   (Settings → Secrets and variables → Actions).
-3. **Establish the Android keystore on EAS** (once), so CI can sign without a
-   keystore in GitHub. From `apps/mobile/`:
+The newest APK is always at
+<https://github.com/tormozz48/techtok/releases/latest/download/techtok.apk>.
+Open that link on the phone, allow installs from unknown sources when Android
+asks, then sign in with Google as above.
 
-   ```
-   npx eas-cli credentials --platform android
-   ```
-
-   Pick the `preview` profile and let EAS generate/store a keystore. The build
-   profile's `credentialsSource` defaults to `remote`, so `eas build --local`
-   downloads it at build time using `EXPO_TOKEN`.
-
-### Getting a build
-
-- **Automatic:** merge to `main` (any change under `apps/mobile/`,
-  `packages/shared/`, or the lockfile).
-- **On demand:** GitHub → Actions → **Mobile build** → **Run workflow**.
-
-The APK lands under the repo's **Releases** as `android-build-<run#>` (marked
-pre-release). Send that release URL to a friend.
-
-### Notes & fallbacks
-
-- **Toolchain:** the job uses JDK 17 + the runner's Android SDK. Local EAS builds
-  don't manage the SDK/NDK for you, so if a first run fails on a missing NDK, add
-  an `sdkmanager "ndk;<version>"` step (the version is whatever the Expo SDK 57 /
-  RN 0.86 Gradle config requests).
-- **Local credentials instead of remote:** to avoid EAS-managed signing entirely,
-  set `"credentialsSource": "local"` on the `preview` profile, commit a
-  `credentials.json`, and have CI materialize the keystore from a base64 secret.
-  That puts the keystore in GitHub secrets — the thing remote credentials avoid —
-  so prefer the remote path above unless you have a reason.
-- **iOS:** local iOS builds need a macOS runner (`macos-latest`) plus Apple
-  signing assets; not wired up (project is Android-only, D12).
-
-## One-time setup (maintainer)
-
-1. `npx eas-cli login` (creates/uses an Expo account — free tier is enough).
-2. ~~From `apps/mobile/`, run `npx eas-cli init` to link the project.~~ **Already
-   done** — `app.json`'s `expo.extra.eas.projectId` is a real, committed
-   value, and `expo-updates` is wired up (`updates.url` points at
-   `u.expo.dev`). Only re-run `eas init` if the project is ever re-linked to
-   a different Expo account/project.
-3. Get the deployed production API URL (`aws apigatewayv2 get-apis --region
-   eu-central-1 --query "Items[?Name=='techtok-production-Api'].ApiEndpoint"`
-   or read it from the `sst deploy --stage production` CI log), then replace
-   the placeholder `EXPO_PUBLIC_API_URL` (`https://your-api-id.execute-api.eu-central-1.amazonaws.com`)
-   in both the `preview` and `production` profiles of `apps/mobile/eas.json`.
-   This has been filled in for real before (pointing at what was then the
-   `andrey`/`dev` stage) and reset back to a placeholder when that stage was
-   renamed (D17) — don't assume the committed value is live without checking.
-
-## Building an install link
-
-```
-cd apps/mobile
-npx eas-cli build --platform android --profile preview
-```
-
-This uploads a build to Expo's servers and prints a page URL
-(`https://expo.dev/accounts/<you>/projects/techtok/builds/<id>`) — that page
-has a QR code and a direct APK download link. Send either to a friend.
-
-## Installing (friend's phone)
-
-1. Open the link on the phone (not a desktop — the QR code is for scanning
-   *from* a phone you're not already on).
-2. Tap the download button; Android will warn about installing from an
-   unknown source — allow it for this file only.
-3. Open the app. It generates its own device ID on first launch, so each
-   friend automatically gets independent read state and topic prefs
-   (DESIGN §5, `X-Device-Id`) — no account needed.
+- **It can't coexist with the Play install.** Both use the application ID
+  `com.tormozz48dev.techtok` but different signing certificates — the APK is
+  signed with the `preview` profile's EAS keystore, Play installs with Play's
+  app-signing key — so Android won't install one over the other. Uninstall
+  first; nothing is lost, since the account's data lives server-side.
+- **Sign-in depends on that certificate.** Google Sign-In works in the APK
+  only if the `preview` keystore's SHA-1 is registered on the Android OAuth
+  client too (D68).
+- **It doesn't update itself** — see below.
 
 ## Updating an install
 
-Most changes now reach already-installed apps on their own, no reinstall
-needed (D60): every CI build (see [Automated CI
-builds](#automated-ci-builds-recommended) above) publishes the same JS/asset
-bundle it just compiled to the `preview` EAS Update channel. Installed apps
-check that channel on every launch (`EXPO_UPDATES_CHECK_ON_LAUNCH=ALWAYS`)
-and self-update in the background — friends see the change next time they
-open TechTok.
+- **Play installs** update through Play: every mobile-relevant merge lands a
+  new build on `internal` right away and on `alpha` once Play's review
+  passes. Nothing publishes to the `production` EAS Update channel, so
+  there are no over-the-air updates on top of that.
+- **The sideloaded APK** updates only by installing a newer APK from the link
+  above. `mobile-build` does publish each build's JS bundle to the `preview`
+  EAS Update channel, but an update only reaches installs with the same
+  `runtimeVersion`, and `mobile-version-bump` raises `runtimeVersion` on
+  every run — so each bundle matches only the APK built alongside it, never
+  one that's already installed.
 
-This only covers **JS and asset changes**. Anything that touches native code
-— a new native dependency, an `app.json` plugin/permission/icon change, an
-Expo SDK bump — still needs a fresh APK: re-run the CI build (or `eas build`
-manually) and re-share the install link, same as before OTA updates existed.
+## Rate limiting
 
-**Before any native-affecting change**, bump `runtimeVersion` by hand in both
-`apps/mobile/app.json` and the generated
-`apps/mobile/android/app/src/main/res/values/strings.xml`
-(`expo_runtime_version`) — regenerate the latter via `pnpm prebuild:android`
-and review the diff, or edit that one line directly. `runtimeVersion` isn't
-recomputed automatically — the committed `android/` project (D18) has no
-per-build prebuild step — so if it's left unbumped, the next OTA publish
-would offer already-installed friends a JS bundle their native side doesn't
-actually support.
+`infra/api.ts` sets a default route throttle (`defaultRouteSettings`) of
+**50 requests/s steady, 100 burst** — a ceiling against a client retry storm,
+well below API Gateway's account-level default. It applies to all clients
+together, not per user. Individual accounts are bounded instead by sign-in
+(every request apart from the two public catalogs is tied to a Google
+account) and, on the free plan, by the daily quota of 30 card reads and 10
+reader opens (D107).
 
-## Rate limiting (Phase 5 review)
+## CI builds
 
-API Gateway HTTP APIs default to 5,000 requests/sec steady-state / 10,000
-burst account-wide — far above anything a handful of friends' phones will
-ever produce. `infra/api.ts` sets an explicit, much lower default
-(`defaultRouteSettings`) as a sanity ceiling in case a client bug causes a
-retry storm; per-device abuse prevention is explicitly out of scope at this
-trust level (DESIGN §5).
+`ci.yml`'s main-branch pipeline runs the mobile chain when `apps/mobile`,
+`packages/shared`, `pnpm-lock.yaml` or either mobile workflow has changed
+since the newest `mobile-v*` tag, and only once `lint`, `typecheck`, `test`,
+`schema-check`, `mobile-icon-check` and `mobile-security-scan` have passed:
 
-## Automated CI builds for Google Play (recommended)
+1. **`mobile-changes`** decides whether to build, and fails the chain if the
+   `PRODUCTION_API_URL` repository variable is unset.
+2. **`mobile-version-bump`** runs `scripts/bumpMobileVersion.ts` and pushes
+   the result to `main` with `[skip ci]`: `versionCode` and `runtimeVersion`
+   go up by one on every run, and `version`/`versionName` get a
+   conventional-commit semver bump from the commits since the last tag.
+3. Then, in parallel:
+   - **`mobile-play-release`**
+     ([mobile-release.yml](../.github/workflows/mobile-release.yml)) builds
+     the `production` profile as an AAB, keeps it as the run artifact
+     `techtok-<run#>.aab`, and publishes it to `internal` and `alpha` in a
+     single Play edit (Play accepts each `versionCode` only once).
+     `internal` releases reach their testers immediately; every `alpha`
+     release goes through Play review.
+   - **`mobile-build`**
+     ([mobile-build.yml](../.github/workflows/mobile-build.yml)) builds the
+     `preview` profile as an APK, publishes the matching `preview` EAS
+     Update, attaches the APK to a GitHub Release `android-build-<run#>` with
+     release notes from the `feat:`/`fix:` commits, and tags
+     `mobile-v<version>`. The release isn't a pre-release, so
+     `releases/latest` always resolves to the newest one; `release-cleanup`
+     then keeps only the three newest `android-build-*` releases and
+     `mobile-v*` tags.
 
-`.github/workflows/mobile-release.yml` builds the `production` `eas.json`
-profile — an **AAB**, Play App Signing-ready — the same `eas build --local`
-mechanism the friends-APK workflow above uses (unmetered, no EAS cloud-build
-credit spent), just for the `production` profile instead of `preview`.
+Both builds run `eas build --local` on the GitHub runner (JDK 17 plus the
+runner's Android SDK), so they spend no EAS cloud-build credit. Both bake in
+`EXPO_PUBLIC_API_URL` from `PRODUCTION_API_URL` and
+`EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` from the `GOOGLE_OAUTH_WEB_CLIENT_ID`
+secret, and fetch their profile's signing keystore from EAS with
+`EXPO_TOKEN`.
 
-It **runs automatically** as the `mobile-play-release` job in `ci.yml`'s
-main-branch pipeline (D98), on the same `should_build` gate as the preview APK
-and **in parallel with it** (D99, which extracted the version bump into its own
-`mobile-version-bump` job so neither build waits on the other).
-`workflow_dispatch` stays available for an ad hoc rebuild. This reverses the
-original design, which was dispatch-only on the reasoning that a Play
-submission is a deliberate, infrequent action — D98 traded that for a pipeline
-that keeps the internal track continuously current.
-
-**This is the maintainer's actual build path — builds and deploys happen only
-through CI, never `./gradlew`/`eas build` run by hand on a laptop.** The local
-Gradle path documented below still works and stays as a fully-offline
-fallback, but isn't what's used day to day.
-
-### Getting a build
-
-- **Automatic:** merge to `main` with a mobile-relevant change. The API URL is
-  read from the **`PRODUCTION_API_URL` repository variable** (D100) — it is no
-  longer passed by hand, which is what lets the mobile chain run in parallel
-  with the backend `deploy-dev → e2e → deploy-production` chain instead of
-  behind it.
-- **On demand:** GitHub → Actions → **Mobile release (Play Store)** →
-  **Run workflow**, passing the production API URL as `api_url`.
-
-The run's **Artifacts** section carries `techtok-<run#>.aab`. **Submission to
-Play's `internal` track is automatic once the `PlayServiceAccountKey` secret
-exists** (D98 pulled this forward from phase 21); until it is set, the submit
-step skips cleanly and the AAB stays a downloadable artifact you upload to Play
-Console by hand.
+**On demand:** GitHub → Actions → **Mobile build** or **Mobile release (Play
+Store)** → **Run workflow**, passing the production API URL as `api_url`. A
+manual **Mobile build** bumps and pushes the version itself. A manual
+**Mobile release** bumps nothing: it builds `main`'s current `versionCode`,
+which Play rejects once an upload has used it — so it's for retrying a failed
+upload, not for shipping a new build.
 
 ### One-time setup
 
-✅ **Done.** The `production` profile has its own EAS-managed signing
-credentials, established separately from the `preview` profile's:
+All of this is in place; it's listed for re-creating it.
 
-```
-npx eas-cli credentials --platform android
-```
-
-Run it **from `apps/mobile/`, not the repo root** — from the root, `eas-cli`
-doesn't find the real project and offers to create an unrelated new one.
-Select the `production` profile and let EAS generate/store a keystore
-remotely — no keystore file, no `keystore.properties`, matching the
-CI-only build story. That keystore is the permanent Play upload key.
-
-## Building & publishing without EAS (local Gradle → Google Play)
-
-The repo keeps a committed native `android/` project (bare workflow, DESIGN §2
-D18) so you *can* build and publish entirely with the standard Android
-toolchain — no EAS, no Expo cloud build, no GitHub Actions. This is documented
-as a fully-offline fallback; **it is not the path this maintainer uses** — see
-[Automated CI builds for Google Play](#automated-ci-builds-for-google-play-recommended)
-above for the one actually in use.
-
-### Prerequisites (one time, maintainer machine)
-
-- **JDK 17** and the **Android SDK** (Android Studio, or `sdkmanager`); set
-  `ANDROID_HOME` / `ANDROID_SDK_ROOT`.
-- An **upload keystore**. With Google Play App Signing, Google holds the real
-  signing key and this is only your *upload* key — recoverable if lost:
+- **`EXPO_TOKEN`** repository secret: an access token
+  (<https://expo.dev/settings/access-tokens>) for the free Expo account that
+  owns the EAS project. `app.json` already links that project (`owner`,
+  `extra.eas.projectId`, `updates.url`), so `eas init` isn't needed.
+- **EAS-managed keystores** for the `preview` and `production` profiles,
+  created with `npx eas-cli credentials --platform android` run **from
+  `apps/mobile/`** — from the repo root, `eas-cli` doesn't find the project
+  and offers to create an unrelated new one. Both profiles keep the default
+  `credentialsSource: remote`, so no keystore lives in GitHub. The
+  `production` keystore is the permanent Play **upload key**.
+- **`PlayServiceAccountKey`** repository secret: a Google Cloud service
+  account key with Play Developer API access. Without it the publish step
+  skips and the AAB stays a downloadable artifact.
+- **`PRODUCTION_API_URL`** repository variable: the production API Gateway
+  base URL. Read it from the latest **Deploy production** run, or look it up:
 
   ```
-  keytool -genkeypair -v -keystore ~/keys/techtok-upload.keystore -alias techtok -keyalg RSA -keysize 2048 -validity 10000
+  aws apigatewayv2 get-apis --region eu-central-1 --query "Items[?starts_with(Name, 'techtok-production-')].ApiEndpoint" --output text
   ```
 
-  Keep the file **outside** the repo. Then copy
-  `apps/mobile/android/keystore.properties.example` →
-  `apps/mobile/android/keystore.properties` (gitignored) and fill in the
-  absolute `storeFile` path and passwords. `android/app/build.gradle` reads this
-  for the `release` signing config and falls back to the debug key when absent.
+The remaining secrets these workflows read (`GOOGLE_OAUTH_WEB_CLIENT_ID`, the
+optional `SENTRY_AUTH_TOKEN`) are in the README's
+[secrets table](../README.md#required-repository-secrets).
 
-### Regenerating the native project
+iOS isn't wired up: the app is tested on Android only (D12), and an iOS build
+would need a macOS runner plus Apple signing assets.
 
-`android/` is committed, so you normally don't touch it. If you change
-`app.json` (icons, plugins, package name) or bump the Expo SDK, regenerate and
-review the diff:
+## Google Play Console
 
-```
-cd apps/mobile && pnpm prebuild:android
-```
-
-Signing is external (`keystore.properties`), so it survives regeneration.
-
-### Building the release artifact
-
-The release JS bundle embeds `EXPO_PUBLIC_API_URL` from `apps/mobile/.env` (or
-the shell env). Make sure it points to the **production** API before a store
-build.
-
-```
-cd apps/mobile && pnpm build:android
-```
-
-- Output: `apps/mobile/android/app/build/outputs/bundle/release/app-release.aab`
-  (an **AAB**, which is what Play requires for new apps).
-- `pnpm build:android:apk` instead produces a sideloadable APK for quick device
-  testing (not for Play).
-- `versionCode`/`versionName` in `android/app/build.gradle` are kept in sync
-  automatically by CI — by the **`mobile-version-bump` job inside
-  [ci.yml](../.github/workflows/ci.yml)**, which runs `scripts/bumpMobileVersion.ts`
-  (there is no `mobile-version.yml` workflow file; D35's original one was
-  retired and the logic moved, D41→D44, then extracted into its own job by
-  D99). Every mobile-relevant merge to `main` bumps `app.json`'s canonical
-  `version` from conventional-commit messages and propagates it here.
-  **`versionCode` and `runtimeVersion` bump unconditionally on every native
-  rebuild** (D101 — incrementing whatever is already in the tree, rather than
-  deriving from the last `mobile-v*` tag), precisely because Play rejects a
-  re-used `versionCode` even when the semver didn't move. Before uploading by
-  hand, `git pull` and confirm `versionCode` has advanced since your last Play
-  release; don't bump it manually unless the auto-bump genuinely hasn't run.
-
-### Publishing to Google Play (first time)
-
-1. ✅ Register a Play Console developer account (**$25 one-time fee**) —
-   done, identity verification (KYC) passed.
-2. Create the app. Its `applicationId` is `com.tormozz48dev.techtok` and can
-   **never change** after the first upload — this is the final package name
-   (D75b: keeping the `.dev` suffix was a deliberate call, not an oversight —
-   it's visible only in the Play URL and Android's app-info screen, never in
-   the listing itself, and a rename would cost an `expo prebuild`
-   regeneration of the committed `android/` project for purely cosmetic gain).
-3. Enable **Play App Signing** (Google-managed). Upload the `.aab` signed with
-   your upload key; Google re-signs with the real key.
-4. Complete the required forms: store listing, content rating, **Data safety**
-   (the answer key, traced field-by-field to the code, is
-   [docs/DATA_SAFETY.md](DATA_SAFETY.md)), target audience, and a **privacy
-   policy URL** (mandatory) — `https://techtokapp.eu/privacy/`, served from
-   `apps/site/src/pages/privacy.astro`. Play also wants a web
-   account-deletion URL reachable without installing the app:
-   `https://techtokapp.eu/delete-account/`.
-5. Create a release on a track — start with **Internal testing** (instant, up to
-   100 tester emails), then promote to Closed/Open/Production. Upload the `.aab`
-   and roll out.
-
-Subsequent releases (via the CI path above): nothing to dispatch — a
-mobile-relevant merge to `main` builds the AAB and, once
-`PlayServiceAccountKey` is set, submits it to the `internal` track on its own
-(D98). Only if you are uploading by hand: `git pull`, confirm `versionCode`
-has advanced (D101 bumps it on every native rebuild), then download the `.aab`
-from the run's artifacts and upload it.
+- The app is `com.tormozz48dev.techtok`; an `applicationId` can never change
+  after the first upload.
+- **Play App Signing** is on: Google re-signs every upload with its
+  app-signing key, so the upload key never reaches devices. Google Sign-In in
+  Play installs therefore needs the **app-signing key's** SHA-1 on the
+  Android OAuth client — not the upload key's (D68). Play Console lists both
+  certificates with the app-signing settings.
+- Tracks in use: `internal` (review-free, the maintainer's device) and
+  `alpha` (the [closed test](#installing-as-a-tester-google-play-closed-test)).
+  Production needs the 12-testers-for-14-days requirement met first.
+- The listing needs a store listing, content rating, target audience, **Data
+  safety** (the answer key, traced field-by-field to the code, is
+  [docs/DATA_SAFETY.md](DATA_SAFETY.md)), a **privacy policy URL** —
+  `https://techtokapp.eu/privacy/`, served from
+  `apps/site/src/pages/privacy.astro` — and a web account-deletion URL
+  reachable without installing the app:
+  `https://techtokapp.eu/delete-account/`.
+- To upload by hand (a local build, or a CI artifact whose automatic upload
+  failed): open the track in Play Console, create a new release, and upload
+  the `.aab`. Its `versionCode` must be higher than any Play has accepted.
 
 ### Store listing assets
 
@@ -306,20 +197,75 @@ one per listing language (`en`/`ru`/`uk`/`pl`), each alongside the SVG it was
 rendered from. Upload the matching language's PNG under **Main store listing →
 Graphics** for each locale you publish.
 
-Screenshots are *not* committed: Play wants real device captures, and this
-repo's environment has no Android tooling. Capture at least two phone
-screenshots on a device before the listing can be submitted.
+Phone screenshots for the listing (Play wants at least two) aren't committed;
+capture them on a device.
+
+## Building & publishing without EAS (local Gradle → Google Play)
+
+The repo keeps a committed native `android/` project (bare workflow, DESIGN §2
+D18) so you *can* build and publish entirely with the standard Android
+toolchain — no EAS, no Expo cloud build, no GitHub Actions. This is an
+offline fallback; **it is not the path this maintainer uses** — see
+[CI builds](#ci-builds) above for the one actually in use.
+
+### Prerequisites (one time, maintainer machine)
+
+- **JDK 17** and the **Android SDK** (Android Studio, or `sdkmanager`); set
+  `ANDROID_HOME` / `ANDROID_SDK_ROOT`.
+- **The Play upload key.** Play accepts only uploads signed with the upload
+  key it has on record — the EAS-managed `production` keystore CI signs with.
+  Download it with `npx eas-cli credentials --platform android` (from
+  `apps/mobile/`, `production` profile) and keep the file **outside** the
+  repo. Then copy `apps/mobile/android/keystore.properties.example` →
+  `apps/mobile/android/keystore.properties` (gitignored) and fill in the
+  absolute `storeFile` path, the key alias and the passwords.
+  `android/app/build.gradle` reads this for the `release` signing config and
+  falls back to the debug key when absent. A newly generated keystore (the
+  `keytool` command in the example file) is accepted only after an
+  upload-key reset in Play Console.
+
+### Changing the native project
+
+`android/` is committed and maintained by hand. **Don't run
+`pnpm prebuild:android` to pick up an `app.json` plugin or native-module
+change** (D107): it regenerates `android/` from scratch, reverting every
+customization committed there — the Sentry Gradle plugin, the
+`keystore.properties` release signing config, the `android.debuggableVariants`
+hook the Maestro E2E build needs, the Gradle tuning — and resets
+`versionCode` to 1, which makes every later Play upload fail. Make the native
+edits by hand and keep the `app.json` plugin entry as the record of them.
+
+### Building the release artifact
+
+The release JS bundle embeds `EXPO_PUBLIC_API_URL` and
+`EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` from `apps/mobile/.env` (or the shell env).
+Point the first at the **production** API (see the lookup under
+[One-time setup](#one-time-setup)) and set the second to the Google OAuth web
+client ID, or sign-in fails in the build.
+
+```
+cd apps/mobile && pnpm build:android
+```
+
+- Both `build:android` and `build:android:apk` run the `check-api-url` guard
+  (`scripts/checkProductionApiUrl.ts`) first, which refuses an unset URL, the
+  placeholder `https://your-api-id.execute-api.eu-central-1.amazonaws.com`,
+  and anything not shaped like an `eu-central-1` API Gateway URL. Shape
+  can't tell `dev` from `production`, so check the URL it prints.
+- Output: `apps/mobile/android/app/build/outputs/bundle/release/app-release.aab`
+  (an **AAB**, which is what Play requires for new apps).
+- `pnpm build:android:apk` instead produces a sideloadable APK for quick device
+  testing (not for Play).
+- **Bump `versionCode` by hand before uploading.** CI uploads every AAB it
+  builds, so the `versionCode` on `main` (`android/app/build.gradle`) has
+  normally been used already, and Play rejects a reused one. Commit the bump
+  so CI's next increment continues past it.
 
 ### Caveats specific to this app
 
 - **OTA updates** (`expo-updates`; `app.json` → `updates.url`) point at EAS
-  Update. A non-EAS store build simply never fetches OTA updates — ship changes
-  as new store builds. To drop the dependency entirely, remove the `updates`
-  block and `expo-updates`.
-- **No push notifications.** The Phase 5 daily-digest push feature
-  (`expo-notifications`, an Expo-push-token field on `Users`, a settings
-  toggle) was built, then fully retired end-to-end (D29) — there's nothing
-  to configure here. If push is ever rebuilt, it would need its own FCM
-  setup for a non-EAS build (register an FCM sender, `google-services.json`,
-  hand the FCM key to Expo's push service) the same way this note used to
-  describe.
+  Update. A non-EAS store build never receives OTA updates — ship changes as
+  new store builds.
+- **No push notifications.** The app has no push integration, so there's
+  nothing to configure. Adding push later would need its own FCM setup for a
+  non-EAS build (an FCM sender and `google-services.json`).

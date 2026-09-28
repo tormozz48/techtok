@@ -81,7 +81,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
     meta: {
       title: 'TechTok — Tech & Science News, Swiped',
       description:
-        'TechTok turns tech & science news into a TikTok-style swipeable feed — condensed by AI, translated into your language, no account needed.',
+        'TechTok turns tech & science news into a TikTok-style swipeable feed — condensed by AI and translated into your language. Sign in with Google to start swiping.',
     },
     nav: {
       features: 'Features',
@@ -126,8 +126,9 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
           description: 'Save what matters and pick up your reading history later.',
         },
         {
-          title: 'No account needed',
-          description: 'Your reading history, bookmarks, and preferences just follow your device.',
+          title: 'Synced across devices',
+          description:
+            'Sign in with Google — your reading history, bookmarks, and preferences follow your account.',
         },
       ],
     },
@@ -214,7 +215,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
     meta: {
       title: 'TechTok — новости технологий и науки одним движением',
       description:
-        'TechTok превращает новости технологий и науки в вертикальную ленту в стиле TikTok — карточки сокращает ИИ, переводит на ваш язык, без регистрации.',
+        'TechTok превращает новости технологий и науки в вертикальную ленту в стиле TikTok — карточки сокращает ИИ и переводит на ваш язык. Войдите через Google, чтобы начать.',
     },
     nav: {
       features: 'Возможности',
@@ -259,8 +260,9 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
           description: 'Сохраняйте важное и возвращайтесь к прочитанному позже.',
         },
         {
-          title: 'Без регистрации',
-          description: 'История чтения, закладки и настройки просто хранятся на вашем устройстве.',
+          title: 'Синхронизация между устройствами',
+          description:
+            'Войдите через Google — история чтения, закладки и настройки сохранятся в вашем аккаунте.',
         },
       ],
     },
@@ -347,7 +349,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
     meta: {
       title: 'TechTok — новини технологій і науки одним рухом',
       description:
-        'TechTok перетворює новини технологій і науки на вертикальну стрічку у стилі TikTok — картки скорочує ШІ, перекладає на вашу мову, без реєстрації.',
+        'TechTok перетворює новини технологій і науки на вертикальну стрічку у стилі TikTok — картки скорочує ШІ й перекладає на вашу мову. Увійдіть через Google, щоб почати.',
     },
     nav: {
       features: 'Можливості',
@@ -393,9 +395,9 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
           description: 'Зберігайте важливе і повертайтеся до прочитаного пізніше.',
         },
         {
-          title: 'Без реєстрації',
+          title: 'Синхронізація між пристроями',
           description:
-            'Історія читання, закладки та налаштування просто зберігаються на вашому пристрої.',
+            'Увійдіть через Google — історія читання, закладки та налаштування збережуться у вашому обліковому записі.',
         },
       ],
     },
@@ -482,7 +484,7 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
     meta: {
       title: 'TechTok — wiadomości technologiczne i naukowe w jednym geście',
       description:
-        'TechTok zamienia wiadomości technologiczne i naukowe w przewijany kanał w stylu TikToka — karty skraca AI, tłumaczy na Twój język, bez konta.',
+        'TechTok zamienia wiadomości technologiczne i naukowe w przewijany kanał w stylu TikToka — karty skraca AI i tłumaczy na Twój język. Zaloguj się przez Google, aby zacząć.',
     },
     nav: {
       features: 'Funkcje',
@@ -526,9 +528,9 @@ export const SITE_COPY: Record<Language, SiteStrings> = {
           description: 'Zapisuj to, co ważne, i wracaj do przeczytanego później.',
         },
         {
-          title: 'Bez konta',
+          title: 'Synchronizacja między urządzeniami',
           description:
-            'Historia czytania, zakładki i preferencje zostają po prostu na Twoim urządzeniu.',
+            'Zaloguj się przez Google — historia czytania, zakładki i preferencje zostaną zapisane na Twoim koncie.',
         },
       ],
     },

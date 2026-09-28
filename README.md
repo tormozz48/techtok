@@ -2,7 +2,7 @@
 
 TechTok turns tech & science news into a TikTok-style swipeable feed. Articles are pulled in automatically, condensed into short cards with an LLM, and translated into your language — swipe through headlines, tap into a full compact article when one grabs you, and bookmark the rest for later. Sign in with Google and your read history, bookmarks, and preferences follow you across devices.
 
-This README covers running, developing, and deploying the project day to day. Architecture rationale and decision history live in [CLAUDE.md](CLAUDE.md), [docs/DESIGN.md](docs/DESIGN.md), and [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md). The public site — topics, sources, release history, APK download — is at [techtokapp.eu](https://techtokapp.eu/) (`apps/site`).
+This README covers running, developing, and deploying the project day to day. Architecture rationale and decision history live in [CLAUDE.md](CLAUDE.md), [docs/DESIGN.md](docs/DESIGN.md), and [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md). The public site — topics, sources, release history, the tester recruitment page and QR codes, and the privacy and account-deletion pages — is at [techtokapp.eu](https://techtokapp.eu/) (`apps/site`).
 
 **Status:** phases 0–20 and 24 are code complete; the backend runs on both the `dev` and `production` stages. The current front is the **free-first public Play launch** (phase 23, D75) — store listing, legal surface, and the 14-day closed-test clock run against the app as it exists today. Play Billing (21) and the paid extended compact (22) ship as later store updates. CLAUDE.md has the phase-by-phase table and what's maintainer-gated.
 
@@ -332,9 +332,9 @@ Two chains run in parallel (D100). The backend chain gates each step on the last
 | `AWS_E2E_ROLE_ARN` | E2E, Mobile emulator E2E | OIDC, read/invoke only — never grant it write/deploy |
 | `NEON_DATABASE_URL_DEV_DIRECT` | Deploy dev, E2E | Direct (non-pooled) `dev` connection string; runs `pnpm db:migrate` (D92) and backs E2E's source-freshness assertion (D97). Distinct from the pooled `NeonDatabaseUrl` `sst.Secret` the Lambdas link at runtime |
 | `NEON_DATABASE_URL_PRODUCTION_DIRECT` | Deploy production | Same, for `production`; never exposed to E2E |
-| `GOOGLE_OAUTH_WEB_CLIENT_ID` | both deploys, Mobile build | Not sensitive; without it every ID token fails on audience mismatch |
+| `GOOGLE_OAUTH_WEB_CLIENT_ID` | both deploys, Mobile build, Mobile release | Not sensitive; without it every ID token fails on audience mismatch |
 | `EXPO_TOKEN` | Mobile build, Mobile release | Free Expo account; also supplies the signing credentials |
-| `SENTRY_AUTH_TOKEN` | Mobile build | Optional — its absence just skips the source-map/symbol upload |
+| `SENTRY_AUTH_TOKEN` | Mobile build, Mobile release | Optional — its absence just skips the source-map/symbol upload |
 | `PlayServiceAccountKey` | Mobile release, Deploy dev, Deploy production | Google Cloud service account JSON with Play Developer API access (D71); absent, the Play upload is skipped and the AAB stays a downloadable artifact. Both deploy workflows also set it as the SST runtime secret `POST /v1/billing/play/verify` reads (see [Backend](#backend-aws-via-sst)), from this same repository secret — one credential, no separate manual step needed once it's set here |
 | `GOOGLE_TEST_REFRESH_TOKEN`, `GOOGLE_OAUTH_WEB_CLIENT_SECRET` | E2E, Mobile emulator E2E | The authenticated suites skip cleanly until these exist |
 
